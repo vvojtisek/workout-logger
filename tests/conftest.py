@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 os.environ.setdefault("API_KEY", "test-api-key-with-at-least-32-characters")
 os.environ.setdefault("APP_ENV", "test")
+os.environ.setdefault("PUBLIC_BASE_URL", "https://fitness.example.test")
 
 _app_db_fd, _APP_DB_PATH = tempfile.mkstemp(suffix=".db")
 os.close(_app_db_fd)

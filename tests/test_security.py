@@ -36,6 +36,17 @@ async def test_protected_endpoint_with_correct_key_succeeds(client, auth_headers
     assert response.status_code == 200
 
 
+async def test_action_alias_without_key_returns_401(client):
+    response = await client.get("/workout-plans")
+    assert response.status_code == 401
+
+
+async def test_action_alias_with_correct_key_succeeds(client, auth_headers):
+    response = await client.get("/workout-plans", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["items"] == []
+
+
 async def test_401_response_has_standard_error_shape(client):
     response = await client.get(PROTECTED_PATH)
     body = response.json()

@@ -17,12 +17,19 @@ settings = get_settings()
 setup_logging(settings.LOG_LEVEL)
 
 STATIC_DIR = Path(__file__).parent / "static"
+ACTION_PATH_ALIASES = {
+    "/workout-plans": "/api/v1/plans",
+    "/workout-logs": "/api/v1/logs",
+}
+
+openapi_servers = [{"url": settings.PUBLIC_BASE_URL}] if settings.PUBLIC_BASE_URL else None
 
 app = FastAPI(
     title="Workout Logger & Planner API",
     version=settings.APP_VERSION,
     docs_url="/docs",
     openapi_url="/openapi.json",
+    servers=openapi_servers,
 )
 
 CONTENT_SECURITY_POLICY = (
@@ -37,6 +44,17 @@ CONTENT_SECURITY_POLICY = (
     "base-uri 'none'; "
     "frame-ancestors 'none'"
 )
+
+
+@app.middleware("http")
+async def action_path_alias_middleware(request: Request, call_next):
+    path = request.scope.get("path", "")
+    for alias, target in ACTION_PATH_ALIASES.items():
+        if path == alias or path.startswith(f"{alias}/"):
+            request.scope["path"] = f"{target}{path.removeprefix(alias)}"
+            request.scope["root_path"] = request.scope.get("root_path", "")
+            break
+    return await call_next(request)
 
 
 @app.middleware("http")

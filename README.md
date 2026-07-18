@@ -102,6 +102,7 @@ All configuration is via environment variables (see `.env.example`):
 | `APP_VERSION` | no (default: `1.0.0`) | Shown in `/health` and OpenAPI. |
 | `LOG_LEVEL` | no (default: `INFO`) | Python logging level for structured JSON logs. |
 | `TRUSTED_HOSTS` | no (default: `localhost,127.0.0.1`) | Comma-separated allow-list, for use by a reverse proxy / host-header validation. |
+| `PUBLIC_BASE_URL` | no | Public HTTPS origin used in OpenAPI `servers`, e.g. `https://fitness.vvojtisek.eu`, for ChatGPT Actions and other imported-schema clients. |
 
 `API_KEY` is never logged, never embedded in the Docker image, and never
 appears in served HTML/JS — it is supplied at runtime only.
@@ -281,6 +282,9 @@ Notes for production:
   but requests still need `X-API-Key` via the "Authorize" button to execute).
 - Machine-readable: `GET /openapi.json`, with stable `operationId`s suitable
   for LLM/agent tool-calling clients.
+- Compatibility aliases for imported-schema clients: `/workout-plans` maps to
+  `/api/v1/plans`, and `/workout-logs` maps to `/api/v1/logs`. These aliases
+  require the same `X-API-Key` header as the canonical API routes.
 
 ## License
 

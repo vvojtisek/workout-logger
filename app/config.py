@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     LOG_LEVEL: str = "INFO"
     TRUSTED_HOSTS: str = "localhost,127.0.0.1"
+    PUBLIC_BASE_URL: str | None = None
 
     @field_validator("API_KEY")
     @classmethod
@@ -31,6 +32,13 @@ class Settings(BaseSettings):
         if len(value) < MIN_API_KEY_LENGTH:
             raise ValueError(f"API_KEY must be at least {MIN_API_KEY_LENGTH} characters")
         return value
+
+    @field_validator("PUBLIC_BASE_URL")
+    @classmethod
+    def normalize_public_base_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        return value.strip().rstrip("/")
 
     @property
     def trusted_hosts_list(self) -> list[str]:

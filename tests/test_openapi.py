@@ -9,6 +9,12 @@ async def test_openapi_has_api_key_security_scheme(client):
     assert scheme["name"] == "X-API-Key"
 
 
+async def test_openapi_includes_public_server_url(client):
+    response = await client.get("/openapi.json")
+    spec = response.json()
+    assert spec["servers"] == [{"url": "https://fitness.example.test"}]
+
+
 async def test_protected_operations_require_security(client):
     response = await client.get("/openapi.json")
     spec = response.json()
