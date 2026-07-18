@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Workout Logger</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/static/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  <header class="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+    <h1 class="text-lg font-semibold">Workout Logger</h1>
+    <span id="connection-status" class="text-sm rounded px-2 py-1 bg-slate-700">checking…</span>
+  </header>
+
+  <nav class="flex gap-2 px-4 py-2 border-b bg-white" aria-label="Main navigation">
+    <button type="button" class="nav-btn" data-view="settings-view">API Key</button>
+    <button type="button" class="nav-btn" data-view="plans-view">Plans</button>
+    <button type="button" class="nav-btn" data-view="new-log-view">New Workout</button>
+    <button type="button" class="nav-btn" data-view="history-view">History</button>
+  </nav>
+
+  <main class="p-4 max-w-2xl mx-auto">
+    <section id="settings-view" class="view" hidden>
+      <h2 class="text-xl font-semibold mb-3">API Key</h2>
+      <form id="api-key-form" class="flex flex-col gap-2" autocomplete="off">
+        <label for="api-key-input" class="text-sm font-medium">X-API-Key</label>
+        <input id="api-key-input" name="api-key" type="password" class="border rounded px-3 py-2" autocomplete="off" />
+        <div class="flex gap-2">
+          <button type="submit" class="btn-primary">Save key</button>
+          <button type="button" id="forget-api-key" class="btn-secondary">Forget API key</button>
+        </div>
+      </form>
+      <p id="api-key-status" class="text-sm mt-2"></p>
+    </section>
+
+    <section id="plans-view" class="view" hidden>
+      <h2 class="text-xl font-semibold mb-3">Workout Plans</h2>
+      <ul id="plans-list" class="flex flex-col gap-2"></ul>
+    </section>
+
+    <section id="new-log-view" class="view" hidden>
+      <h2 class="text-xl font-semibold mb-3">New Workout</h2>
+      <form id="new-log-form" class="flex flex-col gap-3">
+        <label class="text-sm font-medium" for="log-plan-select">Use plan as template</label>
+        <select id="log-plan-select" class="border rounded px-3 py-2">
+          <option value="">None</option>
+        </select>
+
+        <label class="text-sm font-medium" for="log-performed-at">Performed at</label>
+        <input id="log-performed-at" type="datetime-local" class="border rounded px-3 py-2" required />
+
+        <label class="text-sm font-medium" for="log-total-time">Total time (minutes)</label>
+        <input id="log-total-time" type="number" min="1" max="1440" class="border rounded px-3 py-2" required />
+
+        <label class="text-sm font-medium" for="log-calories">Calories burned</label>
+        <input id="log-calories" type="number" min="0" class="border rounded px-3 py-2" />
+
+        <label class="text-sm font-medium" for="log-feeling">Overall feeling (1-5)</label>
+        <input id="log-feeling" type="number" min="1" max="5" class="border rounded px-3 py-2" required />
+
+        <label class="text-sm font-medium" for="log-notes">Notes</label>
+        <textarea id="log-notes" class="border rounded px-3 py-2"></textarea>
+
+        <h3 class="font-medium">Exercises</h3>
+        <div id="log-exercises-list" class="flex flex-col gap-3"></div>
+        <button type="button" id="add-exercise-btn" class="btn-secondary self-start">+ Add exercise</button>
+
+        <button type="submit" id="submit-log-btn" class="btn-primary self-start">Save workout</button>
+      </form>
+    </section>
+
+    <section id="history-view" class="view" hidden>
+      <h2 class="text-xl font-semibold mb-3">Workout History</h2>
+      <ul id="history-list" class="flex flex-col gap-2"></ul>
+    </section>
+
+    <section id="detail-view" class="view" hidden>
+      <button type="button" id="back-to-history" class="btn-secondary mb-3">&larr; Back to history</button>
+      <h2 class="text-xl font-semibold mb-3">Workout Detail</h2>
+      <div id="detail-content"></div>
+      <div class="flex gap-2 mt-3">
+        <button type="button" id="delete-log-btn" class="btn-danger">Delete workout</button>
+      </div>
+    </section>
+  </main>
+
+  <template id="exercise-row-template">
+    <div class="exercise-row border rounded p-3 flex flex-col gap-2">
+      <div class="flex justify-between items-center">
+        <span class="font-medium">Exercise</span>
+        <button type="button" class="remove-exercise-btn btn-danger-sm">Remove</button>
+      </div>
+      <input class="exercise-name border rounded px-2 py-1" placeholder="Exercise name" required />
+      <input class="exercise-sets border rounded px-2 py-1" type="number" min="1" max="100" placeholder="Sets count" required />
+      <input class="exercise-reps border rounded px-2 py-1" placeholder="Reps per set, comma separated (e.g. 10,10,8)" required />
+      <input class="exercise-weight border rounded px-2 py-1" type="number" min="0" step="0.5" placeholder="Weight (kg)" />
+      <input class="exercise-rest border rounded px-2 py-1" type="number" min="0" max="3600" placeholder="Rest seconds" />
+    </div>
+  </template>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

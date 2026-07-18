@@ -1,0 +1,11 @@
+{
+  "name": "workout-logger-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build:css": "tailwindcss -i ./frontend/input.css -o ./app/static/styles.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}

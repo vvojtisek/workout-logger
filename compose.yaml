@@ -1,0 +1,18 @@
+services:
+  workout-logger:
+    build: .
+    restart: unless-stopped
+    environment:
+      API_KEY: ${API_KEY}
+      DATABASE_URL: sqlite+aiosqlite:////data/workout_logger.db
+      APP_ENV: ${APP_ENV:-production}
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-localhost,127.0.0.1}
+    volumes:
+      - workout_data:/data
+    ports:
+      - "127.0.0.1:8000:8000"
+
+volumes:
+  workout_data:
