@@ -12,6 +12,7 @@ from app.config import get_settings
 from app.database import get_engine
 from app.exceptions import register_exception_handlers
 from app.logging_config import access_logger, setup_logging
+from app.schemas.common import HealthResponse
 
 settings = get_settings()
 setup_logging(settings.LOG_LEVEL)
@@ -95,7 +96,13 @@ app.include_router(api_router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
-@app.get("/health", include_in_schema=True, summary="Health check")
+@app.get(
+    "/health",
+    include_in_schema=True,
+    summary="Health check",
+    response_model=HealthResponse,
+    responses={503: {"model": HealthResponse, "description": "Database unavailable"}},
+)
 async def health() -> JSONResponse:
     try:
         engine = get_engine()

@@ -23,6 +23,12 @@ class ErrorResponse(BaseModel):
     request_id: str
 
 
+class HealthResponse(BaseModel):
+    status: str
+    database: str
+    version: str
+
+
 def require_non_empty(value: str, field_name: str = "value") -> str:
     stripped = value.strip()
     if not stripped:

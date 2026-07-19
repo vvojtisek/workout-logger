@@ -29,6 +29,15 @@ async def test_public_operations_have_no_security(client):
     assert not health_get.get("security")
 
 
+async def test_health_operation_has_response_schema(client):
+    response = await client.get("/openapi.json")
+    spec = response.json()
+    health_get = spec["paths"]["/health"]["get"]
+    assert health_get["responses"]["200"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/HealthResponse"
+    }
+
+
 async def test_plans_list_operation_id_is_stable(client):
     response = await client.get("/openapi.json")
     spec = response.json()
