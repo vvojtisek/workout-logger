@@ -30,6 +30,7 @@ env:
   LOG_LEVEL: INFO
   TRUSTED_HOSTS: "localhost,127.0.0.1,fitness.vvojtisek.eu"
   PUBLIC_BASE_URL: "https://fitness.vvojtisek.eu/"
+  RUN_MIGRATIONS_ON_STARTUP: "false"
 
 persistence:
   enabled: true

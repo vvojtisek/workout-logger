@@ -172,7 +172,32 @@ the remaining safety margin expires.
 
 ## Database Migrations
 
-Migrations are managed with **Alembic** and executed automatically on container start by `scripts/entrypoint.sh`.
+Migrations are managed with **Alembic**. Standalone containers execute them on startup through
+`scripts/entrypoint.sh`; Kubernetes releases use the controlled job described below.
+
+In Kubernetes, migrations run as a bounded Argo CD `PreSync` Job using the exact promoted
+application image and database PVC. Application Pods receive
+`RUN_MIGRATIONS_ON_STARTUP=false`, so restarts do not independently migrate production.
+The Job name is derived from the release image and migration command, so repeated syncs do
+not rerun a completed migration for the same release. Completed and failed Jobs are retained
+for log inspection; use the Job name shown by `kubectl get jobs`:
+
+```bash
+kubectl get jobs -n prod -l app.kubernetes.io/name=workout-logger
+kubectl logs -n prod job/<migration-job-name>
+kubectl describe -n prod job/<migration-job-name>
+```
+
+A failed PreSync hook blocks the Deployment update. Capture its logs before retrying, fix
+the migration through Git, and promote a corrected image so Argo CD creates a fresh Job. Do not run a
+manual `alembic downgrade` for a non-reversible migration. Instead, create a reviewed Git
+maintenance change that scales the application to zero, verify no application Pod remains,
+take a diagnostic backup, restore a previously verified pre-release backup with a dedicated
+one-shot recovery Pod/Job, and revert the promoted image digest in Git. Argo CD must remain
+the reconciler throughout recovery.
+
+Standalone container use retains the historical behavior and runs migrations unless
+`RUN_MIGRATIONS_ON_STARTUP=false` is explicitly set.
 
 ```bash
 # Apply migrations manually (when running locally)
