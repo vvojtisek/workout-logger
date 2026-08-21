@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -12,11 +13,18 @@ PROMOTION_SCRIPT = ROOT / "scripts" / "promote_image.py"
 VERIFICATION_SCRIPT = ROOT / "scripts" / "verify_deployment_image.py"
 WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 
-RUNNING_DIGEST = "sha256:9715fd3c56b2270dbd6cd55c6530e13b57c2d9d6619dbd7bf82997be1ec7b8a3"
-RUNNING_COMMIT = "f9d152b93854d5df6f9c5d886bac07a714f6ae65"
+
+def production_image_value(key: str) -> str:
+    match = re.search(
+        rf'(?m)^  {re.escape(key)}:\s*["\']?([^"\'\s]+)', PRODUCTION_VALUES.read_text()
+    )
+    assert match is not None
+    return match.group(1)
 
 
 def test_production_chart_renders_immutable_image_and_source_metadata() -> None:
+    promoted_digest = production_image_value("digest")
+    promoted_commit = production_image_value("sourceCommit")
     result = subprocess.run(
         [
             "helm",
@@ -31,9 +39,12 @@ def test_production_chart_renders_immutable_image_and_source_metadata() -> None:
         text=True,
     )
 
-    assert f"ghcr.io/vvojtisek/workout-logger@{RUNNING_DIGEST}" in result.stdout
-    assert f'workout-logger.vvojtisek.eu/source-commit: "{RUNNING_COMMIT}"' in result.stdout
-    assert f'workout-logger.vvojtisek.eu/image-digest: "{RUNNING_DIGEST}"' in result.stdout
+    assert re.fullmatch(r"sha256:[0-9a-f]{64}", promoted_digest)
+    assert re.fullmatch(r"[0-9a-f]{40}", promoted_commit)
+    assert 'tag: ""' in PRODUCTION_VALUES.read_text()
+    assert f"ghcr.io/vvojtisek/workout-logger@{promoted_digest}" in result.stdout
+    assert f'workout-logger.vvojtisek.eu/source-commit: "{promoted_commit}"' in result.stdout
+    assert f'workout-logger.vvojtisek.eu/image-digest: "{promoted_digest}"' in result.stdout
     assert "feat-v2-initial-setup" not in result.stdout
 
 
@@ -62,6 +73,22 @@ def test_promotion_script_updates_digest_and_commit_together(tmp_path: Path) -> 
     assert f'sourceCommit: "{new_commit}"' in promoted
     assert "feat-v2-initial-setup" not in promoted
 
+    rendered = subprocess.run(
+        [
+            "helm",
+            "template",
+            "workout-logger",
+            str(ROOT / "helm" / "workout-logger"),
+            "-f",
+            str(values),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert f"ghcr.io/vvojtisek/workout-logger@{new_digest}" in rendered
+    assert f'workout-logger.vvojtisek.eu/source-commit: "{new_commit}"' in rendered
+
 
 def test_promotion_script_rejects_non_digest_without_changing_values(tmp_path: Path) -> None:
     values = tmp_path / "values-prod.yaml"
@@ -89,15 +116,17 @@ def test_promotion_script_rejects_non_digest_without_changing_values(tmp_path: P
 
 
 def test_deployment_verifier_reports_matching_runtime_image(tmp_path: Path) -> None:
-    expected_image = f"ghcr.io/vvojtisek/workout-logger@{RUNNING_DIGEST}"
+    promoted_digest = production_image_value("digest")
+    promoted_commit = production_image_value("sourceCommit")
+    expected_image = f"ghcr.io/vvojtisek/workout-logger@{promoted_digest}"
     pod = {
         "items": [
             {
                 "metadata": {
                     "name": "workout-logger-test",
                     "annotations": {
-                        "workout-logger.vvojtisek.eu/source-commit": RUNNING_COMMIT,
-                        "workout-logger.vvojtisek.eu/image-digest": RUNNING_DIGEST,
+                        "workout-logger.vvojtisek.eu/source-commit": promoted_commit,
+                        "workout-logger.vvojtisek.eu/image-digest": promoted_digest,
                     },
                 },
                 "spec": {"containers": [{"image": expected_image}]},
@@ -131,8 +160,8 @@ def test_deployment_verifier_reports_matching_runtime_image(tmp_path: Path) -> N
         env=env,
     )
 
-    assert f"Git commit: {RUNNING_COMMIT}" in result.stdout
-    assert f"Image digest: {RUNNING_DIGEST}" in result.stdout
+    assert f"Git commit: {promoted_commit}" in result.stdout
+    assert f"Image digest: {promoted_digest}" in result.stdout
     assert f"imageID={expected_image}" in result.stdout
 
 
