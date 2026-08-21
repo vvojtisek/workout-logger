@@ -1,0 +1,53 @@
+---
+replicaCount: 1
+
+strategy:
+  type: Recreate
+
+image:
+  repository: ghcr.io/vvojtisek/workout-logger
+  tag: ""
+  digest: "sha256:43e5562b115774016522939286452761552fccd0aea4511c938881ba2d61c58e"
+  sourceCommit: "4871cac648a5079e323e9e8604cf561ed91082d3"
+  pullPolicy: IfNotPresent
+
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - host: staging.workout-logger.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+env:
+  APP_ENV: staging
+  APP_VERSION: "2.0.0"
+  LOG_LEVEL: INFO
+  TRUSTED_HOSTS: "localhost,127.0.0.1,staging.workout-logger.local"
+  PUBLIC_BASE_URL: "http://staging.workout-logger.local/"
+  RUN_MIGRATIONS_ON_STARTUP: "false"
+
+persistence:
+  enabled: true
+  size: 1Gi
+
+backupPersistence:
+  enabled: false
+
+backup:
+  enabled: false
+
+migrationJob:
+  enabled: true
+  activeDeadlineSeconds: 45
+  backoffLimit: 0
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

@@ -133,6 +133,10 @@ ArgoCD continuously reconciles the cluster with Git:
 * Configures persistent volume storage (`/data`).
 * Manages Traefik Ingress with automatic Let's Encrypt TLS cert generation via `cert-manager`.
 
+Staging is a separate Argo CD Application and namespace. Its immutable release and
+last-known-good state are tracked in Git, and pull requests run a real ephemeral Argo CD
+failure-and-recovery drill. See [GitOps staging and rollback runbook](docs/gitops-rollback.md).
+
 After each successful `main` workflow, CI publishes exactly one image tagged with the full
 Git commit SHA and opens a draft promotion pull request. Merging that pull request records
 both the source commit and immutable registry digest in `values-prod.yaml`; Argo CD remains

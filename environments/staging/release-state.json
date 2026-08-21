@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "environment": "staging",
+  "lastKnownGood": {
+    "imageDigest": "sha256:43e5562b115774016522939286452761552fccd0aea4511c938881ba2d61c58e",
+    "sourceCommit": "4871cac648a5079e323e9e8604cf561ed91082d3",
+    "verifiedAt": "2026-08-21T20:24:00Z"
+  }
+}

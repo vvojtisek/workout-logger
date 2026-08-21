@@ -1,0 +1,56 @@
+name: GitOps rollback drill
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rollback-drill-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ephemeral-argocd-rollback:
+    name: Ephemeral Argo CD rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install k3d
+        run: curl --silent --fail https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+      - name: Create ephemeral cluster and install Argo CD
+        run: |
+          k3d cluster create rollback-drill --wait
+          kubectl create namespace argocd
+          kubectl apply --server-side --force-conflicts \
+            -n argocd \
+            -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.1/manifests/install.yaml
+          kubectl rollout status statefulset/argocd-application-controller \
+            -n argocd --timeout=300s
+          kubectl rollout status deployment/argocd-repo-server \
+            -n argocd --timeout=300s
+
+      - name: Run real rollback drill
+        run: python scripts/run_rollback_drill.py --artifacts artifacts/rollback-drill
+
+      - name: Upload rollback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-drill-${{ github.run_id }}
+          path: artifacts/rollback-drill
+          if-no-files-found: error
+
+      - name: Delete ephemeral cluster
+        if: always()
+        run: k3d cluster delete rollback-drill
