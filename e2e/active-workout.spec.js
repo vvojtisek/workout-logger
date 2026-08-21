@@ -87,10 +87,10 @@ test("starts, saves, resumes, completes, and cleans up a real active workout", a
     await expect(page.getByLabel("RIR")).toHaveValue("2");
     await expect(page.getByText(/Rest: \d+s/)).toBeVisible();
 
-    await page.getByLabel("Overall feeling").selectOption("4");
+    await page.locator("#active-feeling").selectOption("4");
     await page.getByRole("button", { name: "Finish workout" }).click();
     await expect(page.getByRole("heading", { name: "Workout History" })).toBeVisible();
-    await expect(page.getByText(`${tag} active plan`)).toBeVisible();
+    await expect(page.locator("#history-list").getByText(`${tag} active plan`).first()).toBeVisible();
 
     const completedSession = await request.get(`/api/v1/workout-sessions/${sessionId}`);
     expect(completedSession.status()).toBe(200);
@@ -115,7 +115,14 @@ test("starts, saves, resumes, completes, and cleans up a real active workout", a
       await request.delete(`/api/v1/workout-sessions/${sessionId}`);
       expect((await request.get(`/api/v1/workout-sessions/${sessionId}`)).status()).toBe(404);
     }
-    for (const logId of [completedLogId, priorLogId]) {
+    const logIds = new Set([completedLogId, priorLogId].filter(Boolean));
+    if (planId) {
+      const generatedHistory = await request.get(`/api/v1/logs?source_plan_id=${planId}`);
+      if (generatedHistory.status() === 200) {
+        for (const log of (await generatedHistory.json()).items) logIds.add(log.id);
+      }
+    }
+    for (const logId of logIds) {
       if (logId) {
         await request.delete(`/api/v1/logs/${logId}`);
         expect((await request.get(`/api/v1/logs/${logId}`)).status()).toBe(404);

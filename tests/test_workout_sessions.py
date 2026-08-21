@@ -171,9 +171,7 @@ async def test_complete_session_creates_existing_history_summary(client, auth_he
     assert completed_body["completed_at"] is not None
     assert completed_body["workout_log_id"] is not None
 
-    history = await client.get(
-        f"{LOGS}/{completed_body['workout_log_id']}", headers=auth_headers
-    )
+    history = await client.get(f"{LOGS}/{completed_body['workout_log_id']}", headers=auth_headers)
     assert history.status_code == 200
     history_body = history.json()
     assert history_body["source_plan_id"] == plan["id"]

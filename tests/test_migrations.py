@@ -115,7 +115,10 @@ def test_active_session_migration_upgrades_a_copy_of_current_schema(
         "set_entries",
     }.issubset(set(inspector.get_table_names()))
     with copied_engine.connect() as connection:
-        assert connection.scalar(
-            text("SELECT name FROM workout_plans WHERE id = :id"), {"id": original_plan_id}
-        ) == "Existing current-schema plan"
+        assert (
+            connection.scalar(
+                text("SELECT name FROM workout_plans WHERE id = :id"), {"id": original_plan_id}
+            )
+            == "Existing current-schema plan"
+        )
     copied_engine.dispose()

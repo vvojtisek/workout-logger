@@ -1,6 +1,10 @@
 "use strict";
 
-import { parseRepsPerSet } from "./workout-utils.js";
+import {
+  parseRepsPerSet,
+  remainingTimeSeconds,
+  resolveSetDisplayState,
+} from "./workout-utils.js";
 
 const API_KEY_STORAGE_KEY = "workout_logger_api_key";
 const API_BASE = "/api/v1";
@@ -113,6 +117,18 @@ forgetApiKeyBtn.addEventListener("click", () => {
 
 const plansList = document.getElementById("plans-list");
 
+async function startWorkout(planId) {
+  try {
+    const session = await apiFetch("/workout-sessions", {
+      method: "POST",
+      body: JSON.stringify({ source_plan_id: planId }),
+    });
+    renderActiveSession(session);
+  } catch (err) {
+    window.alert(`Failed to start workout: ${err.message}`);
+  }
+}
+
 async function loadPlans() {
   clearChildren(plansList);
   let data;
@@ -141,6 +157,15 @@ async function loadPlans() {
     }
     li.appendChild(info);
 
+    const actions = document.createElement("div");
+    actions.className = "flex gap-2";
+    const startBtn = document.createElement("button");
+    startBtn.type = "button";
+    startBtn.className = "btn-primary";
+    setText(startBtn, "Start workout");
+    startBtn.addEventListener("click", () => startWorkout(plan.id));
+    actions.appendChild(startBtn);
+
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "btn-danger-sm";
@@ -149,10 +174,116 @@ async function loadPlans() {
       await apiFetch(`/plans/${plan.id}`, { method: "DELETE" });
       loadPlans();
     });
-    li.appendChild(deleteBtn);
+    actions.appendChild(deleteBtn);
+    li.appendChild(actions);
 
     plansList.appendChild(li);
   });
+}
+
+// ---- Active workout ----
+
+const activePlanName = document.getElementById("active-plan-name");
+const activeExerciseName = document.getElementById("active-exercise-name");
+const activeSetNumber = document.getElementById("active-set-number");
+const activeSetState = document.getElementById("active-set-state");
+const activeSetForm = document.getElementById("active-set-form");
+const activeWeight = document.getElementById("active-weight");
+const activeReps = document.getElementById("active-reps");
+const activeRir = document.getElementById("active-rir");
+const saveActiveSet = document.getElementById("save-active-set");
+const activeRestTimer = document.getElementById("active-rest-timer");
+const activeFeeling = document.getElementById("active-feeling");
+const finishActiveWorkout = document.getElementById("finish-active-workout");
+let currentSession = null;
+let restTimerHandle = null;
+
+function updateRestTimer() {
+  if (!currentSession?.rest_ends_at) {
+    setText(activeRestTimer, "Rest not started");
+    return;
+  }
+  setText(activeRestTimer, `Rest: ${remainingTimeSeconds(currentSession.rest_ends_at)}s`);
+}
+
+function renderActiveSession(session) {
+  currentSession = session;
+  const exercise =
+    session.exercises.find((item) => item.id === session.focused_exercise_id) ||
+    session.exercises[0];
+  const savedEntry =
+    exercise.set_entries.find((entry) => entry.set_number === session.focused_set_number) || null;
+  const display = resolveSetDisplayState({
+    savedEntry,
+    suggestedWeightKg: exercise.suggested_weight_kg,
+    suggestedReps: exercise.suggested_reps,
+    suggestionSource: exercise.suggestion_source,
+  });
+
+  setText(activePlanName, session.source_plan_name);
+  setText(activeExerciseName, exercise.exercise_name);
+  setText(activeSetNumber, `Set ${session.focused_set_number} of ${exercise.target_sets}`);
+  setText(activeSetState, display.label);
+  activeSetState.classList.toggle("text-emerald-700", display.isSaved);
+  activeSetState.classList.toggle("text-amber-700", !display.isSaved);
+  activeWeight.value = display.weightKg ?? "";
+  activeReps.value = display.reps ?? "";
+  activeRir.value = display.rir ?? "";
+  saveActiveSet.disabled = display.isSaved;
+  updateRestTimer();
+  if (restTimerHandle) window.clearInterval(restTimerHandle);
+  restTimerHandle = window.setInterval(updateRestTimer, 1000);
+  showView("active-workout-view");
+}
+
+activeSetForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!currentSession) return;
+  const exercise =
+    currentSession.exercises.find(
+      (item) => item.id === currentSession.focused_exercise_id
+    ) || currentSession.exercises[0];
+  try {
+    const session = await apiFetch(`/workout-sessions/${currentSession.id}/sets`, {
+      method: "POST",
+      body: JSON.stringify({
+        session_exercise_id: exercise.id,
+        set_number: currentSession.focused_set_number,
+        weight_kg: activeWeight.value ? Number.parseFloat(activeWeight.value) : null,
+        reps: Number.parseInt(activeReps.value, 10),
+        rir: activeRir.value ? Number.parseInt(activeRir.value, 10) : null,
+        client_operation_id: crypto.randomUUID(),
+      }),
+    });
+    renderActiveSession(session);
+  } catch (err) {
+    window.alert(`Failed to save set: ${err.message}`);
+  }
+});
+
+finishActiveWorkout.addEventListener("click", async () => {
+  if (!currentSession) return;
+  try {
+    await apiFetch(`/workout-sessions/${currentSession.id}/complete`, {
+      method: "POST",
+      body: JSON.stringify({ overall_feeling: Number.parseInt(activeFeeling.value, 10) }),
+    });
+    currentSession = null;
+    if (restTimerHandle) window.clearInterval(restTimerHandle);
+    showView("history-view");
+    loadHistory();
+  } catch (err) {
+    window.alert(`Failed to finish workout: ${err.message}`);
+  }
+});
+
+async function resumeActiveSession() {
+  if (!getStoredApiKey()) return;
+  try {
+    renderActiveSession(await apiFetch("/workout-sessions/active"));
+  } catch {
+    // no resumable session is a normal initial state
+  }
 }
 
 // ---- New workout form ----
@@ -276,7 +407,10 @@ async function loadHistory() {
     li.className = "border rounded p-3 cursor-pointer hover:bg-slate-100";
     const title = document.createElement("p");
     title.className = "font-medium";
-    setText(title, new Date(log.performed_at).toLocaleString());
+    setText(
+      title,
+      log.source_plan_name || new Date(log.performed_at).toLocaleString()
+    );
     const subtitle = document.createElement("p");
     subtitle.className = "text-sm text-slate-600";
     setText(subtitle, `Feeling: ${log.overall_feeling}/5 · ${log.total_time_minutes} min`);
@@ -362,3 +496,4 @@ if ("serviceWorker" in navigator) {
 updateConnectionStatus();
 showView("settings-view");
 apiKeyInput.value = "";
+resumeActiveSession();

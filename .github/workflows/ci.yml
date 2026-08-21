@@ -242,6 +242,8 @@ jobs:
           TEST_RUN_ID="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
             E2E_BASE_URL=http://127.0.0.1:18000 \
             npm run test:e2e
+          kubectl --namespace "$E2E_NAMESPACE" exec deployment/workout-logger -- \
+            python scripts/assert_empty_e2e_database.py /data/workout_logger.db
       - name: Collect Kubernetes and browser diagnostics
         if: always()
         run: |
