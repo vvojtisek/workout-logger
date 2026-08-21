@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -16,7 +17,19 @@ class SetEntryCreate(BaseModel):
     weight_kg: float | None = Field(default=None, ge=0)
     reps: int = Field(ge=1, le=1000)
     rir: int | None = Field(default=None, ge=0, le=10)
+    state: Literal["completed", "skipped"] = "completed"
     client_operation_id: str = Field(min_length=1, max_length=100)
+
+
+class SetEntryUpdate(BaseModel):
+    weight_kg: float | None = Field(default=None, ge=0)
+    reps: int = Field(ge=1, le=1000)
+    rir: int | None = Field(default=None, ge=0, le=10)
+
+
+class WorkoutSessionFocus(BaseModel):
+    session_exercise_id: UUID
+    set_number: int = Field(ge=1, le=100)
 
 
 class WorkoutSessionComplete(BaseModel):
@@ -44,6 +57,8 @@ class SessionExerciseRead(OrmModel):
     target_weight_kg: float | None
     rest_time_seconds: int
     notes: str | None
+    group_key: str | None
+    group_order: int | None
     suggested_weight_kg: float | None
     suggested_reps: int
     suggestion_source: str

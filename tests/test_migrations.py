@@ -122,3 +122,41 @@ def test_active_session_migration_upgrades_a_copy_of_current_schema(
             == "Existing current-schema plan"
         )
     copied_engine.dispose()
+
+
+def test_grid_group_migration_preserves_slice_one_data(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "3d62adf731c8")
+    plan_id = str(uuid.uuid4())
+    exercise_id = str(uuid.uuid4())
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO workout_plans "
+                "(id, name, description, created_at, updated_at) "
+                "VALUES (:id, 'Slice 1 plan', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": plan_id},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO plan_exercises "
+                "(id, workout_plan_id, sort_order, exercise_name, target_sets, "
+                "target_reps_min, target_reps_max, target_weight_kg, rest_time_seconds, notes) "
+                "VALUES (:id, :plan_id, 0, 'Squat', 2, 5, 8, 80, 90, NULL)"
+            ),
+            {"id": exercise_id, "plan_id": plan_id},
+        )
+    command.upgrade(alembic_config, "head")
+
+    inspector = inspect(sync_engine)
+    for table_name in ("plan_exercises", "session_exercises"):
+        columns = {column["name"] for column in inspector.get_columns(table_name)}
+        assert {"group_key", "group_order"}.issubset(columns)
+    with sync_engine.connect() as connection:
+        row = connection.execute(
+            text("SELECT exercise_name, group_key, group_order FROM plan_exercises WHERE id = :id"),
+            {"id": exercise_id},
+        ).one()
+        assert row == ("Squat", None, None)
+    sync_engine.dispose()

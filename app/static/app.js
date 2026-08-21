@@ -1,9 +1,12 @@
 "use strict";
 
 import {
+  buildWorkoutGrid,
+  groupSessionExercises,
   parseRepsPerSet,
   remainingTimeSeconds,
   resolveSetDisplayState,
+  workoutProgress,
 } from "./workout-utils.js";
 
 const API_KEY_STORAGE_KEY = "workout_logger_api_key";
@@ -184,14 +187,9 @@ async function loadPlans() {
 // ---- Active workout ----
 
 const activePlanName = document.getElementById("active-plan-name");
-const activeExerciseName = document.getElementById("active-exercise-name");
-const activeSetNumber = document.getElementById("active-set-number");
-const activeSetState = document.getElementById("active-set-state");
-const activeSetForm = document.getElementById("active-set-form");
-const activeWeight = document.getElementById("active-weight");
-const activeReps = document.getElementById("active-reps");
-const activeRir = document.getElementById("active-rir");
-const saveActiveSet = document.getElementById("save-active-set");
+const activeProgressText = document.getElementById("active-progress-text");
+const activeProgress = document.getElementById("active-progress");
+const activeGrid = document.getElementById("active-grid");
 const activeRestTimer = document.getElementById("active-rest-timer");
 const activeFeeling = document.getElementById("active-feeling");
 const finishActiveWorkout = document.getElementById("finish-active-workout");
@@ -206,63 +204,254 @@ function updateRestTimer() {
   setText(activeRestTimer, `Rest: ${remainingTimeSeconds(currentSession.rest_ends_at)}s`);
 }
 
+/** @param {HTMLInputElement} input */
+function numberValue(input) {
+  return input.value ? Number.parseFloat(input.value) : null;
+}
+
+/**
+ * @param {string} labelText
+ * @param {number | null} value
+ * @param {{inputMode: string, min: string, max?: string, step?: string, disabled: boolean}} options
+ */
+function makeInput(labelText, value, options) {
+  const label = document.createElement("label");
+  label.className = "text-xs font-medium";
+  setText(label, labelText);
+  const input = document.createElement("input");
+  input.type = "number";
+  input.inputMode = options.inputMode;
+  input.min = options.min;
+  input.max = options.max || "";
+  input.step = options.step || "1";
+  input.value = value ?? "";
+  input.disabled = options.disabled;
+  input.className = "block border rounded px-2 min-h-12 min-w-12 w-20 disabled:bg-slate-100";
+  label.appendChild(input);
+  return { label, input };
+}
+
+async function persistSet(row, values, state = "completed") {
+  currentSession = await apiFetch(`/workout-sessions/${currentSession.id}/sets`, {
+    method: "POST",
+    body: JSON.stringify({
+      session_exercise_id: row.exercise.id,
+      set_number: row.setNumber,
+      weight_kg: values.weight,
+      reps: values.reps,
+      rir: values.rir,
+      state,
+      client_operation_id: crypto.randomUUID(),
+    }),
+  });
+  renderActiveSession(currentSession);
+}
+
+function renderSetRow(row, totalSets) {
+  const form = document.createElement("form");
+  form.dataset.setRow = "";
+  form.dataset.exerciseName = row.exercise.exercise_name;
+  form.dataset.setNumber = String(row.setNumber);
+  form.dataset.state = row.state;
+  form.className = "grid grid-cols-[3rem_5rem_repeat(3,minmax(4rem,1fr))_minmax(7rem,auto)] gap-2 items-end border-t py-2 min-w-[38rem]";
+  if (row.state === "completed") form.classList.add("bg-emerald-50");
+  if (row.state === "skipped") form.classList.add("bg-amber-50");
+  if (row.state === "current") form.classList.add("ring-2", "ring-slate-700");
+  if (row.state === "future") form.classList.add("opacity-70");
+  const setCell = document.createElement("strong");
+  setText(setCell, String(row.setNumber));
+  const previous = document.createElement("span");
+  previous.className = "text-xs text-slate-600 self-center";
+  const previousWeight = row.exercise.suggested_weight_kg;
+  setText(
+    previous,
+    `${previousWeight ?? "—"} kg × ${row.exercise.suggested_reps}`
+  );
+  const display = resolveSetDisplayState({
+    savedEntry: row.entry,
+    suggestedWeightKg: row.exercise.suggested_weight_kg,
+    suggestedReps: row.exercise.suggested_reps,
+    suggestionSource: row.exercise.suggestion_source,
+  });
+  const disabled = row.entry !== null;
+  const weight = makeInput("Weight (kg)", display.weightKg, {
+    inputMode: "decimal",
+    min: "0",
+    step: "0.25",
+    disabled,
+  });
+  const reps = makeInput("Repetitions", display.reps, {
+    inputMode: "numeric",
+    min: "1",
+    max: "1000",
+    disabled,
+  });
+  const rir = makeInput("RIR", display.rir, {
+    inputMode: "numeric",
+    min: "0",
+    max: "10",
+    disabled,
+  });
+  const actions = document.createElement("div");
+  actions.className = "flex flex-wrap gap-1";
+
+  const values = () => ({
+    weight: numberValue(weight.input),
+    reps: Number.parseInt(reps.input.value, 10),
+    rir: rir.input.value ? Number.parseInt(rir.input.value, 10) : null,
+  });
+  if (row.entry) {
+    const state = document.createElement("span");
+    state.className = row.state === "skipped" ? "text-amber-700 self-center" : "text-emerald-700 self-center";
+    setText(state, row.state === "skipped" ? "Skipped" : "Saved");
+    actions.appendChild(state);
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "btn-secondary min-h-12 min-w-12";
+    setText(edit, "Edit");
+    edit.addEventListener("click", async () => {
+      if (weight.input.disabled) {
+        [weight.input, reps.input, rir.input].forEach((input) => {
+          input.disabled = false;
+        });
+        setText(edit, "Save correction");
+        return;
+      }
+      const data = values();
+      currentSession = await apiFetch(
+        `/workout-sessions/${currentSession.id}/sets/${row.entry.id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ weight_kg: data.weight, reps: data.reps, rir: data.rir }),
+        }
+      );
+      renderActiveSession(currentSession);
+    });
+    actions.appendChild(edit);
+    const undoRemaining = 5_000 - (Date.now() - new Date(row.entry.completed_at).getTime());
+    if (undoRemaining > 0) {
+      const undo = document.createElement("button");
+      undo.type = "button";
+      undo.className = "btn-secondary min-h-12 min-w-12";
+      setText(undo, "Undo");
+      undo.addEventListener("click", async () => {
+        currentSession = await apiFetch(
+          `/workout-sessions/${currentSession.id}/sets/${row.entry.id}`,
+          { method: "DELETE" }
+        );
+        renderActiveSession(currentSession);
+      });
+      actions.appendChild(undo);
+      window.setTimeout(() => undo.remove(), undoRemaining);
+    }
+  } else {
+    const suggestion = document.createElement("span");
+    suggestion.className = "text-xs text-amber-700 self-center";
+    setText(suggestion, display.label);
+    actions.appendChild(suggestion);
+    const complete = document.createElement("button");
+    complete.type = "submit";
+    complete.className = "btn-primary min-h-12 min-w-12";
+    setText(
+      complete,
+      totalSets === 1 ? "Save set" : `Complete ${row.exercise.exercise_name} set ${row.setNumber}`
+    );
+    const skip = document.createElement("button");
+    skip.type = "button";
+    skip.className = "btn-secondary min-h-12 min-w-12";
+    setText(skip, `Skip ${row.exercise.exercise_name} set ${row.setNumber}`);
+    skip.addEventListener("click", () => persistSet(row, values(), "skipped"));
+    actions.append(complete, skip);
+    if (row.state !== "current") {
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "btn-secondary min-h-12 min-w-12";
+      setText(open, `Open ${row.exercise.exercise_name} set ${row.setNumber}`);
+      open.addEventListener("click", async () => {
+        currentSession = await apiFetch(`/workout-sessions/${currentSession.id}/focus`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            session_exercise_id: row.exercise.id,
+            set_number: row.setNumber,
+          }),
+        });
+        renderActiveSession(currentSession);
+      });
+      actions.appendChild(open);
+    }
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await persistSet(row, values());
+    });
+  }
+  form.append(setCell, previous, weight.label, reps.label, rir.label, actions);
+  return form;
+}
+
+function renderExercise(exercise, totalSets) {
+  const section = document.createElement("section");
+  const heading = document.createElement("h3");
+  heading.className = "text-lg font-semibold p-2";
+  setText(heading, exercise.exercise_name);
+  section.appendChild(heading);
+  const scroller = document.createElement("div");
+  scroller.className = "overflow-x-auto px-2";
+  const header = document.createElement("div");
+  header.className = "grid grid-cols-[3rem_5rem_repeat(3,minmax(4rem,1fr))_minmax(7rem,auto)] gap-2 min-w-[38rem] text-xs font-semibold text-slate-600";
+  for (const label of ["Set", "Previous", "kg", "Reps", "RIR", "Complete"]) {
+    const cell = document.createElement("span");
+    cell.setAttribute("role", "columnheader");
+    setText(cell, label);
+    header.appendChild(cell);
+  }
+  scroller.appendChild(header);
+  const rows = buildWorkoutGrid(currentSession).filter((row) => row.exercise.id === exercise.id);
+  rows.forEach((row) => scroller.appendChild(renderSetRow(row, totalSets)));
+  section.appendChild(scroller);
+  return section;
+}
+
 function renderActiveSession(session) {
   currentSession = session;
-  const exercise =
-    session.exercises.find((item) => item.id === session.focused_exercise_id) ||
-    session.exercises[0];
-  const savedEntry =
-    exercise.set_entries.find((entry) => entry.set_number === session.focused_set_number) || null;
-  const display = resolveSetDisplayState({
-    savedEntry,
-    suggestedWeightKg: exercise.suggested_weight_kg,
-    suggestedReps: exercise.suggested_reps,
-    suggestionSource: exercise.suggestion_source,
-  });
+  const progress = workoutProgress(session);
 
   setText(activePlanName, session.source_plan_name);
-  setText(activeExerciseName, exercise.exercise_name);
-  setText(activeSetNumber, `Set ${session.focused_set_number} of ${exercise.target_sets}`);
-  setText(activeSetState, display.label);
-  activeSetState.classList.toggle("text-emerald-700", display.isSaved);
-  activeSetState.classList.toggle("text-amber-700", !display.isSaved);
-  activeWeight.value = display.weightKg ?? "";
-  activeReps.value = display.reps ?? "";
-  activeRir.value = display.rir ?? "";
-  saveActiveSet.disabled = display.isSaved;
+  setText(activeProgressText, `${progress.done} of ${progress.total} sets`);
+  activeProgress.value = progress.percent;
+  clearChildren(activeGrid);
+  groupSessionExercises(session.exercises).forEach((group) => {
+    if (group.label) {
+      const details = document.createElement("details");
+      details.open = true;
+      details.className = "border rounded bg-white";
+      details.setAttribute("role", "group");
+      details.setAttribute("aria-label", group.label);
+      const summary = document.createElement("summary");
+      summary.className = "cursor-pointer font-semibold p-3 min-h-12";
+      setText(summary, group.label);
+      details.appendChild(summary);
+      group.exercises.forEach((exercise) => details.appendChild(renderExercise(exercise, progress.total)));
+      activeGrid.appendChild(details);
+    } else {
+      const card = document.createElement("article");
+      card.className = "border rounded bg-white";
+      card.appendChild(renderExercise(group.exercises[0], progress.total));
+      activeGrid.appendChild(card);
+    }
+  });
   updateRestTimer();
   if (restTimerHandle) window.clearInterval(restTimerHandle);
   restTimerHandle = window.setInterval(updateRestTimer, 1000);
   showView("active-workout-view");
+  window.requestAnimationFrame(() => {
+    activeGrid.querySelector('[data-state="current"] input:not(:disabled)')?.focus();
+  });
 }
-
-activeSetForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!currentSession) return;
-  const exercise =
-    currentSession.exercises.find(
-      (item) => item.id === currentSession.focused_exercise_id
-    ) || currentSession.exercises[0];
-  try {
-    const session = await apiFetch(`/workout-sessions/${currentSession.id}/sets`, {
-      method: "POST",
-      body: JSON.stringify({
-        session_exercise_id: exercise.id,
-        set_number: currentSession.focused_set_number,
-        weight_kg: activeWeight.value ? Number.parseFloat(activeWeight.value) : null,
-        reps: Number.parseInt(activeReps.value, 10),
-        rir: activeRir.value ? Number.parseInt(activeRir.value, 10) : null,
-        client_operation_id: crypto.randomUUID(),
-      }),
-    });
-    renderActiveSession(session);
-  } catch (err) {
-    window.alert(`Failed to save set: ${err.message}`);
-  }
-});
 
 finishActiveWorkout.addEventListener("click", async () => {
   if (!currentSession) return;
+  const progress = workoutProgress(currentSession);
+  if (progress.done < progress.total && !window.confirm("Finish this incomplete workout?")) return;
   try {
     await apiFetch(`/workout-sessions/${currentSession.id}/complete`, {
       method: "POST",

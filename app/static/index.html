@@ -43,44 +43,29 @@
     </section>
 
     <section id="active-workout-view" class="view" hidden>
-      <p id="active-plan-name" class="text-sm text-slate-600 mb-1"></p>
-      <h2 class="text-xl font-semibold mb-3">Active Workout</h2>
-      <article class="border rounded p-4 bg-white flex flex-col gap-3">
+      <div class="flex justify-between gap-3 items-start mb-3">
         <div>
-          <p id="active-set-number" class="text-sm font-medium text-slate-600"></p>
-          <h3 id="active-exercise-name" class="text-lg font-semibold"></h3>
-          <p id="active-set-state" class="text-sm text-amber-700"></p>
+          <p id="active-plan-name" class="text-sm text-slate-600 mb-1"></p>
+          <h2 class="text-xl font-semibold">Active Workout</h2>
+          <p id="active-progress-text" class="text-sm font-medium"></p>
         </div>
-        <form id="active-set-form" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label class="text-sm font-medium" for="active-weight">
-            Weight (kg)
-            <input id="active-weight" type="number" min="0" step="0.5" class="mt-1 border rounded px-3 py-2 w-full" />
-          </label>
-          <label class="text-sm font-medium" for="active-reps">
-            Repetitions
-            <input id="active-reps" type="number" min="1" max="1000" class="mt-1 border rounded px-3 py-2 w-full" required />
-          </label>
-          <label class="text-sm font-medium" for="active-rir">
-            RIR
-            <input id="active-rir" type="number" min="0" max="10" class="mt-1 border rounded px-3 py-2 w-full" />
-          </label>
-          <button type="submit" id="save-active-set" class="btn-primary sm:col-span-3">Save set</button>
-        </form>
-        <p id="active-rest-timer" class="font-medium" aria-live="polite">Rest not started</p>
-        <div class="border-t pt-3 flex flex-col sm:flex-row gap-3 sm:items-end">
-          <label class="text-sm font-medium" for="active-feeling">
-            Overall feeling
-            <select id="active-feeling" class="mt-1 border rounded px-3 py-2 w-full">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3" selected>3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-            </select>
-          </label>
-          <button type="button" id="finish-active-workout" class="btn-secondary">Finish workout</button>
-        </div>
-      </article>
+        <button type="button" id="finish-active-workout" class="btn-secondary min-h-12">Finish workout</button>
+      </div>
+      <progress id="active-progress" class="w-full mb-3" max="100" value="0"></progress>
+      <div id="active-grid" class="flex flex-col gap-3"></div>
+      <footer class="border rounded p-3 bg-white mt-3 flex flex-col sm:flex-row gap-3 sm:items-end">
+        <p id="active-rest-timer" class="font-medium flex-1" aria-live="polite">Rest not started</p>
+        <label class="text-sm font-medium" for="active-feeling">
+          Overall feeling
+          <select id="active-feeling" class="mt-1 border rounded px-3 py-2 min-h-12 w-full">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+        </label>
+      </footer>
     </section>
 
     <section id="new-log-view" class="view" hidden>
