@@ -75,6 +75,17 @@ Create the service account name.
 {{- end }}
 {{- end }}
 
+{{/* Backup PVC name, allowing an independently managed claim. */}}
+{{- define "workout-logger.backupClaimName" -}}
+{{- default (printf "%s-backups" (include "workout-logger.fullname" .)) .Values.backupPersistence.existingClaim }}
+{{- end }}
+
+{{/* Labels for maintenance Pods, which must never match the web Service. */}}
+{{- define "workout-logger.maintenanceLabels" -}}
+{{ include "workout-logger.selectorLabels" . }}
+app.kubernetes.io/component: maintenance
+{{- end }}
+
 {{/*
 Return the image reference used by the application container.
 */}}

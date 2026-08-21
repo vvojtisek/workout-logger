@@ -68,6 +68,32 @@ persistence:
   size: 1Gi
   storageClass: ""
 
+backupPersistence:
+  enabled: true
+  mountPath: /backups
+  accessModes:
+    - ReadWriteOnce
+  size: 2Gi
+  storageClass: ""
+  existingClaim: ""
+
+backup:
+  enabled: false
+  schedule: "17 2 * * *"
+  suspend: false
+  keep: 7
+  activeDeadlineSeconds: 600
+  backoffLimit: 1
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  resources: {}
+
+restore:
+  enabled: false
+  backupFile: ""
+  activeDeadlineSeconds: 600
+  resources: {}
+
 env:
   APP_ENV: production
   APP_VERSION: "2.0.0"

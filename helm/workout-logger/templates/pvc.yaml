@@ -15,3 +15,24 @@ spec:
   storageClassName: {{ .Values.persistence.storageClass | quote }}
   {{- end }}
 {{- end }}
+{{- if and .Values.backupPersistence.enabled (not .Values.backupPersistence.existingClaim) }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "workout-logger.fullname" . }}-backups
+  labels:
+    {{- include "workout-logger.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    {{- toYaml .Values.backupPersistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.backupPersistence.size }}
+  {{- if .Values.backupPersistence.storageClass }}
+  storageClassName: {{ .Values.backupPersistence.storageClass | quote }}
+  {{- end }}
+{{- end }}
