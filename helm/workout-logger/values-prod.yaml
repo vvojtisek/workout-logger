@@ -7,8 +7,8 @@ strategy:
 image:
   repository: ghcr.io/vvojtisek/workout-logger
   tag: ""
-  digest: "sha256:4a8fd2ab4f7d47579623cfb0c44b69b0121236a231167a534459f18662b227b6"
-  sourceCommit: "4ebe53a3d03a1d63bf56e1d8afaff8b81c3ff53d"
+  digest: "sha256:43e5562b115774016522939286452761552fccd0aea4511c938881ba2d61c58e"
+  sourceCommit: "4871cac648a5079e323e9e8604cf561ed91082d3"
   pullPolicy: IfNotPresent
 
 ingress:
@@ -35,6 +35,15 @@ env:
 persistence:
   enabled: true
   size: 2Gi
+
+backupPersistence:
+  enabled: true
+  size: 2Gi
+
+backup:
+  enabled: true
+  schedule: "17 2 * * *"
+  keep: 7
 
 resources:
   requests:
