@@ -1,3 +1,6 @@
+import pytest
+
+
 async def test_health_returns_ok_without_api_key(client):
     response = await client.get("/health")
     assert response.status_code == 200
@@ -5,6 +8,30 @@ async def test_health_returns_ok_without_api_key(client):
     assert body["status"] == "ok"
     assert body["database"] == "ok"
     assert "version" in body
+
+
+async def test_liveness_does_not_check_database(client, monkeypatch):
+    import app.main as main_module
+
+    def broken_engine():
+        raise RuntimeError("database connection pool exhausted")
+
+    monkeypatch.setattr(main_module, "get_engine", broken_engine)
+
+    response = await client.get("/health/live")
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "database": "not_checked",
+        "version": main_module.settings.APP_VERSION,
+    }
+
+
+@pytest.mark.parametrize("path", ["/health/ready", "/health/startup"])
+async def test_dependency_health_endpoints_return_ok(client, path):
+    response = await client.get(path)
+    assert response.status_code == 200
+    assert response.json()["database"] == "ok"
 
 
 async def test_health_does_not_leak_internal_details(client):
@@ -17,7 +44,8 @@ async def test_health_does_not_leak_internal_details(client):
         assert "sqlite" not in str(value).lower()
 
 
-async def test_health_returns_503_when_database_unavailable(client, monkeypatch):
+@pytest.mark.parametrize("path", ["/health", "/health/ready", "/health/startup"])
+async def test_dependency_health_returns_503_when_database_unavailable(client, monkeypatch, path):
     import app.main as main_module
 
     def broken_engine():
@@ -25,7 +53,7 @@ async def test_health_returns_503_when_database_unavailable(client, monkeypatch)
 
     monkeypatch.setattr(main_module, "get_engine", broken_engine)
 
-    response = await client.get("/health")
+    response = await client.get(path)
     assert response.status_code == 503
     body = response.json()
     assert body["status"] == "error"

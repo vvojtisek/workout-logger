@@ -104,6 +104,11 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     responses={503: {"model": HealthResponse, "description": "Database unavailable"}},
 )
 async def health() -> JSONResponse:
+    """Compatibility readiness check for existing clients."""
+    return await dependency_health()
+
+
+async def dependency_health() -> JSONResponse:
     try:
         engine = get_engine()
         async with engine.connect() as conn:
@@ -114,6 +119,41 @@ async def health() -> JSONResponse:
             content={"status": "error", "database": "unavailable", "version": settings.APP_VERSION},
         )
     return JSONResponse(content={"status": "ok", "database": "ok", "version": settings.APP_VERSION})
+
+
+@app.get(
+    "/health/live",
+    summary="Liveness check",
+    response_model=HealthResponse,
+)
+async def health_live() -> JSONResponse:
+    return JSONResponse(
+        content={
+            "status": "ok",
+            "database": "not_checked",
+            "version": settings.APP_VERSION,
+        }
+    )
+
+
+@app.get(
+    "/health/ready",
+    summary="Readiness check",
+    response_model=HealthResponse,
+    responses={503: {"model": HealthResponse, "description": "Database unavailable"}},
+)
+async def health_ready() -> JSONResponse:
+    return await dependency_health()
+
+
+@app.get(
+    "/health/startup",
+    summary="Startup check",
+    response_model=HealthResponse,
+    responses={503: {"model": HealthResponse, "description": "Database unavailable"}},
+)
+async def health_startup() -> JSONResponse:
+    return await dependency_health()
 
 
 @app.get("/", include_in_schema=False)

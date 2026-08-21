@@ -6,6 +6,8 @@ metadata:
     {{- include "workout-logger.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
   selector:
     matchLabels:
       {{- include "workout-logger.selectorLabels" . | nindent 6 }}
@@ -34,6 +36,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "workout-logger.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -42,10 +45,14 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: {{ include "workout-logger.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          lifecycle:
+            {{- toYaml .Values.lifecycle | nindent 12 }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+          startupProbe:
+            {{- toYaml .Values.startupProbe | nindent 12 }}
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
