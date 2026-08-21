@@ -1,4 +1,9 @@
 ---
+replicaCount: 1
+
+strategy:
+  type: Recreate
+
 image:
   repository: ghcr.io/vvojtisek/workout-logger
   tag: ""

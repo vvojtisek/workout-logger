@@ -152,6 +152,22 @@ python scripts/verify_deployment_image.py \
 The check fails if the Pod annotation, requested image, or runtime image ID differs from
 the Git-tracked promotion.
 
+### SQLite upgrade and shutdown behavior
+
+Production deliberately runs one replica with the Kubernetes `Recreate` strategy while
+SQLite is stored on a ReadWriteOnce volume. During an upgrade, Kubernetes fully terminates
+the old Pod before starting the new one, so two application processes never access the
+database concurrently. The application is unavailable during that interval; allow several
+minutes for the five-second endpoint-drain delay, graceful shutdown, image pull, migration,
+and startup.
+
+The startup probe allows up to five minutes for initialization before liveness checks begin.
+Liveness checks only the running process at `/health/live`; a database outage instead fails
+`/health/ready` and removes the Pod from Service endpoints without causing liveness restart
+thrashing. Kubernetes provides a 60-second termination budget: after a five-second pre-stop
+drain, Uvicorn handles SIGTERM and has up to 50 seconds to finish in-flight requests before
+the remaining safety margin expires.
+
 ---
 
 ## Database Migrations

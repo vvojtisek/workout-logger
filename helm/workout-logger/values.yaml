@@ -1,5 +1,15 @@
 replicaCount: 1
 
+strategy:
+  type: Recreate
+
+terminationGracePeriodSeconds: 60
+
+lifecycle:
+  preStop:
+    exec:
+      command: ["/bin/sh", "-c", "sleep 5"]
+
 image:
   repository: workout-logger
   pullPolicy: IfNotPresent
@@ -70,15 +80,29 @@ apiKeySecretKey: API_KEY
 
 resources: {}
 
+startupProbe:
+  httpGet:
+    path: /health/startup
+    port: http
+  periodSeconds: 2
+  timeoutSeconds: 2
+  failureThreshold: 150
+
 livenessProbe:
   httpGet:
-    path: /health
+    path: /health/live
     port: http
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
 
 readinessProbe:
   httpGet:
-    path: /health
+    path: /health/ready
     port: http
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 2
 
 nodeSelector: {}
 tolerations: []
