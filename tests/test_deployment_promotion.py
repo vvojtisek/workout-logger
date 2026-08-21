@@ -170,6 +170,8 @@ def test_ci_publishes_only_main_sha_and_prepares_reviewable_promotion() -> None:
 
     assert "ghcr.io/${{ github.repository }}:${{ github.sha }}" in workflow
     assert "cancel-in-progress: false" in workflow
+    assert "!contains(github.event.head_commit.message, '[skip image publish]')" in workflow
+    assert workflow.count("[skip image publish]") >= 3
     assert "push: true" in workflow
     assert "scripts/promote_image.py" in workflow
     assert "gh pr create" in workflow

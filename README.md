@@ -136,7 +136,8 @@ ArgoCD continuously reconciles the cluster with Git:
 After each successful `main` workflow, CI publishes exactly one image tagged with the full
 Git commit SHA and opens a draft promotion pull request. Merging that pull request records
 both the source commit and immutable registry digest in `values-prod.yaml`; Argo CD remains
-the only deployment reconciler.
+the only deployment reconciler. Promotion-only commits retain a `[skip image publish]`
+marker so merging a promotion cannot recursively publish another image and open another PR.
 
 Verify the promoted commit, requested image digest, and image ID actually running in the
 cluster with:

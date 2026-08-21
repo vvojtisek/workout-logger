@@ -69,7 +69,9 @@ jobs:
 
   publish:
     name: Publish immutable image and prepare promotion
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      !contains(github.event.head_commit.message, '[skip image publish]')
     needs: ci
     runs-on: ubuntu-latest
     permissions:
@@ -171,11 +173,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- helm/workout-logger/values-prod.yaml
-          git commit -m "chore(deploy): promote $short_sha"
+          git commit -m "chore(deploy): promote $short_sha [skip image publish]"
           git push --set-upstream origin "$promotion_branch"
           gh pr create \
             --base main \
             --head "$promotion_branch" \
             --draft \
-            --title "chore(deploy): promote $short_sha" \
+            --title "chore(deploy): promote $short_sha [skip image publish]" \
             --body "Promote commit \`$GITHUB_SHA\` to production by immutable image digest \`$IMAGE_DIGEST\`.\n\nProduction changes only when this pull request is reviewed and merged."
