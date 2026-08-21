@@ -147,7 +147,7 @@ def main() -> None:
         worktree = temp / "worktree"
         bare = temp / "workout-logger.git"
         try:
-            evidence.run(["git", "clone", "--local", str(ROOT), str(worktree)])
+            evidence.run(["git", "clone", "--no-local", str(ROOT), str(worktree)])
             evidence.run(["git", "checkout", "-B", "main"], cwd=worktree)
             evidence.run(["git", "config", "user.name", "github-actions[bot]"], cwd=worktree)
             evidence.run(
