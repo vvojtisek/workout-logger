@@ -11,6 +11,9 @@ image:
   sourceCommit: "4871cac648a5079e323e9e8604cf561ed91082d3"
   pullPolicy: IfNotPresent
 
+existingSecret: workout-logger-secret
+apiKeySecretKey: API_KEY
+
 ingress:
   enabled: true
   className: traefik

@@ -75,6 +75,11 @@ Create the service account name.
 {{- end }}
 {{- end }}
 
+{{/* Existing Secret containing the API key; the chart never creates secret data. */}}
+{{- define "workout-logger.secretName" -}}
+{{- required "existingSecret must name an externally managed Kubernetes Secret" .Values.existingSecret -}}
+{{- end }}
+
 {{/* Backup PVC name, allowing an independently managed claim. */}}
 {{- define "workout-logger.backupClaimName" -}}
 {{- default (printf "%s-backups" (include "workout-logger.fullname" .)) .Values.backupPersistence.existingClaim }}
