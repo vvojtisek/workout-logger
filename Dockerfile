@@ -14,7 +14,11 @@ RUN npx tailwindcss -i ./frontend/input.css -o ./app/static/styles.css --minify
 # ---- Stage 2: Python runtime ----
 FROM python:3.11-slim AS runtime
 
-RUN groupadd --gid 10001 appuser \
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade --yes \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && groupadd --gid 10001 appuser \
     && useradd --uid 10001 --gid 10001 --shell /bin/false --no-create-home appuser
 
 WORKDIR /app
@@ -28,6 +32,7 @@ COPY scripts/entrypoint.sh scripts/backup_database.py scripts/restore_database.p
 COPY --from=css-build /build/app/static/styles.css ./app/static/styles.css
 
 RUN pip install --no-cache-dir . \
+    && python -m pip uninstall --yes pip setuptools wheel \
     && chmod +x scripts/entrypoint.sh \
     && mkdir -p /data \
     && chown -R 10001:10001 /app /data
