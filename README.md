@@ -179,13 +179,17 @@ In Kubernetes, migrations run as a bounded Argo CD `PreSync` Job using the exact
 application image and database PVC. Application Pods receive
 `RUN_MIGRATIONS_ON_STARTUP=false`, so restarts do not independently migrate production.
 The Job name is derived from the release image and migration command, so repeated syncs do
-not rerun a completed migration for the same release. Completed and failed Jobs are retained
-for log inspection; use the Job name shown by `kubectl get jobs`:
+not rerun Alembic for the same release. A locked success marker on the database PVC makes
+this guarantee survive Job deletion or recreation. Each attempt also writes its combined
+output to `/data/migration-releases/<release-id>.log`, so logs survive later Argo pruning.
+Inspect the immediate Job logs and the durable copy with:
 
 ```bash
 kubectl get jobs -n prod -l app.kubernetes.io/name=workout-logger
 kubectl logs -n prod job/<migration-job-name>
 kubectl describe -n prod job/<migration-job-name>
+kubectl exec -n prod deployment/workout-logger -- \
+  cat /data/migration-releases/<release-id>.log
 ```
 
 A failed PreSync hook blocks the Deployment update. Capture its logs before retrying, fix
@@ -195,6 +199,9 @@ maintenance change that scales the application to zero, verify no application Po
 take a diagnostic backup, restore a previously verified pre-release backup with a dedicated
 one-shot recovery Pod/Job, and revert the promoted image digest in Git. Argo CD must remain
 the reconciler throughout recovery.
+
+Do not delete a `.succeeded` release marker to force a rerun. Recovery must use a new reviewed
+release identity so the original execution record remains auditable.
 
 Standalone container use retains the historical behavior and runs migrations unless
 `RUN_MIGRATIONS_ON_STARTUP=false` is explicitly set.

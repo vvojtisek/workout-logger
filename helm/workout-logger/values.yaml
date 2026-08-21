@@ -84,9 +84,9 @@ resources: {}
 migrationJob:
   enabled: true
   command:
-    - alembic
+    - python
+    - /app/scripts/run_migrations.py
   args:
-    - upgrade
     - head
   activeDeadlineSeconds: 300
   backoffLimit: 1

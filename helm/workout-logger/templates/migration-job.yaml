@@ -16,7 +16,7 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "workout-logger.selectorLabels" . | nindent 8 }}
+        {{- include "workout-logger.migrationLabels" . | nindent 8 }}
       annotations:
         {{- with .Values.image.digest }}
         workout-logger.vvojtisek.eu/image-digest: {{ . | quote }}
@@ -42,6 +42,8 @@ spec:
           resources:
             {{- toYaml .Values.migrationJob.resources | nindent 12 }}
           env:
+            - name: MIGRATION_RELEASE_ID
+              value: {{ sha256sum $migrationIdentity | trunc 12 | quote }}
             - name: API_KEY
               valueFrom:
                 secretKeyRef:

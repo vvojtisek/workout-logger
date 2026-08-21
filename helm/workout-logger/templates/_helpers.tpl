@@ -49,6 +49,22 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Labels for web Pods selected by the application Service.
+*/}}
+{{- define "workout-logger.webLabels" -}}
+{{ include "workout-logger.selectorLabels" . }}
+app.kubernetes.io/component: web
+{{- end }}
+
+{{/*
+Labels for migration Pods, which must never match the application Service.
+*/}}
+{{- define "workout-logger.migrationLabels" -}}
+{{ include "workout-logger.selectorLabels" . }}
+app.kubernetes.io/component: migration
+{{- end }}
+
+{{/*
 Create the service account name.
 */}}
 {{- define "workout-logger.serviceAccountName" -}}
