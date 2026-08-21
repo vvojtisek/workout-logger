@@ -53,8 +53,8 @@ spec:
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.existingSecret }}
-                  key: {{ .Values.apiKeySecretKey }}
+                  name: workout-logger-secret
+                  key: API_KEY
             {{- end }}
           volumeMounts:
             {{- if .Values.persistence.enabled }}

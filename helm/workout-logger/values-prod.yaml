@@ -24,10 +24,6 @@ env:
   TRUSTED_HOSTS: "localhost,127.0.0.1,fitness.vvojtisek.eu"
   PUBLIC_BASE_URL: "https://fitness.vvojtisek.eu/"
 
-# Keep API_KEY out of Git. This Secret must exist in the prod namespace.
-existingSecret: workout-logger-secrets
-apiKeySecretKey: API_KEY
-
 persistence:
   enabled: true
   size: 2Gi

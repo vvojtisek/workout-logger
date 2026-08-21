@@ -26,4 +26,3 @@ env:
   LOG_LEVEL: DEBUG
   TRUSTED_HOSTS: "localhost,127.0.0.1,workout-logger.local"
   PUBLIC_BASE_URL: "http://workout-logger.local"
-  API_KEY: "dev-secret-key-12345-Camcorder-Sustainer9-Poem-Scarf-Drumstick"
