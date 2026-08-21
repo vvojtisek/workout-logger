@@ -36,6 +36,15 @@ persistence:
   enabled: true
   size: 2Gi
 
+backupPersistence:
+  enabled: true
+  size: 5Gi
+
+backup:
+  enabled: true
+  schedule: "17 2 * * *"
+  keep: 7
+
 resources:
   requests:
     cpu: 100m

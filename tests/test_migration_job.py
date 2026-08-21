@@ -49,7 +49,12 @@ def test_migration_job_uses_release_image_database_and_pvc() -> None:
     migration_identity = f'{production_image}|["python","/app/scripts/run_migrations.py"]|["head"]'
     migration_id = hashlib.sha256(migration_identity.encode()).hexdigest()[:12]
 
-    assert rendered.count(f'image: "{production_image}"') == 2
+    deployment_image = rendered_resource("Deployment")["spec"]["template"]["spec"]["containers"][0][
+        "image"
+    ]
+    migration_image = rendered_resource("Job")["spec"]["template"]["spec"]["containers"][0]["image"]
+    assert deployment_image == production_image
+    assert migration_image == production_image
     assert f"name: workout-logger-migrate-{migration_id}" in rendered
     assert (
         "command:\n            - python\n            - /app/scripts/run_migrations.py" in rendered
