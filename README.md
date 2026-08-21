@@ -49,6 +49,13 @@ All configuration is managed via environment variables:
 
 > `API_KEY` is never logged, never embedded in the container image, and supplied exclusively via Kubernetes Secret at runtime.
 
+The Helm chart requires `existingSecret` to name that externally managed Secret and
+`apiKeySecretKey` to identify its data key. The defaults are `workout-logger-secret` and
+`API_KEY`; override both the created Secret name and `existingSecret` together. The chart
+validates these names before rendering and never creates or prints secret values. Application
+and migration Pods do not mount Kubernetes API credentials by default; set
+`serviceAccount.automount=true` only for a separately reviewed feature that requires API access.
+
 ---
 
 ## Local Development

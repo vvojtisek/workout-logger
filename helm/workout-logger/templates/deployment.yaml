@@ -32,6 +32,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -64,8 +65,8 @@ spec:
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: workout-logger-secret
-                  key: API_KEY
+                  name: {{ include "workout-logger.secretName" . }}
+                  key: {{ .Values.apiKeySecretKey }}
             {{- range $key, $val := .Values.env }}
             - name: {{ $key }}
               value: {{ $val | quote }}

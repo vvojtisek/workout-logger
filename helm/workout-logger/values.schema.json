@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "existingSecret",
+    "apiKeySecretKey",
+    "image",
+    "serviceAccount",
+    "podSecurityContext",
+    "securityContext",
+    "persistence"
+  ],
+  "properties": {
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "existingSecret": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([-.a-z0-9]*[a-z0-9])?$"
+    },
+    "apiKeySecretKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 253,
+      "pattern": "^[A-Za-z0-9._-]+$"
+    },
+    "image": {
+      "type": "object",
+      "required": ["repository", "pullPolicy", "tag", "digest", "sourceCommit"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"]
+        },
+        "tag": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^$|^sha256:[0-9a-f]{64}$"
+        },
+        "sourceCommit": {
+          "type": "string",
+          "pattern": "^$|^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "required": ["create", "automount", "name"],
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "automount": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 253,
+          "pattern": "^$|^[a-z0-9]([-.a-z0-9]*[a-z0-9])?$"
+        }
+      }
+    },
+    "podSecurityContext": {
+      "type": "object",
+      "required": ["runAsNonRoot", "runAsUser", "runAsGroup", "fsGroup"],
+      "properties": {
+        "runAsNonRoot": {
+          "const": true
+        },
+        "runAsUser": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "runAsGroup": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fsGroup": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "securityContext": {
+      "type": "object",
+      "required": ["allowPrivilegeEscalation"],
+      "properties": {
+        "allowPrivilegeEscalation": {
+          "const": false
+        }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "required": ["enabled", "mountPath", "accessModes", "size"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "mountPath": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "accessModes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany", "ReadWriteOncePod"]
+          }
+        },
+        "size": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(Ei|Pi|Ti|Gi|Mi|Ki)$"
+        }
+      }
+    }
+  }
+}

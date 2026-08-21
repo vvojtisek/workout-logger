@@ -23,7 +23,7 @@ fullnameOverride: ""
 
 serviceAccount:
   create: true
-  automount: true
+  automount: false
   annotations: {}
   name: ""
 
@@ -102,7 +102,7 @@ env:
   PUBLIC_BASE_URL: "https://fitness.vvojtisek.eu/"
   RUN_MIGRATIONS_ON_STARTUP: "false"
 
-existingSecret: ""
+existingSecret: workout-logger-secret
 apiKeySecretKey: API_KEY
 
 resources: {}
