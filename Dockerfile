@@ -14,8 +14,8 @@ RUN npx tailwindcss -i ./frontend/input.css -o ./app/static/styles.css --minify
 # ---- Stage 2: Python runtime ----
 FROM python:3.11-slim AS runtime
 
-RUN groupadd --gid 1000 appuser \
-    && useradd --uid 1000 --gid appuser --shell /bin/sh --create-home appuser
+RUN groupadd --gid 10001 appuser \
+    && useradd --uid 10001 --gid 10001 --shell /bin/false --no-create-home appuser
 
 WORKDIR /app
 
@@ -30,11 +30,11 @@ COPY --from=css-build /build/app/static/styles.css ./app/static/styles.css
 RUN pip install --no-cache-dir . \
     && chmod +x scripts/entrypoint.sh \
     && mkdir -p /data \
-    && chown -R appuser:appuser /app /data
+    && chown -R 10001:10001 /app /data
 
 VOLUME ["/data"]
 EXPOSE 8000
 
-USER appuser
+USER 10001:10001
 
 ENTRYPOINT ["scripts/entrypoint.sh"]
