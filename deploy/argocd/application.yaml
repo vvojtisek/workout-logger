@@ -10,7 +10,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/vvojtisek/workout-logger.git
-    targetRevision: feat/v2-initial-setup
+    targetRevision: main
     path: helm/workout-logger
     helm:
       valueFiles:
