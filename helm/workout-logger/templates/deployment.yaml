@@ -45,26 +45,14 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
-            {{- range $key, $val := .Values.env }}
-            - name: {{ $key }}
-              value: {{ $val | quote }}
-            {{- end }}
-            {{- if .Values.existingSecret }}
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
                   name: workout-logger-secret
                   key: API_KEY
-            - name: APP_ENV
-              value: {{ .Values.env.APP_ENV | quote }}
-            - name: APP_VERSION
-              value: {{ .Values.env.APP_VERSION | quote }}
-            - name: LOG_LEVEL
-              value: {{ .Values.env.LOG_LEVEL | quote }}
-            - name: PUBLIC_BASE_URL
-              value: {{ .Values.env.PUBLIC_BASE_URL | quote }}
-            - name: TRUSTED_HOSTS
-              value: {{ .Values.env.TRUSTED_HOSTS | quote }}
+            {{- range $key, $val := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
             {{- end }}
           volumeMounts:
             {{- if .Values.persistence.enabled }}
