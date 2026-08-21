@@ -8,7 +8,9 @@ from app.database import get_session
 from app.schemas.common import ErrorResponse
 from app.schemas.workout_sessions import (
     SetEntryCreate,
+    SetEntryUpdate,
     WorkoutSessionComplete,
+    WorkoutSessionFocus,
     WorkoutSessionRead,
     WorkoutSessionStart,
 )
@@ -89,6 +91,49 @@ async def complete_workout_session_set(
     workout_session, created = await workout_sessions_service.save_set(session, session_id, data)
     if not created:
         response.status_code = status.HTTP_200_OK
+    return WorkoutSessionRead.model_validate(workout_session)
+
+
+@router.put(
+    "/{session_id}/sets/{entry_id}",
+    operation_id="update_workout_session_set",
+    response_model=WorkoutSessionRead,
+)
+async def update_workout_session_set(
+    session_id: UUID,
+    entry_id: UUID,
+    data: SetEntryUpdate,
+    session: SessionDep,
+) -> WorkoutSessionRead:
+    workout_session = await workout_sessions_service.update_set(session, session_id, entry_id, data)
+    return WorkoutSessionRead.model_validate(workout_session)
+
+
+@router.delete(
+    "/{session_id}/sets/{entry_id}",
+    operation_id="delete_workout_session_set",
+    response_model=WorkoutSessionRead,
+)
+async def delete_workout_session_set(
+    session_id: UUID,
+    entry_id: UUID,
+    session: SessionDep,
+) -> WorkoutSessionRead:
+    workout_session = await workout_sessions_service.delete_set(session, session_id, entry_id)
+    return WorkoutSessionRead.model_validate(workout_session)
+
+
+@router.patch(
+    "/{session_id}/focus",
+    operation_id="focus_workout_session_set",
+    response_model=WorkoutSessionRead,
+)
+async def focus_workout_session_set(
+    session_id: UUID,
+    data: WorkoutSessionFocus,
+    session: SessionDep,
+) -> WorkoutSessionRead:
+    workout_session = await workout_sessions_service.set_focus(session, session_id, data)
     return WorkoutSessionRead.model_validate(workout_session)
 
 

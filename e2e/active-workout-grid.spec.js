@@ -73,7 +73,7 @@ test("logs and progresses through a real multi-exercise workout grid", async ({
 
     await expect(page.getByText("0 of 6 sets")).toBeVisible();
     for (const heading of ["Set", "Previous", "kg", "Reps", "RIR", "Complete"]) {
-      await expect(page.getByRole("columnheader", { name: heading })).toBeVisible();
+      await expect(page.getByRole("columnheader", { name: heading }).first()).toBeVisible();
     }
     await expect(page.locator("[data-set-row]")).toHaveCount(6);
     await expect(page.locator('[data-state="current"]')).toHaveCount(1);

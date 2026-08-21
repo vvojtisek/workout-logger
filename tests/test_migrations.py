@@ -155,9 +155,7 @@ def test_grid_group_migration_preserves_slice_one_data(alembic_config, alembic_d
         assert {"group_key", "group_order"}.issubset(columns)
     with sync_engine.connect() as connection:
         row = connection.execute(
-            text(
-                "SELECT exercise_name, group_key, group_order FROM plan_exercises WHERE id = :id"
-            ),
+            text("SELECT exercise_name, group_key, group_order FROM plan_exercises WHERE id = :id"),
             {"id": exercise_id},
         ).one()
         assert row == ("Squat", None, None)

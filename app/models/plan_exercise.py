@@ -38,5 +38,7 @@ class PlanExercise(UUIDPrimaryKeyMixin, Base):
     target_weight_kg: Mapped[float | None] = mapped_column(REAL, nullable=True)
     rest_time_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    group_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    group_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     workout_plan: Mapped["WorkoutPlan"] = relationship(back_populates="exercises")

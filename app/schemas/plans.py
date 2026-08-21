@@ -14,6 +14,8 @@ class PlanExerciseCreate(BaseModel):
     target_weight_kg: float | None = Field(default=None, ge=0)
     rest_time_seconds: int = Field(default=60, ge=0, le=3600)
     notes: str | None = Field(default=None, max_length=4000)
+    group_key: str | None = Field(default=None, min_length=1, max_length=100)
+    group_order: int | None = Field(default=None, ge=0)
 
     @field_validator("exercise_name")
     @classmethod

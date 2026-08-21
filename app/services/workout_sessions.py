@@ -9,10 +9,35 @@ from sqlalchemy.orm import selectinload
 from app.exceptions import ConflictError, NotFoundError
 from app.models import ExerciseLog, SessionExercise, SetEntry, WorkoutLog, WorkoutSession
 from app.models.base import utcnow
-from app.schemas.workout_sessions import SetEntryCreate, WorkoutSessionComplete
+from app.schemas.workout_sessions import (
+    SetEntryCreate,
+    SetEntryUpdate,
+    WorkoutSessionComplete,
+    WorkoutSessionFocus,
+)
 from app.services.plans import get_plan
 
 _LOAD_SESSION = selectinload(WorkoutSession.exercises).selectinload(SessionExercise.set_entries)
+
+
+def _exercise(workout_session: WorkoutSession, exercise_id: UUID) -> SessionExercise:
+    exercise = next(
+        (item for item in workout_session.exercises if item.id == exercise_id),
+        None,
+    )
+    if exercise is None:
+        raise NotFoundError("Session exercise not found", code="SESSION_EXERCISE_NOT_FOUND")
+    return exercise
+
+
+def _focus_next_incomplete(workout_session: WorkoutSession) -> None:
+    for exercise in workout_session.exercises:
+        saved = {entry.set_number for entry in exercise.set_entries}
+        for set_number in range(1, exercise.target_sets + 1):
+            if set_number not in saved:
+                workout_session.focused_exercise_id = exercise.id
+                workout_session.focused_set_number = set_number
+                return
 
 
 async def get_session(session: AsyncSession, session_id: UUID) -> WorkoutSession:
@@ -100,6 +125,8 @@ async def start_session(session: AsyncSession, source_plan_id: UUID) -> tuple[Wo
                 target_weight_kg=exercise.target_weight_kg,
                 rest_time_seconds=exercise.rest_time_seconds,
                 notes=exercise.notes,
+                group_key=exercise.group_key,
+                group_order=exercise.group_order,
                 suggested_weight_kg=suggested_weight,
                 suggested_reps=suggested_reps,
                 suggestion_source=suggestion_source,
@@ -120,12 +147,7 @@ async def save_set(
     if workout_session.status != "active":
         raise ConflictError("Workout session is not active", code="SESSION_NOT_ACTIVE")
 
-    exercise = next(
-        (item for item in workout_session.exercises if item.id == data.session_exercise_id),
-        None,
-    )
-    if exercise is None:
-        raise NotFoundError("Session exercise not found", code="SESSION_EXERCISE_NOT_FOUND")
+    exercise = _exercise(workout_session, data.session_exercise_id)
 
     for item in workout_session.exercises:
         for entry in item.set_entries:
@@ -142,14 +164,88 @@ async def save_set(
             weight_kg=data.weight_kg,
             reps=data.reps,
             rir=data.rir,
-            state="completed",
+            state=data.state,
             client_operation_id=data.client_operation_id,
         )
     )
-    workout_session.rest_ends_at = utcnow() + timedelta(seconds=exercise.rest_time_seconds)
+    if data.state == "completed":
+        workout_session.rest_ends_at = utcnow() + timedelta(seconds=exercise.rest_time_seconds)
+    _focus_next_incomplete(workout_session)
     workout_session.version += 1
     await session.commit()
     return await get_session(session, workout_session.id), True
+
+
+async def update_set(
+    session: AsyncSession,
+    session_id: UUID,
+    entry_id: UUID,
+    data: SetEntryUpdate,
+) -> WorkoutSession:
+    workout_session = await get_session(session, session_id)
+    if workout_session.status != "active":
+        raise ConflictError("Workout session is not active", code="SESSION_NOT_ACTIVE")
+    entry = next(
+        (
+            entry
+            for exercise in workout_session.exercises
+            for entry in exercise.set_entries
+            if entry.id == entry_id
+        ),
+        None,
+    )
+    if entry is None:
+        raise NotFoundError("Set entry not found", code="SET_ENTRY_NOT_FOUND")
+    entry.weight_kg = data.weight_kg
+    entry.reps = data.reps
+    entry.rir = data.rir
+    workout_session.version += 1
+    await session.commit()
+    return await get_session(session, workout_session.id)
+
+
+async def delete_set(session: AsyncSession, session_id: UUID, entry_id: UUID) -> WorkoutSession:
+    workout_session = await get_session(session, session_id)
+    if workout_session.status != "active":
+        raise ConflictError("Workout session is not active", code="SESSION_NOT_ACTIVE")
+    location = next(
+        (
+            (exercise, entry)
+            for exercise in workout_session.exercises
+            for entry in exercise.set_entries
+            if entry.id == entry_id
+        ),
+        None,
+    )
+    if location is None:
+        raise NotFoundError("Set entry not found", code="SET_ENTRY_NOT_FOUND")
+    exercise, entry = location
+    set_number = entry.set_number
+    exercise.set_entries.remove(entry)
+    workout_session.focused_exercise_id = exercise.id
+    workout_session.focused_set_number = set_number
+    workout_session.rest_ends_at = None
+    workout_session.version += 1
+    await session.commit()
+    return await get_session(session, workout_session.id)
+
+
+async def set_focus(
+    session: AsyncSession,
+    session_id: UUID,
+    data: WorkoutSessionFocus,
+) -> WorkoutSession:
+    workout_session = await get_session(session, session_id)
+    if workout_session.status != "active":
+        raise ConflictError("Workout session is not active", code="SESSION_NOT_ACTIVE")
+    exercise = _exercise(workout_session, data.session_exercise_id)
+    if data.set_number > exercise.target_sets:
+        raise ConflictError("Set number exceeds the exercise target", code="SET_OUT_OF_RANGE")
+    workout_session.focused_exercise_id = exercise.id
+    workout_session.focused_set_number = data.set_number
+    workout_session.version += 1
+    await session.commit()
+    return await get_session(session, workout_session.id)
 
 
 async def complete_session(
