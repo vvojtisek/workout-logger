@@ -74,11 +74,23 @@ env:
   LOG_LEVEL: INFO
   TRUSTED_HOSTS: localhost,127.0.0.1
   PUBLIC_BASE_URL: "https://fitness.vvojtisek.eu/"
+  RUN_MIGRATIONS_ON_STARTUP: "false"
 
 existingSecret: ""
 apiKeySecretKey: API_KEY
 
 resources: {}
+
+migrationJob:
+  enabled: true
+  command:
+    - alembic
+  args:
+    - upgrade
+    - head
+  activeDeadlineSeconds: 300
+  backoffLimit: 1
+  resources: {}
 
 startupProbe:
   httpGet:

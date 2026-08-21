@@ -8,8 +8,19 @@ echo "[entrypoint] 2/4 verifying /data is writable..."
 touch /data/.write_test
 rm -f /data/.write_test
 
-echo "[entrypoint] 3/4 running database migrations..."
-alembic upgrade head
+case "${RUN_MIGRATIONS_ON_STARTUP:-true}" in
+  true)
+    echo "[entrypoint] 3/4 running database migrations..."
+    alembic upgrade head
+    ;;
+  false)
+    echo "[entrypoint] 3/4 Skipping database migrations; managed by release job."
+    ;;
+  *)
+    echo "[entrypoint] RUN_MIGRATIONS_ON_STARTUP must be 'true' or 'false'." >&2
+    exit 1
+    ;;
+esac
 
 echo "[entrypoint] 4/4 starting uvicorn..."
 exec uvicorn app.main:app \
