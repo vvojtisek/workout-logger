@@ -22,6 +22,11 @@ def render_production_chart() -> str:
     ).stdout
 
 
+def rendered_resource(kind: str) -> dict:
+    resources = yaml.safe_load_all(render_production_chart())
+    return next(resource for resource in resources if resource and resource.get("kind") == kind)
+
+
 def test_migration_job_is_a_bounded_presync_hook() -> None:
     rendered = render_production_chart()
 
@@ -41,13 +46,17 @@ def test_migration_job_uses_release_image_database_and_pvc() -> None:
     production_image = (
         f"{production_values['image']['repository']}@{production_values['image']['digest']}"
     )
-    migration_identity = f'{production_image}|["alembic"]|["upgrade","head"]'
+    migration_identity = f'{production_image}|["python","/app/scripts/run_migrations.py"]|["head"]'
     migration_id = hashlib.sha256(migration_identity.encode()).hexdigest()[:12]
 
     assert rendered.count(f'image: "{production_image}"') == 2
     assert f"name: workout-logger-migrate-{migration_id}" in rendered
-    assert "command:\n            - alembic" in rendered
-    assert "args:\n            - upgrade\n            - head" in rendered
+    assert (
+        "command:\n            - python\n            - /app/scripts/run_migrations.py" in rendered
+    )
+    assert "args:\n            - head" in rendered
+    assert "name: MIGRATION_RELEASE_ID" in rendered
+    assert f'value: "{migration_id}"' in rendered
     assert "claimName: workout-logger-data" in rendered
     assert "mountPath: /data" in rendered
 
@@ -61,3 +70,22 @@ def test_production_application_startup_skips_independent_migration() -> None:
     assert "RUN_MIGRATIONS_ON_STARTUP" in entrypoint
     assert "alembic upgrade head" in entrypoint
     assert "Skipping database migrations" in entrypoint
+
+
+def test_service_selector_excludes_migration_job_pods() -> None:
+    service_selector = rendered_resource("Service")["spec"]["selector"]
+    migration_labels = rendered_resource("Job")["spec"]["template"]["metadata"]["labels"]
+
+    assert not (service_selector.items() <= migration_labels.items())
+    assert service_selector["app.kubernetes.io/component"] == "web"
+    assert migration_labels["app.kubernetes.io/component"] == "migration"
+
+
+def test_web_component_does_not_change_immutable_deployment_selector() -> None:
+    deployment = rendered_resource("Deployment")
+    deployment_selector = deployment["spec"]["selector"]["matchLabels"]
+    pod_labels = deployment["spec"]["template"]["metadata"]["labels"]
+
+    assert "app.kubernetes.io/component" not in deployment_selector
+    assert pod_labels["app.kubernetes.io/component"] == "web"
+    assert deployment_selector.items() <= pod_labels.items()
