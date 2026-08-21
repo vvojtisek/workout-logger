@@ -129,8 +129,27 @@ kubectl apply -f deploy/argocd/application.yaml
 ArgoCD continuously reconciles the cluster with Git:
 
 * Applies `helm/workout-logger` using `values-prod.yaml`.
+* Deploys the exact `image.digest` recorded in Git; mutable tags are not used in production.
 * Configures persistent volume storage (`/data`).
 * Manages Traefik Ingress with automatic Let's Encrypt TLS cert generation via `cert-manager`.
+
+After each successful `main` workflow, CI publishes exactly one image tagged with the full
+Git commit SHA and opens a draft promotion pull request. Merging that pull request records
+both the source commit and immutable registry digest in `values-prod.yaml`; Argo CD remains
+the only deployment reconciler.
+
+Verify the promoted commit, requested image digest, and image ID actually running in the
+cluster with:
+
+```bash
+python scripts/verify_deployment_image.py \
+  --values helm/workout-logger/values-prod.yaml \
+  --namespace prod \
+  --selector app.kubernetes.io/name=workout-logger
+```
+
+The check fails if the Pod annotation, requested image, or runtime image ID differs from
+the Git-tracked promotion.
 
 ---
 

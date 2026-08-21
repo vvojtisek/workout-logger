@@ -1,7 +1,9 @@
 ---
 image:
   repository: ghcr.io/vvojtisek/workout-logger
-  tag: "feat-v2-initial-setup"
+  tag: ""
+  digest: "sha256:9715fd3c56b2270dbd6cd55c6530e13b57c2d9d6619dbd7bf82997be1ec7b8a3"
+  sourceCommit: "f9d152b93854d5df6f9c5d886bac07a714f6ae65"
   pullPolicy: IfNotPresent
 
 ingress:

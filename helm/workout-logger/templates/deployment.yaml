@@ -11,9 +11,17 @@ spec:
       {{- include "workout-logger.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {{- if or .Values.podAnnotations .Values.image.digest .Values.image.sourceCommit }}
       annotations:
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.image.digest }}
+        workout-logger.vvojtisek.eu/image-digest: {{ . | quote }}
+        {{- end }}
+        {{- with .Values.image.sourceCommit }}
+        workout-logger.vvojtisek.eu/source-commit: {{ . | quote }}
+        {{- end }}
       {{- end }}
       labels:
         {{- include "workout-logger.labels" . | nindent 8 }}
@@ -32,7 +40,7 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: {{ include "workout-logger.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
