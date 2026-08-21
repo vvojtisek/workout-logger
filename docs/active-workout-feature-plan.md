@@ -292,7 +292,7 @@ Run all commands that exist in the repository:
 
 ```bash
 pytest --cov=app --cov-report=term-missing
-ruff check .
+ruff check --select E4,E7,E9,F .
 ruff format --check .
 mypy app/
 npm ci
@@ -305,6 +305,12 @@ helm lint helm/workout-logger
 helm template workout-logger helm/workout-logger -f helm/workout-logger/values.yaml
 helm template workout-logger helm/workout-logger -f helm/workout-logger/values-prod.yaml
 ```
+
+For active-workout slices, `ruff check --select E4,E7,E9,F .` is the required Ruff gate because
+it matches the authoritative green CI baseline. Run `ruff check .` informationally as a baseline
+ratchet: newly created Python files must pass the full Ruff rules, no new violations may be
+introduced, and the known baseline must not get worse. Issue #28 documents the pre-existing
+50-violation mismatch and is non-blocking; do not modify unrelated files merely to reduce it.
 
 Also run the repository's Kubernetes schema, security, SBOM, container, and ephemeral-cluster gates through CI.
 

@@ -84,7 +84,7 @@ Run tests and linters:
 
 ```bash
 pytest --cov=app --cov-report=term-missing
-ruff check .
+ruff check --select E4,E7,E9,F .
 ruff format --check .
 mypy app/
 npm ci
@@ -95,14 +95,17 @@ npm run build
 
 ```
 
+For active-workout slices, run `ruff check .` informationally as a baseline ratchet. New Python
+files must pass the full rules, and issue #28's known baseline must not get worse.
+
 ### Continuous-integration gates
 
 Pull requests and pushes to `main` run independent backend, frontend, Kubernetes-manifest,
 security, and real-cluster E2E jobs. The manifest job validates default and production Helm
 renders against Kubernetes 1.35.0. The E2E job deploys the exact locally built image and a
 real SQLite PVC into an ephemeral k3d cluster, exercises API CRUD plus the browser UI, deletes
-its run-tagged record in a `finally` block, uploads diagnostics even on failure, and deletes
-the cluster.
+its run-tagged records in a `finally` block, verifies absence through both the API and direct
+SQLite counts, uploads diagnostics even on failure, and deletes the cluster.
 
 Security gates reject any Python advisory reported by `pip-audit`, npm vulnerabilities at
 high or critical severity, repository secrets reported by gitleaks, and fixed high or critical
@@ -276,3 +279,7 @@ isolated restore drills, production recovery, validation, abort, and cleanup ste
 * **Interactive Docs:** `GET /docs` (Swagger UI).
 * **Machine-Readable Spec:** `GET /openapi.json` (OpenAPI 3.1).
 * **Compatibility Aliases:** `/workout-plans` maps to `/api/v1/plans`, `/workout-logs` maps to `/api/v1/logs`.
+
+Active-workout Slice 1 adds authenticated `/api/v1/workout-sessions` operations to start or
+resume a plan snapshot, idempotently save a set with an absolute rest deadline, read the session,
+complete it into the existing workout-log history, and remove E2E records during verified cleanup.

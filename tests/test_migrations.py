@@ -1,5 +1,7 @@
 import os
+import shutil
 import tempfile
+import uuid
 
 import pytest
 from alembic import command
@@ -7,7 +9,7 @@ from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from sqlalchemy import create_engine as create_sync_engine
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 
 from app.config import get_settings
 from app.models import Base
@@ -73,3 +75,50 @@ def test_alembic_downgrade_removes_all_tables(alembic_config, alembic_db_path):
     for table_name in ("workout_plans", "plan_exercises", "workout_logs", "exercise_logs"):
         assert table_name not in tables
     sync_engine.dispose()
+
+
+def test_active_session_migration_upgrades_a_copy_of_current_schema(
+    alembic_config, alembic_db_path, tmp_path
+):
+    command.upgrade(alembic_config, "93469c1ebbbf")
+    original_plan_id = str(uuid.uuid4())
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO workout_plans "
+                "(id, name, description, created_at, updated_at) "
+                "VALUES (:id, :name, :description, :created_at, :updated_at)"
+            ),
+            {
+                "id": original_plan_id,
+                "name": "Existing current-schema plan",
+                "description": "must survive",
+                "created_at": "2026-08-20 10:00:00",
+                "updated_at": "2026-08-20 10:00:00",
+            },
+        )
+    sync_engine.dispose()
+
+    copied_path = tmp_path / "current-schema-copy.db"
+    shutil.copy2(alembic_db_path, copied_path)
+    os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{copied_path}"
+    get_settings.cache_clear()
+
+    command.upgrade(alembic_config, "head")
+
+    copied_engine = create_sync_engine(f"sqlite:///{copied_path}")
+    inspector = inspect(copied_engine)
+    assert {
+        "workout_sessions",
+        "session_exercises",
+        "set_entries",
+    }.issubset(set(inspector.get_table_names()))
+    with copied_engine.connect() as connection:
+        assert (
+            connection.scalar(
+                text("SELECT name FROM workout_plans WHERE id = :id"), {"id": original_plan_id}
+            )
+            == "Existing current-schema plan"
+        )
+    copied_engine.dispose()

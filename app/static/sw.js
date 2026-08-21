@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "workout-logger-v2";
+const CACHE_NAME = "workout-logger-v3";
 const APP_SHELL = [
   "/",
   "/static/styles.css",

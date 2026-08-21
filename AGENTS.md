@@ -22,3 +22,12 @@ For active-workout work, that plan supersedes the stage sequencing in `docs/heal
 - Use Conventional Commits.
 - Do not commit secrets.
 - Git is the Argo CD source of truth; do not deploy or roll back production with imperative Helm changes.
+
+## Active-workout Ruff baseline ratchet
+
+- For active-workout slices, the required Ruff gate is `ruff check --select E4,E7,E9,F .`,
+  matching the authoritative green CI baseline.
+- Run `ruff check .` informationally. Newly created Python files must pass the full Ruff rules,
+  no new violations may be introduced, and the known baseline must not get worse.
+- Issue #28 records the pre-existing full-Ruff mismatch. It is non-blocking for active-workout
+  slices and must not be fixed as part of those feature changes.
