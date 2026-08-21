@@ -1,0 +1,70 @@
+{{- if .Values.restore.enabled }}
+{{- if ne (int .Values.replicaCount) 0 }}
+{{- fail "restore.enabled=true requires replicaCount=0" }}
+{{- end }}
+{{- if .Values.migrationJob.enabled }}
+{{- fail "restore.enabled=true requires migrationJob.enabled=false" }}
+{{- end }}
+{{- if not .Values.persistence.enabled }}
+{{- fail "restore.enabled=true requires persistence.enabled=true" }}
+{{- end }}
+{{- if not .Values.backupPersistence.enabled }}
+{{- fail "restore.enabled=true requires backupPersistence.enabled=true" }}
+{{- end }}
+{{- if not .Values.restore.backupFile }}
+{{- fail "restore.enabled=true requires restore.backupFile" }}
+{{- end }}
+{{- if contains "/" .Values.restore.backupFile }}
+{{- fail "restore.backupFile must be a filename in the backup PVC" }}
+{{- end }}
+{{- $restoreIdentity := printf "%s|%s" (include "workout-logger.image" .) .Values.restore.backupFile }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "workout-logger.fullname" . }}-restore-{{ sha256sum $restoreIdentity | trunc 12 }}
+  labels:
+    {{- include "workout-logger.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  activeDeadlineSeconds: {{ .Values.restore.activeDeadlineSeconds }}
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        {{- include "workout-logger.maintenanceLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: restore
+          image: {{ include "workout-logger.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          command: ["python", "/app/scripts/restore_database.py"]
+          args:
+            - --confirm-exclusive-access
+            - --destination
+            - {{ printf "%s/workout_logger.db" .Values.persistence.mountPath | quote }}
+            - --backup
+            - {{ printf "%s/%s" .Values.backupPersistence.mountPath .Values.restore.backupFile | quote }}
+          resources:
+            {{- toYaml .Values.restore.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            - name: backups
+              mountPath: {{ .Values.backupPersistence.mountPath }}
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "workout-logger.fullname" . }}-data
+        - name: backups
+          persistentVolumeClaim:
+            claimName: {{ include "workout-logger.backupClaimName" . }}
+{{- end }}

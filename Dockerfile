@@ -23,7 +23,7 @@ COPY pyproject.toml ./
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
-COPY scripts/entrypoint.sh scripts/backup_database.py scripts/run_migrations.py ./scripts/
+COPY scripts/entrypoint.sh scripts/backup_database.py scripts/restore_database.py scripts/run_migrations.py scripts/validate_backup.py ./scripts/
 
 COPY --from=css-build /build/app/static/styles.css ./app/static/styles.css
 

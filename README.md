@@ -225,34 +225,21 @@ alembic downgrade -1
 
 ## Backup and Restore
 
-The database runs in **SQLite WAL mode**. Do not perform a plain copy of the `.db` file while the app is running. Use `scripts/backup_database.py`, which leverages SQLite's native online backup API.
+SQLite backups are created online by the chart's CronJob and written to the dedicated
+backup PVC, never to the application data PVC. Every `.db` artifact has a `.json` sidecar
+containing its UTC timestamp, source commit/release, immutable image reference, SHA-256,
+size, and Alembic schema revision. Backup creation and restore both require checksum and
+`PRAGMA integrity_check` validation.
 
-### Backup
+Never copy a database over `/data/workout_logger.db` in a live Pod. Production restore is
+a deliberate GitOps maintenance operation: the chart refuses to render the restore Job
+unless the Deployment is scaled to zero and the migration hook is disabled. The later
+recovery change makes an explicit migration decision before scaling back up. This design
+accepts downtime for the entire maintenance window because SQLite cannot provide a safe
+zero-downtime file replacement.
 
-```bash
-POD_NAME=$(kubectl get pod -n prod -l app.kubernetes.io/name=workout-logger -o jsonpath='{.items[0].metadata.name}')
-
-# Trigger online backup inside the container
-kubectl exec -n prod $POD_NAME -- python scripts/backup_database.py --source /data/workout_logger.db --dest-dir /data/backups --keep 7
-
-# Copy backup out of the cluster
-kubectl cp prod/$POD_NAME:/data/backups ./backups
-
-```
-
-### Restore
-
-```bash
-POD_NAME=$(kubectl get pod -n prod -l app.kubernetes.io/name=workout-logger -o jsonpath='{.items[0].metadata.name}')
-
-# Copy backup file into pod
-kubectl cp ./backups/workout_logger-<timestamp>.db prod/$POD_NAME:/data/workout_logger.db
-
-# Ensure clean WAL state and restart pod
-kubectl exec -n prod $POD_NAME -- rm -f /data/workout_logger.db-wal /data/workout_logger.db-shm
-kubectl rollout restart deployment/workout-logger -n prod
-
-```
+See [SQLite backup and restore runbook](docs/sqlite-backup-restore.md) for backup inspection,
+isolated restore drills, production recovery, validation, abort, and cleanup steps.
 
 ---
 
