@@ -2,8 +2,8 @@
 image:
   repository: ghcr.io/vvojtisek/workout-logger
   tag: ""
-  digest: "sha256:9715fd3c56b2270dbd6cd55c6530e13b57c2d9d6619dbd7bf82997be1ec7b8a3"
-  sourceCommit: "f9d152b93854d5df6f9c5d886bac07a714f6ae65"
+  digest: "sha256:8fe28bf923b8d014bf23e3e4c062b02c7600b543e6a32b68c37b2c26b3a64dd3"
+  sourceCommit: "e8237647fe091df1c283f7769f6a198eb7f45542"
   pullPolicy: IfNotPresent
 
 ingress:
