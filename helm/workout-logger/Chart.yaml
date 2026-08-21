@@ -1,0 +1,15 @@
+apiVersion: v2
+name: workout-logger
+description: Helm chart for the Workout Logger & Planner API and PWA
+type: application
+
+version: 0.1.0
+appVersion: "2.0.0"
+
+kubeVersion: ">=1.25.0-0"
+
+keywords:
+  - workout
+  - fitness
+  - fastapi
+  - pwa
