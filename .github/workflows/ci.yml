@@ -10,13 +10,16 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   ci:
-    name: Check, test, lint, and publish
+    name: Check, test, and lint
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
 
     steps:
       - name: Check out repository
@@ -64,18 +67,24 @@ jobs:
       - name: Lint Helm chart
         run: helm lint helm/workout-logger
 
+  publish:
+    name: Publish immutable image and prepare promotion
+    if: github.ref == 'refs/heads/main'
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    env:
+      IMAGE_REF: ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Extract Docker metadata
-        id: metadata
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -84,10 +93,89 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check for an image previously published for this commit
+        id: existing-image
+        run: |
+          if manifest=$(docker buildx imagetools inspect "$IMAGE_REF" --format '{{json .Manifest}}' 2>/dev/null); then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "digest=$(jq -r .digest <<< "$manifest")" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract immutable Docker metadata
+        if: steps.existing-image.outputs.exists != 'true'
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: type=raw,value=${{ github.sha }}
+
       - name: Build and push container image
+        if: steps.existing-image.outputs.exists != 'true'
+        id: image
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/heads/feat/') }}
+          platforms: linux/amd64
+          provenance: false
+          push: true
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
+
+      - name: Resolve published digest
+        id: published-image
+        env:
+          EXISTING_DIGEST: ${{ steps.existing-image.outputs.digest }}
+          BUILT_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          digest="${EXISTING_DIGEST:-$BUILT_DIGEST}"
+          if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid published digest: $digest" >&2
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Published $IMAGE_REF as $digest"
+
+      - name: Prepare production promotion
+        env:
+          IMAGE_DIGEST: ${{ steps.published-image.outputs.digest }}
+        run: |
+          python scripts/promote_image.py \
+            --values helm/workout-logger/values-prod.yaml \
+            --digest "$IMAGE_DIGEST" \
+            --commit "$GITHUB_SHA"
+
+      - name: Open production promotion pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_DIGEST: ${{ steps.published-image.outputs.digest }}
+        run: |
+          short_sha="${GITHUB_SHA:0:12}"
+          promotion_branch="chore/promote-production-$short_sha"
+          existing_pr=$(gh pr list --head "$promotion_branch" --state open --json url --jq '.[0].url // empty')
+          if [[ -n "$existing_pr" ]]; then
+            echo "Promotion pull request already exists: $existing_pr"
+            exit 0
+          fi
+          if git diff --quiet -- helm/workout-logger/values-prod.yaml; then
+            echo "Production already records $IMAGE_DIGEST for $GITHUB_SHA"
+            exit 0
+          fi
+          if git ls-remote --exit-code --heads origin "$promotion_branch" >/dev/null 2>&1; then
+            echo "Promotion branch exists without an open pull request: $promotion_branch" >&2
+            exit 1
+          fi
+
+          git switch -c "$promotion_branch"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- helm/workout-logger/values-prod.yaml
+          git commit -m "chore(deploy): promote $short_sha"
+          git push --set-upstream origin "$promotion_branch"
+          gh pr create \
+            --base main \
+            --head "$promotion_branch" \
+            --draft \
+            --title "chore(deploy): promote $short_sha" \
+            --body "Promote commit \`$GITHUB_SHA\` to production by immutable image digest \`$IMAGE_DIGEST\`.\n\nProduction changes only when this pull request is reviewed and merged."
