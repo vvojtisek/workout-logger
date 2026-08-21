@@ -1,7 +1,7 @@
 ---
 image:
   repository: ghcr.io/vvojtisek/workout-logger
-  tag: "2.0.0"
+  tag: "feat-v2-initial-setup"
   pullPolicy: IfNotPresent
 
 ingress:
