@@ -1,0 +1,41 @@
+---
+image:
+  repository: ghcr.io/vvojtisek/workout-logger
+  tag: "2.0.0"
+  pullPolicy: IfNotPresent
+
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - host: fitness.vvojtisek.eu
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: workout-logger-tls
+      hosts:
+        - fitness.vvojtisek.eu
+
+env:
+  APP_ENV: production
+  APP_VERSION: "2.0.0"
+  LOG_LEVEL: INFO
+  TRUSTED_HOSTS: "localhost,127.0.0.1,fitness.vvojtisek.eu"
+  PUBLIC_BASE_URL: "https://fitness.vvojtisek.eu/"
+
+# Keep API_KEY out of Git. This Secret must exist in the prod namespace.
+existingSecret: workout-logger-secrets
+apiKeySecretKey: API_KEY
+
+persistence:
+  enabled: true
+  size: 2Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
