@@ -25,8 +25,9 @@ alembic/        Database schema migrations
 helm/           Helm chart for Kubernetes deployment
 deploy/         ArgoCD application manifests
 tests/          pytest suite (unit + integration, httpx ASGI transport)
+e2e/            Playwright journey against a deployed Kubernetes stack
 scripts/        entrypoint.sh (startup script) and backup_database.py
-frontend/       Tailwind CSS source (input.css)
+frontend/       Tailwind CSS source and Vitest unit tests
 
 ```
 
@@ -79,8 +80,28 @@ pytest --cov=app --cov-report=term-missing
 ruff check .
 ruff format --check .
 mypy app/
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run build
 
 ```
+
+### Continuous-integration gates
+
+Pull requests and pushes to `main` run independent backend, frontend, Kubernetes-manifest,
+security, and real-cluster E2E jobs. The manifest job validates default and production Helm
+renders against Kubernetes 1.35.0. The E2E job deploys the exact locally built image and a
+real SQLite PVC into an ephemeral k3d cluster, exercises API CRUD plus the browser UI, deletes
+its run-tagged record in a `finally` block, uploads diagnostics even on failure, and deletes
+the cluster.
+
+Security gates reject any Python advisory reported by `pip-audit`, npm vulnerabilities at
+high or critical severity, repository secrets reported by gitleaks, and fixed high or critical
+container vulnerabilities reported by Trivy. Unfixed image findings remain visible but do not
+fail the gate. Every scanned image also produces a downloadable SPDX JSON SBOM. Only a trusted
+`main` push that passes all five gates can publish an immutable image or prepare a promotion.
 
 ### 2. Local Kubernetes Cluster (k3d)
 

@@ -1,5 +1,7 @@
 "use strict";
 
+import { parseRepsPerSet } from "./workout-utils.js";
+
 const API_KEY_STORAGE_KEY = "workout_logger_api_key";
 const API_BASE = "/api/v1";
 
@@ -204,14 +206,6 @@ logPlanSelect.addEventListener("change", async () => {
     // leave exercise list empty on failure
   }
 });
-
-function parseRepsPerSet(value) {
-  return value
-    .split(",")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0)
-    .map((part) => Number.parseInt(part, 10));
-}
 
 newLogForm.addEventListener("submit", async (event) => {
   event.preventDefault();

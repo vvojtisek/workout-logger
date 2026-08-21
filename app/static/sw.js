@@ -1,7 +1,13 @@
 "use strict";
 
-const CACHE_NAME = "workout-logger-v1";
-const APP_SHELL = ["/", "/static/styles.css", "/static/app.js", "/manifest.webmanifest"];
+const CACHE_NAME = "workout-logger-v2";
+const APP_SHELL = [
+  "/",
+  "/static/styles.css",
+  "/static/app.js",
+  "/static/workout-utils.js",
+  "/manifest.webmanifest",
+];
 
 const NEVER_CACHE_PREFIXES = ["/api/v1", "/health", "/docs", "/openapi.json"];
 
