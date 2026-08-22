@@ -15,7 +15,10 @@ For active-workout work, that plan supersedes the stage sequencing in `docs/heal
 - Tag generated records with a unique `TEST_RUN_ID`, delete them in cleanup, and verify absence.
 - Never bypass, delete, weaken, or silently skip a legitimate failing test.
 - After three unsuccessful fixes for the same root cause, stop and report evidence instead of looping.
-- Keep the existing frontend stack for the active-workout MVP; do not begin a React/Vite rewrite unless a separate approved decision changes this.
+- The frontend stack is React 19 + Vite + TypeScript, approved as the separate decision the previous
+  rule required and recorded in `docs/gui-and-platform-expansion-plan.md`. Source lives in
+  `frontend/src`; `npm run build` compiles it into `app/static/dist`, which FastAPI serves and which
+  is a build artifact, never committed.
 - Do not mix unrelated CI/CD, Kubernetes, sleep, nutrition, PostgreSQL, multi-user, or framework work into a feature PR.
 - Create a separate issue for non-blocking defects found during feature implementation.
 - Preserve current plan/log API behavior and workout history unless an additive, tested migration replaces it.

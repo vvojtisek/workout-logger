@@ -7,7 +7,7 @@ import {
   remainingTimeSeconds,
   resolveSetDisplayState,
   workoutProgress,
-} from "../app/static/workout-utils.js";
+} from "./workout-utils";
 
 describe("parseRepsPerSet", () => {
   it("normalizes comma-separated set repetitions", () => {

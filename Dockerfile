@@ -1,15 +1,13 @@
 # syntax=docker/dockerfile:1
 
-# ---- Stage 1: Tailwind CSS build ----
-FROM node:slim AS css-build
+# ---- Stage 1: Single-page application build ----
+FROM node:slim AS frontend-build
 WORKDIR /build
 COPY package.json package-lock.json* ./
 RUN npm ci
-COPY tailwind.config.js ./
+COPY tsconfig.json vite.config.ts ./
 COPY frontend/ ./frontend/
-COPY app/static/index.html app/static/index.html
-COPY app/static/app.js app/static/app.js
-RUN npx tailwindcss -i ./frontend/input.css -o ./app/static/styles.css --minify
+RUN npm run build
 
 # ---- Stage 2: Python runtime ----
 FROM python:3.11-slim AS runtime
@@ -29,7 +27,7 @@ COPY alembic/ ./alembic/
 COPY alembic.ini ./
 COPY scripts/entrypoint.sh scripts/assert_empty_e2e_database.py scripts/backup_database.py scripts/restore_database.py scripts/run_migrations.py scripts/validate_backup.py ./scripts/
 
-COPY --from=css-build /build/app/static/styles.css ./app/static/styles.css
+COPY --from=frontend-build /build/app/static/dist ./app/static/dist
 
 RUN pip install --no-cache-dir . \
     && python -m pip uninstall --yes pip setuptools wheel \

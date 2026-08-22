@@ -11,7 +11,7 @@ import {
   restTimerState,
   saveSetDraft,
   synchronizationState,
-} from "../app/static/active-workout-state.js";
+} from "./active-workout-state";
 
 function memoryStorage() {
   /** @type {Map<string, string>} */
