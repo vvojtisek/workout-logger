@@ -60,6 +60,7 @@ export function PlansView() {
       const full = await apiFetch<WorkoutPlan>(`/plans/${plan.id}`);
       const exercises = full.exercises.map((ex) => ({
         exercise_name: ex.exercise_name,
+        exercise_kind: ex.exercise_kind,
         target_sets: ex.target_sets,
         target_reps_min: ex.target_reps_min,
         target_reps_max: ex.target_reps_max,

@@ -7,8 +7,9 @@ import {
   loadSetDraft,
   saveSetDraft,
 } from "@/lib/active-workout-state";
+import type { SetDraft } from "@/lib/active-workout-state";
 import { resolveSetDisplayState } from "@/lib/workout-utils";
-import type { GridRow } from "@/lib/workout-utils";
+import type { ExerciseKind, GridRow } from "@/lib/workout-utils";
 
 const UNDO_WINDOW_MS = 5_000;
 
@@ -16,7 +17,23 @@ export interface SetValues {
   weight: number | null;
   reps: number;
   rir: number | null;
+  added_weight_kg: number | null;
+  band_level: string | null;
+  duration_seconds: number | null;
+  distance_km: number | null;
+  incline_percent: number | null;
 }
+
+const EMPTY_DRAFT: SetDraft = {
+  weight: "",
+  reps: "",
+  rir: "",
+  added_weight_kg: "",
+  band_level: "",
+  duration_seconds: "",
+  distance_km: "",
+  incline_percent: "",
+};
 
 // Fixed widths, shared verbatim with ActiveWorkoutView's column-header row: each
 // set row is its own independent grid container, so if any column here were
@@ -25,55 +42,112 @@ export interface SetValues {
 // stop lining up with the header and with each other.
 export const ROW_GRID = "grid grid-cols-[3.5rem_6rem_5.5rem_5.5rem_5.5rem_12rem] gap-2 min-w-[38rem]";
 
+/** The three input cells shown for each exercise kind, in column order. Every
+ *  kind gets exactly three, matching the grid's three middle columns. */
+interface FieldSpec {
+  draftKey: keyof SetDraft;
+  label: string;
+  type: "number" | "text";
+  inputMode?: "decimal" | "numeric";
+  min?: string;
+  max?: string;
+  step?: string;
+}
+
+export const COLUMN_HEADERS_BY_KIND: Record<ExerciseKind, string[]> = {
+  strength: ["Set", "Previous", "kg", "Reps", "RIR", "Complete"],
+  bodyweight: ["Set", "Previous", "Added kg", "Reps", "Band", "Complete"],
+  cardio: ["Set", "Previous", "Duration (s)", "Distance (km)", "Incline (%)", "Complete"],
+};
+
+const FIELD_SPECS_BY_KIND: Record<ExerciseKind, FieldSpec[]> = {
+  strength: [
+    { draftKey: "weight", label: "Weight (kg)", type: "number", inputMode: "decimal", min: "0", step: "0.25" },
+    { draftKey: "reps", label: "Repetitions", type: "number", inputMode: "numeric", min: "1", max: "1000" },
+    { draftKey: "rir", label: "RIR", type: "number", inputMode: "numeric", min: "0", max: "10" },
+  ],
+  bodyweight: [
+    {
+      draftKey: "added_weight_kg",
+      label: "Added weight (kg)",
+      type: "number",
+      inputMode: "decimal",
+      min: "0",
+      step: "0.25",
+    },
+    { draftKey: "reps", label: "Repetitions", type: "number", inputMode: "numeric", min: "1", max: "1000" },
+    { draftKey: "band_level", label: "Band level", type: "text" },
+  ],
+  cardio: [
+    {
+      draftKey: "duration_seconds",
+      label: "Duration (seconds)",
+      type: "number",
+      inputMode: "numeric",
+      min: "0",
+      max: "86400",
+    },
+    {
+      draftKey: "distance_km",
+      label: "Distance (km)",
+      type: "number",
+      inputMode: "decimal",
+      min: "0",
+      step: "0.01",
+    },
+    {
+      draftKey: "incline_percent",
+      label: "Incline (%)",
+      type: "number",
+      inputMode: "decimal",
+      min: "-100",
+      max: "100",
+      step: "0.5",
+    },
+  ],
+};
+
 function numericValue(raw: string): number | null {
   return raw ? Number.parseFloat(raw) : null;
 }
 
 /**
- * A single numeric cell.
- *
- * The input is deliberately UNCONTROLLED. A set grid is filled in rapidly, often
- * while the session object is being replaced by a server response, and a
- * controlled value re-rendered mid-edit can drop or misplace a keystroke. The
- * DOM is therefore the source of truth for an unsaved row: the draft is written
- * from it on input and it is read back on submit, which is exactly how the
- * pre-React implementation behaved. Remounting via `key` re-seeds it when the
- * row crosses the saved/unsaved boundary.
+ * A single input cell, numeric or text. Deliberately UNCONTROLLED. A set grid
+ * is filled in rapidly, often while the session object is being replaced by a
+ * server response, and a controlled value re-rendered mid-edit can drop or
+ * misplace a keystroke. The DOM is therefore the source of truth for an
+ * unsaved row: the draft is written from it on input and it is read back on
+ * submit, which is exactly how the pre-React implementation behaved.
+ * Remounting via `key` re-seeds it when the row crosses the saved/unsaved
+ * boundary.
  *
  * The input is nested inside its label so the screen-reader-only label text is
  * also its accessible name; the column header row carries the visible one.
  */
-function NumberCell({
-  label,
+function FieldCell({
+  spec,
   inputRef,
   defaultValue,
   onInput,
-  inputMode,
-  min,
-  max,
-  step,
   disabled,
 }: {
-  label: string;
+  spec: FieldSpec;
   inputRef: RefObject<HTMLInputElement | null>;
   defaultValue: string;
   onInput: () => void;
-  inputMode: "decimal" | "numeric";
-  min: string;
-  max?: string;
-  step?: string;
   disabled: boolean;
 }) {
   return (
     <label className="text-xs font-medium text-muted">
-      <span className="sr-only">{label}</span>
+      <span className="sr-only">{spec.label}</span>
       <input
         ref={inputRef}
-        type="number"
-        inputMode={inputMode}
-        min={min}
-        max={max ?? ""}
-        step={step ?? "1"}
+        type={spec.type === "number" ? "number" : "text"}
+        inputMode={spec.type === "number" ? spec.inputMode : undefined}
+        min={spec.type === "number" ? spec.min : undefined}
+        max={spec.type === "number" ? spec.max : undefined}
+        step={spec.type === "number" ? (spec.step ?? "1") : undefined}
+        maxLength={spec.type === "text" ? 20 : undefined}
         defaultValue={defaultValue}
         disabled={disabled}
         onInput={onInput}
@@ -106,6 +180,8 @@ export function SetRow({
   onUndo: (row: GridRow) => void;
   onFocusSet: (row: GridRow) => void;
 }) {
+  const kind = row.exercise.exercise_kind;
+  const fieldSpecs = FIELD_SPECS_BY_KIND[kind];
   const draftKey = draftStorageKey(sessionId, row.exercise.id, row.setNumber);
   const display = resolveSetDisplayState({
     savedEntry: row.entry,
@@ -114,19 +190,38 @@ export function SetRow({
     suggestionSource: row.exercise.suggestion_source,
   });
 
-  const weightRef = useRef<HTMLInputElement>(null);
-  const repsRef = useRef<HTMLInputElement>(null);
-  const rirRef = useRef<HTMLInputElement>(null);
+  const ref1 = useRef<HTMLInputElement>(null);
+  const ref2 = useRef<HTMLInputElement>(null);
+  const ref3 = useRef<HTMLInputElement>(null);
+  const fieldRefs = [ref1, ref2, ref3];
   const [editing, setEditing] = useState(false);
   const [undoVisible, setUndoVisible] = useState(false);
 
   const entryId = row.entry?.id ?? null;
   const draft = row.entry ? null : loadSetDraft(localStorage, draftKey);
-  const seed = {
-    weight: draft?.weight ?? (display.weightKg ?? "").toString(),
-    reps: draft?.reps ?? (display.reps ?? "").toString(),
-    rir: draft?.rir ?? (display.rir ?? "").toString(),
-  };
+  const savedDraft: SetDraft = draft ?? EMPTY_DRAFT;
+
+  function seedFor(spec: FieldSpec): string {
+    if (draft) return draft[spec.draftKey];
+    switch (spec.draftKey) {
+      case "weight":
+        return (display.weightKg ?? "").toString();
+      case "reps":
+        return (display.reps ?? "").toString();
+      case "rir":
+        return (display.rir ?? "").toString();
+      case "added_weight_kg":
+        return (row.entry?.added_weight_kg ?? "").toString();
+      case "band_level":
+        return row.entry?.band_level ?? "";
+      case "duration_seconds":
+        return (row.entry?.duration_seconds ?? "").toString();
+      case "distance_km":
+        return (row.entry?.distance_km ?? "").toString();
+      case "incline_percent":
+        return (row.entry?.incline_percent ?? "").toString();
+    }
+  }
 
   // Crossing the saved/unsaved boundary is the only thing that replaces what is
   // typed in the row, so it also ends any in-progress correction.
@@ -157,19 +252,33 @@ export function SetRow({
 
   function saveDraft() {
     if (row.entry) return;
-    saveSetDraft(localStorage, draftKey, {
-      weight: weightRef.current?.value ?? "",
-      reps: repsRef.current?.value ?? "",
-      rir: rirRef.current?.value ?? "",
+    const next = { ...savedDraft };
+    fieldSpecs.forEach((spec, index) => {
+      next[spec.draftKey] = fieldRefs[index].current?.value ?? "";
     });
+    saveSetDraft(localStorage, draftKey, next);
   }
 
   function currentValues(): SetValues {
-    const rir = rirRef.current?.value ?? "";
+    const raw: Record<string, string> = {};
+    fieldSpecs.forEach((spec, index) => {
+      raw[spec.draftKey] = fieldRefs[index].current?.value ?? "";
+    });
+    const rir = raw.rir ?? "";
     return {
-      weight: numericValue(weightRef.current?.value ?? ""),
-      reps: Number.parseInt(repsRef.current?.value ?? "", 10),
-      rir: rir ? Number.parseInt(rir, 10) : null,
+      weight: kind === "strength" ? numericValue(raw.weight ?? "") : null,
+      // A cardio set has no meaningful rep count; the field stays required
+      // server-side, so it is sent as a fixed placeholder rather than shown.
+      reps: kind === "cardio" ? 1 : Number.parseInt(raw.reps ?? "", 10),
+      rir: kind === "strength" && rir ? Number.parseInt(rir, 10) : null,
+      added_weight_kg: kind === "bodyweight" ? numericValue(raw.added_weight_kg ?? "") : null,
+      band_level: kind === "bodyweight" ? raw.band_level || null : null,
+      duration_seconds:
+        kind === "cardio" && raw.duration_seconds
+          ? Number.parseInt(raw.duration_seconds, 10)
+          : null,
+      distance_km: kind === "cardio" ? numericValue(raw.distance_km ?? "") : null,
+      incline_percent: kind === "cardio" ? numericValue(raw.incline_percent ?? "") : null,
     };
   }
 
@@ -207,41 +316,18 @@ export function SetRow({
         {roundLabel ?? row.setNumber}
       </strong>
       <span className="self-center text-xs text-muted" data-numeric>
-        {row.exercise.suggested_weight_kg ?? "—"} kg × {row.exercise.suggested_reps}
+        {kind === "cardio" ? "—" : `${row.exercise.suggested_weight_kg ?? "—"} kg × ${row.exercise.suggested_reps}`}
       </span>
-      <NumberCell
-        key={`weight:${seedKey}`}
-        label="Weight (kg)"
-        inputRef={weightRef}
-        defaultValue={seed.weight}
-        onInput={saveDraft}
-        inputMode="decimal"
-        min="0"
-        step="0.25"
-        disabled={disabled}
-      />
-      <NumberCell
-        key={`reps:${seedKey}`}
-        label="Repetitions"
-        inputRef={repsRef}
-        defaultValue={seed.reps}
-        onInput={saveDraft}
-        inputMode="numeric"
-        min="1"
-        max="1000"
-        disabled={disabled}
-      />
-      <NumberCell
-        key={`rir:${seedKey}`}
-        label="RIR"
-        inputRef={rirRef}
-        defaultValue={seed.rir}
-        onInput={saveDraft}
-        inputMode="numeric"
-        min="0"
-        max="10"
-        disabled={disabled}
-      />
+      {fieldSpecs.map((spec, index) => (
+        <FieldCell
+          key={`${spec.draftKey}:${seedKey}`}
+          spec={spec}
+          inputRef={fieldRefs[index]}
+          defaultValue={seedFor(spec)}
+          onInput={saveDraft}
+          disabled={disabled}
+        />
+      ))}
       <div className="flex flex-wrap gap-1">
         {row.entry ? (
           <>

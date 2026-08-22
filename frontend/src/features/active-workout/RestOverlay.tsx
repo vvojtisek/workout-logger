@@ -71,22 +71,22 @@ export function RestOverlay({
           <button
             type="button"
             id="subtract-rest-time"
-            aria-label="−30 seconds"
+            aria-label="−15 seconds"
             disabled={!canAdjust}
-            onClick={() => onAdjust(-30)}
+            onClick={() => onAdjust(-15)}
             className="btn btn-secondary btn-touch"
           >
-            −30s
+            −15s
           </button>
           <button
             type="button"
             id="add-rest-time"
-            aria-label="+30 seconds"
+            aria-label="+15 seconds"
             disabled={!canAdjust}
-            onClick={() => onAdjust(30)}
+            onClick={() => onAdjust(15)}
             className="btn btn-secondary btn-touch"
           >
-            +30s
+            +15s
           </button>
           <button
             type="button"

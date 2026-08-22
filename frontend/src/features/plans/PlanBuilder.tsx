@@ -5,12 +5,20 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
 import type { WorkoutPlan } from "@/api/types";
 import { planPayloadSchema } from "@/lib/plan-schema";
+import type { ExerciseKind } from "@/lib/workout-utils";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
+
+const EXERCISE_KIND_LABELS: Record<ExerciseKind, string> = {
+  strength: "Strength (weight, reps, RIR)",
+  bodyweight: "Bodyweight (added weight, reps, band)",
+  cardio: "Cardio (duration, distance, incline)",
+};
 
 interface ExerciseRowState {
   key: string;
   exercise_name: string;
+  exercise_kind: ExerciseKind;
   target_sets: string;
   target_reps_min: string;
   target_reps_max: string;
@@ -24,6 +32,7 @@ function emptyRow(): ExerciseRowState {
   return {
     key: crypto.randomUUID(),
     exercise_name: "",
+    exercise_kind: "strength",
     target_sets: "3",
     target_reps_min: "8",
     target_reps_max: "12",
@@ -38,6 +47,7 @@ function rowFromExercise(exercise: WorkoutPlan["exercises"][number]): ExerciseRo
   return {
     key: exercise.id,
     exercise_name: exercise.exercise_name,
+    exercise_kind: exercise.exercise_kind,
     target_sets: String(exercise.target_sets),
     target_reps_min: String(exercise.target_reps_min),
     target_reps_max: String(exercise.target_reps_max),
@@ -60,6 +70,7 @@ function buildPayload(name: string, description: string, rows: ExerciseRowState[
     }
     return {
       exercise_name: row.exercise_name.trim(),
+      exercise_kind: row.exercise_kind,
       target_sets: Number.parseInt(row.target_sets, 10),
       target_reps_min: Number.parseInt(row.target_reps_min, 10),
       target_reps_max: Number.parseInt(row.target_reps_max, 10),
@@ -254,6 +265,26 @@ export function PlanBuilder() {
                 {errors[`${index}.exercise_name`] ? (
                   <p className="mt-1 text-sm text-danger">{errors[`${index}.exercise_name`]}</p>
                 ) : null}
+              </div>
+
+              <div>
+                <label className="field-label" htmlFor={`exercise-kind-${row.key}`}>
+                  Exercise type
+                </label>
+                <select
+                  id={`exercise-kind-${row.key}`}
+                  className="input"
+                  value={row.exercise_kind}
+                  onChange={(event) =>
+                    updateRow(row.key, { exercise_kind: event.target.value as ExerciseKind })
+                  }
+                >
+                  {(Object.keys(EXERCISE_KIND_LABELS) as ExerciseKind[]).map((kind) => (
+                    <option key={kind} value={kind}>
+                      {EXERCISE_KIND_LABELS[kind]}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">

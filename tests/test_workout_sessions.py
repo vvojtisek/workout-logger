@@ -183,6 +183,98 @@ async def test_complete_session_creates_existing_history_summary(client, auth_he
     assert history_body["exercises"][0]["weight_kg"] == 42.5
 
 
+async def test_session_snapshots_exercise_kind_from_the_plan(client, auth_headers):
+    payload = plan_payload("Kind Snapshot Plan")
+    payload["exercises"][0]["exercise_kind"] = "bodyweight"
+    response = await client.post(PLANS, json=payload, headers=auth_headers)
+    assert response.status_code == 201
+    plan = response.json()
+
+    session = await start_session(client, auth_headers, plan["id"])
+    assert session["exercises"][0]["exercise_kind"] == "bodyweight"
+
+
+async def test_save_set_persists_bodyweight_kind_fields(client, auth_headers):
+    payload = plan_payload("Bodyweight Set Plan")
+    payload["exercises"][0]["exercise_kind"] = "bodyweight"
+    plan = (await client.post(PLANS, json=payload, headers=auth_headers)).json()
+    session = await start_session(client, auth_headers, plan["id"])
+    exercise_id = session["exercises"][0]["id"]
+
+    saved = await client.post(
+        f"{SESSIONS}/{session['id']}/sets",
+        json={
+            "session_exercise_id": exercise_id,
+            "set_number": 1,
+            "reps": 12,
+            "added_weight_kg": 5,
+            "band_level": "medium",
+            "client_operation_id": "test-run-bodyweight-set-1",
+        },
+        headers=auth_headers,
+    )
+    assert saved.status_code == 201
+    entry = saved.json()["exercises"][0]["set_entries"][0]
+    assert entry["added_weight_kg"] == 5
+    assert entry["band_level"] == "medium"
+    assert entry["duration_seconds"] is None
+
+
+async def test_save_set_persists_cardio_kind_fields(client, auth_headers):
+    payload = plan_payload("Cardio Set Plan")
+    payload["exercises"][0]["exercise_kind"] = "cardio"
+    plan = (await client.post(PLANS, json=payload, headers=auth_headers)).json()
+    session = await start_session(client, auth_headers, plan["id"])
+    exercise_id = session["exercises"][0]["id"]
+
+    saved = await client.post(
+        f"{SESSIONS}/{session['id']}/sets",
+        json={
+            "session_exercise_id": exercise_id,
+            "set_number": 1,
+            "reps": 1,
+            "duration_seconds": 1800,
+            "distance_km": 5.2,
+            "incline_percent": 2.5,
+            "client_operation_id": "test-run-cardio-set-1",
+        },
+        headers=auth_headers,
+    )
+    assert saved.status_code == 201
+    entry = saved.json()["exercises"][0]["set_entries"][0]
+    assert entry["duration_seconds"] == 1800
+    assert entry["distance_km"] == 5.2
+    assert entry["incline_percent"] == 2.5
+    assert entry["added_weight_kg"] is None
+
+
+async def test_correct_set_updates_kind_specific_fields(client, auth_headers):
+    plan = await create_plan(client, auth_headers)
+    session = await start_session(client, auth_headers, plan["id"])
+    exercise_id = session["exercises"][0]["id"]
+    saved = await client.post(
+        f"{SESSIONS}/{session['id']}/sets",
+        json={
+            "session_exercise_id": exercise_id,
+            "set_number": 1,
+            "weight_kg": 42.5,
+            "reps": 8,
+            "rpe": 7,
+            "client_operation_id": "test-run-correct-rpe-1",
+        },
+        headers=auth_headers,
+    )
+    entry_id = saved.json()["exercises"][0]["set_entries"][0]["id"]
+
+    corrected = await client.put(
+        f"{SESSIONS}/{session['id']}/sets/{entry_id}",
+        json={"weight_kg": 42.5, "reps": 8, "rpe": 9},
+        headers=auth_headers,
+    )
+    assert corrected.status_code == 200
+    assert corrected.json()["exercises"][0]["set_entries"][0]["rpe"] == 9
+
+
 async def test_delete_session_removes_it_for_test_data_cleanup(client, auth_headers):
     plan = await create_plan(client, auth_headers)
     session = await start_session(client, auth_headers, plan["id"])

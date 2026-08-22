@@ -81,7 +81,7 @@ test("rest timer and an offline set retry recover against the real server", asyn
       state: "completed",
     });
 
-    await restOverlay.getByRole("button", { name: "+30 seconds" }).click();
+    await restOverlay.getByRole("button", { name: "+15 seconds" }).click();
     await expect
       .poll(async () => {
         const body = await (
@@ -89,8 +89,8 @@ test("rest timer and an offline set retry recover against the real server", asyn
         ).json();
         return new Date(body.rest_ends_at).getTime() - originalEnd;
       })
-      .toBe(30_000);
-    await restOverlay.getByRole("button", { name: "−30 seconds" }).click();
+      .toBe(15_000);
+    await restOverlay.getByRole("button", { name: "−15 seconds" }).click();
     await expect
       .poll(async () => {
         const body = await (

@@ -160,3 +160,51 @@ def test_grid_group_migration_preserves_slice_one_data(alembic_config, alembic_d
         ).one()
         assert row == ("Squat", None, None)
     sync_engine.dispose()
+
+
+def test_exercise_kind_migration_backfills_existing_rows_as_strength(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "8e2f78cce104")
+    plan_id = str(uuid.uuid4())
+    exercise_id = str(uuid.uuid4())
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO workout_plans "
+                "(id, name, description, created_at, updated_at) "
+                "VALUES (:id, 'Pre-kind plan', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": plan_id},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO plan_exercises "
+                "(id, workout_plan_id, sort_order, exercise_name, target_sets, "
+                "target_reps_min, target_reps_max, target_weight_kg, rest_time_seconds, notes) "
+                "VALUES (:id, :plan_id, 0, 'Bench Press', 3, 5, 8, 60, 90, NULL)"
+            ),
+            {"id": exercise_id, "plan_id": plan_id},
+        )
+    command.upgrade(alembic_config, "head")
+
+    inspector = inspect(sync_engine)
+    for table_name in ("plan_exercises", "session_exercises"):
+        columns = {column["name"] for column in inspector.get_columns(table_name)}
+        assert "exercise_kind" in columns
+    set_entry_columns = {column["name"] for column in inspector.get_columns("set_entries")}
+    assert {
+        "added_weight_kg",
+        "band_level",
+        "duration_seconds",
+        "distance_km",
+        "incline_percent",
+        "rpe",
+    }.issubset(set_entry_columns)
+    with sync_engine.connect() as connection:
+        kind = connection.scalar(
+            text("SELECT exercise_kind FROM plan_exercises WHERE id = :id"), {"id": exercise_id}
+        )
+        assert kind == "strength"
+    sync_engine.dispose()

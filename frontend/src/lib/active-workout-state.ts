@@ -44,6 +44,11 @@ export interface SetDraft {
   weight: string;
   reps: string;
   rir: string;
+  added_weight_kg: string;
+  band_level: string;
+  duration_seconds: string;
+  distance_km: string;
+  incline_percent: string;
 }
 
 export function saveSetDraft(storage: StorageLike, key: string, draft: SetDraft): void {
@@ -71,6 +76,12 @@ export interface SetOperationPayload {
   weight_kg: number | null;
   reps: number;
   rir: number | null;
+  added_weight_kg?: number | null;
+  band_level?: string | null;
+  duration_seconds?: number | null;
+  distance_km?: number | null;
+  incline_percent?: number | null;
+  rpe?: number | null;
   state?: string;
   client_operation_id?: string;
 }

@@ -66,6 +66,7 @@ describe("remainingTimeSeconds", () => {
   });
 });
 
+/** @type {import("./workout-utils").GridSession} */
 const session = {
   focused_exercise_id: "exercise-b",
   focused_set_number: 1,
@@ -74,6 +75,7 @@ const session = {
       id: "exercise-a",
       sort_order: 0,
       exercise_name: "Squat",
+      exercise_kind: "strength",
       target_sets: 2,
       suggested_weight_kg: 80,
       suggested_reps: 5,
@@ -81,14 +83,41 @@ const session = {
       group_key: null,
       group_order: null,
       set_entries: [
-        { id: "set-a-1", set_number: 1, weight_kg: 82.5, reps: 6, rir: 2, state: "completed" },
-        { id: "set-a-2", set_number: 2, weight_kg: 80, reps: 5, rir: null, state: "skipped" },
+        {
+          id: "set-a-1",
+          set_number: 1,
+          weight_kg: 82.5,
+          reps: 6,
+          rir: 2,
+          added_weight_kg: null,
+          band_level: null,
+          duration_seconds: null,
+          distance_km: null,
+          incline_percent: null,
+          rpe: null,
+          state: "completed",
+        },
+        {
+          id: "set-a-2",
+          set_number: 2,
+          weight_kg: 80,
+          reps: 5,
+          rir: null,
+          added_weight_kg: null,
+          band_level: null,
+          duration_seconds: null,
+          distance_km: null,
+          incline_percent: null,
+          rpe: null,
+          state: "skipped",
+        },
       ],
     },
     {
       id: "exercise-b",
       sort_order: 1,
       exercise_name: "Row",
+      exercise_kind: "strength",
       target_sets: 2,
       suggested_weight_kg: 40,
       suggested_reps: 8,
