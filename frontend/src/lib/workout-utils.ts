@@ -132,3 +132,34 @@ export function groupSessionExercises(exercises: GridExercise[]): ExerciseGroup[
     ),
   }));
 }
+
+const ROUND_LETTERS = "ABCDEFGHIJ";
+
+export interface RoundRow extends GridRow {
+  /** "1A", "1B", "2A", ... — the round number paired with this exercise's
+   *  letter within the group. */
+  roundLabel: string;
+}
+
+/**
+ * Interleaves a superset's rows by round instead of by exercise: set 1 of
+ * every exercise, then set 2 of every exercise, and so on. A true superset is
+ * performed back-to-back across exercises before repeating - listing one
+ * exercise's sets to completion before starting the next is just two
+ * ordinary exercises sharing a card, not a superset.
+ */
+export function buildGroupRounds(rows: GridRow[], groupExercises: GridExercise[]): RoundRow[] {
+  const maxSets = Math.max(0, ...groupExercises.map((exercise) => exercise.target_sets));
+  const result: RoundRow[] = [];
+  for (let round = 1; round <= maxSets; round += 1) {
+    groupExercises.forEach((exercise, index) => {
+      const row = rows.find(
+        (candidate) => candidate.exercise.id === exercise.id && candidate.setNumber === round
+      );
+      if (row) {
+        result.push({ ...row, roundLabel: `${round}${ROUND_LETTERS[index] ?? index}` });
+      }
+    });
+  }
+  return result;
+}

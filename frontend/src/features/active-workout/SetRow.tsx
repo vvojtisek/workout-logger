@@ -18,8 +18,12 @@ export interface SetValues {
   rir: number | null;
 }
 
-const ROW_GRID =
-  "grid grid-cols-[3rem_5rem_repeat(3,minmax(4rem,1fr))_minmax(7rem,auto)] gap-2 min-w-[38rem]";
+// Fixed widths, shared verbatim with ActiveWorkoutView's column-header row: each
+// set row is its own independent grid container, so if any column here were
+// flexible (1fr/auto) its track width would depend on that row's own content -
+// for example a longer exercise name growing the action column - and rows would
+// stop lining up with the header and with each other.
+export const ROW_GRID = "grid grid-cols-[3.5rem_6rem_5.5rem_5.5rem_5.5rem_12rem] gap-2 min-w-[38rem]";
 
 function numericValue(raw: string): number | null {
   return raw ? Number.parseFloat(raw) : null;
@@ -83,6 +87,7 @@ export function SetRow({
   row,
   sessionId,
   totalSets,
+  roundLabel,
   onComplete,
   onSkip,
   onCorrect,
@@ -92,6 +97,9 @@ export function SetRow({
   row: GridRow;
   sessionId: string;
   totalSets: number;
+  /** Compact "1A"/"1B" style label shown instead of the plain set number when
+   *  this row is part of an interleaved superset round. */
+  roundLabel?: string | null;
   onComplete: (row: GridRow, values: SetValues) => void;
   onSkip: (row: GridRow, values: SetValues) => void;
   onCorrect: (row: GridRow, values: SetValues) => void;
@@ -196,7 +204,7 @@ export function SetRow({
       className={`${ROW_GRID} items-end border-t border-border-subtle py-2 ${stateClass}`}
     >
       <strong className="self-center" data-numeric>
-        {row.setNumber}
+        {roundLabel ?? row.setNumber}
       </strong>
       <span className="self-center text-xs text-muted" data-numeric>
         {row.exercise.suggested_weight_kg ?? "—"} kg × {row.exercise.suggested_reps}
@@ -270,23 +278,31 @@ export function SetRow({
         ) : (
           <>
             <span className="self-center text-xs text-warn">{display.label}</span>
-            <button type="submit" className="btn btn-primary btn-touch">
-              {totalSets === 1 ? "Save set" : `Complete ${exerciseName} set ${row.setNumber}`}
+            <button
+              type="submit"
+              className="btn btn-primary btn-touch"
+              aria-label={
+                totalSets === 1 ? undefined : `Complete ${exerciseName} set ${row.setNumber}`
+              }
+            >
+              {totalSets === 1 ? "Save set" : "Complete"}
             </button>
             <button
               type="button"
               className="btn btn-secondary btn-touch"
+              aria-label={`Skip ${exerciseName} set ${row.setNumber}`}
               onClick={() => onSkip(row, currentValues())}
             >
-              {`Skip ${exerciseName} set ${row.setNumber}`}
+              Skip
             </button>
             {row.state !== "current" ? (
               <button
                 type="button"
                 className="btn btn-secondary btn-touch"
+                aria-label={`Open ${exerciseName} set ${row.setNumber}`}
                 onClick={() => onFocusSet(row)}
               >
-                {`Open ${exerciseName} set ${row.setNumber}`}
+                Open
               </button>
             ) : null}
           </>

@@ -12,17 +12,23 @@ import {
   removeSetOperation,
   synchronizationState,
 } from "@/lib/active-workout-state";
-import { buildWorkoutGrid, groupSessionExercises, workoutProgress } from "@/lib/workout-utils";
-import type { GridRow } from "@/lib/workout-utils";
+import {
+  buildGroupRounds,
+  buildWorkoutGrid,
+  groupSessionExercises,
+  workoutProgress,
+} from "@/lib/workout-utils";
+import type { ExerciseGroup, GridRow } from "@/lib/workout-utils";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { RestOverlay } from "./RestOverlay";
-import { SetRow } from "./SetRow";
+import { ROW_GRID, SetRow } from "./SetRow";
 import type { SetValues } from "./SetRow";
 
 const COLUMN_HEADERS = ["Set", "Previous", "kg", "Reps", "RIR", "Complete"];
-const HEADER_GRID =
-  "grid grid-cols-[3rem_5rem_repeat(3,minmax(4rem,1fr))_minmax(7rem,auto)] gap-2 min-w-[38rem]";
+// Shared verbatim with SetRow's own grid template - see the comment there.
+const HEADER_GRID = ROW_GRID;
+const ROUND_LETTERS = "ABCDEFGHIJ";
 
 export function ActiveWorkoutView() {
   const { session, online, updateSession, finishSession } = useAppContext();
@@ -151,14 +157,22 @@ function ActiveWorkoutSession({
   const correctSet = useCallback(
     async (row: GridRow, values: SetValues) => {
       if (!row.entry) return;
-      const updated = await apiFetch<WorkoutSession>(
-        `/workout-sessions/${session.id}/sets/${row.entry.id}`,
-        {
-          method: "PUT",
-          body: JSON.stringify({ weight_kg: values.weight, reps: values.reps, rir: values.rir }),
-        }
-      );
-      onSessionChange(updated);
+      if (!Number.isInteger(values.reps) || values.reps < 1) {
+        toast.error("Enter a whole number of reps before saving the correction.");
+        return;
+      }
+      try {
+        const updated = await apiFetch<WorkoutSession>(
+          `/workout-sessions/${session.id}/sets/${row.entry.id}`,
+          {
+            method: "PUT",
+            body: JSON.stringify({ weight_kg: values.weight, reps: values.reps, rir: values.rir }),
+          }
+        );
+        onSessionChange(updated);
+      } catch (err) {
+        toast.error(`Failed to save correction: ${errorMessage(err)}`);
+      }
     },
     [session.id, onSessionChange]
   );
@@ -166,25 +180,33 @@ function ActiveWorkoutSession({
   const undoSet = useCallback(
     async (row: GridRow) => {
       if (!row.entry) return;
-      const updated = await apiFetch<WorkoutSession>(
-        `/workout-sessions/${session.id}/sets/${row.entry.id}`,
-        { method: "DELETE" }
-      );
-      onSessionChange(updated);
+      try {
+        const updated = await apiFetch<WorkoutSession>(
+          `/workout-sessions/${session.id}/sets/${row.entry.id}`,
+          { method: "DELETE" }
+        );
+        onSessionChange(updated);
+      } catch (err) {
+        toast.error(`Failed to undo set: ${errorMessage(err)}`);
+      }
     },
     [session.id, onSessionChange]
   );
 
   const focusSet = useCallback(
     async (row: GridRow) => {
-      const updated = await apiFetch<WorkoutSession>(`/workout-sessions/${session.id}/focus`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          session_exercise_id: row.exercise.id,
-          set_number: row.setNumber,
-        }),
-      });
-      onSessionChange(updated);
+      try {
+        const updated = await apiFetch<WorkoutSession>(`/workout-sessions/${session.id}/focus`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            session_exercise_id: row.exercise.id,
+            set_number: row.setNumber,
+          }),
+        });
+        onSessionChange(updated);
+      } catch (err) {
+        toast.error(`Failed to focus set: ${errorMessage(err)}`);
+      }
     },
     [session.id, onSessionChange]
   );
@@ -225,35 +247,78 @@ function ActiveWorkoutSession({
     void completeWorkout();
   }
 
+  const columnHeader = (
+    <div className={`${HEADER_GRID} text-xs font-semibold text-muted`}>
+      {COLUMN_HEADERS.map((label) => (
+        <span key={label} role="columnheader">
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+
+  function setRowProps() {
+    return {
+      sessionId: session.id,
+      totalSets: progress.total,
+      onComplete: (target: GridRow, values: SetValues) =>
+        void persistSet(target, values, "completed"),
+      onSkip: (target: GridRow, values: SetValues) => void persistSet(target, values, "skipped"),
+      onCorrect: (target: GridRow, values: SetValues) => void correctSet(target, values),
+      onUndo: (target: GridRow) => void undoSet(target),
+      onFocusSet: (target: GridRow) => void focusSet(target),
+    };
+  }
+
   function renderExercise(exercise: SessionExercise) {
     return (
       <section key={exercise.id}>
         <h3 className="p-3 text-lg font-semibold tracking-tight">{exercise.exercise_name}</h3>
         <div className="overflow-x-auto px-3 pb-2">
-          <div className={`${HEADER_GRID} text-xs font-semibold text-muted`}>
-            {COLUMN_HEADERS.map((label) => (
-              <span key={label} role="columnheader">
-                {label}
-              </span>
-            ))}
-          </div>
+          {columnHeader}
           {rows
             .filter((row) => row.exercise.id === exercise.id)
             .map((row) => (
               <SetRow
                 key={`${exercise.id}:${row.setNumber}`}
                 row={row}
-                sessionId={session.id}
-                totalSets={progress.total}
-                onComplete={(target, values) => void persistSet(target, values, "completed")}
-                onSkip={(target, values) => void persistSet(target, values, "skipped")}
-                onCorrect={(target, values) => void correctSet(target, values)}
-                onUndo={(target) => void undoSet(target)}
-                onFocusSet={(target) => void focusSet(target)}
+                {...setRowProps()}
               />
             ))}
         </div>
       </section>
+    );
+  }
+
+  // A real superset is performed back-to-back across exercises, not one
+  // exercise's sets to completion before the next - so its rows interleave
+  // by round ("1A", "1B", "2A", "2B", ...) instead of each exercise getting
+  // its own sequential block. Every exercise still gets exactly one heading
+  // (labelled with its round letter) so it stays identifiable while collapsed
+  // or scrolled past.
+  function renderSuperset(group: ExerciseGroup) {
+    const exercises = group.exercises as SessionExercise[];
+    return (
+      <>
+        <div className="flex flex-col gap-1 px-3 pt-2">
+          {exercises.map((exercise, index) => (
+            <h3 key={exercise.id} className="text-base font-semibold tracking-tight">
+              {ROUND_LETTERS[index] ?? index}: {exercise.exercise_name}
+            </h3>
+          ))}
+        </div>
+        <div className="overflow-x-auto px-3 pb-2">
+          {columnHeader}
+          {buildGroupRounds(rows, group.exercises).map((row) => (
+            <SetRow
+              key={`${row.exercise.id}:${row.setNumber}`}
+              row={row}
+              roundLabel={row.roundLabel}
+              {...setRowProps()}
+            />
+          ))}
+        </div>
+      </>
     );
   }
 
@@ -294,7 +359,9 @@ function ActiveWorkoutSession({
               <summary className="cursor-pointer p-3 font-semibold" style={{ minHeight: "var(--touch)" }}>
                 {group.label}
               </summary>
-              {group.exercises.map((exercise) => renderExercise(exercise as SessionExercise))}
+              {group.exercises.length > 1
+                ? renderSuperset(group)
+                : group.exercises.map((exercise) => renderExercise(exercise as SessionExercise))}
             </details>
           ) : (
             <article key={group.key} className="card overflow-hidden">

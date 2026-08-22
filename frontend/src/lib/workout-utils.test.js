@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildGroupRounds,
   buildWorkoutGrid,
   groupSessionExercises,
   parseRepsPerSet,
@@ -118,5 +119,33 @@ describe("Slice 2 workout grid", () => {
       "exercise:exercise-a",
       "superset-a",
     ]);
+  });
+});
+
+describe("buildGroupRounds", () => {
+  const rows = buildWorkoutGrid(session);
+
+  it("interleaves a superset by round, not by exercise", () => {
+    const labels = buildGroupRounds(rows, session.exercises).map(
+      (row) => `${row.roundLabel}:${row.exercise.exercise_name}:${row.setNumber}`
+    );
+    expect(labels).toEqual([
+      "1A:Squat:1",
+      "1B:Row:1",
+      "2A:Squat:2",
+      "2B:Row:2",
+    ]);
+  });
+
+  it("skips a round an exercise does not have", () => {
+    const uneven = [
+      session.exercises[0],
+      { ...session.exercises[1], target_sets: 1 },
+    ];
+    const unevenRows = buildWorkoutGrid({ ...session, exercises: uneven });
+    const labels = buildGroupRounds(unevenRows, uneven).map(
+      (row) => `${row.roundLabel}:${row.exercise.exercise_name}:${row.setNumber}`
+    );
+    expect(labels).toEqual(["1A:Squat:1", "1B:Row:1", "2A:Squat:2"]);
   });
 });
