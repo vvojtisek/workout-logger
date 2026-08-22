@@ -266,3 +266,58 @@ def test_exercise_catalogue_migration_adds_table_and_nullable_link(alembic_confi
         ).one()
         assert row == ("Bench Press", None)
     sync_engine.dispose()
+
+
+def test_programs_migration_adds_tables_with_no_overlap_constraint(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "f4c82c310a12")
+    plan_id = str(uuid.uuid4())
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO workout_plans "
+                "(id, name, description, created_at, updated_at) "
+                "VALUES (:id, 'Pre-programs plan', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": plan_id},
+        )
+    command.upgrade(alembic_config, "head")
+
+    inspector = inspect(sync_engine)
+    assert {"programs", "scheduled_workouts"}.issubset(set(inspector.get_table_names()))
+
+    program_one = str(uuid.uuid4())
+    program_two = str(uuid.uuid4())
+    with sync_engine.begin() as connection:
+        connection.execute(text("PRAGMA foreign_keys = ON"))
+        for program_id, name in [(program_one, "Hockey Pre-Season"), (program_two, "Hypertrophy")]:
+            connection.execute(
+                text(
+                    "INSERT INTO programs "
+                    "(id, owner_id, name, kind, start_date, end_date, status, notes, "
+                    "created_at, updated_at) "
+                    "VALUES (:id, NULL, :name, 'block', '2026-01-01', '2026-03-01', 'active', "
+                    "NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                ),
+                {"id": program_id, "name": name},
+            )
+        # Two overlapping programs both scheduling a workout on the same day:
+        # no unique constraint blocks this by design.
+        for program_id in (program_one, program_two):
+            connection.execute(
+                text(
+                    "INSERT INTO scheduled_workouts "
+                    "(id, owner_id, program_id, workout_plan_id, scheduled_date, status, "
+                    "workout_session_id, created_at, updated_at) "
+                    "VALUES (:id, NULL, :program_id, :plan_id, '2026-01-05', 'scheduled', "
+                    "NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                ),
+                {"id": str(uuid.uuid4()), "program_id": program_id, "plan_id": plan_id},
+            )
+
+    with sync_engine.connect() as connection:
+        count = connection.scalar(
+            text("SELECT COUNT(*) FROM scheduled_workouts WHERE scheduled_date = '2026-01-05'")
+        )
+        assert count == 2
+    sync_engine.dispose()

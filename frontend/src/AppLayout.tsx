@@ -39,6 +39,8 @@ function useOnlineStatus(): boolean {
 const NAV_ITEMS: { path: string; label: string; glyph: string }[] = [
   { path: "/settings", label: "API Key", glyph: "\u{1F511}" },
   { path: "/plans", label: "Plans", glyph: "\u{1F4CB}" },
+  { path: "/programs", label: "Programs", glyph: "\u{1F4C8}" },
+  { path: "/calendar", label: "Calendar", glyph: "\u{1F4C5}" },
   { path: "/exercises", label: "Exercises", glyph: "\u{1F4AA}" },
   { path: "/log/new", label: "New Workout", glyph: "➕" },
   { path: "/history", label: "History", glyph: "\u{1F5C2}" },
