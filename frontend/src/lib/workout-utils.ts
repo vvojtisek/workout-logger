@@ -1,9 +1,17 @@
+export type ExerciseKind = "strength" | "bodyweight" | "cardio";
+
 export interface SetEntry {
   id: string;
   set_number: number;
   weight_kg: number | null;
   reps: number;
   rir: number | null;
+  added_weight_kg: number | null;
+  band_level: string | null;
+  duration_seconds: number | null;
+  distance_km: number | null;
+  incline_percent: number | null;
+  rpe: number | null;
   state: string;
   completed_at?: string;
   client_operation_id?: string;
@@ -13,6 +21,7 @@ export interface GridExercise {
   id: string;
   sort_order: number;
   exercise_name: string;
+  exercise_kind: ExerciseKind;
   target_sets: number;
   suggested_weight_kg: number | null;
   suggested_reps: number;

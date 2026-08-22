@@ -1,4 +1,4 @@
-import type { GridExercise, GridSession } from "@/lib/workout-utils";
+import type { ExerciseKind, GridExercise, GridSession } from "@/lib/workout-utils";
 
 export interface Paginated<T> {
   items: T[];
@@ -11,6 +11,7 @@ export interface PlanExercise {
   id: string;
   sort_order: number;
   exercise_name: string;
+  exercise_kind: ExerciseKind;
   target_sets: number;
   target_reps_min: number;
   target_reps_max: number;

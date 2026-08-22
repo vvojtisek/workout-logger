@@ -58,7 +58,16 @@ describe("active set drafts", () => {
   it("persists and clears kg, reps, and RIR by session set", () => {
     const storage = memoryStorage();
     const key = draftStorageKey("session-a", "exercise-a", 2);
-    const draft = { weight: "82.75", reps: "7", rir: "1" };
+    const draft = {
+      weight: "82.75",
+      reps: "7",
+      rir: "1",
+      added_weight_kg: "",
+      band_level: "",
+      duration_seconds: "",
+      distance_km: "",
+      incline_percent: "",
+    };
 
     saveSetDraft(storage, key, draft);
     expect(loadSetDraft(storage, key)).toEqual(draft);

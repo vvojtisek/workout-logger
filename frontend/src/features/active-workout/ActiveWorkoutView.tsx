@@ -22,10 +22,9 @@ import type { ExerciseGroup, GridRow } from "@/lib/workout-utils";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { RestOverlay } from "./RestOverlay";
-import { ROW_GRID, SetRow } from "./SetRow";
+import { COLUMN_HEADERS_BY_KIND, ROW_GRID, SetRow } from "./SetRow";
 import type { SetValues } from "./SetRow";
 
-const COLUMN_HEADERS = ["Set", "Previous", "kg", "Reps", "RIR", "Complete"];
 // Shared verbatim with SetRow's own grid template - see the comment there.
 const HEADER_GRID = ROW_GRID;
 const ROUND_LETTERS = "ABCDEFGHIJ";
@@ -143,6 +142,11 @@ function ActiveWorkoutSession({
           weight_kg: values.weight,
           reps: values.reps,
           rir: values.rir,
+          added_weight_kg: values.added_weight_kg,
+          band_level: values.band_level,
+          duration_seconds: values.duration_seconds,
+          distance_km: values.distance_km,
+          incline_percent: values.incline_percent,
           state,
           client_operation_id: operationId,
         },
@@ -166,7 +170,16 @@ function ActiveWorkoutSession({
           `/workout-sessions/${session.id}/sets/${row.entry.id}`,
           {
             method: "PUT",
-            body: JSON.stringify({ weight_kg: values.weight, reps: values.reps, rir: values.rir }),
+            body: JSON.stringify({
+              weight_kg: values.weight,
+              reps: values.reps,
+              rir: values.rir,
+              added_weight_kg: values.added_weight_kg,
+              band_level: values.band_level,
+              duration_seconds: values.duration_seconds,
+              distance_km: values.distance_km,
+              incline_percent: values.incline_percent,
+            }),
           }
         );
         onSessionChange(updated);
@@ -247,15 +260,17 @@ function ActiveWorkoutSession({
     void completeWorkout();
   }
 
-  const columnHeader = (
-    <div className={`${HEADER_GRID} text-xs font-semibold text-muted`}>
-      {COLUMN_HEADERS.map((label) => (
-        <span key={label} role="columnheader">
-          {label}
-        </span>
-      ))}
-    </div>
-  );
+  function columnHeaderFor(exercise: SessionExercise) {
+    return (
+      <div className={`${HEADER_GRID} text-xs font-semibold text-muted`}>
+        {COLUMN_HEADERS_BY_KIND[exercise.exercise_kind].map((label) => (
+          <span key={label} role="columnheader">
+            {label}
+          </span>
+        ))}
+      </div>
+    );
+  }
 
   function setRowProps() {
     return {
@@ -275,7 +290,7 @@ function ActiveWorkoutSession({
       <section key={exercise.id}>
         <h3 className="p-3 text-lg font-semibold tracking-tight">{exercise.exercise_name}</h3>
         <div className="overflow-x-auto px-3 pb-2">
-          {columnHeader}
+          {columnHeaderFor(exercise)}
           {rows
             .filter((row) => row.exercise.id === exercise.id)
             .map((row) => (
@@ -295,7 +310,8 @@ function ActiveWorkoutSession({
   // by round ("1A", "1B", "2A", "2B", ...) instead of each exercise getting
   // its own sequential block. Every exercise still gets exactly one heading
   // (labelled with its round letter) so it stays identifiable while collapsed
-  // or scrolled past.
+  // or scrolled past. The column header assumes every exercise in the group
+  // shares one kind, since a mixed-kind superset has no single column set.
   function renderSuperset(group: ExerciseGroup) {
     const exercises = group.exercises as SessionExercise[];
     return (
@@ -308,7 +324,7 @@ function ActiveWorkoutSession({
           ))}
         </div>
         <div className="overflow-x-auto px-3 pb-2">
-          {columnHeader}
+          {columnHeaderFor(exercises[0])}
           {buildGroupRounds(rows, group.exercises).map((row) => (
             <SetRow
               key={`${row.exercise.id}:${row.setNumber}`}

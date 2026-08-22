@@ -122,6 +122,7 @@ async def start_session(session: AsyncSession, source_plan_id: UUID) -> tuple[Wo
             SessionExercise(
                 sort_order=exercise.sort_order,
                 exercise_name=exercise.exercise_name,
+                exercise_kind=exercise.exercise_kind,
                 target_sets=exercise.target_sets,
                 target_reps_min=exercise.target_reps_min,
                 target_reps_max=exercise.target_reps_max,
@@ -167,6 +168,12 @@ async def save_set(
             weight_kg=data.weight_kg,
             reps=data.reps,
             rir=data.rir,
+            added_weight_kg=data.added_weight_kg,
+            band_level=data.band_level,
+            duration_seconds=data.duration_seconds,
+            distance_km=data.distance_km,
+            incline_percent=data.incline_percent,
+            rpe=data.rpe,
             state=data.state,
             client_operation_id=data.client_operation_id,
         )
@@ -202,6 +209,12 @@ async def update_set(
     entry.weight_kg = data.weight_kg
     entry.reps = data.reps
     entry.rir = data.rir
+    entry.added_weight_kg = data.added_weight_kg
+    entry.band_level = data.band_level
+    entry.duration_seconds = data.duration_seconds
+    entry.distance_km = data.distance_km
+    entry.incline_percent = data.incline_percent
+    entry.rpe = data.rpe
     workout_session.version += 1
     await session.commit()
     return await get_session(session, workout_session.id)
