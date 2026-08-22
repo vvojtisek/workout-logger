@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { FormEvent, RefObject } from "react";
 
 import {
   clearSetDraft,
@@ -18,12 +18,6 @@ export interface SetValues {
   rir: number | null;
 }
 
-interface DraftValues {
-  weight: string;
-  reps: string;
-  rir: string;
-}
-
 const ROW_GRID =
   "grid grid-cols-[3rem_5rem_repeat(3,minmax(4rem,1fr))_minmax(7rem,auto)] gap-2 min-w-[38rem]";
 
@@ -31,12 +25,25 @@ function numericValue(raw: string): number | null {
   return raw ? Number.parseFloat(raw) : null;
 }
 
-/** A single numeric cell. The input is nested inside its label so the visible
- *  text is also the accessible name assistive tech and tests resolve. */
+/**
+ * A single numeric cell.
+ *
+ * The input is deliberately UNCONTROLLED. A set grid is filled in rapidly, often
+ * while the session object is being replaced by a server response, and a
+ * controlled value re-rendered mid-edit can drop or misplace a keystroke. The
+ * DOM is therefore the source of truth for an unsaved row: the draft is written
+ * from it on input and it is read back on submit, which is exactly how the
+ * pre-React implementation behaved. Remounting via `key` re-seeds it when the
+ * row crosses the saved/unsaved boundary.
+ *
+ * The input is nested inside its label so the screen-reader-only label text is
+ * also its accessible name; the column header row carries the visible one.
+ */
 function NumberCell({
   label,
-  value,
-  onChange,
+  inputRef,
+  defaultValue,
+  onInput,
   inputMode,
   min,
   max,
@@ -44,8 +51,9 @@ function NumberCell({
   disabled,
 }: {
   label: string;
-  value: string;
-  onChange: (next: string) => void;
+  inputRef: RefObject<HTMLInputElement | null>;
+  defaultValue: string;
+  onInput: () => void;
   inputMode: "decimal" | "numeric";
   min: string;
   max?: string;
@@ -56,14 +64,15 @@ function NumberCell({
     <label className="text-xs font-medium text-muted">
       <span className="sr-only">{label}</span>
       <input
+        ref={inputRef}
         type="number"
         inputMode={inputMode}
         min={min}
         max={max ?? ""}
         step={step ?? "1"}
-        value={value}
+        defaultValue={defaultValue}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
+        onInput={onInput}
         className="input block w-20 min-h-touch min-w-touch px-2"
       />
     </label>
@@ -97,26 +106,24 @@ export function SetRow({
     suggestionSource: row.exercise.suggestion_source,
   });
 
-  const [values, setValues] = useState<DraftValues>(() => initialValues());
+  const weightRef = useRef<HTMLInputElement>(null);
+  const repsRef = useRef<HTMLInputElement>(null);
+  const rirRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
   const [undoVisible, setUndoVisible] = useState(false);
 
-  function initialValues(): DraftValues {
-    const draft = row.entry ? null : loadSetDraft(localStorage, draftKey);
-    return {
-      weight: draft?.weight ?? (display.weightKg ?? "").toString(),
-      reps: draft?.reps ?? (display.reps ?? "").toString(),
-      rir: draft?.rir ?? (display.rir ?? "").toString(),
-    };
-  }
-
-  // Re-seed the inputs only when the row crosses the saved/unsaved boundary, so
-  // typing survives every unrelated re-render of the session.
   const entryId = row.entry?.id ?? null;
+  const draft = row.entry ? null : loadSetDraft(localStorage, draftKey);
+  const seed = {
+    weight: draft?.weight ?? (display.weightKg ?? "").toString(),
+    reps: draft?.reps ?? (display.reps ?? "").toString(),
+    rir: draft?.rir ?? (display.rir ?? "").toString(),
+  };
+
+  // Crossing the saved/unsaved boundary is the only thing that replaces what is
+  // typed in the row, so it also ends any in-progress correction.
   useEffect(() => {
-    setValues(initialValues());
     setEditing(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryId]);
 
   // A persisted set is authoritative; its local draft is no longer meaningful.
@@ -140,17 +147,21 @@ export function SetRow({
     return () => window.clearTimeout(handle);
   }, [row.entry?.completed_at, row.entry?.id]);
 
-  function update(patch: Partial<DraftValues>) {
-    const next = { ...values, ...patch };
-    setValues(next);
-    if (!row.entry) saveSetDraft(localStorage, draftKey, next);
+  function saveDraft() {
+    if (row.entry) return;
+    saveSetDraft(localStorage, draftKey, {
+      weight: weightRef.current?.value ?? "",
+      reps: repsRef.current?.value ?? "",
+      rir: rirRef.current?.value ?? "",
+    });
   }
 
   function currentValues(): SetValues {
+    const rir = rirRef.current?.value ?? "";
     return {
-      weight: numericValue(values.weight),
-      reps: Number.parseInt(values.reps, 10),
-      rir: values.rir ? Number.parseInt(values.rir, 10) : null,
+      weight: numericValue(weightRef.current?.value ?? ""),
+      reps: Number.parseInt(repsRef.current?.value ?? "", 10),
+      rir: rir ? Number.parseInt(rir, 10) : null,
     };
   }
 
@@ -171,6 +182,9 @@ export function SetRow({
   }
 
   const exerciseName = row.exercise.exercise_name;
+  // Remounts the inputs, re-reading defaultValue, only when the row is saved,
+  // corrected, or undone - never while it is being filled in.
+  const seedKey = entryId ?? "draft";
 
   return (
     <form
@@ -188,27 +202,33 @@ export function SetRow({
         {row.exercise.suggested_weight_kg ?? "—"} kg × {row.exercise.suggested_reps}
       </span>
       <NumberCell
+        key={`weight:${seedKey}`}
         label="Weight (kg)"
-        value={values.weight}
-        onChange={(next) => update({ weight: next })}
+        inputRef={weightRef}
+        defaultValue={seed.weight}
+        onInput={saveDraft}
         inputMode="decimal"
         min="0"
         step="0.25"
         disabled={disabled}
       />
       <NumberCell
+        key={`reps:${seedKey}`}
         label="Repetitions"
-        value={values.reps}
-        onChange={(next) => update({ reps: next })}
+        inputRef={repsRef}
+        defaultValue={seed.reps}
+        onInput={saveDraft}
         inputMode="numeric"
         min="1"
         max="1000"
         disabled={disabled}
       />
       <NumberCell
+        key={`rir:${seedKey}`}
         label="RIR"
-        value={values.rir}
-        onChange={(next) => update({ rir: next })}
+        inputRef={rirRef}
+        defaultValue={seed.rir}
+        onInput={saveDraft}
         inputMode="numeric"
         min="0"
         max="10"
