@@ -1,6 +1,18 @@
 const API_KEY_STORAGE_KEY = "workout_logger_api_key";
 const API_BASE = "/api/v1";
 
+export class ApiError extends Error {
+  status: number;
+  code: string | null;
+
+  constructor(message: string, status: number, code: string | null) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 export function getStoredApiKey(): string {
   return localStorage.getItem(API_KEY_STORAGE_KEY) || "";
 }
@@ -22,13 +34,15 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!response.ok) {
     let detail = `Request failed (${response.status})`;
+    let code: string | null = null;
     try {
-      const errorBody = (await response.json()) as { detail?: string };
+      const errorBody = (await response.json()) as { detail?: string; code?: string };
       detail = errorBody.detail || detail;
+      code = errorBody.code || null;
     } catch {
       // ignore body parse failures
     }
-    throw new Error(detail);
+    throw new ApiError(detail, response.status, code);
   }
   if (response.status === 204) {
     return null as T;

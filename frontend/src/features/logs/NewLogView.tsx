@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { Paginated, WorkoutPlan } from "@/api/types";
+import { useAppContext } from "@/AppLayout";
 import { parseRepsPerSet } from "@/lib/workout-utils";
+import { toast } from "@/ui/Toast";
 import { Button, Card, Input, PageHeading } from "@/ui";
 
 interface ExerciseRow {
@@ -19,7 +22,9 @@ function emptyRow(): ExerciseRow {
   return { key: crypto.randomUUID(), exercise_name: "", sets: "", reps: "", weight: "", rest: "" };
 }
 
-export function NewLogView({ online, onSaved }: { online: boolean; onSaved: () => void }) {
+export function NewLogView() {
+  const { online } = useAppContext();
+  const navigate = useNavigate();
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
   const [planId, setPlanId] = useState("");
   const [performedAt, setPerformedAt] = useState("");
@@ -35,7 +40,6 @@ export function NewLogView({ online, onSaved }: { online: boolean; onSaved: () =
       .catch(() => undefined);
   }, []);
 
-  // Selecting a plan replaces the exercise rows with that plan's template.
   async function selectPlan(nextPlanId: string) {
     setPlanId(nextPlanId);
     setRows([]);
@@ -50,7 +54,7 @@ export function NewLogView({ online, onSaved }: { online: boolean; onSaved: () =
           reps: "",
           weight: exercise.target_weight_kg ? String(exercise.target_weight_kg) : "",
           rest: exercise.rest_time_seconds ? String(exercise.rest_time_seconds) : "",
-        }))
+        })),
       );
     } catch {
       // leave exercise list empty on failure
@@ -59,7 +63,7 @@ export function NewLogView({ online, onSaved }: { online: boolean; onSaved: () =
 
   function updateRow(key: string, patch: Partial<ExerciseRow>) {
     setRows((current) =>
-      current.map((row) => (row.key === key ? { ...row, ...patch } : row))
+      current.map((row) => (row.key === key ? { ...row, ...patch } : row)),
     );
   }
 
@@ -87,16 +91,10 @@ export function NewLogView({ online, onSaved }: { online: boolean; onSaved: () =
 
     try {
       await apiFetch("/logs", { method: "POST", body: JSON.stringify(payload) });
-      setPlanId("");
-      setPerformedAt("");
-      setTotalTime("");
-      setCalories("");
-      setFeeling("");
-      setNotes("");
-      setRows([]);
-      onSaved();
+      toast.success("Workout saved");
+      void navigate("/history");
     } catch (err) {
-      window.alert(`Failed to save workout: ${errorMessage(err)}`);
+      toast.error(`Failed to save workout: ${errorMessage(err)}`);
     }
   }
 

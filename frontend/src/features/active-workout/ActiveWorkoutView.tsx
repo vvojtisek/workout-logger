@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Navigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { SessionExercise, WorkoutSession } from "@/api/types";
+import { useAppContext } from "@/AppLayout";
 import {
   clearSetDraft,
   draftStorageKey,
@@ -12,6 +14,8 @@ import {
 } from "@/lib/active-workout-state";
 import { buildWorkoutGrid, groupSessionExercises, workoutProgress } from "@/lib/workout-utils";
 import type { GridRow } from "@/lib/workout-utils";
+import { ConfirmDialog } from "@/ui/Dialog";
+import { toast } from "@/ui/Toast";
 import { RestOverlay } from "./RestOverlay";
 import { SetRow } from "./SetRow";
 import type { SetValues } from "./SetRow";
@@ -20,7 +24,31 @@ const COLUMN_HEADERS = ["Set", "Previous", "kg", "Reps", "RIR", "Complete"];
 const HEADER_GRID =
   "grid grid-cols-[3rem_5rem_repeat(3,minmax(4rem,1fr))_minmax(7rem,auto)] gap-2 min-w-[38rem]";
 
-export function ActiveWorkoutView({
+export function ActiveWorkoutView() {
+  const { session, online, updateSession, finishSession } = useAppContext();
+  const hadSessionRef = useRef(false);
+  if (session) hadSessionRef.current = true;
+
+  // A direct visit to /workout with no active session has nothing to render;
+  // the plans list is where a session is actually started. Once a session has
+  // existed, though, finishing it clears local state a render tick before the
+  // router's own navigate("/history") lands, and redirecting to /plans here
+  // in that window would win the race and hijack the destination — so after
+  // finishing, render nothing and let the in-flight navigation land instead.
+  if (!session && !hadSessionRef.current) return <Navigate to="/plans" replace />;
+  if (!session) return null;
+
+  return (
+    <ActiveWorkoutSession
+      session={session}
+      online={online}
+      onSessionChange={updateSession}
+      onFinished={finishSession}
+    />
+  );
+}
+
+function ActiveWorkoutSession({
   session,
   online,
   onSessionChange,
@@ -35,6 +63,7 @@ export function ActiveWorkoutView({
   const [restWasSkipped, setRestWasSkipped] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [queueToken, setQueueToken] = useState(0);
+  const [confirmFinish, setConfirmFinish] = useState(false);
   const syncInProgress = useRef(false);
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -170,19 +199,13 @@ export function ActiveWorkoutView({
         setRestWasSkipped(data.skip === true);
         onSessionChange(updated);
       } catch (err) {
-        window.alert(`Failed to update rest timer: ${errorMessage(err)}`);
+        toast.error(`Failed to update rest timer: ${errorMessage(err)}`);
       }
     },
     [session.id, session.version, onSessionChange]
   );
 
-  async function finishWorkout() {
-    if (
-      progress.done < progress.total &&
-      !window.confirm("Finish this incomplete workout?")
-    ) {
-      return;
-    }
+  async function completeWorkout() {
     try {
       await apiFetch(`/workout-sessions/${session.id}/complete`, {
         method: "POST",
@@ -190,8 +213,16 @@ export function ActiveWorkoutView({
       });
       onFinished();
     } catch (err) {
-      window.alert(`Failed to finish workout: ${errorMessage(err)}`);
+      toast.error(`Failed to finish workout: ${errorMessage(err)}`);
     }
+  }
+
+  function finishWorkout() {
+    if (progress.done < progress.total) {
+      setConfirmFinish(true);
+      return;
+    }
+    void completeWorkout();
   }
 
   function renderExercise(exercise: SessionExercise) {
@@ -241,7 +272,7 @@ export function ActiveWorkoutView({
         <button
           type="button"
           id="finish-active-workout"
-          onClick={() => void finishWorkout()}
+          onClick={finishWorkout}
           className="btn btn-secondary btn-touch"
         >
           Finish workout
@@ -298,6 +329,16 @@ export function ActiveWorkoutView({
         onAdjust={(seconds) => void updateRest({ adjustment_seconds: seconds })}
         onSkip={() => void updateRest({ skip: true })}
         onRetrySync={() => void flushSetQueue()}
+      />
+
+      <ConfirmDialog
+        open={confirmFinish}
+        onClose={() => setConfirmFinish(false)}
+        onConfirm={() => void completeWorkout()}
+        title="Finish incomplete workout?"
+        message="Not every set has been logged yet. Finish anyway?"
+        confirmLabel="Finish workout"
+        confirmVariant="primary"
       />
     </section>
   );

@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { WorkoutLog } from "@/api/types";
+import { ConfirmDialog } from "@/ui/Dialog";
 import { Button, Card, PageHeading } from "@/ui";
 
-export function LogDetailView({
-  logId,
-  onBack,
-}: {
-  logId: string | null;
-  onBack: () => void;
-}) {
+export function LogDetailView() {
+  const { logId } = useParams<{ logId: string }>();
+  const navigate = useNavigate();
   const [log, setLog] = useState<WorkoutLog | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (!logId) return;
@@ -36,12 +35,12 @@ export function LogDetailView({
   async function deleteLog() {
     if (!logId) return;
     await apiFetch(`/logs/${logId}`, { method: "DELETE" });
-    onBack();
+    void navigate("/history");
   }
 
   return (
     <section id="detail-view">
-      <Button id="back-to-history" onClick={onBack} className="mb-4">
+      <Button id="back-to-history" onClick={() => void navigate("/history")} className="mb-4">
         &larr; Back to history
       </Button>
       <PageHeading>Workout Detail</PageHeading>
@@ -71,10 +70,18 @@ export function LogDetailView({
         ) : null}
       </div>
       <div className="mt-4 flex gap-2">
-        <Button id="delete-log-btn" variant="danger" onClick={() => void deleteLog()}>
+        <Button id="delete-log-btn" variant="danger" onClick={() => setConfirmDelete(true)}>
           Delete workout
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => void deleteLog()}
+        title="Delete workout"
+        message="Are you sure you want to delete this workout? This cannot be undone."
+      />
     </section>
   );
 }

@@ -160,16 +160,6 @@ async def health_startup() -> JSONResponse:
     return await dependency_health()
 
 
-@app.get("/", include_in_schema=False)
-async def root() -> FileResponse:
-    if not SPA_INDEX.is_file():
-        raise RuntimeError(
-            "The frontend bundle is missing. Run `npm ci && npm run build` to compile it "
-            f"into {SPA_DIR}."
-        )
-    return FileResponse(SPA_INDEX, media_type="text/html")
-
-
 @app.get("/manifest.webmanifest", include_in_schema=False)
 async def manifest() -> FileResponse:
     return FileResponse(STATIC_DIR / "manifest.webmanifest", media_type="application/manifest+json")
@@ -178,3 +168,27 @@ async def manifest() -> FileResponse:
 @app.get("/sw.js", include_in_schema=False)
 async def service_worker() -> FileResponse:
     return FileResponse(STATIC_DIR / "sw.js", media_type="application/javascript")
+
+
+SPA_PREFIX_BLACKLIST = (
+    "/api/",
+    "/static/",
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/sw.js",
+    "/manifest.webmanifest",
+)
+
+
+@app.get("/{full_path:path}", include_in_schema=False, response_model=None)
+async def spa_catch_all(full_path: str) -> FileResponse | JSONResponse:
+    request_path = f"/{full_path}"
+    if any(request_path.startswith(prefix) for prefix in SPA_PREFIX_BLACKLIST):
+        return JSONResponse(status_code=404, content={"detail": "Not Found"})
+    if not SPA_INDEX.is_file():
+        raise RuntimeError(
+            "The frontend bundle is missing. Run `npm ci && npm run build` to compile it "
+            f"into {SPA_DIR}."
+        )
+    return FileResponse(SPA_INDEX, media_type="text/html")

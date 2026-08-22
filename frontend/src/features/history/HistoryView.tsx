@@ -1,16 +1,12 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { Paginated, WorkoutLogSummary } from "@/api/types";
 import { EmptyState, PageHeading } from "@/ui";
 
-export function HistoryView({
-  reloadToken,
-  onOpenLog,
-}: {
-  reloadToken: number;
-  onOpenLog: (logId: string) => void;
-}) {
+export function HistoryView() {
+  const navigate = useNavigate();
   const [logs, setLogs] = useState<WorkoutLogSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +29,7 @@ export function HistoryView({
     return () => {
       cancelled = true;
     };
-  }, [reloadToken]);
+  }, []);
 
   return (
     <section id="history-view">
@@ -52,7 +48,7 @@ export function HistoryView({
           <li key={log.id}>
             <button
               type="button"
-              onClick={() => onOpenLog(log.id)}
+              onClick={() => void navigate(`/history/${log.id}`)}
               className="card w-full p-4 text-left transition-colors hover:bg-surface-sunken"
             >
               <p className="font-medium">
