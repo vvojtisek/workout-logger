@@ -40,6 +40,22 @@ export const router = createBrowserRouter([
         lazy: () => import("@/features/exercises/ExerciseDetailView").then((m) => ({ Component: m.ExerciseDetailView })),
       },
       {
+        path: "calendar",
+        lazy: () => import("@/features/calendar/CalendarView").then((m) => ({ Component: m.CalendarView })),
+      },
+      {
+        path: "programs",
+        lazy: () => import("@/features/programs/ProgramsView").then((m) => ({ Component: m.ProgramsView })),
+      },
+      {
+        path: "programs/new",
+        lazy: () => import("@/features/programs/ProgramBuilder").then((m) => ({ Component: m.ProgramBuilder })),
+      },
+      {
+        path: "programs/:programId/edit",
+        lazy: () => import("@/features/programs/ProgramBuilder").then((m) => ({ Component: m.ProgramBuilder })),
+      },
+      {
         path: "log/new",
         lazy: () => import("@/features/logs/NewLogView").then((m) => ({ Component: m.NewLogView })),
       },

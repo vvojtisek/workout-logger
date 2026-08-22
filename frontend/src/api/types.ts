@@ -108,3 +108,32 @@ export interface CatalogExercise {
   created_at: string;
   updated_at: string;
 }
+
+export type ProgramStatus = "active" | "completed" | "archived";
+
+export interface Program {
+  id: string;
+  name: string;
+  kind: string;
+  start_date: string;
+  end_date: string | null;
+  status: ProgramStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ScheduledWorkoutStatus = "scheduled" | "in_progress" | "completed" | "skipped";
+
+export interface ScheduledWorkout {
+  id: string;
+  program_id: string | null;
+  program_name: string | null;
+  workout_plan_id: string;
+  workout_plan_name: string;
+  scheduled_date: string;
+  status: ScheduledWorkoutStatus;
+  workout_session_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
