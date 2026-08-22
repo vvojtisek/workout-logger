@@ -12,6 +12,7 @@ from app.schemas.workout_sessions import (
     WorkoutSessionComplete,
     WorkoutSessionFocus,
     WorkoutSessionRead,
+    WorkoutSessionRestUpdate,
     WorkoutSessionStart,
 )
 from app.services import workout_sessions as workout_sessions_service
@@ -134,6 +135,24 @@ async def focus_workout_session_set(
     session: SessionDep,
 ) -> WorkoutSessionRead:
     workout_session = await workout_sessions_service.set_focus(session, session_id, data)
+    return WorkoutSessionRead.model_validate(workout_session)
+
+
+@router.patch(
+    "/{session_id}/rest",
+    operation_id="update_workout_session_rest",
+    response_model=WorkoutSessionRead,
+    responses={
+        404: {"model": ErrorResponse, "description": "Session not found"},
+        409: {"model": ErrorResponse, "description": "Rest cannot be adjusted"},
+    },
+)
+async def update_workout_session_rest(
+    session_id: UUID,
+    data: WorkoutSessionRestUpdate,
+    session: SessionDep,
+) -> WorkoutSessionRead:
+    workout_session = await workout_sessions_service.update_rest(session, session_id, data)
     return WorkoutSessionRead.model_validate(workout_session)
 
 

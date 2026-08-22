@@ -1,10 +1,20 @@
 "use strict";
 
 import {
+  clearSetDraft,
+  draftStorageKey,
+  enqueueSetOperation,
+  getSetQueue,
+  loadSetDraft,
+  removeSetOperation,
+  restTimerState,
+  saveSetDraft,
+  synchronizationState,
+} from "./active-workout-state.js";
+import {
   buildWorkoutGrid,
   groupSessionExercises,
   parseRepsPerSet,
-  remainingTimeSeconds,
   resolveSetDisplayState,
   workoutProgress,
 } from "./workout-utils.js";
@@ -93,7 +103,10 @@ function updateConnectionStatus() {
   }
 }
 
-window.addEventListener("online", updateConnectionStatus);
+window.addEventListener("online", () => {
+  updateConnectionStatus();
+  flushSetQueue();
+});
 window.addEventListener("offline", updateConnectionStatus);
 
 // ---- API key settings ----
@@ -191,17 +204,73 @@ const activeProgressText = document.getElementById("active-progress-text");
 const activeProgress = document.getElementById("active-progress");
 const activeGrid = document.getElementById("active-grid");
 const activeRestTimer = document.getElementById("active-rest-timer");
+const activeRestExpired = document.getElementById("active-rest-expired");
+const addRestTime = document.getElementById("add-rest-time");
+const subtractRestTime = document.getElementById("subtract-rest-time");
+const skipRest = document.getElementById("skip-rest");
+const activeSyncStatus = document.getElementById("active-sync-status");
+const retryActiveSync = document.getElementById("retry-active-sync");
 const activeFeeling = document.getElementById("active-feeling");
 const finishActiveWorkout = document.getElementById("finish-active-workout");
 let currentSession = null;
 let restTimerHandle = null;
+let restWasSkipped = false;
+let syncInProgress = false;
+let lastSyncError = null;
 
 function updateRestTimer() {
-  if (!currentSession?.rest_ends_at) {
-    setText(activeRestTimer, "Rest not started");
+  const state = restTimerState(currentSession?.rest_ends_at || null);
+  const label = restWasSkipped && !currentSession?.rest_ends_at ? "Rest skipped" : state.label;
+  setText(activeRestTimer, state.status === "expired" ? "Rest: 0s" : label);
+  activeRestExpired.hidden = state.status !== "expired";
+  activeRestTimer.classList.toggle("text-emerald-700", state.status === "expired");
+  const canAdjust = Boolean(currentSession?.rest_ends_at);
+  addRestTime.disabled = !canAdjust;
+  subtractRestTime.disabled = !canAdjust;
+  skipRest.disabled = !canAdjust;
+}
+
+function renderSyncStatus() {
+  const state = synchronizationState(
+    getSetQueue(localStorage),
+    navigator.onLine,
+    lastSyncError
+  );
+  setText(activeSyncStatus, state.label);
+  activeSyncStatus.dataset.state = state.status;
+  retryActiveSync.hidden = state.status !== "failed";
+}
+
+async function flushSetQueue() {
+  if (syncInProgress || !navigator.onLine || !currentSession) return;
+  const operations = getSetQueue(localStorage).filter(
+    (operation) => operation.session_id === currentSession.id
+  );
+  if (operations.length === 0) {
+    lastSyncError = null;
+    renderSyncStatus();
     return;
   }
-  setText(activeRestTimer, `Rest: ${remainingTimeSeconds(currentSession.rest_ends_at)}s`);
+  syncInProgress = true;
+  lastSyncError = null;
+  renderSyncStatus();
+  try {
+    for (const operation of operations) {
+      currentSession = await apiFetch(`/workout-sessions/${operation.session_id}/sets`, {
+        method: "POST",
+        body: JSON.stringify(operation.payload),
+      });
+      removeSetOperation(localStorage, operation.client_operation_id);
+      if (operation.draft_key) clearSetDraft(localStorage, operation.draft_key);
+      if (operation.payload.state !== "skipped") restWasSkipped = false;
+    }
+    renderActiveSession(currentSession);
+  } catch (err) {
+    lastSyncError = err.message;
+  } finally {
+    syncInProgress = false;
+    renderSyncStatus();
+  }
 }
 
 /** @param {HTMLInputElement} input */
@@ -211,7 +280,7 @@ function numberValue(input) {
 
 /**
  * @param {string} labelText
- * @param {number | null} value
+ * @param {number | string | null} value
  * @param {{inputMode: string, min: string, max?: string, step?: string, disabled: boolean}} options
  */
 function makeInput(labelText, value, options) {
@@ -232,19 +301,25 @@ function makeInput(labelText, value, options) {
 }
 
 async function persistSet(row, values, state = "completed") {
-  currentSession = await apiFetch(`/workout-sessions/${currentSession.id}/sets`, {
-    method: "POST",
-    body: JSON.stringify({
+  const operationId = crypto.randomUUID();
+  const draftKey = draftStorageKey(currentSession.id, row.exercise.id, row.setNumber);
+  enqueueSetOperation(localStorage, {
+    client_operation_id: operationId,
+    session_id: currentSession.id,
+    draft_key: draftKey,
+    payload: {
       session_exercise_id: row.exercise.id,
       set_number: row.setNumber,
       weight_kg: values.weight,
       reps: values.reps,
       rir: values.rir,
       state,
-      client_operation_id: crypto.randomUUID(),
-    }),
+      client_operation_id: operationId,
+    },
   });
-  renderActiveSession(currentSession);
+  lastSyncError = null;
+  renderSyncStatus();
+  await flushSetQueue();
 }
 
 function renderSetRow(row, totalSets) {
@@ -273,20 +348,23 @@ function renderSetRow(row, totalSets) {
     suggestedReps: row.exercise.suggested_reps,
     suggestionSource: row.exercise.suggestion_source,
   });
+  const draftKey = draftStorageKey(currentSession.id, row.exercise.id, row.setNumber);
+  if (row.entry) clearSetDraft(localStorage, draftKey);
+  const draft = row.entry ? null : loadSetDraft(localStorage, draftKey);
   const disabled = row.entry !== null;
-  const weight = makeInput("Weight (kg)", display.weightKg, {
+  const weight = makeInput("Weight (kg)", draft?.weight ?? display.weightKg, {
     inputMode: "decimal",
     min: "0",
     step: "0.25",
     disabled,
   });
-  const reps = makeInput("Repetitions", display.reps, {
+  const reps = makeInput("Repetitions", draft?.reps ?? display.reps, {
     inputMode: "numeric",
     min: "1",
     max: "1000",
     disabled,
   });
-  const rir = makeInput("RIR", display.rir, {
+  const rir = makeInput("RIR", draft?.rir ?? display.rir, {
     inputMode: "numeric",
     min: "0",
     max: "10",
@@ -300,6 +378,18 @@ function renderSetRow(row, totalSets) {
     reps: Number.parseInt(reps.input.value, 10),
     rir: rir.input.value ? Number.parseInt(rir.input.value, 10) : null,
   });
+  if (!row.entry) {
+    const saveDraft = () => {
+      saveSetDraft(localStorage, draftKey, {
+        weight: weight.input.value,
+        reps: reps.input.value,
+        rir: rir.input.value,
+      });
+    };
+    [weight.input, reps.input, rir.input].forEach((input) => {
+      input.addEventListener("input", saveDraft);
+    });
+  }
   if (row.entry) {
     const state = document.createElement("span");
     state.className = row.state === "skipped" ? "text-amber-700 self-center" : "text-emerald-700 self-center";
@@ -440,6 +530,7 @@ function renderActiveSession(session) {
     }
   });
   updateRestTimer();
+  renderSyncStatus();
   if (restTimerHandle) window.clearInterval(restTimerHandle);
   restTimerHandle = window.setInterval(updateRestTimer, 1000);
   showView("active-workout-view");
@@ -447,6 +538,26 @@ function renderActiveSession(session) {
     activeGrid.querySelector('[data-state="current"] input:not(:disabled)')?.focus();
   });
 }
+
+/** @param {{adjustment_seconds?: number, skip?: boolean}} data */
+async function updateRest(data) {
+  if (!currentSession) return;
+  try {
+    currentSession = await apiFetch(`/workout-sessions/${currentSession.id}/rest`, {
+      method: "PATCH",
+      body: JSON.stringify({ ...data, expected_version: currentSession.version }),
+    });
+    restWasSkipped = data.skip === true;
+    renderActiveSession(currentSession);
+  } catch (err) {
+    window.alert(`Failed to update rest timer: ${err.message}`);
+  }
+}
+
+addRestTime.addEventListener("click", () => updateRest({ adjustment_seconds: 30 }));
+subtractRestTime.addEventListener("click", () => updateRest({ adjustment_seconds: -30 }));
+skipRest.addEventListener("click", () => updateRest({ skip: true }));
+retryActiveSync.addEventListener("click", flushSetQueue);
 
 finishActiveWorkout.addEventListener("click", async () => {
   if (!currentSession) return;
@@ -470,6 +581,7 @@ async function resumeActiveSession() {
   if (!getStoredApiKey()) return;
   try {
     renderActiveSession(await apiFetch("/workout-sessions/active"));
+    await flushSetQueue();
   } catch {
     // no resumable session is a normal initial state
   }

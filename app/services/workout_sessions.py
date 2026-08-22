@@ -1,8 +1,10 @@
 import math
 from datetime import timedelta
+from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -14,6 +16,7 @@ from app.schemas.workout_sessions import (
     SetEntryUpdate,
     WorkoutSessionComplete,
     WorkoutSessionFocus,
+    WorkoutSessionRestUpdate,
 )
 from app.services.plans import get_plan
 
@@ -246,6 +249,52 @@ async def set_focus(
     workout_session.version += 1
     await session.commit()
     return await get_session(session, workout_session.id)
+
+
+async def update_rest(
+    session: AsyncSession,
+    session_id: UUID,
+    data: WorkoutSessionRestUpdate,
+) -> WorkoutSession:
+    workout_session = await get_session(session, session_id)
+    workout_session_id = workout_session.id
+    if workout_session.status != "active":
+        raise ConflictError("Workout session is not active", code="SESSION_NOT_ACTIVE")
+    if workout_session.version != data.expected_version:
+        raise ConflictError(
+            "Workout session has changed; reload and retry",
+            code="SESSION_VERSION_CONFLICT",
+        )
+
+    rest_ends_at = None
+    if not data.skip:
+        if workout_session.rest_ends_at is None:
+            raise ConflictError("No rest timer is active", code="REST_NOT_ACTIVE")
+        now = utcnow()
+        adjusted = workout_session.rest_ends_at + timedelta(seconds=data.adjustment_seconds or 0)
+        rest_ends_at = max(now, adjusted)
+
+    result = cast(
+        CursorResult[Any],
+        await session.execute(
+            update(WorkoutSession)
+            .where(
+                WorkoutSession.id == session_id,
+                WorkoutSession.status == "active",
+                WorkoutSession.version == data.expected_version,
+            )
+            .values(rest_ends_at=rest_ends_at, version=data.expected_version + 1)
+        ),
+    )
+    if result.rowcount != 1:
+        await session.rollback()
+        raise ConflictError(
+            "Workout session has changed; reload and retry",
+            code="SESSION_VERSION_CONFLICT",
+        )
+    await session.commit()
+    session.expire_all()
+    return await get_session(session, workout_session_id)
 
 
 async def complete_session(
