@@ -7,7 +7,9 @@ test("rest timer and an offline set retry recover against the real server", asyn
 }) => {
   const TEST_RUN_ID = process.env.TEST_RUN_ID || `timer-${Date.now()}`;
   const tag = `[E2E:${TEST_RUN_ID}:timer]`;
+  /** @type {string | undefined} */
   let planId;
+  /** @type {string | undefined} */
   let sessionId;
 
   try {
@@ -80,15 +82,23 @@ test("rest timer and an offline set retry recover against the real server", asyn
     });
 
     await restOverlay.getByRole("button", { name: "+30 seconds" }).click();
-    const extended = await (
-      await request.get(`/api/v1/workout-sessions/${sessionId}`)
-    ).json();
-    expect(new Date(extended.rest_ends_at).getTime() - originalEnd).toBe(30_000);
+    await expect
+      .poll(async () => {
+        const body = await (
+          await request.get(`/api/v1/workout-sessions/${sessionId}`)
+        ).json();
+        return new Date(body.rest_ends_at).getTime() - originalEnd;
+      })
+      .toBe(30_000);
     await restOverlay.getByRole("button", { name: "−30 seconds" }).click();
-    const restored = await (
-      await request.get(`/api/v1/workout-sessions/${sessionId}`)
-    ).json();
-    expect(new Date(restored.rest_ends_at).getTime()).toBe(originalEnd);
+    await expect
+      .poll(async () => {
+        const body = await (
+          await request.get(`/api/v1/workout-sessions/${sessionId}`)
+        ).json();
+        return new Date(body.rest_ends_at).getTime();
+      })
+      .toBe(originalEnd);
 
     await row(2).getByLabel("Weight (kg)").fill("62.75");
     await row(2).getByLabel("Repetitions").fill("8");
@@ -144,6 +154,7 @@ test("rest timer and an offline set retry recover against the real server", asyn
     expect(skippedRest.rest_ends_at).toBeNull();
 
     await row(3).getByRole("button", { name: `Skip ${tag} Deadlift set 3` }).click();
+    await expect(row(3)).toHaveAttribute("data-state", "skipped");
     const skippedSet = await (
       await request.get(`/api/v1/workout-sessions/${sessionId}`)
     ).json();

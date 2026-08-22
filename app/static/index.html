@@ -23,7 +23,7 @@
     <button type="button" class="nav-btn" data-view="history-view">History</button>
   </nav>
 
-  <main class="p-4 max-w-2xl mx-auto">
+  <main class="p-4 pb-48 max-w-2xl mx-auto">
     <section id="settings-view" class="view" hidden>
       <h2 class="text-xl font-semibold mb-3">API Key</h2>
       <form id="api-key-form" class="flex flex-col gap-2" autocomplete="off">
@@ -54,7 +54,6 @@
       <progress id="active-progress" class="w-full mb-3" max="100" value="0"></progress>
       <div id="active-grid" class="flex flex-col gap-3"></div>
       <footer class="border rounded p-3 bg-white mt-3 flex flex-col sm:flex-row gap-3 sm:items-end">
-        <p id="active-rest-timer" class="font-medium flex-1" aria-live="polite">Rest not started</p>
         <label class="text-sm font-medium" for="active-feeling">
           Overall feeling
           <select id="active-feeling" class="mt-1 border rounded px-3 py-2 min-h-12 w-full">
@@ -66,6 +65,23 @@
           </select>
         </label>
       </footer>
+      <aside id="active-rest-overlay" class="fixed inset-x-0 bottom-0 z-50 border-t border-slate-300 bg-white shadow-lg">
+        <div class="max-w-2xl mx-auto p-3 flex flex-col gap-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="flex-1">
+              <p id="active-rest-timer" class="font-semibold" role="timer" aria-live="polite">Rest not started</p>
+              <p id="active-rest-expired" class="font-semibold text-emerald-700" role="status" aria-live="assertive" hidden>Rest complete</p>
+            </div>
+            <button type="button" id="subtract-rest-time" class="btn-secondary min-h-12 min-w-12" aria-label="−30 seconds">−30s</button>
+            <button type="button" id="add-rest-time" class="btn-secondary min-h-12 min-w-12" aria-label="+30 seconds">+30s</button>
+            <button type="button" id="skip-rest" class="btn-secondary min-h-12 min-w-12">Skip rest</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <p id="active-sync-status" class="text-sm flex-1" aria-live="polite">Synchronized</p>
+            <button type="button" id="retry-active-sync" class="btn-secondary min-h-12" hidden>Retry synchronization</button>
+          </div>
+        </div>
+      </aside>
     </section>
 
     <section id="new-log-view" class="view" hidden>

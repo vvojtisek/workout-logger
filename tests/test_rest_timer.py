@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime
 
 SESSIONS = "/api/v1/workout-sessions"
@@ -56,9 +57,7 @@ async def save_set(
     )
 
 
-async def test_completed_set_starts_exercise_rest_but_skipped_set_does_not(
-    client, auth_headers
-):
+async def test_completed_set_starts_exercise_rest_but_skipped_set_does_not(client, auth_headers):
     session = await create_session(client, auth_headers)
 
     skipped = await save_set(
@@ -154,8 +153,12 @@ async def test_rest_adjustment_rejects_a_stale_session_version(client, auth_head
     path = f"{SESSIONS}/{session['id']}/rest"
     payload = {"adjustment_seconds": 30, "expected_version": body["version"]}
 
-    first = await client.patch(path, json=payload, headers=auth_headers)
-    stale = await client.patch(path, json=payload, headers=auth_headers)
+    first, stale = await asyncio.gather(
+        client.patch(path, json=payload, headers=auth_headers),
+        client.patch(path, json=payload, headers=auth_headers),
+    )
+    if first.status_code == 409:
+        first, stale = stale, first
 
     assert first.status_code == 200
     assert first.json()["version"] == body["version"] + 1

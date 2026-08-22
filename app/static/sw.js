@@ -1,10 +1,11 @@
 "use strict";
 
-const CACHE_NAME = "workout-logger-v4";
+const CACHE_NAME = "workout-logger-v5";
 const APP_SHELL = [
   "/",
   "/static/styles.css",
   "/static/app.js",
+  "/static/active-workout-state.js",
   "/static/workout-utils.js",
   "/manifest.webmanifest",
 ];

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.common import OrmModel
 
@@ -30,6 +30,19 @@ class SetEntryUpdate(BaseModel):
 class WorkoutSessionFocus(BaseModel):
     session_exercise_id: UUID
     set_number: int = Field(ge=1, le=100)
+
+
+class WorkoutSessionRestUpdate(BaseModel):
+    adjustment_seconds: int | None = Field(default=None, ge=-3600, le=3600)
+    skip: bool = False
+    expected_version: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def one_rest_action_is_required(self) -> "WorkoutSessionRestUpdate":
+        has_adjustment = self.adjustment_seconds is not None
+        if has_adjustment == self.skip or self.adjustment_seconds == 0:
+            raise ValueError("provide one non-zero adjustment or skip")
+        return self
 
 
 class WorkoutSessionComplete(BaseModel):
