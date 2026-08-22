@@ -1,13 +1,13 @@
 # Workout Logger & Planner v2.0
 
-A single-user Workout Logger & Planner API with a vanilla-JS Progressive Web App frontend. Built with **FastAPI + SQLAlchemy (async) + SQLite**, packaged as a container image and deployed declaratively to **Kubernetes (k3s)** using **GitOps (ArgoCD)** and **Helm**.
+A single-user Workout Logger & Planner API with a React Progressive Web App frontend. Built with **FastAPI + SQLAlchemy (async) + SQLite**, packaged as a container image and deployed declaratively to **Kubernetes (k3s)** using **GitOps (ArgoCD)** and **Helm**.
 
 ---
 
 ## Architecture & Tech Stack
 
 * **Backend & API:** FastAPI (Python 3.11+), Pydantic v2, SQLAlchemy (asyncio), SQLite (WAL mode)
-* **Frontend:** Vanilla JS PWA + Tailwind CSS (compiled locally into `app/static/styles.css`)
+* **Frontend:** React 19 + TypeScript PWA, bundled by Vite with Tailwind CSS v4 (compiled into `app/static/dist/`)
 * **Container Runtime:** Docker / OCI image (`ghcr.io/vvojtisek/workout-logger`)
 * **Infrastructure:** K3s Kubernetes on AWS EC2
 * **GitOps Operator:** ArgoCD
@@ -20,14 +20,14 @@ A single-user Workout Logger & Planner API with a vanilla-JS Progressive Web App
 ## Repository Layout
 
 ```text
-app/            FastAPI application (API, models, schemas, services, static PWA)
+app/            FastAPI application (API, models, schemas, services, compiled PWA bundle)
 alembic/        Database schema migrations
 helm/           Helm chart for Kubernetes deployment
 deploy/         ArgoCD application manifests
 tests/          pytest suite (unit + integration, httpx ASGI transport)
 e2e/            Playwright journey against a deployed Kubernetes stack
 scripts/        entrypoint.sh (startup script) and backup_database.py
-frontend/       Tailwind CSS source and Vitest unit tests
+frontend/       React + TypeScript single-page application source and Vitest unit tests
 
 ```
 
@@ -70,7 +70,7 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 
 npm install
-npm run build:css
+npm run build          # compiles the SPA into app/static/dist (required before the server can serve /)
 
 cp .env.example .env       # set a real API_KEY (32+ chars)
 export $(grep -v '^#' .env | xargs)
@@ -79,6 +79,9 @@ alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 
 ```
+
+For frontend work, run `npm run dev` alongside `uvicorn` instead: Vite serves the SPA with hot
+module replacement on port 5173 and proxies `/api` and `/health` through to FastAPI on port 8000.
 
 Run tests and linters:
 

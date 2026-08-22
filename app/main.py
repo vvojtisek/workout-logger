@@ -18,6 +18,10 @@ settings = get_settings()
 setup_logging(settings.LOG_LEVEL)
 
 STATIC_DIR = Path(__file__).parent / "static"
+# The single-page application is compiled by Vite into `static/dist`. It is a
+# build artifact rather than source, so it is absent until `npm run build` runs.
+SPA_DIR = STATIC_DIR / "dist"
+SPA_INDEX = SPA_DIR / "index.html"
 ACTION_PATH_ALIASES = {
     "/workout-plans": "/api/v1/plans",
     "/workout-logs": "/api/v1/logs",
@@ -158,7 +162,12 @@ async def health_startup() -> JSONResponse:
 
 @app.get("/", include_in_schema=False)
 async def root() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html", media_type="text/html")
+    if not SPA_INDEX.is_file():
+        raise RuntimeError(
+            "The frontend bundle is missing. Run `npm ci && npm run build` to compile it "
+            f"into {SPA_DIR}."
+        )
+    return FileResponse(SPA_INDEX, media_type="text/html")
 
 
 @app.get("/manifest.webmanifest", include_in_schema=False)

@@ -1,0 +1,278 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Semantic design tokens.
+
+   Every colour used by the application is named for its ROLE, never its hue,
+   so a theme swap is a token swap. The light palette is the base definition;
+   dark is layered on twice so that both the system preference and an explicit
+   `data-theme` choice resolve correctly:
+
+     :root                                     -> light (always defined)
+     @media (prefers-color-scheme: dark)       -> dark, unless forced light
+     :root[data-theme="dark"]                  -> dark, forced
+
+   Accent is a single hue reserved for the primary action and progress. Success,
+   warning, and danger stay semantically distinct from it so a completed set can
+   never be confused with a call to action.
+--------------------------------------------------------------------------- */
+
+:root {
+  --bg: hsl(220 20% 97%);
+  --surface: hsl(0 0% 100%);
+  --surface-raised: hsl(220 20% 99%);
+  --surface-sunken: hsl(220 18% 94%);
+  --border: hsl(220 13% 89%);
+  --border-strong: hsl(220 13% 78%);
+  --text: hsl(222 47% 11%);
+  --text-muted: hsl(215 16% 42%);
+  --text-inverted: hsl(0 0% 100%);
+
+  --accent: hsl(243 75% 58%);
+  --accent-hover: hsl(243 75% 50%);
+  --accent-soft: hsl(243 75% 96%);
+  --accent-ring: hsl(243 75% 58% / 0.35);
+
+  --success: hsl(160 84% 30%);
+  --success-soft: hsl(152 76% 95%);
+  --warn: hsl(32 81% 38%);
+  --warn-soft: hsl(48 96% 93%);
+  --danger: hsl(0 72% 47%);
+  --danger-hover: hsl(0 72% 40%);
+  --danger-soft: hsl(0 86% 96%);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --touch: 48px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: hsl(224 32% 8%);
+    --surface: hsl(224 28% 11%);
+    --surface-raised: hsl(224 26% 14%);
+    --surface-sunken: hsl(224 32% 6%);
+    --border: hsl(223 20% 22%);
+    --border-strong: hsl(223 18% 32%);
+    --text: hsl(210 40% 96%);
+    --text-muted: hsl(215 18% 65%);
+    --text-inverted: hsl(224 32% 8%);
+
+    --accent: hsl(243 90% 72%);
+    --accent-hover: hsl(243 90% 79%);
+    --accent-soft: hsl(243 45% 20%);
+    --accent-ring: hsl(243 90% 72% / 0.4);
+
+    --success: hsl(158 64% 58%);
+    --success-soft: hsl(160 50% 16%);
+    --warn: hsl(43 92% 66%);
+    --warn-soft: hsl(38 60% 16%);
+    --danger: hsl(0 84% 70%);
+    --danger-hover: hsl(0 84% 76%);
+    --danger-soft: hsl(0 50% 18%);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: hsl(224 32% 8%);
+  --surface: hsl(224 28% 11%);
+  --surface-raised: hsl(224 26% 14%);
+  --surface-sunken: hsl(224 32% 6%);
+  --border: hsl(223 20% 22%);
+  --border-strong: hsl(223 18% 32%);
+  --text: hsl(210 40% 96%);
+  --text-muted: hsl(215 18% 65%);
+  --text-inverted: hsl(224 32% 8%);
+
+  --accent: hsl(243 90% 72%);
+  --accent-hover: hsl(243 90% 79%);
+  --accent-soft: hsl(243 45% 20%);
+  --accent-ring: hsl(243 90% 72% / 0.4);
+
+  --success: hsl(158 64% 58%);
+  --success-soft: hsl(160 50% 16%);
+  --warn: hsl(43 92% 66%);
+  --warn-soft: hsl(38 60% 16%);
+  --danger: hsl(0 84% 70%);
+  --danger-hover: hsl(0 84% 76%);
+  --danger-soft: hsl(0 50% 18%);
+}
+
+/* Expose the semantic tokens to Tailwind as `bg-surface`, `text-muted`, etc.
+   `inline` keeps the generated utilities pointing at the custom properties, so
+   they re-resolve when the theme changes instead of baking in a literal. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border-subtle: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-inverted: var(--text-inverted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --radius-card: var(--radius-md);
+  --spacing-touch: var(--touch);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Metrics must not jitter as digits change during a live workout. */
+  input[type="number"],
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    padding: 0.55rem 0.95rem;
+    font-size: 0.875rem;
+    font-weight: 550;
+    line-height: 1.2;
+    cursor: pointer;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background-color: var(--accent);
+    color: var(--text-inverted);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+  }
+
+  .btn-secondary {
+    background-color: var(--surface);
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--surface-sunken);
+  }
+
+  .btn-danger {
+    background-color: var(--danger);
+    color: var(--text-inverted);
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background-color: var(--danger-hover);
+  }
+
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--text-muted);
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background-color: var(--surface-sunken);
+    color: var(--text);
+  }
+
+  /* Any control a sweaty thumb has to hit mid-set. */
+  .btn-touch {
+    min-height: var(--touch);
+    min-width: var(--touch);
+  }
+
+  .card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+
+  .input {
+    width: 100%;
+    background-color: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 0.55rem 0.7rem;
+    font-size: 0.9375rem;
+  }
+
+  .input:disabled {
+    background-color: var(--surface-sunken);
+    color: var(--text-muted);
+  }
+
+  progress {
+    appearance: none;
+    block-size: 0.5rem;
+    inline-size: 100%;
+    border: 0;
+    border-radius: 999px;
+    background-color: var(--surface-sunken);
+    overflow: hidden;
+  }
+
+  progress::-webkit-progress-bar {
+    background-color: var(--surface-sunken);
+  }
+
+  progress::-webkit-progress-value {
+    background-color: var(--accent);
+    transition: inline-size 200ms ease;
+  }
+
+  progress::-moz-progress-bar {
+    background-color: var(--accent);
+  }
+
+  .field-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 550;
+    color: var(--text-muted);
+    margin-bottom: 0.3rem;
+  }
+}

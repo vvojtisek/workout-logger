@@ -1,0 +1,41 @@
+const API_KEY_STORAGE_KEY = "workout_logger_api_key";
+const API_BASE = "/api/v1";
+
+export function getStoredApiKey(): string {
+  return localStorage.getItem(API_KEY_STORAGE_KEY) || "";
+}
+
+export function setStoredApiKey(value: string): void {
+  localStorage.setItem(API_KEY_STORAGE_KEY, value);
+}
+
+export function clearStoredApiKey(): void {
+  localStorage.removeItem(API_KEY_STORAGE_KEY);
+}
+
+export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers || {});
+  headers.set("X-API-Key", getStoredApiKey());
+  if (options.body) {
+    headers.set("Content-Type", "application/json");
+  }
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (!response.ok) {
+    let detail = `Request failed (${response.status})`;
+    try {
+      const errorBody = (await response.json()) as { detail?: string };
+      detail = errorBody.detail || detail;
+    } catch {
+      // ignore body parse failures
+    }
+    throw new Error(detail);
+  }
+  if (response.status === 204) {
+    return null as T;
+  }
+  return (await response.json()) as T;
+}
+
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

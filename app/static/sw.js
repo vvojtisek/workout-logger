@@ -1,14 +1,10 @@
 "use strict";
 
-const CACHE_NAME = "workout-logger-v5";
-const APP_SHELL = [
-  "/",
-  "/static/styles.css",
-  "/static/app.js",
-  "/static/active-workout-state.js",
-  "/static/workout-utils.js",
-  "/manifest.webmanifest",
-];
+const CACHE_NAME = "workout-logger-v6";
+// Vite emits content-hashed asset names, so the shell precache lists only the
+// stable entry points. The hashed bundles under /static are picked up by the
+// cache-first runtime handler on first load.
+const APP_SHELL = ["/", "/manifest.webmanifest"];
 
 const NEVER_CACHE_PREFIXES = ["/api/v1", "/health", "/docs", "/openapi.json"];
 
