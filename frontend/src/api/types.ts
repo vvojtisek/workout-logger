@@ -77,3 +77,34 @@ export interface WorkoutLogSummary {
 export interface WorkoutLog extends WorkoutLogSummary {
   exercises: ExerciseLog[];
 }
+
+export const MUSCLE_TAGS = [
+  "chest",
+  "back",
+  "shoulders",
+  "biceps",
+  "triceps",
+  "forearms",
+  "quads",
+  "hamstrings",
+  "glutes",
+  "calves",
+  "core",
+  "full_body",
+] as const;
+
+export type MuscleTag = (typeof MUSCLE_TAGS)[number];
+
+export interface CatalogExercise {
+  id: string;
+  name: string;
+  aliases: string[];
+  media_url: string | null;
+  primary_muscles: MuscleTag[];
+  secondary_muscles: MuscleTag[];
+  instructions: string[];
+  equipment: string | null;
+  safety_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}

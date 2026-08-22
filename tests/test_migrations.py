@@ -208,3 +208,61 @@ def test_exercise_kind_migration_backfills_existing_rows_as_strength(
         )
         assert kind == "strength"
     sync_engine.dispose()
+
+
+def test_exercise_catalogue_migration_adds_table_and_nullable_link(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "844b72e266c6")
+    plan_id = str(uuid.uuid4())
+    plan_exercise_id = str(uuid.uuid4())
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO workout_plans "
+                "(id, name, description, created_at, updated_at) "
+                "VALUES (:id, 'Pre-catalogue plan', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": plan_id},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO plan_exercises "
+                "(id, workout_plan_id, sort_order, exercise_name, exercise_kind, target_sets, "
+                "target_reps_min, target_reps_max, target_weight_kg, rest_time_seconds, notes) "
+                "VALUES (:id, :plan_id, 0, 'Bench Press', 'strength', 3, 5, 8, 60, 90, NULL)"
+            ),
+            {"id": plan_exercise_id, "plan_id": plan_id},
+        )
+    command.upgrade(alembic_config, "head")
+
+    inspector = inspect(sync_engine)
+    assert "exercises" in inspector.get_table_names()
+    plan_exercise_columns = {column["name"] for column in inspector.get_columns("plan_exercises")}
+    assert "catalog_exercise_id" in plan_exercise_columns
+
+    exercise_id = str(uuid.uuid4())
+    with sync_engine.begin() as connection:
+        connection.execute(text("PRAGMA foreign_keys = ON"))
+        connection.execute(
+            text(
+                "INSERT INTO exercises "
+                "(id, name, aliases, media_url, primary_muscles, secondary_muscles, "
+                "instructions, equipment, safety_notes, created_at, updated_at) "
+                "VALUES (:id, 'Bench Press', '[]', NULL, '[]', '[]', '[]', NULL, NULL, "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": exercise_id},
+        )
+        connection.execute(
+            text("UPDATE plan_exercises SET catalog_exercise_id = :exercise_id WHERE id = :id"),
+            {"exercise_id": exercise_id, "id": plan_exercise_id},
+        )
+        connection.execute(text("DELETE FROM exercises WHERE id = :id"), {"id": exercise_id})
+
+    with sync_engine.connect() as connection:
+        row = connection.execute(
+            text("SELECT exercise_name, catalog_exercise_id FROM plan_exercises WHERE id = :id"),
+            {"id": plan_exercise_id},
+        ).one()
+        assert row == ("Bench Press", None)
+    sync_engine.dispose()

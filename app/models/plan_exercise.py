@@ -36,6 +36,12 @@ class PlanExercise(UUIDPrimaryKeyMixin, Base):
     )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
     exercise_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    # A plan exercise is always a free-text snapshot; this optional link to the
+    # catalogue is purely informational. ON DELETE SET NULL so removing a
+    # catalogue entry never touches an existing plan.
+    catalog_exercise_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("exercises.id", ondelete="SET NULL"), nullable=True
+    )
     exercise_kind: Mapped[str] = mapped_column(String(20), nullable=False, default="strength")
     target_sets: Mapped[int] = mapped_column(Integer, nullable=False)
     target_reps_min: Mapped[int] = mapped_column(Integer, nullable=False)

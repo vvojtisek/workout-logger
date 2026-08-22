@@ -24,6 +24,22 @@ export const router = createBrowserRouter([
         lazy: () => import("@/features/plans/PlanBuilder").then((m) => ({ Component: m.PlanBuilder })),
       },
       {
+        path: "exercises",
+        lazy: () => import("@/features/exercises/ExercisesView").then((m) => ({ Component: m.ExercisesView })),
+      },
+      {
+        path: "exercises/new",
+        lazy: () => import("@/features/exercises/ExerciseBuilder").then((m) => ({ Component: m.ExerciseBuilder })),
+      },
+      {
+        path: "exercises/:exerciseId/edit",
+        lazy: () => import("@/features/exercises/ExerciseBuilder").then((m) => ({ Component: m.ExerciseBuilder })),
+      },
+      {
+        path: "exercises/:exerciseId",
+        lazy: () => import("@/features/exercises/ExerciseDetailView").then((m) => ({ Component: m.ExerciseDetailView })),
+      },
+      {
         path: "log/new",
         lazy: () => import("@/features/logs/NewLogView").then((m) => ({ Component: m.NewLogView })),
       },
