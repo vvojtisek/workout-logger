@@ -169,10 +169,10 @@ ArgoCD continuously reconciles the cluster with Git:
 
 After each successful `main` workflow, CI publishes exactly one image tagged with the full
 Git commit SHA and opens a promotion pull request that records both the source commit and
-immutable registry digest in `values-prod.yaml`. Because workflow-token pushes do not start
-new workflow runs, CI explicitly dispatches the required checks for the promotion commit,
-waits for them to pass, and then squash-merges the pull request through normal branch
-protection. Argo CD detects the Git change and remains the only deployment reconciler.
+immutable registry digest in `values-prod.yaml`. CI approves the bot-created pull request's
+workflow run when GitHub holds it for contributor approval, waits for the required checks,
+and then squash-merges the pull request through normal branch protection. Argo CD detects
+the Git change and remains the only deployment reconciler.
 Promotion-only commits retain a `[skip image publish]` marker as defense in depth against
 recursive image publication.
 
