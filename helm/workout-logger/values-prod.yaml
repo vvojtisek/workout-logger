@@ -7,8 +7,8 @@ strategy:
 image:
   repository: ghcr.io/vvojtisek/workout-logger
   tag: ""
-  digest: "sha256:844ff421ed85e83bb1bd34cbf5ede39bd51443dc24eb345ef7c2af41dd5b4a76"
-  sourceCommit: "4fcaf7fbb3d81307acee8a8866d46b914f780777"
+  digest: "sha256:af47450df64339c5134e8513e7e95be88af60373156d4c1d6c6f9a9e84ba45de"
+  sourceCommit: "a982197f7a03549e11bb01fc8e3a1594e827db6f"
   pullPolicy: IfNotPresent
 
 existingSecret: workout-logger-secret
