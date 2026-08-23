@@ -9,6 +9,7 @@ logger = logging.getLogger("workout_logger")
 
 _STATUS_CODE_NAMES = {
     status.HTTP_401_UNAUTHORIZED: "UNAUTHORIZED",
+    status.HTTP_403_FORBIDDEN: "FORBIDDEN",
     status.HTTP_404_NOT_FOUND: "NOT_FOUND",
     status.HTTP_409_CONFLICT: "CONFLICT",
     status.HTTP_422_UNPROCESSABLE_CONTENT: "VALIDATION_ERROR",

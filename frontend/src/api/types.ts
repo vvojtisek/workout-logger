@@ -275,3 +275,22 @@ export interface SleepTrends {
   average_quality_score_7d: number | null;
   average_quality_score_30d: number | null;
 }
+
+export const API_TOKEN_SCOPES = ["read", "log", "admin"] as const;
+
+export type ApiTokenScope = (typeof API_TOKEN_SCOPES)[number];
+
+export interface ApiToken {
+  id: string;
+  name: string;
+  scopes: ApiTokenScope[];
+  token_prefix: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiTokenCreated extends ApiToken {
+  token: string;
+}
