@@ -7,8 +7,8 @@ strategy:
 image:
   repository: ghcr.io/vvojtisek/workout-logger
   tag: ""
-  digest: "sha256:908c2e7b9f24df3138d6c0ae4add9e6f4cdd16d85e84e817c70eca76d4d8d235"
-  sourceCommit: "91505a6a6dea55de0233710b8f2a4ee9cb9e6943"
+  digest: "sha256:437ef278f657981e69a0285d8909c62e87532cb126f5af8143a920edb2e529b7"
+  sourceCommit: "c43975045a528810a3cf8d8109298011712be194"
   pullPolicy: IfNotPresent
 
 existingSecret: workout-logger-secret
@@ -45,10 +45,22 @@ backupPersistence:
   enabled: true
   size: 2Gi
 
+# The host is small (2Gi RAM, no swap - see issue #72). None of these jobs are
+# heavy (a single Alembic revision, a streamed SQLite online-backup copy, or a
+# bind-only PVC mount), but left unbounded they can still stack with the app
+# Deployment's own usage during a rollout and add to control-plane memory
+# pressure. Capped well under the app's own limits.
 backup:
   enabled: true
   schedule: "17 2 * * *"
   keep: 7
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
 
 resources:
   requests:
@@ -57,3 +69,21 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
+
+migrationJob:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+restore:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
