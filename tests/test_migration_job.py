@@ -22,9 +22,18 @@ def render_production_chart() -> str:
     ).stdout
 
 
-def rendered_resource(kind: str) -> dict:
+def rendered_resource(kind: str, name_contains: str | None = None) -> dict:
+    # A backups-PVC bind job (see backup-pvc-bind-job.yaml) also renders
+    # whenever backupPersistence is enabled, so a bare kind match is not
+    # enough to find the migration job specifically.
     resources = yaml.safe_load_all(render_production_chart())
-    return next(resource for resource in resources if resource and resource.get("kind") == kind)
+    return next(
+        resource
+        for resource in resources
+        if resource
+        and resource.get("kind") == kind
+        and (name_contains is None or name_contains in resource["metadata"]["name"])
+    )
 
 
 def test_migration_job_is_a_bounded_presync_hook() -> None:
@@ -52,7 +61,9 @@ def test_migration_job_uses_release_image_database_and_pvc() -> None:
     deployment_image = rendered_resource("Deployment")["spec"]["template"]["spec"]["containers"][0][
         "image"
     ]
-    migration_image = rendered_resource("Job")["spec"]["template"]["spec"]["containers"][0]["image"]
+    migration_image = rendered_resource("Job", name_contains="-migrate-")["spec"]["template"][
+        "spec"
+    ]["containers"][0]["image"]
     assert deployment_image == production_image
     assert migration_image == production_image
     assert f"name: workout-logger-migrate-{migration_id}" in rendered
@@ -79,7 +90,9 @@ def test_production_application_startup_skips_independent_migration() -> None:
 
 def test_service_selector_excludes_migration_job_pods() -> None:
     service_selector = rendered_resource("Service")["spec"]["selector"]
-    migration_labels = rendered_resource("Job")["spec"]["template"]["metadata"]["labels"]
+    migration_labels = rendered_resource("Job", name_contains="-migrate-")["spec"]["template"][
+        "metadata"
+    ]["labels"]
 
     assert not (service_selector.items() <= migration_labels.items())
     assert service_selector["app.kubernetes.io/component"] == "web"
