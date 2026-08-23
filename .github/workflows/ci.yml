@@ -161,6 +161,7 @@ jobs:
         with:
           name: software-bill-of-materials
           path: sbom.spdx.json
+          retention-days: 14
 
   e2e:
     name: Real Kubernetes end-to-end test
@@ -269,6 +270,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14
           path: |
             artifacts/
             playwright-report/
