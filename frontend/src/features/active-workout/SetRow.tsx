@@ -322,10 +322,18 @@ export function SetRow({
   }
 
   const exerciseName = row.exercise.exercise_name;
-  // Remounts the inputs, re-reading defaultValue, when the row is saved,
-  // corrected, or undone, and once when its IndexedDB-backed draft finishes
-  // loading (never while it is otherwise being filled in).
-  const seedKey = entryId ?? (draftReady ? "draft" : "draft-loading");
+  // Remounts the inputs, re-reading defaultValue, only when the row is saved,
+  // corrected, or undone - never on account of the async draft load. The
+  // fields themselves aren't rendered at all until that load resolves (see
+  // below), so there is no window in which a real input exists to type into
+  // before its seed value is settled, and thus nothing for the load to race.
+  const seedKey = entryId ?? "draft";
+  // Until the IndexedDB draft load resolves, a saved row has nothing to wait
+  // for (row.entry is authoritative), but an unsaved one must not expose an
+  // input yet - typing into one now would be silently discarded the moment
+  // the load resolves and (previously) remounted it. Playwright's
+  // auto-waiting getByLabel simply waits for the real input to appear.
+  const fieldsReady = row.entry !== null || draftReady;
 
   return (
     <form
@@ -342,16 +350,24 @@ export function SetRow({
       <span className="self-center text-xs text-muted" data-numeric>
         {kind === "cardio" ? "—" : `${row.exercise.suggested_weight_kg ?? "—"} kg × ${row.exercise.suggested_reps}`}
       </span>
-      {fieldSpecs.map((spec, index) => (
-        <FieldCell
-          key={`${spec.draftKey}:${seedKey}`}
-          spec={spec}
-          inputRef={fieldRefs[index]}
-          defaultValue={seedFor(spec)}
-          onInput={saveDraft}
-          disabled={disabled}
-        />
-      ))}
+      {fieldsReady
+        ? fieldSpecs.map((spec, index) => (
+            <FieldCell
+              key={`${spec.draftKey}:${seedKey}`}
+              spec={spec}
+              inputRef={fieldRefs[index]}
+              defaultValue={seedFor(spec)}
+              onInput={saveDraft}
+              disabled={disabled}
+            />
+          ))
+        : fieldSpecs.map((spec) => (
+            <span
+              key={`${spec.draftKey}:pending`}
+              aria-hidden="true"
+              className="input block w-20 min-h-touch min-w-touch px-2 opacity-40"
+            />
+          ))}
       <div className="flex flex-wrap gap-1">
         {row.entry ? (
           <>
