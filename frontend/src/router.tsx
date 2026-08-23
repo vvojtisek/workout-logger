@@ -68,6 +68,46 @@ export const router = createBrowserRouter([
         lazy: () => import("@/features/biometrics/BiometricEntryForm").then((m) => ({ Component: m.BiometricEntryForm })),
       },
       {
+        path: "nutrition",
+        lazy: () => import("@/features/nutrition/NutritionDashboardView").then((m) => ({ Component: m.NutritionDashboardView })),
+      },
+      {
+        path: "nutrition/foods",
+        lazy: () => import("@/features/nutrition/FoodsView").then((m) => ({ Component: m.FoodsView })),
+      },
+      {
+        path: "nutrition/foods/new",
+        lazy: () => import("@/features/nutrition/FoodBuilder").then((m) => ({ Component: m.FoodBuilder })),
+      },
+      {
+        path: "nutrition/foods/:foodId/edit",
+        lazy: () => import("@/features/nutrition/FoodBuilder").then((m) => ({ Component: m.FoodBuilder })),
+      },
+      {
+        path: "nutrition/plans",
+        lazy: () => import("@/features/nutrition/NutritionPlansView").then((m) => ({ Component: m.NutritionPlansView })),
+      },
+      {
+        path: "nutrition/plans/new",
+        lazy: () => import("@/features/nutrition/NutritionPlanBuilder").then((m) => ({ Component: m.NutritionPlanBuilder })),
+      },
+      {
+        path: "nutrition/plans/:planId/edit",
+        lazy: () => import("@/features/nutrition/NutritionPlanBuilder").then((m) => ({ Component: m.NutritionPlanBuilder })),
+      },
+      {
+        path: "nutrition/meals",
+        lazy: () => import("@/features/nutrition/MealLogView").then((m) => ({ Component: m.MealLogView })),
+      },
+      {
+        path: "nutrition/meals/new",
+        lazy: () => import("@/features/nutrition/MealEntryForm").then((m) => ({ Component: m.MealEntryForm })),
+      },
+      {
+        path: "nutrition/meals/:entryId/edit",
+        lazy: () => import("@/features/nutrition/MealEntryForm").then((m) => ({ Component: m.MealEntryForm })),
+      },
+      {
         path: "log/new",
         lazy: () => import("@/features/logs/NewLogView").then((m) => ({ Component: m.NewLogView })),
       },

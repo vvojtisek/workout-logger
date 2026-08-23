@@ -351,3 +351,63 @@ def test_body_metrics_migration_adds_table(alembic_config, alembic_db_path):
         ).one()
         assert row == (78.2, 85.0)
     sync_engine.dispose()
+
+
+def test_nutrition_core_migration_adds_tables_and_preserves_snapshot_on_food_delete(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "4e263e1811d8")
+    command.upgrade(alembic_config, "head")
+
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    inspector = inspect(sync_engine)
+    assert {"foods", "nutrition_plans", "meal_entries", "meal_items"}.issubset(
+        set(inspector.get_table_names())
+    )
+
+    food_id = str(uuid.uuid4())
+    entry_id = str(uuid.uuid4())
+    item_id = str(uuid.uuid4())
+    with sync_engine.begin() as connection:
+        connection.execute(text("PRAGMA foreign_keys = ON"))
+        connection.execute(
+            text(
+                "INSERT INTO foods "
+                "(id, owner_id, name, brand, serving_quantity, serving_unit, energy_kcal, "
+                "protein_g, carbohydrate_g, fat_g, fiber_g, source, created_at, updated_at) "
+                "VALUES (:id, NULL, 'Chicken Breast', NULL, 100, 'g', 165, 31, 0, 3.6, 0, "
+                "'manual', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": food_id},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO meal_entries "
+                "(id, owner_id, consumed_at, meal_type, notes, created_at, updated_at) "
+                "VALUES (:id, NULL, '2026-01-15 08:00:00', 'breakfast', NULL, "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": entry_id},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO meal_items "
+                "(id, meal_entry_id, food_id, food_name_snapshot, quantity, unit, "
+                "energy_kcal_snapshot, protein_g_snapshot, carbohydrate_g_snapshot, "
+                "fat_g_snapshot, fiber_g_snapshot) "
+                "VALUES (:id, :entry_id, :food_id, 'Chicken Breast', 150, 'g', "
+                "247.5, 46.5, 0, 5.4, 0)"
+            ),
+            {"id": item_id, "entry_id": entry_id, "food_id": food_id},
+        )
+        connection.execute(text("DELETE FROM foods WHERE id = :id"), {"id": food_id})
+
+    with sync_engine.connect() as connection:
+        row = connection.execute(
+            text(
+                "SELECT food_id, food_name_snapshot, energy_kcal_snapshot FROM meal_items WHERE id = :id"
+            ),
+            {"id": item_id},
+        ).one()
+        assert row == (None, "Chicken Breast", 247.5)
+    sync_engine.dispose()

@@ -4,7 +4,11 @@ from app.api.v1 import (
     body_metrics,
     calendar,
     exercises,
+    foods,
     logs,
+    meal_entries,
+    nutrition_dashboard,
+    nutrition_plans,
     plans,
     programs,
     scheduled_workouts,
@@ -21,3 +25,7 @@ api_router.include_router(programs.router)
 api_router.include_router(scheduled_workouts.router)
 api_router.include_router(calendar.router)
 api_router.include_router(body_metrics.router)
+api_router.include_router(foods.router)
+api_router.include_router(nutrition_plans.router)
+api_router.include_router(meal_entries.router)
+api_router.include_router(nutrition_dashboard.router)
