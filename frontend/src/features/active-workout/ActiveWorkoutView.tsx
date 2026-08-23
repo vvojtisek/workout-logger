@@ -127,9 +127,18 @@ function ActiveWorkoutSession({
     if (online) void flushSetQueue();
   }, [online, flushSetQueue]);
 
-  // Move the caret to the set the athlete is meant to fill in next.
+  // Move the caret to the set the athlete is meant to fill in next - but
+  // never steal it away from a field they (or an in-flight fill) are
+  // already interacting with. Every set completion anywhere in the grid
+  // replaces `session`, re-running this effect; without the active-element
+  // check it can yank focus onto the newly "current" set's input mid-type,
+  // landing keystrokes meant for the row being completed onto that other
+  // row instead.
   useEffect(() => {
     const handle = window.requestAnimationFrame(() => {
+      const active = document.activeElement;
+      const activeTag = active?.tagName;
+      if (activeTag === "INPUT" || activeTag === "TEXTAREA" || activeTag === "SELECT") return;
       gridRef.current
         ?.querySelector<HTMLInputElement>('[data-state="current"] input:not(:disabled)')
         ?.focus();
