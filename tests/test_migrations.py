@@ -411,3 +411,35 @@ def test_nutrition_core_migration_adds_tables_and_preserves_snapshot_on_food_del
         ).one()
         assert row == (None, "Chicken Breast", 247.5)
     sync_engine.dispose()
+
+
+def test_sleep_entries_migration_adds_table_with_computed_duration(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "6290bdbe0ab7")
+    command.upgrade(alembic_config, "head")
+
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    inspector = inspect(sync_engine)
+    assert "sleep_entries" in inspector.get_table_names()
+
+    entry_id = str(uuid.uuid4())
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO sleep_entries "
+                "(id, owner_id, sleep_start, sleep_end, timezone, time_in_bed_seconds, "
+                "estimated_sleep_seconds, awake_seconds, quality_score, resting_heart_rate, "
+                "notes, source, created_at, updated_at) "
+                "VALUES (:id, NULL, '2026-01-16 04:00:00', '2026-01-16 12:00:00', "
+                "'America/New_York', 28800, 25200, 600, 4, 58, NULL, 'manual', "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": entry_id},
+        )
+
+    with sync_engine.connect() as connection:
+        row = connection.execute(
+            text("SELECT time_in_bed_seconds, quality_score FROM sleep_entries WHERE id = :id"),
+            {"id": entry_id},
+        ).one()
+        assert row == (28800, 4)
+    sync_engine.dispose()
