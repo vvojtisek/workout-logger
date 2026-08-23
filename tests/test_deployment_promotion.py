@@ -165,16 +165,17 @@ def test_deployment_verifier_reports_matching_runtime_image(tmp_path: Path) -> N
     assert f"imageID={expected_image}" in result.stdout
 
 
-def test_ci_publishes_only_main_sha_and_prepares_reviewable_promotion() -> None:
+def test_ci_publishes_only_main_sha_and_records_verified_release_on_main() -> None:
     workflow = WORKFLOW.read_text()
 
     assert "ghcr.io/${{ github.repository }}:${{ github.sha }}" in workflow
     assert "cancel-in-progress: false" in workflow
     assert "!contains(github.event.head_commit.message, '[skip image publish]')" in workflow
-    assert workflow.count("[skip image publish]") >= 3
+    assert workflow.count("[skip image publish]") >= 2
     assert "push: true" in workflow
     assert "scripts/promote_image.py" in workflow
-    assert "gh pr create" in workflow
-    assert "--draft" in workflow
+    assert "git push origin HEAD:main" in workflow
+    assert "git reset --hard origin/main" in workflow
+    assert "gh pr create" not in workflow
     assert "type=ref,event=branch" not in workflow
     assert "type=raw,value=latest" not in workflow
