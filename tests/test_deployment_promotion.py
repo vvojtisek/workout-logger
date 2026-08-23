@@ -179,6 +179,10 @@ def test_ci_publishes_only_main_sha_and_promotes_through_protected_branch() -> N
     assert 'gh workflow run ci.yml --ref "$PROMOTION_BRANCH"' in workflow
     assert 'gh run watch "$promotion_run_id" --exit-status' in workflow
     assert 'gh pr merge "$PROMOTION_PR" --squash --delete-branch' in workflow
+    assert "if: github.event_name != 'workflow_dispatch'" in workflow
+    assert "if: github.event_name == 'workflow_dispatch'" in workflow
+    assert "ghcr.io/gitleaks/gitleaks@sha256:" in workflow
+    assert "--log-opts=-1" in workflow
     assert "git push origin HEAD:main" not in workflow
     assert "type=ref,event=branch" not in workflow
     assert "type=raw,value=latest" not in workflow
