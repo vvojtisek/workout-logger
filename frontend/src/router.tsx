@@ -56,6 +56,18 @@ export const router = createBrowserRouter([
         lazy: () => import("@/features/programs/ProgramBuilder").then((m) => ({ Component: m.ProgramBuilder })),
       },
       {
+        path: "biometrics",
+        lazy: () => import("@/features/biometrics/BiometricsView").then((m) => ({ Component: m.BiometricsView })),
+      },
+      {
+        path: "biometrics/new",
+        lazy: () => import("@/features/biometrics/BiometricEntryForm").then((m) => ({ Component: m.BiometricEntryForm })),
+      },
+      {
+        path: "biometrics/:metricId/edit",
+        lazy: () => import("@/features/biometrics/BiometricEntryForm").then((m) => ({ Component: m.BiometricEntryForm })),
+      },
+      {
         path: "log/new",
         lazy: () => import("@/features/logs/NewLogView").then((m) => ({ Component: m.NewLogView })),
       },
