@@ -278,7 +278,7 @@ jobs:
         run: k3d cluster delete "$E2E_CLUSTER" || true
 
   publish:
-    name: Publish immutable image and prepare promotion
+    name: Publish immutable image and deploy production
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
@@ -347,43 +347,26 @@ jobs:
           fi
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "Published $IMAGE_REF as $digest"
-      - name: Prepare production promotion
+      - name: Record the verified release on main
         env:
           IMAGE_DIGEST: ${{ steps.published-image.outputs.digest }}
         run: |
+          # GitHub-token pushes do not start another workflow run. Argo CD sees
+          # this Git commit and reconciles the immutable digest automatically.
+          git fetch origin main
+          git switch main
+          git reset --hard origin/main
           python scripts/promote_image.py \
             --values helm/workout-logger/values-prod.yaml \
             --digest "$IMAGE_DIGEST" \
             --commit "$GITHUB_SHA"
-      - name: Open production promotion pull request
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          IMAGE_DIGEST: ${{ steps.published-image.outputs.digest }}
-        run: |
-          short_sha="${GITHUB_SHA:0:12}"
-          promotion_branch="chore/promote-production-$short_sha"
-          existing_pr=$(gh pr list --head "$promotion_branch" --state open --json url --jq '.[0].url // empty')
-          if [[ -n "$existing_pr" ]]; then
-            echo "Promotion pull request already exists: $existing_pr"
-            exit 0
-          fi
           if git diff --quiet -- helm/workout-logger/values-prod.yaml; then
             echo "Production already records $IMAGE_DIGEST for $GITHUB_SHA"
             exit 0
           fi
-          if git ls-remote --exit-code --heads origin "$promotion_branch" >/dev/null 2>&1; then
-            echo "Promotion branch exists without an open pull request: $promotion_branch" >&2
-            exit 1
-          fi
-          git switch -c "$promotion_branch"
+          short_sha="${GITHUB_SHA:0:12}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- helm/workout-logger/values-prod.yaml
           git commit -m "chore(deploy): promote $short_sha [skip image publish]"
-          git push --set-upstream origin "$promotion_branch"
-          gh pr create \
-            --base main \
-            --head "$promotion_branch" \
-            --draft \
-            --title "chore(deploy): promote $short_sha [skip image publish]" \
-            --body "Promote commit \`$GITHUB_SHA\` to production by immutable image digest \`$IMAGE_DIGEST\`.\n\nProduction changes only when this pull request is reviewed and merged."
+          git push origin HEAD:main
