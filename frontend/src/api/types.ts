@@ -162,3 +162,91 @@ export interface BodyMetricTrends {
   body_fat_percent_delta_7d: number | null;
   body_fat_percent_delta_14d: number | null;
 }
+
+export interface Food {
+  id: string;
+  name: string;
+  brand: string | null;
+  serving_quantity: number;
+  serving_unit: string;
+  energy_kcal: number;
+  protein_g: number;
+  carbohydrate_g: number;
+  fat_g: number;
+  fiber_g: number | null;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NutritionPlan {
+  id: string;
+  name: string;
+  valid_from: string;
+  valid_to: string | null;
+  energy_target_kcal: number;
+  protein_target_g: number;
+  carbohydrate_target_g: number;
+  fat_target_g: number;
+  fiber_target_g: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
+export interface MealItem {
+  id: string;
+  food_id: string | null;
+  food_name_snapshot: string;
+  quantity: number;
+  unit: string;
+  energy_kcal_snapshot: number;
+  protein_g_snapshot: number;
+  carbohydrate_g_snapshot: number;
+  fat_g_snapshot: number;
+  fiber_g_snapshot: number | null;
+}
+
+export interface MealEntry {
+  id: string;
+  consumed_at: string;
+  meal_type: MealType;
+  notes: string | null;
+  items: MealItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NutritionTotals {
+  energy_kcal: number;
+  protein_g: number;
+  carbohydrate_g: number;
+  fat_g: number;
+  fiber_g: number;
+}
+
+export interface NutritionTarget {
+  nutrition_plan_id: string;
+  name: string;
+  energy_target_kcal: number;
+  protein_target_g: number;
+  carbohydrate_target_g: number;
+  fat_target_g: number;
+  fiber_target_g: number | null;
+}
+
+export interface NutritionRemaining {
+  energy_kcal: number;
+  protein_g: number;
+  carbohydrate_g: number;
+  fat_g: number;
+  fiber_g: number | null;
+}
+
+export interface NutritionDailySummary {
+  date: string;
+  totals: NutritionTotals;
+  target: NutritionTarget | null;
+  remaining: NutritionRemaining | null;
+}

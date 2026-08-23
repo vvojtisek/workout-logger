@@ -2,6 +2,10 @@ from app.models.base import Base
 from app.models.body_metric import BodyMetric
 from app.models.exercise import Exercise
 from app.models.exercise_log import ExerciseLog
+from app.models.food import Food
+from app.models.meal_entry import MealEntry
+from app.models.meal_item import MealItem
+from app.models.nutrition_plan import NutritionPlan
 from app.models.plan_exercise import PlanExercise
 from app.models.program import Program
 from app.models.scheduled_workout import ScheduledWorkout
@@ -16,6 +20,10 @@ __all__ = [
     "BodyMetric",
     "Exercise",
     "ExerciseLog",
+    "Food",
+    "MealEntry",
+    "MealItem",
+    "NutritionPlan",
     "PlanExercise",
     "Program",
     "ScheduledWorkout",

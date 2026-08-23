@@ -43,6 +43,7 @@ const NAV_ITEMS: { path: string; label: string; glyph: string }[] = [
   { path: "/calendar", label: "Calendar", glyph: "\u{1F4C5}" },
   { path: "/exercises", label: "Exercises", glyph: "\u{1F4AA}" },
   { path: "/biometrics", label: "Biometrics", glyph: "\u{2696}\u{FE0F}" },
+  { path: "/nutrition", label: "Nutrition", glyph: "\u{1F34E}" },
   { path: "/log/new", label: "New Workout", glyph: "➕" },
   { path: "/history", label: "History", glyph: "\u{1F5C2}" },
 ];
