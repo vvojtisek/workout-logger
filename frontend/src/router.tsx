@@ -120,6 +120,15 @@ export const router = createBrowserRouter([
         lazy: () => import("@/features/sleep/SleepEntryForm").then((m) => ({ Component: m.SleepEntryForm })),
       },
       {
+        path: "tokens",
+        lazy: () => import("@/features/tokens/TokensView").then((m) => ({ Component: m.TokensView })),
+      },
+      {
+        path: "tokens/new",
+        lazy: () =>
+          import("@/features/tokens/TokenCreateForm").then((m) => ({ Component: m.TokenCreateForm })),
+      },
+      {
         path: "log/new",
         lazy: () => import("@/features/logs/NewLogView").then((m) => ({ Component: m.NewLogView })),
       },
