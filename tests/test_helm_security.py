@@ -79,6 +79,21 @@ def test_empty_required_secret_name_fails_before_rendering() -> None:
     assert "existingSecret" in result.stderr
 
 
+def test_production_ingress_requests_certificate_from_production_issuer() -> None:
+    documents = render_chart("--values", str(PRODUCTION_VALUES))
+    ingress = next(document for document in documents if document["kind"] == "Ingress")
+
+    assert ingress["metadata"]["annotations"]["cert-manager.io/cluster-issuer"] == (
+        "letsencrypt-prod"
+    )
+    assert ingress["spec"]["tls"] == [
+        {
+            "hosts": ["fitness.vvojtisek.eu"],
+            "secretName": "workout-logger-tls",
+        }
+    ]
+
+
 def test_values_schema_and_sqlite_security_context_cover_writable_data_volume() -> None:
     schema = json.loads(SCHEMA.read_text())
     assert schema["properties"]["existingSecret"]["minLength"] == 1
