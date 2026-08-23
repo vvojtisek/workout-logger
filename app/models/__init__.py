@@ -12,6 +12,7 @@ from app.models.program import Program
 from app.models.scheduled_workout import ScheduledWorkout
 from app.models.session_exercise import SessionExercise
 from app.models.set_entry import SetEntry
+from app.models.settings import UserSettings
 from app.models.sleep_entry import SleepEntry
 from app.models.step_count import StepCount
 from app.models.workout_log import WorkoutLog
@@ -35,6 +36,7 @@ __all__ = [
     "SetEntry",
     "SleepEntry",
     "StepCount",
+    "UserSettings",
     "WorkoutLog",
     "WorkoutPlan",
     "WorkoutSession",

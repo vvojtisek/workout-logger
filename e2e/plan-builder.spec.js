@@ -25,8 +25,8 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
     await page.getByLabel("Plan name").fill(`${tag} plan`);
     await page.getByLabel("Description").fill(`${tag} superset fixture`);
 
-    await page.getByRole("button", { name: "+ Add exercise" }).click();
-    await page.getByRole("button", { name: "+ Add exercise" }).click();
+    await page.getByRole("button", { name: "+ Add compound exercise" }).click();
+    await page.getByRole("button", { name: "+ Add compound exercise" }).click();
 
     const rows = page.locator("#plan-exercises-list > div");
     await expect(rows).toHaveCount(2);

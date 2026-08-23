@@ -4,6 +4,7 @@ import { Navigate } from "react-router-dom";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { SessionExercise, WorkoutSession } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
+import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import {
   clearSetDraft,
   draftStorageKey,
@@ -12,6 +13,7 @@ import {
   removeSetOperation,
   synchronizationState,
 } from "@/lib/active-workout-state";
+import type { SetOperation } from "@/lib/active-workout-state";
 import {
   buildGroupRounds,
   buildWorkoutGrid,
@@ -67,7 +69,7 @@ function ActiveWorkoutSession({
   const [feeling, setFeeling] = useState("3");
   const [restWasSkipped, setRestWasSkipped] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [queueToken, setQueueToken] = useState(0);
+  const [queue, setQueue] = useState<SetOperation[]>([]);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const syncInProgress = useRef(false);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -75,16 +77,23 @@ function ActiveWorkoutSession({
   const progress = workoutProgress(session);
   const groups = groupSessionExercises(session.exercises);
   const rows = buildWorkoutGrid(session);
-  const sync = synchronizationState(
-    getSetQueue(localStorage).filter((operation) => operation.session_id === session.id),
-    online,
-    syncError
-  );
-  void queueToken; // queue lives in localStorage; this token forces a re-read
+  const sync = synchronizationState(queue, online, syncError);
+
+  // The queue lives in IndexedDB (async), so it can't be read inline during
+  // render like the old localStorage version - this keeps a mirror of it in
+  // state instead, refreshed after every write.
+  const refreshQueue = useCallback(async () => {
+    const all = await getSetQueue(activeWorkoutStorage);
+    setQueue(all.filter((operation) => operation.session_id === session.id));
+  }, [session.id]);
+
+  useEffect(() => {
+    void refreshQueue();
+  }, [refreshQueue]);
 
   const flushSetQueue = useCallback(async () => {
     if (syncInProgress.current || !navigator.onLine) return;
-    const operations = getSetQueue(localStorage).filter(
+    const operations = (await getSetQueue(activeWorkoutStorage)).filter(
       (operation) => operation.session_id === session.id
     );
     if (operations.length === 0) {
@@ -100,8 +109,8 @@ function ActiveWorkoutSession({
           `/workout-sessions/${operation.session_id}/sets`,
           { method: "POST", body: JSON.stringify(operation.payload) }
         );
-        removeSetOperation(localStorage, operation.client_operation_id);
-        if (operation.draft_key) clearSetDraft(localStorage, operation.draft_key);
+        await removeSetOperation(activeWorkoutStorage, operation.client_operation_id);
+        if (operation.draft_key) await clearSetDraft(activeWorkoutStorage, operation.draft_key);
         if (operation.payload.state !== "skipped") setRestWasSkipped(false);
       }
       onSessionChange(latest);
@@ -109,9 +118,9 @@ function ActiveWorkoutSession({
       setSyncError(errorMessage(err));
     } finally {
       syncInProgress.current = false;
-      setQueueToken((token) => token + 1);
+      await refreshQueue();
     }
-  }, [session, onSessionChange]);
+  }, [session, onSessionChange, refreshQueue]);
 
   // Reconnecting must drain anything queued while the network was gone.
   useEffect(() => {
@@ -132,7 +141,7 @@ function ActiveWorkoutSession({
     async (row: GridRow, values: SetValues, state: "completed" | "skipped") => {
       const operationId = crypto.randomUUID();
       const draftKey = draftStorageKey(session.id, row.exercise.id, row.setNumber);
-      enqueueSetOperation(localStorage, {
+      await enqueueSetOperation(activeWorkoutStorage, {
         client_operation_id: operationId,
         session_id: session.id,
         draft_key: draftKey,
@@ -152,10 +161,10 @@ function ActiveWorkoutSession({
         },
       });
       setSyncError(null);
-      setQueueToken((token) => token + 1);
+      await refreshQueue();
       await flushSetQueue();
     },
-    [session.id, flushSetQueue]
+    [session.id, flushSetQueue, refreshQueue]
   );
 
   const correctSet = useCallback(

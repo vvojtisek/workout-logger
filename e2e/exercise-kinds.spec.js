@@ -21,8 +21,8 @@ test("builds a plan with bodyweight and cardio exercises and logs kind-specific 
     await page.getByRole("button", { name: "New program" }).click();
     await page.getByLabel("Plan name").fill(`${tag} plan`);
 
-    await page.getByRole("button", { name: "+ Add exercise" }).click();
-    await page.getByRole("button", { name: "+ Add exercise" }).click();
+    await page.getByRole("button", { name: "+ Add compound exercise" }).click();
+    await page.getByRole("button", { name: "+ Add compound exercise" }).click();
 
     const rows = page.locator("#plan-exercises-list > div");
     const bodyweightRow = rows.nth(0);

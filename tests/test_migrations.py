@@ -571,3 +571,46 @@ def test_health_ingest_migration_backfills_source_and_adds_step_counts(
                 {"id": step_id_two},
             )
     sync_engine.dispose()
+
+
+def test_user_settings_migration_adds_table_with_defaults_enforced_by_check_constraints(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "b3f7a2c9e5d1")
+    command.upgrade(alembic_config, "head")
+
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    inspector = inspect(sync_engine)
+    assert "user_settings" in inspector.get_table_names()
+
+    settings_id = str(uuid.uuid4())
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO user_settings "
+                "(id, owner_id, units, default_rest_compound_seconds, "
+                "default_rest_isolation_seconds, created_at, updated_at) "
+                "VALUES (:id, NULL, 'metric', 90, 60, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": settings_id},
+        )
+
+    with sync_engine.connect() as connection:
+        row = connection.execute(
+            text("SELECT units, default_rest_compound_seconds FROM user_settings WHERE id = :id"),
+            {"id": settings_id},
+        ).one()
+        assert row == ("metric", 90)
+
+    with sync_engine.begin() as connection:
+        with pytest.raises(IntegrityError):
+            connection.execute(
+                text(
+                    "INSERT INTO user_settings "
+                    "(id, owner_id, units, default_rest_compound_seconds, "
+                    "default_rest_isolation_seconds, created_at, updated_at) "
+                    "VALUES (:id, NULL, 'furlongs', 90, 60, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                ),
+                {"id": str(uuid.uuid4())},
+            )
+    sync_engine.dispose()

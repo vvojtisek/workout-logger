@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent, RefObject } from "react";
 
+import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import {
   clearSetDraft,
   draftStorageKey,
@@ -196,10 +197,32 @@ export function SetRow({
   const fieldRefs = [ref1, ref2, ref3];
   const [editing, setEditing] = useState(false);
   const [undoVisible, setUndoVisible] = useState(false);
+  const [draft, setDraft] = useState<SetDraft | null>(null);
+  const [draftReady, setDraftReady] = useState(false);
 
   const entryId = row.entry?.id ?? null;
-  const draft = row.entry ? null : loadSetDraft(localStorage, draftKey);
   const savedDraft: SetDraft = draft ?? EMPTY_DRAFT;
+
+  // IndexedDB is async, so the draft can't be read inline like the old
+  // localStorage version; load it once per row and re-key the inputs (via
+  // seedKey below) once it resolves so defaultValue picks it up.
+  useEffect(() => {
+    if (row.entry) {
+      setDraft(null);
+      setDraftReady(true);
+      return;
+    }
+    let cancelled = false;
+    setDraftReady(false);
+    void loadSetDraft(activeWorkoutStorage, draftKey).then((loaded) => {
+      if (cancelled) return;
+      setDraft(loaded);
+      setDraftReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [row.entry, draftKey]);
 
   function seedFor(spec: FieldSpec): string {
     if (draft) return draft[spec.draftKey];
@@ -231,7 +254,7 @@ export function SetRow({
 
   // A persisted set is authoritative; its local draft is no longer meaningful.
   useEffect(() => {
-    if (row.entry) clearSetDraft(localStorage, draftKey);
+    if (row.entry) void clearSetDraft(activeWorkoutStorage, draftKey);
   }, [row.entry, draftKey]);
 
   // The five-second undo window is measured from the server's completion time.
@@ -256,7 +279,7 @@ export function SetRow({
     fieldSpecs.forEach((spec, index) => {
       next[spec.draftKey] = fieldRefs[index].current?.value ?? "";
     });
-    saveSetDraft(localStorage, draftKey, next);
+    void saveSetDraft(activeWorkoutStorage, draftKey, next);
   }
 
   function currentValues(): SetValues {
@@ -299,9 +322,10 @@ export function SetRow({
   }
 
   const exerciseName = row.exercise.exercise_name;
-  // Remounts the inputs, re-reading defaultValue, only when the row is saved,
-  // corrected, or undone - never while it is being filled in.
-  const seedKey = entryId ?? "draft";
+  // Remounts the inputs, re-reading defaultValue, when the row is saved,
+  // corrected, or undone, and once when its IndexedDB-backed draft finishes
+  // loading (never while it is otherwise being filled in).
+  const seedKey = entryId ?? (draftReady ? "draft" : "draft-loading");
 
   return (
     <form

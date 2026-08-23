@@ -120,8 +120,24 @@ test("rest timer and an offline set retry recover against the real server", asyn
     await context.setOffline(true);
     await row(2).getByRole("button", { name: `Complete ${tag} Deadlift set 2` }).click();
     await expect(page.locator("#active-sync-status")).toHaveText("Pending synchronization");
-    const queued = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem("workout_logger_active_set_queue") || "[]")
+    // The write queue now lives in IndexedDB (frontend/src/lib/indexeddb-storage.ts),
+    // keyed by "<namespace>:<key>" - "active-workout" is active-workout-storage.ts's
+    // namespace and "workout_logger_active_set_queue" is SET_QUEUE_STORAGE_KEY.
+    const queued = await page.evaluate(
+      () =>
+        new Promise((resolve, reject) => {
+          const openRequest = indexedDB.open("workout-logger-offline", 1);
+          openRequest.onsuccess = () => {
+            const db = openRequest.result;
+            const getRequest = db
+              .transaction("kv", "readonly")
+              .objectStore("kv")
+              .get("active-workout:workout_logger_active_set_queue");
+            getRequest.onsuccess = () => resolve(JSON.parse(getRequest.result || "[]"));
+            getRequest.onerror = () => reject(getRequest.error);
+          };
+          openRequest.onerror = () => reject(openRequest.error);
+        })
     );
     expect(queued).toHaveLength(1);
     const operationId = queued[0].client_operation_id;
