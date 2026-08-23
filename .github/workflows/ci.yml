@@ -136,9 +136,18 @@ jobs:
       - name: Audit frontend dependencies
         run: npm ci && npm audit --audit-level=high
       - name: Scan repository for secrets with gitleaks
+        if: github.event_name != 'workflow_dispatch'
         uses: gitleaks/gitleaks-action@v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Scan promotion commit for secrets with gitleaks
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --volume "$PWD:/repo:ro" \
+            ghcr.io/gitleaks/gitleaks@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055 \
+            detect --source=/repo --redact --verbose --log-opts=-1
       - name: Build image for security checks
         run: docker build --provenance=false --tag workout-logger:ci-scan .
       - name: Scan image for high and critical vulnerabilities with trivy
