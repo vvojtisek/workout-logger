@@ -137,3 +137,28 @@ export interface ScheduledWorkout {
   created_at: string;
   updated_at: string;
 }
+
+export interface BodyMetric {
+  id: string;
+  measured_at: string;
+  weight_kg: number;
+  body_fat_percent: number | null;
+  neck_cm: number | null;
+  chest_cm: number | null;
+  waist_cm: number | null;
+  hips_cm: number | null;
+  biceps_cm: number | null;
+  forearms_cm: number | null;
+  thighs_cm: number | null;
+  calves_cm: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BodyMetricTrends {
+  latest: BodyMetric | null;
+  weight_kg_delta_7d: number | null;
+  weight_kg_delta_14d: number | null;
+  body_fat_percent_delta_7d: number | null;
+  body_fat_percent_delta_14d: number | null;
+}

@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.body_metric import BodyMetric
 from app.models.exercise import Exercise
 from app.models.exercise_log import ExerciseLog
 from app.models.plan_exercise import PlanExercise
@@ -12,6 +13,7 @@ from app.models.workout_session import WorkoutSession
 
 __all__ = [
     "Base",
+    "BodyMetric",
     "Exercise",
     "ExerciseLog",
     "PlanExercise",

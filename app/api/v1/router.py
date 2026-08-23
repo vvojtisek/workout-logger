@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Security
 
 from app.api.v1 import (
+    body_metrics,
     calendar,
     exercises,
     logs,
@@ -19,3 +20,4 @@ api_router.include_router(workout_sessions.router)
 api_router.include_router(programs.router)
 api_router.include_router(scheduled_workouts.router)
 api_router.include_router(calendar.router)
+api_router.include_router(body_metrics.router)

@@ -321,3 +321,33 @@ def test_programs_migration_adds_tables_with_no_overlap_constraint(alembic_confi
         )
         assert count == 2
     sync_engine.dispose()
+
+
+def test_body_metrics_migration_adds_table(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "81f5b00da187")
+    command.upgrade(alembic_config, "head")
+
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    inspector = inspect(sync_engine)
+    assert "body_metrics" in inspector.get_table_names()
+
+    metric_id = str(uuid.uuid4())
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO body_metrics "
+                "(id, owner_id, measured_at, weight_kg, body_fat_percent, neck_cm, chest_cm, "
+                "waist_cm, hips_cm, biceps_cm, forearms_cm, thighs_cm, calves_cm, "
+                "created_at, updated_at) "
+                "VALUES (:id, NULL, '2026-01-15 08:00:00', 78.2, 18.5, NULL, NULL, 85, NULL, "
+                "NULL, NULL, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": metric_id},
+        )
+
+    with sync_engine.connect() as connection:
+        row = connection.execute(
+            text("SELECT weight_kg, waist_cm FROM body_metrics WHERE id = :id"), {"id": metric_id}
+        ).one()
+        assert row == (78.2, 85.0)
+    sync_engine.dispose()
