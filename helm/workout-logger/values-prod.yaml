@@ -17,6 +17,8 @@ apiKeySecretKey: API_KEY
 ingress:
   enabled: true
   className: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
     - host: fitness.vvojtisek.eu
       paths:
