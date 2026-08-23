@@ -5,15 +5,18 @@ from app.api.v1 import (
     body_metrics,
     calendar,
     exercises,
+    export,
     foods,
     ingest,
     logs,
+    mcp_status,
     meal_entries,
     nutrition_dashboard,
     nutrition_plans,
     plans,
     programs,
     scheduled_workouts,
+    settings,
     sleep_entries,
     workout_sessions,
 )
@@ -35,3 +38,6 @@ api_router.include_router(meal_entries.router)
 api_router.include_router(nutrition_dashboard.router)
 api_router.include_router(sleep_entries.router)
 api_router.include_router(ingest.router)
+api_router.include_router(settings.router)
+api_router.include_router(mcp_status.router)
+api_router.include_router(export.router)

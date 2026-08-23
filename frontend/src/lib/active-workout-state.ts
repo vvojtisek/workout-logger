@@ -1,10 +1,12 @@
 export const SET_QUEUE_STORAGE_KEY = "workout_logger_active_set_queue";
 const DRAFT_PREFIX = "workout_logger_active_draft";
 
-export interface StorageLike {
-  getItem: (key: string) => string | null;
-  setItem: (key: string, value: string) => unknown;
-  removeItem: (key: string) => unknown;
+/** Backed by IndexedDB in the app (see indexeddb-storage.ts) so offline
+ * writes survive a reload; a plain in-memory Map satisfies this in tests. */
+export interface AsyncStorageLike {
+  getItem: (key: string) => Promise<string | null>;
+  setItem: (key: string, value: string) => Promise<void>;
+  removeItem: (key: string) => Promise<void>;
 }
 
 export interface RestTimerState {
@@ -51,23 +53,30 @@ export interface SetDraft {
   incline_percent: string;
 }
 
-export function saveSetDraft(storage: StorageLike, key: string, draft: SetDraft): void {
-  storage.setItem(key, JSON.stringify(draft));
+export async function saveSetDraft(
+  storage: AsyncStorageLike,
+  key: string,
+  draft: SetDraft
+): Promise<void> {
+  await storage.setItem(key, JSON.stringify(draft));
 }
 
-export function loadSetDraft(storage: StorageLike, key: string): SetDraft | null {
-  const value = storage.getItem(key);
+export async function loadSetDraft(
+  storage: AsyncStorageLike,
+  key: string
+): Promise<SetDraft | null> {
+  const value = await storage.getItem(key);
   if (!value) return null;
   try {
     return JSON.parse(value) as SetDraft;
   } catch {
-    storage.removeItem(key);
+    await storage.removeItem(key);
     return null;
   }
 }
 
-export function clearSetDraft(storage: StorageLike, key: string): void {
-  storage.removeItem(key);
+export async function clearSetDraft(storage: AsyncStorageLike, key: string): Promise<void> {
+  await storage.removeItem(key);
 }
 
 export interface SetOperationPayload {
@@ -93,17 +102,21 @@ export interface SetOperation {
   payload: SetOperationPayload;
 }
 
-export function getSetQueue(storage: StorageLike): SetOperation[] {
+export async function getSetQueue(storage: AsyncStorageLike): Promise<SetOperation[]> {
   try {
-    const value: unknown = JSON.parse(storage.getItem(SET_QUEUE_STORAGE_KEY) || "[]");
+    const raw = await storage.getItem(SET_QUEUE_STORAGE_KEY);
+    const value: unknown = JSON.parse(raw || "[]");
     return Array.isArray(value) ? (value as SetOperation[]) : [];
   } catch {
     return [];
   }
 }
 
-export function enqueueSetOperation(storage: StorageLike, operation: SetOperation): SetOperation {
-  const queue = getSetQueue(storage);
+export async function enqueueSetOperation(
+  storage: AsyncStorageLike,
+  operation: SetOperation
+): Promise<SetOperation> {
+  const queue = await getSetQueue(storage);
   const existing = queue.find(
     (item) =>
       item.session_id === operation.session_id &&
@@ -112,13 +125,18 @@ export function enqueueSetOperation(storage: StorageLike, operation: SetOperatio
   );
   if (existing) return existing;
   queue.push(operation);
-  storage.setItem(SET_QUEUE_STORAGE_KEY, JSON.stringify(queue));
+  await storage.setItem(SET_QUEUE_STORAGE_KEY, JSON.stringify(queue));
   return operation;
 }
 
-export function removeSetOperation(storage: StorageLike, operationId: string): void {
-  const queue = getSetQueue(storage).filter((item) => item.client_operation_id !== operationId);
-  storage.setItem(SET_QUEUE_STORAGE_KEY, JSON.stringify(queue));
+export async function removeSetOperation(
+  storage: AsyncStorageLike,
+  operationId: string
+): Promise<void> {
+  const queue = (await getSetQueue(storage)).filter(
+    (item) => item.client_operation_id !== operationId
+  );
+  await storage.setItem(SET_QUEUE_STORAGE_KEY, JSON.stringify(queue));
 }
 
 export interface SynchronizationState {

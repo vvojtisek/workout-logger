@@ -17,15 +17,15 @@ function memoryStorage() {
   /** @type {Map<string, string>} */
   const values = new Map();
   /** @param {string} key */
-  function getItem(key) {
+  async function getItem(key) {
     return values.get(key) ?? null;
   }
   /** @param {string} key @param {string} value */
-  function setItem(key, value) {
+  async function setItem(key, value) {
     values.set(key, value);
   }
   /** @param {string} key */
-  function removeItem(key) {
+  async function removeItem(key) {
     values.delete(key);
   }
   return { getItem, setItem, removeItem };
@@ -55,7 +55,7 @@ describe("absolute rest timer state", () => {
 });
 
 describe("active set drafts", () => {
-  it("persists and clears kg, reps, and RIR by session set", () => {
+  it("persists and clears kg, reps, and RIR by session set", async () => {
     const storage = memoryStorage();
     const key = draftStorageKey("session-a", "exercise-a", 2);
     const draft = {
@@ -69,15 +69,15 @@ describe("active set drafts", () => {
       incline_percent: "",
     };
 
-    saveSetDraft(storage, key, draft);
-    expect(loadSetDraft(storage, key)).toEqual(draft);
-    clearSetDraft(storage, key);
-    expect(loadSetDraft(storage, key)).toBeNull();
+    await saveSetDraft(storage, key, draft);
+    expect(await loadSetDraft(storage, key)).toEqual(draft);
+    await clearSetDraft(storage, key);
+    expect(await loadSetDraft(storage, key)).toBeNull();
   });
 });
 
 describe("active set synchronization queue", () => {
-  it("retains one stable operation and moves through pending, failed, and synchronized", () => {
+  it("retains one stable operation and moves through pending, failed, and synchronized", async () => {
     const storage = memoryStorage();
     const operation = {
       client_operation_id: "operation-a",
@@ -85,9 +85,9 @@ describe("active set synchronization queue", () => {
       payload: { set_number: 2, weight_kg: 82.75, reps: 7, rir: 1 },
     };
 
-    enqueueSetOperation(storage, operation);
-    enqueueSetOperation(storage, operation);
-    const queued = getSetQueue(storage);
+    await enqueueSetOperation(storage, operation);
+    await enqueueSetOperation(storage, operation);
+    const queued = await getSetQueue(storage);
     expect(queued).toEqual([operation]);
     expect(synchronizationState(queued, false, null)).toEqual({
       status: "pending",
@@ -98,8 +98,8 @@ describe("active set synchronization queue", () => {
       label: "Synchronization failed",
     });
 
-    removeSetOperation(storage, "operation-a");
-    expect(synchronizationState(getSetQueue(storage), true, null)).toEqual({
+    await removeSetOperation(storage, "operation-a");
+    expect(synchronizationState(await getSetQueue(storage), true, null)).toEqual({
       status: "synchronized",
       label: "Synchronized",
     });

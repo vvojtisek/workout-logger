@@ -294,3 +294,28 @@ export interface ApiToken {
 export interface ApiTokenCreated extends ApiToken {
   token: string;
 }
+
+export const UNITS = ["metric", "imperial"] as const;
+
+export type Units = (typeof UNITS)[number];
+
+export interface UserSettings {
+  id: string;
+  units: Units;
+  default_rest_compound_seconds: number;
+  default_rest_isolation_seconds: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface McpToolInfo {
+  name: string;
+  description: string;
+}
+
+export interface McpStatus {
+  enabled: boolean;
+  path: string;
+  tool_count: number;
+  tools: McpToolInfo[];
+}

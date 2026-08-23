@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
 import type { WorkoutPlan } from "@/api/types";
 import { planPayloadSchema } from "@/lib/plan-schema";
+import { useSettingsQuery } from "@/lib/settings-query";
 import type { ExerciseKind } from "@/lib/workout-utils";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
@@ -28,7 +29,7 @@ interface ExerciseRowState {
   group_key: string;
 }
 
-function emptyRow(): ExerciseRowState {
+function emptyRow(restSeconds = 60): ExerciseRowState {
   return {
     key: crypto.randomUUID(),
     exercise_name: "",
@@ -37,7 +38,7 @@ function emptyRow(): ExerciseRowState {
     target_reps_min: "8",
     target_reps_max: "12",
     target_weight_kg: "",
-    rest_time_seconds: "60",
+    rest_time_seconds: String(restSeconds),
     notes: "",
     group_key: "",
   };
@@ -99,6 +100,9 @@ export function PlanBuilder() {
   const [rows, setRows] = useState<ExerciseRowState[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const seededPlanId = useRef<string | null>(null);
+  const { data: settings } = useSettingsQuery();
+  const compoundRestSeconds = settings?.default_rest_compound_seconds ?? 90;
+  const isolationRestSeconds = settings?.default_rest_isolation_seconds ?? 60;
 
   const { data: existingPlan, isLoading } = useQuery({
     queryKey: ["plan", planId],
@@ -415,13 +419,28 @@ export function PlanBuilder() {
             </div>
           ))}
         </div>
-        <Button
-          id="add-exercise-btn"
-          className="mt-3"
-          onClick={() => setRows((current) => [...current, emptyRow()])}
-        >
-          + Add exercise
-        </Button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            id="add-compound-exercise-btn"
+            onClick={() =>
+              setRows((current) => [...current, emptyRow(compoundRestSeconds)])
+            }
+          >
+            + Add compound exercise
+          </Button>
+          <Button
+            id="add-isolation-exercise-btn"
+            onClick={() =>
+              setRows((current) => [...current, emptyRow(isolationRestSeconds)])
+            }
+          >
+            + Add isolation exercise
+          </Button>
+        </div>
+        <p className="mt-1 text-xs text-muted">
+          Pre-fills rest seconds from your Settings defaults ({compoundRestSeconds}s compound,{" "}
+          {isolationRestSeconds}s isolation) — change it per exercise as needed.
+        </p>
       </div>
 
       <div className="mt-5 flex gap-2">
