@@ -6,6 +6,7 @@ from app.api.v1 import (
     calendar,
     exercises,
     foods,
+    ingest,
     logs,
     meal_entries,
     nutrition_dashboard,
@@ -33,3 +34,4 @@ api_router.include_router(nutrition_plans.router)
 api_router.include_router(meal_entries.router)
 api_router.include_router(nutrition_dashboard.router)
 api_router.include_router(sleep_entries.router)
+api_router.include_router(ingest.router)

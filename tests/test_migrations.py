@@ -10,6 +10,7 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from sqlalchemy import create_engine as create_sync_engine
 from sqlalchemy import inspect, text
+from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
 from app.models import Base
@@ -474,4 +475,99 @@ def test_api_tokens_migration_adds_table_with_unique_hash_index(alembic_config, 
             text("SELECT name, scopes FROM api_tokens WHERE id = :id"), {"id": token_id}
         ).one()
         assert row == ("MCP agent", "read,log")
+    sync_engine.dispose()
+
+
+def test_health_ingest_migration_backfills_source_and_adds_step_counts(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "7a1f9c3e5b2d")
+    metric_id = str(uuid.uuid4())
+    log_id = str(uuid.uuid4())
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO body_metrics "
+                "(id, owner_id, measured_at, weight_kg, created_at, updated_at) "
+                "VALUES (:id, NULL, '2026-01-15 08:00:00', 78.2, "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": metric_id},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO workout_logs "
+                "(id, performed_at, total_time_minutes, overall_feeling, "
+                "created_at, updated_at) "
+                "VALUES (:id, '2026-01-15 08:00:00', 45, 4, "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": log_id},
+        )
+    command.upgrade(alembic_config, "head")
+
+    inspector = inspect(sync_engine)
+    assert "step_counts" in inspector.get_table_names()
+
+    # Pre-existing rows backfill to the "manual" source with a NULL external_id.
+    with sync_engine.connect() as connection:
+        metric_row = connection.execute(
+            text("SELECT source, external_id FROM body_metrics WHERE id = :id"), {"id": metric_id}
+        ).one()
+        assert metric_row == ("manual", None)
+        log_row = connection.execute(
+            text("SELECT source, external_id FROM workout_logs WHERE id = :id"), {"id": log_id}
+        ).one()
+        assert log_row == ("manual", None)
+
+    # The unique (source, external_id) constraint makes a re-synced row idempotent...
+    step_id_one = str(uuid.uuid4())
+    step_id_two = str(uuid.uuid4())
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO step_counts "
+                "(id, owner_id, recorded_date, steps, source, external_id, "
+                "created_at, updated_at) "
+                "VALUES (:id, NULL, '2026-01-15', 10432, 'health_connect', 'hc-1', "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": step_id_one},
+        )
+    with sync_engine.connect() as connection:
+        assert (
+            connection.execute(
+                text("SELECT steps FROM step_counts WHERE id = :id"), {"id": step_id_one}
+            ).one()[0]
+            == 10432
+        )
+
+    # ...while a second manual body_metrics row (NULL external_id) is unaffected,
+    # since SQL treats no two NULLs as equal for a unique constraint.
+    second_manual_id = str(uuid.uuid4())
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO body_metrics "
+                "(id, owner_id, measured_at, weight_kg, source, external_id, "
+                "created_at, updated_at) "
+                "VALUES (:id, NULL, '2026-01-16 08:00:00', 77.9, 'manual', NULL, "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": second_manual_id},
+        )
+
+    with sync_engine.begin() as connection:
+        with pytest.raises(IntegrityError):
+            connection.execute(
+                text(
+                    "INSERT INTO step_counts "
+                    "(id, owner_id, recorded_date, steps, source, external_id, "
+                    "created_at, updated_at) "
+                    "VALUES (:id, NULL, '2026-01-16', 1, 'health_connect', 'hc-1', "
+                    "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                ),
+                {"id": step_id_two},
+            )
     sync_engine.dispose()

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import REAL
+from sqlalchemy import REAL, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import GUID, Base, TimestampMixin, UTCDateTime, UUIDPrimaryKeyMixin
@@ -12,6 +12,12 @@ class BodyMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     computed at query time by the trends service, never stored here."""
 
     __tablename__ = "body_metrics"
+    __table_args__ = (
+        # NULL external_id (every manually-logged entry) is never considered a
+        # duplicate of another NULL; only two ingested rows sharing the same
+        # source+external_id collide, which is what makes a re-sync idempotent.
+        UniqueConstraint("source", "external_id", name="uq_body_metrics_source_external_id"),
+    )
 
     # Nullable and unenforced by any FK: there is no users table yet. Carrying
     # this column now makes the future multi-user migration additive.
@@ -27,3 +33,7 @@ class BodyMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     forearms_cm: Mapped[float | None] = mapped_column(REAL, nullable=True)
     thighs_cm: Mapped[float | None] = mapped_column(REAL, nullable=True)
     calves_cm: Mapped[float | None] = mapped_column(REAL, nullable=True)
+    source: Mapped[str] = mapped_column(String(30), nullable=False, default="manual")
+    # Set only by /api/v1/ingest/weight: the sync source's own record id, used
+    # to make a re-sync idempotent rather than a signal a human ever reads.
+    external_id: Mapped[str | None] = mapped_column(String(200), nullable=True)

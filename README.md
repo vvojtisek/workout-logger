@@ -324,3 +324,11 @@ rather than handing it the bootstrap key, then point the client at the endpoint:
   }
 }
 ```
+
+### Health Ingest
+
+`POST /api/v1/ingest/{weight|steps|sleep|sessions}` accepts pushes from Android sync apps
+(Health Sync, Tasker, HTTP Shortcuts) reading Health Connect — no companion app required. Every
+request carries `source` and `external_id`, unique together, so a re-sync never creates a
+duplicate. See [`docs/health-ingest.md`](docs/health-ingest.md) for the endpoint reference and
+setup recipes for each app.
