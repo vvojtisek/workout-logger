@@ -47,7 +47,9 @@ async def _resolve_db_token(session: AsyncSession, api_key: str) -> ApiToken | N
     return token
 
 
-async def _authenticate(api_key: str | None, session: AsyncSession) -> AuthContext:
+async def authenticate_api_key(api_key: str | None, session: AsyncSession) -> AuthContext:
+    """Resolve a raw credential to its scopes, raising 401 when it is unknown.
+    Shared by the REST dependency below and the MCP transport in `app/mcp/`."""
     settings = get_settings()
     if not api_key:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
@@ -67,7 +69,7 @@ async def require_api_key(
     api_key: str | None = Security(api_key_header),
     session: AsyncSession = Depends(get_session),
 ) -> AuthContext:
-    auth = await _authenticate(api_key, session)
+    auth = await authenticate_api_key(api_key, session)
     required_scope = "read" if request.method in _READ_METHODS else "log"
     if not auth.has_scope(required_scope):
         raise HTTPException(

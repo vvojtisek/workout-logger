@@ -12,6 +12,7 @@ from app.config import get_settings
 from app.database import get_engine
 from app.exceptions import register_exception_handlers
 from app.logging_config import access_logger, setup_logging
+from app.mcp import McpAuthMiddleware, mcp
 from app.schemas.common import HealthResponse
 
 settings = get_settings()
@@ -29,12 +30,17 @@ ACTION_PATH_ALIASES = {
 
 openapi_servers = [{"url": settings.PUBLIC_BASE_URL}] if settings.PUBLIC_BASE_URL else None
 
+# Built before the FastAPI app so its session-manager lifespan can be adopted
+# below; without that the streamable-HTTP transport is never started.
+mcp_app = mcp.http_app(path="/")
+
 app = FastAPI(
     title="Workout Logger & Planner API",
     version=settings.APP_VERSION,
     docs_url="/docs",
     openapi_url="/openapi.json",
     servers=openapi_servers,
+    lifespan=mcp_app.lifespan,
 )
 
 CONTENT_SECURITY_POLICY = (
@@ -97,6 +103,9 @@ async def request_id_and_access_log_middleware(request: Request, call_next):
 
 register_exception_handlers(app)
 app.include_router(api_router)
+# The MCP transport is a mounted ASGI app, so it authenticates through its own
+# middleware rather than the REST routers' Security dependency.
+app.mount("/mcp", McpAuthMiddleware(mcp_app))
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -172,6 +181,7 @@ async def service_worker() -> FileResponse:
 
 SPA_PREFIX_BLACKLIST = (
     "/api/",
+    "/mcp",
     "/static/",
     "/health",
     "/docs",

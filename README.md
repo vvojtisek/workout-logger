@@ -20,7 +20,7 @@ A single-user Workout Logger & Planner API with a React Progressive Web App fron
 ## Repository Layout
 
 ```text
-app/            FastAPI application (API, models, schemas, services, compiled PWA bundle)
+app/            FastAPI application (API, MCP server, models, schemas, services, compiled PWA bundle)
 alembic/        Database schema migrations
 helm/           Helm chart for Kubernetes deployment
 deploy/         ArgoCD application manifests
@@ -298,3 +298,29 @@ isolated restore drills, production recovery, validation, abort, and cleanup ste
 Active-workout Slice 1 adds authenticated `/api/v1/workout-sessions` operations to start or
 resume a plan snapshot, idempotently save a set with an absolute rest deadline, read the session,
 complete it into the existing workout-log history, and remove E2E records during verified cleanup.
+
+### MCP Server
+
+An MCP server is mounted at `/mcp` (streamable HTTP) inside this same FastAPI application — one
+deployable, per the modular-monolith decision. Its tools call `app/services/*` directly rather
+than looping back through HTTP, so they share the REST layer's validation and conflict handling.
+
+Tools: `list_programs`, `get_plan`, `create_plan`, `schedule_workout`, `log_set`, `log_meal`,
+`log_biometrics`, `get_daily_summary`.
+
+Authentication uses the same `X-API-Key` credential as the REST API — either the bootstrap
+`API_KEY` or a scoped token minted at `/api/v1/tokens`. Query tools require the `read` scope and
+logging tools require `log`; an `admin` token satisfies both. Mint an agent a `read`+`log` token
+rather than handing it the bootstrap key, then point the client at the endpoint:
+
+```json
+{
+  "mcpServers": {
+    "workout-logger": {
+      "type": "http",
+      "url": "https://your-host/mcp/",
+      "headers": { "X-API-Key": "wl_..." }
+    }
+  }
+}
+```
