@@ -42,6 +42,8 @@ class BodyMetricRead(OrmModel):
     forearms_cm: float | None
     thighs_cm: float | None
     calves_cm: float | None
+    source: str
+    external_id: str | None
     created_at: datetime
     updated_at: datetime
 

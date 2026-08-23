@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import CheckConstraint, Integer, String, Text
+from sqlalchemy import CheckConstraint, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import GUID, Base, TimestampMixin, UTCDateTime, UUIDPrimaryKeyMixin
@@ -19,6 +19,10 @@ class SleepEntry(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "quality_score IS NULL OR (quality_score >= 1 AND quality_score <= 5)",
             name="ck_sleep_entries_quality_score",
         ),
+        # NULL external_id (every manually-logged entry) is never considered a
+        # duplicate of another NULL; only two ingested rows sharing the same
+        # source+external_id collide, which is what makes a re-sync idempotent.
+        UniqueConstraint("source", "external_id", name="uq_sleep_entries_source_external_id"),
     )
 
     # Nullable and unenforced by any FK: there is no users table yet. Carrying
@@ -36,6 +40,9 @@ class SleepEntry(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     resting_heart_rate: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     source: Mapped[str] = mapped_column(String(30), nullable=False, default="manual")
+    # Set only by /api/v1/ingest/sleep: the sync source's own record id, used
+    # to make a re-sync idempotent rather than a signal a human ever reads.
+    external_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     @property
     def sleep_date(self) -> date:

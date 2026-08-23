@@ -68,6 +68,7 @@ class SleepEntryRead(OrmModel):
     resting_heart_rate: int | None
     notes: str | None
     source: str
+    external_id: str | None
     created_at: datetime
     updated_at: datetime
 

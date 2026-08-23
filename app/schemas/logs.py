@@ -75,6 +75,8 @@ class WorkoutLogRead(OrmModel):
     calories_burned: int | None
     overall_feeling: int
     notes: str | None
+    source: str
+    external_id: str | None
     exercises: list[ExerciseLogRead]
     created_at: datetime
     updated_at: datetime
