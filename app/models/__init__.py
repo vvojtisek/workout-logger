@@ -1,3 +1,4 @@
+from app.models.api_token import ApiToken
 from app.models.base import Base
 from app.models.body_metric import BodyMetric
 from app.models.exercise import Exercise
@@ -17,6 +18,7 @@ from app.models.workout_plan import WorkoutPlan
 from app.models.workout_session import WorkoutSession
 
 __all__ = [
+    "ApiToken",
     "Base",
     "BodyMetric",
     "Exercise",

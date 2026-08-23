@@ -443,3 +443,35 @@ def test_sleep_entries_migration_adds_table_with_computed_duration(alembic_confi
         ).one()
         assert row == (28800, 4)
     sync_engine.dispose()
+
+
+def test_api_tokens_migration_adds_table_with_unique_hash_index(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "4ce075343442")
+    command.upgrade(alembic_config, "head")
+
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    inspector = inspect(sync_engine)
+    assert "api_tokens" in inspector.get_table_names()
+    indexes = inspector.get_indexes("api_tokens")
+    hash_index = next(i for i in indexes if "token_hash" in i["column_names"])
+    assert hash_index["unique"]
+
+    token_id = str(uuid.uuid4())
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO api_tokens "
+                "(id, owner_id, name, token_hash, token_prefix, scopes, last_used_at, "
+                "revoked_at, created_at, updated_at) "
+                "VALUES (:id, NULL, 'MCP agent', 'a' || :id, 'wl_abc12345', 'read,log', NULL, "
+                "NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": token_id},
+        )
+
+    with sync_engine.connect() as connection:
+        row = connection.execute(
+            text("SELECT name, scopes FROM api_tokens WHERE id = :id"), {"id": token_id}
+        ).one()
+        assert row == ("MCP agent", "read,log")
+    sync_engine.dispose()
