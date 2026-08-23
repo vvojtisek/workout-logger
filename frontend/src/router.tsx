@@ -108,6 +108,18 @@ export const router = createBrowserRouter([
         lazy: () => import("@/features/nutrition/MealEntryForm").then((m) => ({ Component: m.MealEntryForm })),
       },
       {
+        path: "sleep",
+        lazy: () => import("@/features/sleep/SleepView").then((m) => ({ Component: m.SleepView })),
+      },
+      {
+        path: "sleep/new",
+        lazy: () => import("@/features/sleep/SleepEntryForm").then((m) => ({ Component: m.SleepEntryForm })),
+      },
+      {
+        path: "sleep/:entryId/edit",
+        lazy: () => import("@/features/sleep/SleepEntryForm").then((m) => ({ Component: m.SleepEntryForm })),
+      },
+      {
         path: "log/new",
         lazy: () => import("@/features/logs/NewLogView").then((m) => ({ Component: m.NewLogView })),
       },

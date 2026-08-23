@@ -250,3 +250,28 @@ export interface NutritionDailySummary {
   target: NutritionTarget | null;
   remaining: NutritionRemaining | null;
 }
+
+export interface SleepEntry {
+  id: string;
+  sleep_start: string;
+  sleep_end: string;
+  timezone: string;
+  sleep_date: string;
+  time_in_bed_seconds: number;
+  estimated_sleep_seconds: number | null;
+  awake_seconds: number | null;
+  quality_score: number | null;
+  resting_heart_rate: number | null;
+  notes: string | null;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SleepTrends {
+  latest: SleepEntry | null;
+  average_sleep_seconds_7d: number | null;
+  average_sleep_seconds_30d: number | null;
+  average_quality_score_7d: number | null;
+  average_quality_score_30d: number | null;
+}

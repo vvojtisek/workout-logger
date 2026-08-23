@@ -12,6 +12,7 @@ from app.api.v1 import (
     plans,
     programs,
     scheduled_workouts,
+    sleep_entries,
     workout_sessions,
 )
 from app.security import require_api_key
@@ -29,3 +30,4 @@ api_router.include_router(foods.router)
 api_router.include_router(nutrition_plans.router)
 api_router.include_router(meal_entries.router)
 api_router.include_router(nutrition_dashboard.router)
+api_router.include_router(sleep_entries.router)
