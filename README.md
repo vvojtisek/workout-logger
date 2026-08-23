@@ -153,6 +153,15 @@ kubectl create secret generic workout-logger-secret \
 
 ```
 
+The cluster must also provide a ready cert-manager `ClusterIssuer` named
+`letsencrypt-prod`. The production Ingress requests its certificate from that issuer and
+stores it in the `workout-logger-tls` Secret:
+
+```bash
+kubectl get clusterissuer letsencrypt-prod
+kubectl wait --for=condition=Ready clusterissuer/letsencrypt-prod --timeout=60s
+```
+
 ### 2. Apply ArgoCD Application
 
 ```bash
