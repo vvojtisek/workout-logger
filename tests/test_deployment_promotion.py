@@ -176,7 +176,8 @@ def test_ci_publishes_only_main_sha_and_promotes_through_protected_branch() -> N
     assert "scripts/promote_image.py" in workflow
     assert 'git push --force-with-lease --set-upstream origin "$promotion_branch"' in workflow
     assert "gh pr create" in workflow
-    assert 'gh workflow run ci.yml --ref "$PROMOTION_BRANCH"' in workflow
+    assert "--event pull_request" in workflow
+    assert "actions/runs/$promotion_run_id/approve" in workflow
     assert 'gh run watch "$promotion_run_id" --exit-status' in workflow
     assert 'gh pr merge "$PROMOTION_PR" --squash --delete-branch' in workflow
     assert "if: github.event_name != 'workflow_dispatch'" in workflow

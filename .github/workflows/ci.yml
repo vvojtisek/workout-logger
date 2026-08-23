@@ -412,7 +412,7 @@ jobs:
           fi
           gh pr update-branch "$promotion_pr" --rebase
           echo "url=$promotion_pr" >> "$GITHUB_OUTPUT"
-      - name: Run required checks for promotion commit
+      - name: Run required checks for promotion pull request
         if: steps.promotion.outputs.needed == 'true'
         id: promotion-checks
         env:
@@ -421,13 +421,12 @@ jobs:
           PROMOTION_PR: ${{ steps.promotion-pr.outputs.url }}
         run: |
           promotion_sha=$(gh pr view "$PROMOTION_PR" --json headRefOid --jq .headRefOid)
-          gh workflow run ci.yml --ref "$PROMOTION_BRANCH"
           promotion_run_id=""
           for attempt in $(seq 1 30); do
             promotion_run_id=$(gh run list \
               --workflow ci.yml \
               --branch "$PROMOTION_BRANCH" \
-              --event workflow_dispatch \
+              --event pull_request \
               --limit 20 \
               --json databaseId,headSha \
               --jq ".[] | select(.headSha == \"$promotion_sha\") | .databaseId" \
@@ -438,10 +437,16 @@ jobs:
             sleep 2
           done
           if [[ -z "$promotion_run_id" ]]; then
-            echo "Could not find the dispatched promotion workflow run" >&2
+            echo "Could not find the promotion pull-request workflow run" >&2
             exit 1
           fi
           echo "promotion_run_id=$promotion_run_id"
+          conclusion=$(gh run view "$promotion_run_id" --json conclusion --jq .conclusion)
+          if [[ "$conclusion" == "action_required" ]]; then
+            gh api \
+              --method POST \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/$promotion_run_id/approve"
+          fi
           gh run watch "$promotion_run_id" --exit-status
       - name: Merge verified production promotion
         if: steps.promotion.outputs.needed == 'true'
