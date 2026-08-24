@@ -45,10 +45,22 @@ backupPersistence:
   enabled: true
   size: 2Gi
 
+# The host is small (2Gi RAM, no swap - see issue #72). None of these jobs are
+# heavy (a single Alembic revision, a streamed SQLite online-backup copy, or a
+# bind-only PVC mount), but left unbounded they can still stack with the app
+# Deployment's own usage during a rollout and add to control-plane memory
+# pressure. Capped well under the app's own limits.
 backup:
   enabled: true
   schedule: "17 2 * * *"
   keep: 7
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
 
 resources:
   requests:
@@ -57,3 +69,21 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
+
+migrationJob:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+restore:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
