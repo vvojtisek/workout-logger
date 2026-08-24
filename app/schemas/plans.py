@@ -1,13 +1,17 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.common import OrmModel, PaginatedResponse, require_non_empty
 
+ExerciseKind = Literal["strength", "bodyweight", "cardio"]
+
 
 class PlanExerciseCreate(BaseModel):
     exercise_name: str = Field(min_length=1, max_length=150)
+    exercise_kind: ExerciseKind = "strength"
     target_sets: int = Field(ge=1, le=100)
     target_reps_min: int = Field(ge=1, le=1000)
     target_reps_max: int = Field(ge=1, le=1000)

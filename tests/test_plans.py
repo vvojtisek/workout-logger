@@ -206,3 +206,32 @@ async def test_create_plan_with_invalid_exercise_rolls_back_entire_transaction(
 async def test_invalid_uuid_path_param_returns_422(client, auth_headers):
     response = await client.get(f"{BASE}/not-a-uuid", headers=auth_headers)
     assert response.status_code == 422
+
+
+async def test_exercise_kind_defaults_to_strength(client, auth_headers):
+    payload = make_plan_payload(name="Kind Default", exercises=[make_exercise("Bench Press")])
+    response = await client.post(BASE, json=payload, headers=auth_headers)
+    assert response.status_code == 201
+    assert response.json()["exercises"][0]["exercise_kind"] == "strength"
+
+
+async def test_create_plan_with_bodyweight_and_cardio_exercises(client, auth_headers):
+    bodyweight = make_exercise("Pull-up")
+    bodyweight["exercise_kind"] = "bodyweight"
+    cardio = make_exercise("Row Erg")
+    cardio["exercise_kind"] = "cardio"
+
+    payload = make_plan_payload(name="Mixed Kinds", exercises=[bodyweight, cardio])
+    response = await client.post(BASE, json=payload, headers=auth_headers)
+    assert response.status_code == 201
+    kinds = [e["exercise_kind"] for e in response.json()["exercises"]]
+    assert kinds == ["bodyweight", "cardio"]
+
+
+async def test_create_plan_with_invalid_exercise_kind_returns_422(client, auth_headers):
+    invalid = make_exercise("Bad Kind")
+    invalid["exercise_kind"] = "yoga"
+    response = await client.post(
+        BASE, json=make_plan_payload(name="Invalid Kind", exercises=[invalid]), headers=auth_headers
+    )
+    assert response.status_code == 422

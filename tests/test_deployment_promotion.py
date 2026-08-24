@@ -165,7 +165,7 @@ def test_deployment_verifier_reports_matching_runtime_image(tmp_path: Path) -> N
     assert f"imageID={expected_image}" in result.stdout
 
 
-def test_ci_publishes_only_main_sha_and_prepares_reviewable_promotion() -> None:
+def test_ci_publishes_only_main_sha_and_promotes_through_protected_branch() -> None:
     workflow = WORKFLOW.read_text()
 
     assert "ghcr.io/${{ github.repository }}:${{ github.sha }}" in workflow
@@ -174,7 +174,16 @@ def test_ci_publishes_only_main_sha_and_prepares_reviewable_promotion() -> None:
     assert workflow.count("[skip image publish]") >= 3
     assert "push: true" in workflow
     assert "scripts/promote_image.py" in workflow
+    assert 'git push --force-with-lease --set-upstream origin "$promotion_branch"' in workflow
     assert "gh pr create" in workflow
-    assert "--draft" in workflow
+    assert "--event pull_request" in workflow
+    assert "actions/runs/$promotion_run_id/approve" in workflow
+    assert 'gh run watch "$promotion_run_id" --exit-status' in workflow
+    assert 'gh pr merge "$PROMOTION_PR" --squash --delete-branch' in workflow
+    assert "if: github.event_name != 'workflow_dispatch'" in workflow
+    assert "if: github.event_name == 'workflow_dispatch'" in workflow
+    assert "ghcr.io/gitleaks/gitleaks@sha256:" in workflow
+    assert "--log-opts=-1" in workflow
+    assert "git push origin HEAD:main" not in workflow
     assert "type=ref,event=branch" not in workflow
     assert "type=raw,value=latest" not in workflow

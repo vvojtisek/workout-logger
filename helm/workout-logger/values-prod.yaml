@@ -7,8 +7,8 @@ strategy:
 image:
   repository: ghcr.io/vvojtisek/workout-logger
   tag: ""
-  digest: "sha256:844ff421ed85e83bb1bd34cbf5ede39bd51443dc24eb345ef7c2af41dd5b4a76"
-  sourceCommit: "4fcaf7fbb3d81307acee8a8866d46b914f780777"
+  digest: "sha256:208c21148681eb4350edc89ea3d3019b10d2876b4c7e42756f52f2bdcfa6e4e6"
+  sourceCommit: "b1b434ce06792941dd1c1e36daa4c98245b4346b"
   pullPolicy: IfNotPresent
 
 existingSecret: workout-logger-secret
@@ -17,6 +17,8 @@ apiKeySecretKey: API_KEY
 ingress:
   enabled: true
   className: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
     - host: fitness.vvojtisek.eu
       paths:
@@ -34,6 +36,26 @@ env:
   TRUSTED_HOSTS: "localhost,127.0.0.1,fitness.vvojtisek.eu"
   PUBLIC_BASE_URL: "https://fitness.vvojtisek.eu/"
   RUN_MIGRATIONS_ON_STARTUP: "false"
+  # MCP OAuth: disabled until the Auth0 application described in the README's
+  # "Manual OAuth Provider Setup" section exists and the MCP_OAUTH_CLIENT_SECRET
+  # / MCP_OAUTH_JWT_SIGNING_KEY / MCP_OAUTH_STORAGE_KEY keys have been added to
+  # the `workout-logger-secret` Secret (see mcpOAuth.*SecretKey below). Flip to
+  # "true" and fill in the values below once that setup is complete.
+  MCP_OAUTH_ENABLED: "false"
+  MCP_OAUTH_PROVIDER: auth0
+  MCP_OAUTH_ISSUER: ""
+  MCP_OAUTH_CLIENT_ID: ""
+  MCP_OAUTH_AUDIENCE: "https://fitness.vvojtisek.eu/mcp/"
+  MCP_OAUTH_ALLOWED_SUBJECTS: ""
+  MCP_OAUTH_STORAGE_DIR: /data/mcp-oauth
+
+# Names of the keys within `existingSecret` holding the corresponding MCP
+# OAuth secrets, once created per the README's Secret Bootstrap step. Leave
+# empty (or MCP_OAUTH_ENABLED: "false" above) until then.
+mcpOAuth:
+  clientSecretKey: ""
+  jwtSigningKeySecretKey: ""
+  storageKeySecretKey: ""
 
 persistence:
   enabled: true
@@ -43,10 +65,22 @@ backupPersistence:
   enabled: true
   size: 2Gi
 
+# The host is small (2Gi RAM, no swap - see issue #72). None of these jobs are
+# heavy (a single Alembic revision, a streamed SQLite online-backup copy, or a
+# bind-only PVC mount), but left unbounded they can still stack with the app
+# Deployment's own usage during a rollout and add to control-plane memory
+# pressure. Capped well under the app's own limits.
 backup:
   enabled: true
   schedule: "17 2 * * *"
   keep: 7
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
 
 resources:
   requests:
@@ -55,3 +89,21 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
+
+migrationJob:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+restore:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi

@@ -28,7 +28,7 @@ This plan changes the execution model:
 1. Deliver thin end-to-end slices through database, API, UI, and browser tests.
 2. Merge each usable slice before expanding it.
 3. Keep the existing FastAPI, SQLite, vanilla JavaScript, Tailwind, Helm, and Argo CD stack for the MVP.
-4. Do not begin a React/Vite migration during this plan. Modularize the current frontend as needed. Reconsider the framework only after the active-workout flow is in production and measured.
+4. ~~Do not begin a React/Vite migration during this plan.~~ **Superseded.** Slices 1–3 shipped on the vanilla stack as written. The migration to React 19 + Vite + TypeScript was then approved separately and delivered as Slice 1 of `docs/gui-and-platform-expansion-plan.md`, which carried the active-workout screens over unchanged — every unit and browser test in this plan's gate passed without modification.
 5. Treat open deployment issue #2 as a separate track. It must not block feature PRs unless CI cannot safely validate or promote them.
 6. Create follow-up issues for unrelated defects instead of fixing them inside feature PRs.
 

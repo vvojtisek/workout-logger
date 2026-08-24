@@ -1,13 +1,13 @@
 # Workout Logger & Planner v2.0
 
-A single-user Workout Logger & Planner API with a vanilla-JS Progressive Web App frontend. Built with **FastAPI + SQLAlchemy (async) + SQLite**, packaged as a container image and deployed declaratively to **Kubernetes (k3s)** using **GitOps (ArgoCD)** and **Helm**.
+A single-user Workout Logger & Planner API with a React Progressive Web App frontend. Built with **FastAPI + SQLAlchemy (async) + SQLite**, packaged as a container image and deployed declaratively to **Kubernetes (k3s)** using **GitOps (ArgoCD)** and **Helm**.
 
 ---
 
 ## Architecture & Tech Stack
 
 * **Backend & API:** FastAPI (Python 3.11+), Pydantic v2, SQLAlchemy (asyncio), SQLite (WAL mode)
-* **Frontend:** Vanilla JS PWA + Tailwind CSS (compiled locally into `app/static/styles.css`)
+* **Frontend:** React 19 + TypeScript PWA, bundled by Vite with Tailwind CSS v4 (compiled into `app/static/dist/`)
 * **Container Runtime:** Docker / OCI image (`ghcr.io/vvojtisek/workout-logger`)
 * **Infrastructure:** K3s Kubernetes on AWS EC2
 * **GitOps Operator:** ArgoCD
@@ -20,14 +20,14 @@ A single-user Workout Logger & Planner API with a vanilla-JS Progressive Web App
 ## Repository Layout
 
 ```text
-app/            FastAPI application (API, models, schemas, services, static PWA)
+app/            FastAPI application (API, MCP server, models, schemas, services, compiled PWA bundle)
 alembic/        Database schema migrations
 helm/           Helm chart for Kubernetes deployment
 deploy/         ArgoCD application manifests
 tests/          pytest suite (unit + integration, httpx ASGI transport)
 e2e/            Playwright journey against a deployed Kubernetes stack
 scripts/        entrypoint.sh (startup script) and backup_database.py
-frontend/       Tailwind CSS source and Vitest unit tests
+frontend/       React + TypeScript single-page application source and Vitest unit tests
 
 ```
 
@@ -48,6 +48,10 @@ All configuration is managed via environment variables:
 | `PUBLIC_BASE_URL` | no | `https://fitness.vvojtisek.eu/` | Public HTTPS origin used in OpenAPI servers. |
 
 > `API_KEY` is never logged, never embedded in the container image, and supplied exclusively via Kubernetes Secret at runtime.
+
+The MCP server (`/mcp/`, used by ChatGPT and other MCP clients) authenticates separately via
+OAuth 2.1 rather than `X-API-Key`; see [MCP Server](#mcp-server) below and `.env.example` for its
+`MCP_OAUTH_*` variables.
 
 The Helm chart requires `existingSecret` to name that externally managed Secret and
 `apiKeySecretKey` to identify its data key. The defaults are `workout-logger-secret` and
@@ -70,7 +74,7 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 
 npm install
-npm run build:css
+npm run build          # compiles the SPA into app/static/dist (required before the server can serve /)
 
 cp .env.example .env       # set a real API_KEY (32+ chars)
 export $(grep -v '^#' .env | xargs)
@@ -79,6 +83,9 @@ alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 
 ```
+
+For frontend work, run `npm run dev` alongside `uvicorn` instead: Vite serves the SPA with hot
+module replacement on port 5173 and proxies `/api` and `/health` through to FastAPI on port 8000.
 
 Run tests and linters:
 
@@ -146,8 +153,26 @@ kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl create secret generic workout-logger-secret \
   --namespace prod \
-  --from-literal=API_KEY="<YOUR_PRODUCTION_API_KEY>"
+  --from-literal=API_KEY="<YOUR_PRODUCTION_API_KEY>" \
+  --from-literal=MCP_OAUTH_CLIENT_SECRET="<AUTH0_APPLICATION_CLIENT_SECRET>" \
+  --from-literal=MCP_OAUTH_JWT_SIGNING_KEY="<GENERATED_WITH_secrets.token_urlsafe_32_>" \
+  --from-literal=MCP_OAUTH_STORAGE_KEY="<GENERATED_WITH_secrets.token_urlsafe_32_>"
 
+```
+
+The three `MCP_OAUTH_*` keys are only required when MCP OAuth is enabled (`values-prod.yaml`'s
+`env.MCP_OAUTH_ENABLED: "true"`); the chart wires them into the Deployment via
+`mcpOAuth.clientSecretKey` / `mcpOAuth.jwtSigningKeySecretKey` / `mcpOAuth.storageKeySecretKey`
+(each names the key within this same Secret — set them in `values-prod.yaml`, never the values
+themselves). See [Manual OAuth Provider Setup](#manual-oauth-provider-setup) for the Auth0 side.
+
+The cluster must also provide a ready cert-manager `ClusterIssuer` named
+`letsencrypt-prod`. The production Ingress requests its certificate from that issuer and
+stores it in the `workout-logger-tls` Secret:
+
+```bash
+kubectl get clusterissuer letsencrypt-prod
+kubectl wait --for=condition=Ready clusterissuer/letsencrypt-prod --timeout=60s
 ```
 
 ### 2. Apply ArgoCD Application
@@ -165,10 +190,13 @@ ArgoCD continuously reconciles the cluster with Git:
 * Manages Traefik Ingress with automatic Let's Encrypt TLS cert generation via `cert-manager`.
 
 After each successful `main` workflow, CI publishes exactly one image tagged with the full
-Git commit SHA and opens a draft promotion pull request. Merging that pull request records
-both the source commit and immutable registry digest in `values-prod.yaml`; Argo CD remains
-the only deployment reconciler. Promotion-only commits retain a `[skip image publish]`
-marker so merging a promotion cannot recursively publish another image and open another PR.
+Git commit SHA and opens a promotion pull request that records both the source commit and
+immutable registry digest in `values-prod.yaml`. CI approves the bot-created pull request's
+workflow run when GitHub holds it for contributor approval, waits for the required checks,
+and then squash-merges the pull request through normal branch protection. Argo CD detects
+the Git change and remains the only deployment reconciler.
+Promotion-only commits retain a `[skip image publish]` marker as defense in depth against
+recursive image publication.
 
 Verify the promoted commit, requested image digest, and image ID actually running in the
 cluster with:
@@ -283,3 +311,164 @@ isolated restore drills, production recovery, validation, abort, and cleanup ste
 Active-workout Slice 1 adds authenticated `/api/v1/workout-sessions` operations to start or
 resume a plan snapshot, idempotently save a set with an absolute rest deadline, read the session,
 complete it into the existing workout-log history, and remove E2E records during verified cleanup.
+
+### MCP Server
+
+An MCP server is mounted at `/mcp` (streamable HTTP) inside this same FastAPI application — one
+deployable, per the modular-monolith decision. Its tools call `app/services/*` directly rather
+than looping back through HTTP, so they share the REST layer's validation and conflict handling.
+
+Tools: `list_programs`, `get_plan`, `create_plan`, `schedule_workout`, `log_set`, `log_meal`,
+`log_biometrics`, `get_daily_summary`.
+
+The REST API keeps its own `X-API-Key` authentication, unchanged — see
+[REST API-key authentication](#rest-api-key-authentication-unchanged) below. The MCP endpoint uses
+OAuth 2.1 instead, described here.
+
+#### Connecting ChatGPT (or another MCP client) over OAuth
+
+`/mcp/` authenticates with `Authorization: Bearer <access_token>` via OAuth 2.1 Authorization Code
++ PKCE, not `X-API-Key`. In ChatGPT (Developer Mode → Connectors → Add MCP server), enter only the
+endpoint URL:
+
+```text
+https://fitness.vvojtisek.eu/mcp/
+```
+
+ChatGPT discovers everything else itself: it fetches
+`/.well-known/oauth-protected-resource` (RFC 9728) to find the authorization server, walks that
+server's own `/.well-known/oauth-authorization-server` (RFC 8414) metadata, registers itself as a
+client, and runs the Authorization Code + PKCE (`S256`) flow. You will be prompted to log in with
+the configured IdP and (unless consent is disabled) approve the connection; the account's IdP
+subject must be on the `MCP_OAUTH_ALLOWED_SUBJECTS` allowlist below or the token is rejected.
+Grant `read log` scope — query tools need `read`, logging tools need `log`. The bootstrap `API_KEY`
+is never entered into ChatGPT and REST admin scope is never exposed to it.
+
+To revoke access, remove the offending `sub` from `MCP_OAUTH_ALLOWED_SUBJECTS` and redeploy (or
+revoke the session in the IdP's own dashboard, e.g. Auth0 → User → Sessions).
+
+#### OAuth architecture
+
+```text
+REST / Health ingest / scripts  --  X-API-Key  -->  app/security.py  --\
+                                                                          >-- app/services/*
+ChatGPT / MCP clients  --  OAuth 2.1 Code+PKCE, Bearer token  -->  /mcp/ --/
+```
+
+FastMCP (`fastmcp>=2.14`, currently running `fastmcp` 3.x) supplies the OAuth 2.1 authorization
+server proxy, RFC 9728 protected-resource metadata, and the `401 WWW-Authenticate` challenge
+natively — none of that protocol plumbing is hand-rolled here. `app/mcp/oauth.py` adds only what's
+specific to this deployment:
+
+* **Provider** (`MCP_OAUTH_PROVIDER`): `auth0` (default, production) uses FastMCP's `Auth0Provider`
+  — an OAuth proxy that bridges MCP clients requiring Dynamic Client Registration (ChatGPT) to a
+  single pre-registered confidential Auth0 application, so ChatGPT itself never needs a client
+  secret. `jwt` is a plain resource-server `JWTVerifier` against a known issuer's JWKS, with no
+  registration bridging — used by the automated test suite and available as a lighter-weight
+  option for issuers that already support public-client PKCE directly.
+* **Subject allowlist** (`MCP_OAUTH_ALLOWED_SUBJECTS`): this is a private, single-user/family
+  application, so a valid Auth0 login is necessary but not sufficient — the resolved `sub` claim
+  must also be on this comma-separated allowlist, checked in `SubjectAllowlistAuth`.
+* **Scopes**: each tool declares its own required scope natively —
+  `@mcp.tool(auth=require_scopes("read"))` / `require_scopes("log")` in `app/mcp/server.py` — rather
+  than a hand-rolled per-call check. `admin` is a REST-only scope and is never requested from or
+  granted to MCP clients.
+* **Persistent storage**: FastMCP's OAuth proxy state (client registrations, encrypted
+  upstream/refresh tokens) is written to `MCP_OAUTH_STORAGE_DIR` (default `/data/mcp-oauth`), a
+  subdirectory of the same persistent volume as the SQLite database, encrypted at rest with Fernet
+  (key derived from `MCP_OAUTH_STORAGE_KEY`). This survives pod restarts and redeployments on the
+  single-replica production deployment the same way the database file does — no Redis needed.
+* **Discovery mounting**: `/.well-known/oauth-protected-resource` and
+  `/.well-known/oauth-authorization-server` must be reachable at the domain root (MCP/OAuth clients
+  always look there first), not nested under `/mcp`. `app/main.py` registers these routes on the
+  outer FastAPI app in addition to FastMCP's own copy under the mount. `GET /mcp` (no trailing
+  slash) redirects (308) to `/mcp/` rather than 404ing, so it never becomes a second, subtly
+  different OAuth resource identifier — the canonical resource is always
+  `https://fitness.vvojtisek.eu/mcp/`.
+
+#### Required environment variables
+
+See `.env.example` for the full annotated list (`MCP_OAUTH_ENABLED`, `MCP_OAUTH_PROVIDER`,
+`MCP_OAUTH_ISSUER`, `MCP_OAUTH_CLIENT_ID`, `MCP_OAUTH_CLIENT_SECRET`, `MCP_OAUTH_AUDIENCE`,
+`MCP_OAUTH_BASE_URL`, `MCP_OAUTH_ALLOWED_SUBJECTS`, `MCP_OAUTH_JWT_SIGNING_KEY`,
+`MCP_OAUTH_STORAGE_DIR`, `MCP_OAUTH_STORAGE_KEY`). `MCP_OAUTH_ENABLED` defaults to `false`; when
+disabled, `/mcp/` has **no authentication at all**, so it must only be left disabled for local
+development, never in a network-reachable deployment.
+
+#### Local development setup
+
+Local development can run without any real IdP by using the `jwt` provider against a locally
+generated RSA key pair (the same approach the automated test suite uses in
+`tests/conftest.py`):
+
+```bash
+python -c "
+from fastmcp.server.auth.providers.jwt import RSAKeyPair
+kp = RSAKeyPair.generate()
+print('MCP_OAUTH_JWT_PUBLIC_KEY=' + kp.public_key.replace(chr(10), '\\\\n'))
+print(kp.create_token(subject='local-dev-user', issuer='https://idp.example.test/', audience='https://fitness.example.test/mcp/', scopes=['read', 'log']))
+"
+```
+
+Set `MCP_OAUTH_ENABLED=true`, `MCP_OAUTH_PROVIDER=jwt`, `MCP_OAUTH_ISSUER`/`MCP_OAUTH_AUDIENCE` to
+match what you passed above, `MCP_OAUTH_JWT_PUBLIC_KEY` to the printed public key, and
+`MCP_OAUTH_ALLOWED_SUBJECTS=local-dev-user`; use the printed token as the bearer token.
+
+#### Production setup
+
+See [Manual OAuth Provider Setup](#manual-oauth-provider-setup) for the exact Auth0 configuration,
+and [Deployment](#deployment) for the Helm/Kubernetes wiring.
+
+#### Testing OAuth
+
+* **Automated**: `pytest tests/test_mcp_oauth.py tests/test_mcp_server.py tests/test_config.py`
+  covers discovery metadata, the 401 challenge, token validation (expiry/issuer/audience/signature/
+  allowlist), and per-tool scope enforcement, using FastMCP's `jwt` provider against a locally
+  generated key pair (no network calls).
+* **MCP Inspector** (`npx @modelcontextprotocol/inspector`): point it at `https://<host>/mcp/`; it
+  walks the same discovery → PKCE → token exchange → tool-call flow a real client does, against the
+  real configured Auth0 tenant.
+* **ChatGPT Developer Mode**: see [Connecting ChatGPT](#connecting-chatgpt-or-another-mcp-client-over-oauth)
+  above.
+
+#### REST API-key authentication (unchanged)
+
+Authentication uses the same `X-API-Key` credential as before — either the bootstrap `API_KEY` or
+a scoped token minted at `/api/v1/tokens`. `GET`/`HEAD`/`OPTIONS` require the `read` scope and every
+other method requires `log`; an `admin` token satisfies both. Mint an agent a `read`+`log` token
+rather than handing it the bootstrap key. This is unrelated to the MCP OAuth flow above and
+continues to apply to `/api/v1/*`, including `/api/v1/ingest/*` health ingest, Android Health
+Connect integrations, Tasker, and HTTP Shortcuts:
+
+```bash
+curl -H "X-API-Key: wl_..." https://your-host/api/v1/plans
+```
+
+### Manual OAuth Provider Setup
+
+This has to be done once, outside the repository, in the Auth0 dashboard:
+
+| Setting | Value |
+| --- | --- |
+| Application type | Regular Web Application (confidential client — FastMCP's OAuth proxy holds the client secret; ChatGPT never sees it) |
+| Allowed Callback URLs | `https://fitness.vvojtisek.eu/mcp/auth/callback` (FastMCP's default `OAuthProxy` redirect path, appended to `MCP_OAUTH_BASE_URL`/mcp; override with `redirect_path` in `app/mcp/oauth.py` if you need something else) |
+| Allowed Logout URLs | not required |
+| API audience/resource | Create an Auth0 API with identifier `https://fitness.vvojtisek.eu/mcp/` (this becomes `MCP_OAUTH_AUDIENCE`) |
+| Scopes/permissions | Add `read` and `log` as Permissions on that API; do **not** add or expose `admin` |
+| Required grant types | Authorization Code (with PKCE); enable "Allow Skipping User Consent" only if you want to bypass FastMCP's own consent screen |
+| Issuer URL | `https://<your-tenant>.<region>.auth0.com` — this becomes `MCP_OAUTH_ISSUER` |
+| Client ID location | Auth0 Application → Settings → Client ID → set as `MCP_OAUTH_CLIENT_ID` |
+| Client secret location | Auth0 Application → Settings → Client Secret → store as the `MCP_OAUTH_CLIENT_SECRET` key in the `workout-logger-secret` Kubernetes Secret (never in Git) |
+| Auth0 Action/rule required | None for the MVP. Add a Post-Login Action only if you want to restrict which Auth0 users can even attempt login (defense in depth — the app's own `MCP_OAUTH_ALLOWED_SUBJECTS` allowlist is the actual access-control boundary and is required regardless) |
+
+After creating the application, note the user's Auth0 subject identifier (`sub`, e.g.
+`auth0|65f1a2b3c4d5e6f7g8h9i0j1` or `google-oauth2|1234567890`) — visible under Auth0 →
+User Management → Users → (user) → `user_id`. Put that value in `MCP_OAUTH_ALLOWED_SUBJECTS`.
+
+### Health Ingest
+
+`POST /api/v1/ingest/{weight|steps|sleep|sessions}` accepts pushes from Android sync apps
+(Health Sync, Tasker, HTTP Shortcuts) reading Health Connect — no companion app required. Every
+request carries `source` and `external_id`, unique together, so a re-sync never creates a
+duplicate. See [`docs/health-ingest.md`](docs/health-ingest.md) for the endpoint reference and
+setup recipes for each app.

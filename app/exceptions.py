@@ -9,9 +9,11 @@ logger = logging.getLogger("workout_logger")
 
 _STATUS_CODE_NAMES = {
     status.HTTP_401_UNAUTHORIZED: "UNAUTHORIZED",
+    status.HTTP_403_FORBIDDEN: "FORBIDDEN",
     status.HTTP_404_NOT_FOUND: "NOT_FOUND",
     status.HTTP_409_CONFLICT: "CONFLICT",
     status.HTTP_422_UNPROCESSABLE_CONTENT: "VALIDATION_ERROR",
+    status.HTTP_429_TOO_MANY_REQUESTS: "RATE_LIMITED",
     status.HTTP_503_SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
 }
 
@@ -32,6 +34,11 @@ class NotFoundError(AppError):
 class ConflictError(AppError):
     def __init__(self, detail: str, code: str = "CONFLICT") -> None:
         super().__init__(status.HTTP_409_CONFLICT, detail, code)
+
+
+class RateLimitedError(AppError):
+    def __init__(self, detail: str, code: str = "RATE_LIMITED") -> None:
+        super().__init__(status.HTTP_429_TOO_MANY_REQUESTS, detail, code)
 
 
 def _request_id(request: Request) -> str:

@@ -1,3 +1,6 @@
+import re
+
+
 async def test_root_returns_html(client):
     response = await client.get("/")
     assert response.status_code == 200
@@ -73,8 +76,17 @@ async def test_hsts_present_over_https(app_engine):
     assert response.headers["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains"
 
 
-async def test_static_css_and_js_are_served(client):
-    css_response = await client.get("/static/styles.css")
-    assert css_response.status_code == 200
-    js_response = await client.get("/static/app.js")
-    assert js_response.status_code == 200
+async def test_every_asset_referenced_by_the_shell_is_served(client):
+    """The bundle is content-hashed, so assert on what the shell actually asks for."""
+    response = await client.get("/")
+    referenced = re.findall(r'(?:src|href)="(/static/dist/[^"]+)"', response.text)
+    assert referenced, "the built shell references no hashed assets"
+    for asset_path in referenced:
+        asset_response = await client.get(asset_path)
+        assert asset_response.status_code == 200, f"{asset_path} is not served"
+
+
+async def test_root_serves_the_compiled_single_page_application(client):
+    response = await client.get("/")
+    assert '<div id="root">' in response.text
+    assert "/static/dist/assets/" in response.text

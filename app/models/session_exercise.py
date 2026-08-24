@@ -32,6 +32,10 @@ class SessionExercise(UUIDPrimaryKeyMixin, Base):
             "suggestion_source IN ('plan', 'history')",
             name="ck_session_exercise_suggestion_source",
         ),
+        CheckConstraint(
+            "exercise_kind IN ('strength', 'bodyweight', 'cardio')",
+            name="ck_session_exercises_kind",
+        ),
         Index("ix_session_exercises_session_order", "session_id", "sort_order"),
     )
 
@@ -40,6 +44,7 @@ class SessionExercise(UUIDPrimaryKeyMixin, Base):
     )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
     exercise_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    exercise_kind: Mapped[str] = mapped_column(String(20), nullable=False, default="strength")
     target_sets: Mapped[int] = mapped_column(Integer, nullable=False)
     target_reps_min: Mapped[int] = mapped_column(Integer, nullable=False)
     target_reps_max: Mapped[int] = mapped_column(Integer, nullable=False)

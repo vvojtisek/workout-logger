@@ -1,0 +1,180 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  buildGroupRounds,
+  buildWorkoutGrid,
+  groupSessionExercises,
+  parseRepsPerSet,
+  remainingTimeSeconds,
+  resolveSetDisplayState,
+  workoutProgress,
+} from "./workout-utils";
+
+describe("parseRepsPerSet", () => {
+  it("normalizes comma-separated set repetitions", () => {
+    expect(parseRepsPerSet("10, 8,, 6")).toEqual([10, 8, 6]);
+  });
+});
+
+describe("resolveSetDisplayState", () => {
+  it("marks plan values as visibly unsaved suggestions", () => {
+    expect(
+      resolveSetDisplayState({
+        savedEntry: null,
+        suggestedWeightKg: 42.5,
+        suggestedReps: 8,
+        suggestionSource: "plan",
+      })
+    ).toEqual({
+      weightKg: 42.5,
+      reps: 8,
+      rir: null,
+      isSaved: false,
+      label: "Suggested from plan · not saved",
+    });
+  });
+
+  it("prefers persisted values and marks them saved", () => {
+    expect(
+      resolveSetDisplayState({
+        savedEntry: { weight_kg: 47.5, reps: 7, rir: 2 },
+        suggestedWeightKg: 42.5,
+        suggestedReps: 8,
+        suggestionSource: "plan",
+      })
+    ).toEqual({
+      weightKg: 47.5,
+      reps: 7,
+      rir: 2,
+      isSaved: true,
+      label: "Saved",
+    });
+  });
+});
+
+describe("remainingTimeSeconds", () => {
+  it("derives remaining time from an absolute timestamp", () => {
+    expect(
+      remainingTimeSeconds("2026-08-22T10:01:30.000Z", new Date("2026-08-22T10:00:00.000Z"))
+    ).toBe(90);
+  });
+
+  it("never returns a negative value", () => {
+    expect(
+      remainingTimeSeconds("2026-08-22T09:59:59.000Z", new Date("2026-08-22T10:00:00.000Z"))
+    ).toBe(0);
+  });
+});
+
+/** @type {import("./workout-utils").GridSession} */
+const session = {
+  focused_exercise_id: "exercise-b",
+  focused_set_number: 1,
+  exercises: [
+    {
+      id: "exercise-a",
+      sort_order: 0,
+      exercise_name: "Squat",
+      exercise_kind: "strength",
+      target_sets: 2,
+      suggested_weight_kg: 80,
+      suggested_reps: 5,
+      suggestion_source: "plan",
+      group_key: null,
+      group_order: null,
+      set_entries: [
+        {
+          id: "set-a-1",
+          set_number: 1,
+          weight_kg: 82.5,
+          reps: 6,
+          rir: 2,
+          added_weight_kg: null,
+          band_level: null,
+          duration_seconds: null,
+          distance_km: null,
+          incline_percent: null,
+          rpe: null,
+          state: "completed",
+        },
+        {
+          id: "set-a-2",
+          set_number: 2,
+          weight_kg: 80,
+          reps: 5,
+          rir: null,
+          added_weight_kg: null,
+          band_level: null,
+          duration_seconds: null,
+          distance_km: null,
+          incline_percent: null,
+          rpe: null,
+          state: "skipped",
+        },
+      ],
+    },
+    {
+      id: "exercise-b",
+      sort_order: 1,
+      exercise_name: "Row",
+      exercise_kind: "strength",
+      target_sets: 2,
+      suggested_weight_kg: 40,
+      suggested_reps: 8,
+      suggestion_source: "history",
+      group_key: "superset-a",
+      group_order: 0,
+      set_entries: [],
+    },
+  ],
+};
+
+describe("Slice 2 workout grid", () => {
+  it("derives completed, skipped, current, and future rows", () => {
+    expect(buildWorkoutGrid(session).map((row) => row.state)).toEqual([
+      "completed",
+      "skipped",
+      "current",
+      "future",
+    ]);
+  });
+
+  it("counts completed and skipped sets as progress", () => {
+    expect(workoutProgress(session)).toEqual({ done: 2, total: 4, percent: 50 });
+  });
+
+  it("keeps linked exercises in one ordered group", () => {
+    expect(groupSessionExercises(session.exercises).map((group) => group.key)).toEqual([
+      "exercise:exercise-a",
+      "superset-a",
+    ]);
+  });
+});
+
+describe("buildGroupRounds", () => {
+  const rows = buildWorkoutGrid(session);
+
+  it("interleaves a superset by round, not by exercise", () => {
+    const labels = buildGroupRounds(rows, session.exercises).map(
+      (row) => `${row.roundLabel}:${row.exercise.exercise_name}:${row.setNumber}`
+    );
+    expect(labels).toEqual([
+      "1A:Squat:1",
+      "1B:Row:1",
+      "2A:Squat:2",
+      "2B:Row:2",
+    ]);
+  });
+
+  it("skips a round an exercise does not have", () => {
+    const uneven = [
+      session.exercises[0],
+      { ...session.exercises[1], target_sets: 1 },
+    ];
+    const unevenRows = buildWorkoutGrid({ ...session, exercises: uneven });
+    const labels = buildGroupRounds(unevenRows, uneven).map(
+      (row) => `${row.roundLabel}:${row.exercise.exercise_name}:${row.setNumber}`
+    );
+    expect(labels).toEqual(["1A:Squat:1", "1B:Row:1", "2A:Squat:2"]);
+  });
+});

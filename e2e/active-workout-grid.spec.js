@@ -145,17 +145,16 @@ test("logs and progresses through a real multi-exercise workout grid", async ({
       .click();
     await expect(page.getByText("5 of 6 sets")).toBeVisible();
 
-    let dialogCount = 0;
-    page.on("dialog", async (dialog) => {
-      dialogCount += 1;
-      if (dialogCount === 1) await dialog.dismiss();
-      else await dialog.accept();
-    });
-    await page.getByRole("button", { name: "Finish workout" }).click();
+    await page.getByRole("button", { name: "Finish workout" }).first().click();
+    const confirmDialog = page.getByRole("dialog", { name: "Finish incomplete workout?" });
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(confirmDialog).toBeHidden();
     await expect(page.getByRole("heading", { name: "Active Workout" })).toBeVisible();
-    await page.getByRole("button", { name: "Finish workout" }).click();
+    await page.getByRole("button", { name: "Finish workout" }).first().click();
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog.getByRole("button", { name: "Finish workout" }).click();
     await expect(page.getByRole("heading", { name: "Workout History" })).toBeVisible();
-    expect(dialogCount).toBe(2);
 
     const completedResponse = await request.get(`/api/v1/workout-sessions/${sessionId}`);
     expect(completedResponse.status()).toBe(200);

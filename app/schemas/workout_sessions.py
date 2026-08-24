@@ -17,6 +17,16 @@ class SetEntryCreate(BaseModel):
     weight_kg: float | None = Field(default=None, ge=0)
     reps: int = Field(ge=1, le=1000)
     rir: int | None = Field(default=None, ge=0, le=10)
+    # Kind-specific fields: bodyweight uses added_weight_kg/band_level, cardio
+    # uses duration_seconds/distance_km/incline_percent, and rpe is a strength
+    # alternative to rir. All optional regardless of the exercise's kind - the
+    # client only sends what its kind's inputs collected.
+    added_weight_kg: float | None = Field(default=None, ge=0)
+    band_level: str | None = Field(default=None, max_length=20)
+    duration_seconds: int | None = Field(default=None, ge=0, le=86400)
+    distance_km: float | None = Field(default=None, ge=0)
+    incline_percent: float | None = Field(default=None, ge=-100, le=100)
+    rpe: int | None = Field(default=None, ge=0, le=10)
     state: Literal["completed", "skipped"] = "completed"
     client_operation_id: str = Field(min_length=1, max_length=100)
 
@@ -25,6 +35,12 @@ class SetEntryUpdate(BaseModel):
     weight_kg: float | None = Field(default=None, ge=0)
     reps: int = Field(ge=1, le=1000)
     rir: int | None = Field(default=None, ge=0, le=10)
+    added_weight_kg: float | None = Field(default=None, ge=0)
+    band_level: str | None = Field(default=None, max_length=20)
+    duration_seconds: int | None = Field(default=None, ge=0, le=86400)
+    distance_km: float | None = Field(default=None, ge=0)
+    incline_percent: float | None = Field(default=None, ge=-100, le=100)
+    rpe: int | None = Field(default=None, ge=0, le=10)
 
 
 class WorkoutSessionFocus(BaseModel):
@@ -55,6 +71,12 @@ class SetEntryRead(OrmModel):
     weight_kg: float | None
     reps: int
     rir: int | None
+    added_weight_kg: float | None
+    band_level: str | None
+    duration_seconds: int | None
+    distance_km: float | None
+    incline_percent: float | None
+    rpe: int | None
     state: str
     completed_at: datetime
     client_operation_id: str
@@ -64,6 +86,7 @@ class SessionExerciseRead(OrmModel):
     id: UUID
     sort_order: int
     exercise_name: str
+    exercise_kind: Literal["strength", "bodyweight", "cardio"]
     target_sets: int
     target_reps_min: int
     target_reps_max: int

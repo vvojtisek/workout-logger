@@ -9,7 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.exceptions import ConflictError, NotFoundError
-from app.models import ExerciseLog, SessionExercise, SetEntry, WorkoutLog, WorkoutSession
+from app.models import (
+    ExerciseLog,
+    ScheduledWorkout,
+    SessionExercise,
+    SetEntry,
+    WorkoutLog,
+    WorkoutSession,
+)
 from app.models.base import utcnow
 from app.schemas.workout_sessions import (
     SetEntryCreate,
@@ -41,6 +48,25 @@ def _focus_next_incomplete(workout_session: WorkoutSession) -> None:
                 workout_session.focused_exercise_id = exercise.id
                 workout_session.focused_set_number = set_number
                 return
+
+
+async def _sync_scheduled_workout(
+    session: AsyncSession, workout_session_id: UUID, status: str
+) -> None:
+    """Keeps a scheduled_workouts row's status in step with its linked session.
+
+    A scheduled workout that was never started has no linked session, so this
+    is a no-op for plain (unscheduled) sessions.
+    """
+    result = await session.execute(
+        select(ScheduledWorkout).where(ScheduledWorkout.workout_session_id == workout_session_id)
+    )
+    scheduled_workout = result.scalar_one_or_none()
+    if scheduled_workout is None:
+        return
+    scheduled_workout.status = status
+    if status == "scheduled":
+        scheduled_workout.workout_session_id = None
 
 
 async def get_session(session: AsyncSession, session_id: UUID) -> WorkoutSession:
@@ -122,6 +148,7 @@ async def start_session(session: AsyncSession, source_plan_id: UUID) -> tuple[Wo
             SessionExercise(
                 sort_order=exercise.sort_order,
                 exercise_name=exercise.exercise_name,
+                exercise_kind=exercise.exercise_kind,
                 target_sets=exercise.target_sets,
                 target_reps_min=exercise.target_reps_min,
                 target_reps_max=exercise.target_reps_max,
@@ -167,6 +194,12 @@ async def save_set(
             weight_kg=data.weight_kg,
             reps=data.reps,
             rir=data.rir,
+            added_weight_kg=data.added_weight_kg,
+            band_level=data.band_level,
+            duration_seconds=data.duration_seconds,
+            distance_km=data.distance_km,
+            incline_percent=data.incline_percent,
+            rpe=data.rpe,
             state=data.state,
             client_operation_id=data.client_operation_id,
         )
@@ -202,6 +235,12 @@ async def update_set(
     entry.weight_kg = data.weight_kg
     entry.reps = data.reps
     entry.rir = data.rir
+    entry.added_weight_kg = data.added_weight_kg
+    entry.band_level = data.band_level
+    entry.duration_seconds = data.duration_seconds
+    entry.distance_km = data.distance_km
+    entry.incline_percent = data.incline_percent
+    entry.rpe = data.rpe
     workout_session.version += 1
     await session.commit()
     return await get_session(session, workout_session.id)
@@ -346,11 +385,13 @@ async def complete_session(
     workout_session.rest_ends_at = None
     workout_session.workout_log_id = workout_log.id
     workout_session.version += 1
+    await _sync_scheduled_workout(session, workout_session.id, "completed")
     await session.commit()
     return await get_session(session, workout_session.id)
 
 
 async def delete_session(session: AsyncSession, session_id: UUID) -> None:
     workout_session = await get_session(session, session_id)
+    await _sync_scheduled_workout(session, session_id, "scheduled")
     await session.delete(workout_session)
     await session.commit()
