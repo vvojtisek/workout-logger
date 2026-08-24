@@ -105,6 +105,15 @@ env:
 existingSecret: workout-logger-secret
 apiKeySecretKey: API_KEY
 
+# Keys within `existingSecret` holding MCP OAuth secrets. Left empty (the
+# default), no corresponding env var is rendered -- set these alongside
+# MCP_OAUTH_ENABLED=true in `env` (see .env.example for what each controls).
+# Never put the values themselves here or in values-prod.yaml.
+mcpOAuth:
+  clientSecretKey: ""
+  jwtSigningKeySecretKey: ""
+  storageKeySecretKey: ""
+
 resources: {}
 
 migrationJob:

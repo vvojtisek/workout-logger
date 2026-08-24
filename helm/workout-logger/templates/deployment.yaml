@@ -67,6 +67,27 @@ spec:
                 secretKeyRef:
                   name: {{ include "workout-logger.secretName" . }}
                   key: {{ .Values.apiKeySecretKey }}
+            {{- with .Values.mcpOAuth.clientSecretKey }}
+            - name: MCP_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "workout-logger.secretName" $ }}
+                  key: {{ . }}
+            {{- end }}
+            {{- with .Values.mcpOAuth.jwtSigningKeySecretKey }}
+            - name: MCP_OAUTH_JWT_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "workout-logger.secretName" $ }}
+                  key: {{ . }}
+            {{- end }}
+            {{- with .Values.mcpOAuth.storageKeySecretKey }}
+            - name: MCP_OAUTH_STORAGE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "workout-logger.secretName" $ }}
+                  key: {{ . }}
+            {{- end }}
             {{- range $key, $val := .Values.env }}
             - name: {{ $key }}
               value: {{ $val | quote }}
