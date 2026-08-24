@@ -8,6 +8,7 @@ from app.api.v1 import (
     export,
     foods,
     ingest,
+    invites,
     logs,
     mcp_status,
     meal_entries,
@@ -18,12 +19,15 @@ from app.api.v1 import (
     scheduled_workouts,
     settings,
     sleep_entries,
+    users,
     workout_sessions,
 )
 from app.security import require_api_key
 
 api_router = APIRouter(prefix="/api/v1", dependencies=[Security(require_api_key)])
 api_router.include_router(api_tokens.router)
+api_router.include_router(invites.router)
+api_router.include_router(users.router)
 api_router.include_router(plans.router)
 api_router.include_router(exercises.router)
 api_router.include_router(logs.router)

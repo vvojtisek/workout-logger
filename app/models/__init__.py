@@ -1,3 +1,4 @@
+from app.models.account_token import AccountToken
 from app.models.api_token import ApiToken
 from app.models.base import Base
 from app.models.body_metric import BodyMetric
@@ -15,11 +16,13 @@ from app.models.set_entry import SetEntry
 from app.models.settings import UserSettings
 from app.models.sleep_entry import SleepEntry
 from app.models.step_count import StepCount
+from app.models.user import User
 from app.models.workout_log import WorkoutLog
 from app.models.workout_plan import WorkoutPlan
 from app.models.workout_session import WorkoutSession
 
 __all__ = [
+    "AccountToken",
     "ApiToken",
     "Base",
     "BodyMetric",
@@ -36,6 +39,7 @@ __all__ = [
     "SetEntry",
     "SleepEntry",
     "StepCount",
+    "User",
     "UserSettings",
     "WorkoutLog",
     "WorkoutPlan",
