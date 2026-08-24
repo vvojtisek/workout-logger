@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
+from app.api.v1.auth import router as auth_router
 from app.api.v1.router import api_router
 from app.config import get_settings
 from app.database import get_engine
@@ -103,6 +104,10 @@ async def request_id_and_access_log_middleware(request: Request, call_next):
 
 register_exception_handlers(app)
 app.include_router(api_router)
+# Deliberately NOT included via api_router: these routes (invite acceptance,
+# and login/logout/me once slice 2 lands) must be reachable without any
+# prior auth, so they can't sit behind api_router's blanket X-API-Key gate.
+app.include_router(auth_router, prefix="/api/v1")
 
 
 @app.get("/mcp", include_in_schema=False)

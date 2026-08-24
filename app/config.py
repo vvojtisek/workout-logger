@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     TRUSTED_HOSTS: str = "localhost,127.0.0.1"
     PUBLIC_BASE_URL: str | None = None
 
+    # --- Invite-only accounts (no SMTP; admin-issued single-use links) ---
+    PASSWORD_MIN_LENGTH: int = 12
+    INVITE_TTL_HOURS: int = 72
+    PASSWORD_RESET_TTL_HOURS: int = 72
+
     # --- MCP OAuth 2.1 (ChatGPT / MCP clients only; REST keeps X-API-Key) ---
     MCP_OAUTH_ENABLED: bool = False
     # "auth0" (default): FastMCP's OAuthProxy bridging Auth0 for MCP clients
