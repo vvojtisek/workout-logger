@@ -1,15 +1,18 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { AppLayout } from "@/AppLayout";
+import { RouteErrorBoundary } from "@/app/RouteErrorBoundary";
 import { RequireAuth } from "@/auth/RequireAuth";
 
 export const router = createBrowserRouter([
   {
     path: "login",
+    errorElement: <RouteErrorBoundary />,
     lazy: () => import("@/features/auth/LoginView").then((m) => ({ Component: m.LoginView })),
   },
   {
     path: "accept-invite",
+    errorElement: <RouteErrorBoundary />,
     lazy: () =>
       import("@/features/auth/AcceptInviteView").then((m) => ({ Component: m.AcceptInviteView })),
   },
@@ -18,6 +21,7 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <AppLayout />,
+        errorElement: <RouteErrorBoundary />,
         children: [
           { index: true, element: <Navigate to="/plans" replace /> },
           {
