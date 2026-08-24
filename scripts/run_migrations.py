@@ -9,7 +9,6 @@ import re
 import subprocess
 from pathlib import Path
 
-
 RELEASE_ID_PATTERN = re.compile(r"[0-9a-f]{12}")
 
 

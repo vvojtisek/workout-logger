@@ -4,7 +4,6 @@ import tempfile
 import uuid
 
 import pytest
-from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
@@ -12,6 +11,7 @@ from sqlalchemy import create_engine as create_sync_engine
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 
+from alembic import command
 from app.config import get_settings
 from app.models import Base
 
@@ -558,18 +558,17 @@ def test_health_ingest_migration_backfills_source_and_adds_step_counts(
             {"id": second_manual_id},
         )
 
-    with sync_engine.begin() as connection:
-        with pytest.raises(IntegrityError):
-            connection.execute(
-                text(
-                    "INSERT INTO step_counts "
-                    "(id, owner_id, recorded_date, steps, source, external_id, "
-                    "created_at, updated_at) "
-                    "VALUES (:id, NULL, '2026-01-16', 1, 'health_connect', 'hc-1', "
-                    "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
-                ),
-                {"id": step_id_two},
-            )
+    with sync_engine.begin() as connection, pytest.raises(IntegrityError):
+        connection.execute(
+            text(
+                "INSERT INTO step_counts "
+                "(id, owner_id, recorded_date, steps, source, external_id, "
+                "created_at, updated_at) "
+                "VALUES (:id, NULL, '2026-01-16', 1, 'health_connect', 'hc-1', "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": step_id_two},
+        )
     sync_engine.dispose()
 
 
@@ -602,15 +601,14 @@ def test_user_settings_migration_adds_table_with_defaults_enforced_by_check_cons
         ).one()
         assert row == ("metric", 90)
 
-    with sync_engine.begin() as connection:
-        with pytest.raises(IntegrityError):
-            connection.execute(
-                text(
-                    "INSERT INTO user_settings "
-                    "(id, owner_id, units, default_rest_compound_seconds, "
-                    "default_rest_isolation_seconds, created_at, updated_at) "
-                    "VALUES (:id, NULL, 'furlongs', 90, 60, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
-                ),
-                {"id": str(uuid.uuid4())},
-            )
+    with sync_engine.begin() as connection, pytest.raises(IntegrityError):
+        connection.execute(
+            text(
+                "INSERT INTO user_settings "
+                "(id, owner_id, units, default_rest_compound_seconds, "
+                "default_rest_isolation_seconds, created_at, updated_at) "
+                "VALUES (:id, NULL, 'furlongs', 90, 60, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": str(uuid.uuid4())},
+        )
     sync_engine.dispose()

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict
@@ -39,4 +39,4 @@ def require_non_empty(value: str, field_name: str = "value") -> str:
 def require_timezone_aware_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         raise ValueError("datetime must include a timezone")
-    return value.astimezone(timezone.utc)
+    return value.astimezone(UTC)

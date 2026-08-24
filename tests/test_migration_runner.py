@@ -6,9 +6,8 @@ from pathlib import Path
 
 import pytest
 
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-import run_migrations  # noqa: E402
+import run_migrations
 
 
 def test_successful_release_runs_once_and_retains_output(tmp_path, monkeypatch, capsys) -> None:

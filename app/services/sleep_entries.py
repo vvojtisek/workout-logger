@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -113,9 +113,9 @@ async def get_trends(session: AsyncSession) -> SleepTrends:
     # A bounded, indexed query on sleep_end; the extra day of slack absorbs
     # the timezone offset between UTC storage and each entry's local date.
     lower_bound = datetime.combine(
-        anchor - timedelta(days=max_window), time.min, tzinfo=timezone.utc
+        anchor - timedelta(days=max_window), time.min, tzinfo=UTC
     )
-    upper_bound = datetime.combine(anchor + timedelta(days=1), time.min, tzinfo=timezone.utc)
+    upper_bound = datetime.combine(anchor + timedelta(days=1), time.min, tzinfo=UTC)
     result = await session.execute(
         select(SleepEntry).where(
             SleepEntry.sleep_end >= lower_bound, SleepEntry.sleep_end < upper_bound

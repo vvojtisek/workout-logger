@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from app.models.base import GUID, UTCDateTime
 
@@ -46,7 +46,7 @@ def test_utc_datetime_bind_param_converts_to_utc():
     plus_two = timezone(timedelta(hours=2))
     value = datetime(2026, 1, 1, 10, 0, tzinfo=plus_two)
     result = UTCDateTime().process_bind_param(value, None)
-    assert result == datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc)
+    assert result == datetime(2026, 1, 1, 8, 0, tzinfo=UTC)
 
 
 def test_utc_datetime_result_value_none_passthrough():
@@ -55,7 +55,7 @@ def test_utc_datetime_result_value_none_passthrough():
 
 def test_utc_datetime_result_value_assumes_utc_when_naive():
     result = UTCDateTime().process_result_value(datetime(2026, 1, 1, 8, 0), None)
-    assert result == datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc)
+    assert result == datetime(2026, 1, 1, 8, 0, tzinfo=UTC)
 
 
 def test_utc_datetime_result_value_normalizes_aware_datetime():
@@ -64,4 +64,4 @@ def test_utc_datetime_result_value_normalizes_aware_datetime():
     plus_two = timezone(timedelta(hours=2))
     value = datetime(2026, 1, 1, 10, 0, tzinfo=plus_two)
     result = UTCDateTime().process_result_value(value, None)
-    assert result == datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc)
+    assert result == datetime(2026, 1, 1, 8, 0, tzinfo=UTC)

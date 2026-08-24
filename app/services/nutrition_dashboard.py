@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +14,7 @@ from app.services.nutrition_plans import get_applicable_plan
 
 
 async def _get_totals(session: AsyncSession, on_date: date) -> NutritionTotals:
-    day_start = datetime.combine(on_date, time.min, tzinfo=timezone.utc)
+    day_start = datetime.combine(on_date, time.min, tzinfo=UTC)
     day_end = day_start + timedelta(days=1)
     result = await session.execute(
         select(

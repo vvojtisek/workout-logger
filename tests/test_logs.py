@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 LOGS = "/api/v1/logs"
 PLANS = "/api/v1/plans"
@@ -11,7 +11,7 @@ def iso(dt: datetime) -> str:
 
 def make_log_payload(**overrides) -> dict:
     payload = {
-        "performed_at": iso(datetime(2026, 6, 1, 8, 0, tzinfo=timezone.utc)),
+        "performed_at": iso(datetime(2026, 6, 1, 8, 0, tzinfo=UTC)),
         "total_time_minutes": 45,
         "overall_feeling": 4,
         "exercises": [],
@@ -90,8 +90,8 @@ async def test_get_log_detail(client, auth_headers):
 
 
 async def test_logs_ordered_newest_first(client, auth_headers):
-    older = make_log_payload(performed_at=iso(datetime(2026, 1, 1, tzinfo=timezone.utc)))
-    newer = make_log_payload(performed_at=iso(datetime(2026, 3, 1, tzinfo=timezone.utc)))
+    older = make_log_payload(performed_at=iso(datetime(2026, 1, 1, tzinfo=UTC)))
+    newer = make_log_payload(performed_at=iso(datetime(2026, 3, 1, tzinfo=UTC)))
     await client.post(LOGS, json=older, headers=auth_headers)
     await client.post(LOGS, json=newer, headers=auth_headers)
 
@@ -101,8 +101,8 @@ async def test_logs_ordered_newest_first(client, auth_headers):
 
 
 async def test_filter_logs_by_date_range(client, auth_headers):
-    in_range = make_log_payload(performed_at=iso(datetime(2026, 5, 15, tzinfo=timezone.utc)))
-    out_of_range = make_log_payload(performed_at=iso(datetime(2026, 8, 1, tzinfo=timezone.utc)))
+    in_range = make_log_payload(performed_at=iso(datetime(2026, 5, 15, tzinfo=UTC)))
+    out_of_range = make_log_payload(performed_at=iso(datetime(2026, 8, 1, tzinfo=UTC)))
     await client.post(LOGS, json=in_range, headers=auth_headers)
     await client.post(LOGS, json=out_of_range, headers=auth_headers)
 
@@ -131,7 +131,7 @@ async def test_logs_pagination(client, auth_headers):
     for day in range(1, 4):
         await client.post(
             LOGS,
-            json=make_log_payload(performed_at=iso(datetime(2026, 2, day, tzinfo=timezone.utc))),
+            json=make_log_payload(performed_at=iso(datetime(2026, 2, day, tzinfo=UTC))),
             headers=auth_headers,
         )
 

@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import httpx
 import pytest
@@ -43,9 +43,8 @@ async def mcp_client(token: str):
         headers={"Authorization": f"Bearer {token}"},
         httpx_client_factory=factory,
     )
-    async with app.router.lifespan_context(app):
-        async with Client(transport) as client:
-            yield client
+    async with app.router.lifespan_context(app), Client(transport) as client:
+        yield client
 
 
 async def test_mcp_exposes_exactly_the_planned_tools(client, auth_headers):
@@ -315,7 +314,7 @@ async def test_log_meal_snapshots_catalogue_nutrition(client, auth_headers):
 
 
 async def test_log_biometrics_then_get_daily_summary_uses_the_same_database(client, auth_headers):
-    measured_at = datetime.now(timezone.utc) - timedelta(days=1)
+    measured_at = datetime.now(UTC) - timedelta(days=1)
     async with mcp_client(mint_mcp_oauth_token()) as agent:
         metric = await agent.call_tool(
             "log_biometrics",

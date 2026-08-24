@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -31,7 +31,7 @@ def valid_exercise_log(**overrides) -> dict:
 
 def valid_workout_log(**overrides) -> dict:
     data = {
-        "performed_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+        "performed_at": datetime(2026, 1, 1, tzinfo=UTC),
         "total_time_minutes": 45,
         "overall_feeling": 4,
         "exercises": [],
@@ -51,7 +51,7 @@ def test_performed_at_is_normalized_to_utc():
     plus_two = timezone(timedelta(hours=2))
     local_dt = datetime(2026, 1, 1, 10, 0, tzinfo=plus_two)
     log = WorkoutLogCreate(**valid_workout_log(performed_at=local_dt))
-    assert log.performed_at.tzinfo == timezone.utc
+    assert log.performed_at.tzinfo == UTC
     assert log.performed_at.hour == 8
 
 

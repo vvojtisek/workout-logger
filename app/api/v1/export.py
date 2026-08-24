@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -25,7 +25,7 @@ async def export_data(
     session: AsyncSession = Depends(get_session),
 ) -> Response:
     data = await export_service.gather_export(session)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 
     if format == "csv":
         archive = export_service.to_csv_zip(data)

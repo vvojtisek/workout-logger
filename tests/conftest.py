@@ -21,7 +21,7 @@ os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_APP_DB_PATH}"
 # allowlist wrapper (`app.mcp.oauth.SubjectAllowlistAuth`) that production
 # uses; only the client-registration bridge to Auth0 itself is untested here
 # (see the "Manual OAuth Provider Setup"/MCP Inspector section in the PR).
-from fastmcp.server.auth.providers.jwt import RSAKeyPair  # noqa: E402
+from fastmcp.server.auth.providers.jwt import RSAKeyPair
 
 TEST_MCP_OAUTH_ISSUER = "https://idp.example.test/"
 TEST_MCP_OAUTH_AUDIENCE = "https://fitness.example.test/mcp/"
@@ -35,8 +35,8 @@ os.environ.setdefault("MCP_OAUTH_AUDIENCE", TEST_MCP_OAUTH_AUDIENCE)
 os.environ.setdefault("MCP_OAUTH_JWT_PUBLIC_KEY", _MCP_OAUTH_KEY_PAIR.public_key)
 os.environ.setdefault("MCP_OAUTH_ALLOWED_SUBJECTS", TEST_MCP_OAUTH_ALLOWED_SUBJECT)
 
-from app.database import create_engine  # noqa: E402
-from app.models import Base  # noqa: E402
+from app.database import create_engine
+from app.models import Base
 
 TEST_API_KEY = os.environ["API_KEY"]
 

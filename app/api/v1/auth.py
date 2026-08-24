@@ -14,7 +14,8 @@ from app.schemas.invites import AcceptInviteRequest
 from app.schemas.users import UserRead
 from app.security_passwords import verify_password
 from app.services import invites as invites_service
-from app.services import login_rate_limit, sessions as sessions_service
+from app.services import login_rate_limit
+from app.services import sessions as sessions_service
 
 # Registered directly on the app in app/main.py, NOT through `api_router` --
 # every route here must be reachable without a *prior* valid credential (there
