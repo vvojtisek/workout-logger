@@ -51,6 +51,39 @@ def test_scheduled_backup_uses_a_separate_retained_pvc() -> None:
     assert not (service_selector.items() <= backup_labels.items())
 
 
+def test_backup_pvc_bind_job_makes_it_the_wait_for_first_consumer_pvcs_first_consumer() -> None:
+    resources = render_chart()
+    jobs = [item for item in resources if item["kind"] == "Job"]
+    bind_job = next(job for job in jobs if "backup-pvc-bind" in job["metadata"]["name"])
+
+    # A plain (non-hook) resource, so it is applied in the same sync wave as
+    # the backups PVC itself - not deferred to a PreSync/PostSync phase that
+    # would never run while that PVC is still blocking the main sync on a
+    # WaitForFirstConsumer storage class.
+    assert "argocd.argoproj.io/hook" not in bind_job["metadata"].get("annotations", {})
+
+    pod_spec = bind_job["spec"]["template"]["spec"]
+    claims = {
+        volume["name"]: volume["persistentVolumeClaim"]["claimName"]
+        for volume in pod_spec["volumes"]
+    }
+    assert claims == {"backups": "workout-logger-backups"}
+
+    service_selector = resource(resources, "Service")["spec"]["selector"]
+    bind_labels = bind_job["spec"]["template"]["metadata"]["labels"]
+    assert not (service_selector.items() <= bind_labels.items())
+
+
+def test_backup_pvc_bind_job_absent_when_backup_persistence_disabled_or_external() -> None:
+    for values in (
+        ("backupPersistence.enabled=false",),
+        ("backupPersistence.enabled=true", "backupPersistence.existingClaim=external-backups"),
+    ):
+        resources = render_chart(*values)
+        jobs = [item for item in resources if item["kind"] == "Job"]
+        assert not any("backup-pvc-bind" in job["metadata"]["name"] for job in jobs)
+
+
 def test_restore_configuration_requires_zero_replicas_and_no_migration() -> None:
     for values, expected in (
         (("restore.enabled=true", "migrationJob.enabled=false"), "replicaCount=0"),
@@ -73,7 +106,15 @@ def test_restore_is_a_postsync_job_with_explicit_exclusive_confirmation() -> Non
         "migrationJob.enabled=false",
     )
     deployment = resource(resources, "Deployment")
-    job = resource(resources, "Job")
+    # The backups PVC bind job (see backup-pvc-bind-job.yaml) also renders
+    # alongside this one whenever backupPersistence is enabled, so the
+    # restore job must be picked out specifically rather than assuming it is
+    # the only Job in the manifest.
+    job = next(
+        item
+        for item in resources
+        if item["kind"] == "Job" and "-restore-" in item["metadata"]["name"]
+    )
     pod_spec = job["spec"]["template"]["spec"]
 
     assert deployment["spec"]["replicas"] == 0
