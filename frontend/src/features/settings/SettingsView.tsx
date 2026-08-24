@@ -1,17 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
 
-import {
-  apiFetch,
-  apiFetchBlob,
-  clearStoredApiKey,
-  errorMessage,
-  getStoredApiKey,
-  setStoredApiKey,
-  triggerBlobDownload,
-} from "@/api/client";
+import { apiFetch, apiFetchBlob, errorMessage, triggerBlobDownload } from "@/api/client";
 import type { McpStatus, UserSettings, Units } from "@/api/types";
+import { useAuth } from "@/auth/AuthContext";
 import { SETTINGS_QUERY_KEY, useSettingsQuery } from "@/lib/settings-query";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
@@ -20,57 +12,19 @@ function SectionHeading({ children }: { children: string }) {
   return <h2 className="mb-2 text-sm font-medium text-muted">{children}</h2>;
 }
 
-function ApiKeySection() {
-  const [value, setValue] = useState("");
-  const [status, setStatus] = useState("");
-
-  function save(event: FormEvent) {
-    event.preventDefault();
-    setStoredApiKey(value.trim());
-    setValue("");
-    setStatus("API key saved.");
-  }
-
-  function forget() {
-    clearStoredApiKey();
-    setValue("");
-    setStatus("API key removed.");
-  }
-
+function AccountSection() {
+  const { user } = useAuth();
+  if (!user) return null;
   return (
     <div className="mb-6">
-      <SectionHeading>API Key</SectionHeading>
+      <SectionHeading>Account</SectionHeading>
       <Card className="p-4">
-        <form id="api-key-form" onSubmit={save} autoComplete="off" className="flex flex-col gap-3">
-          <div>
-            <label className="field-label" htmlFor="api-key-input">
-              X-API-Key
-            </label>
-            <Input
-              id="api-key-input"
-              name="api-key"
-              type="password"
-              autoComplete="off"
-              value={value}
-              onChange={(event) => setValue(event.target.value)}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" variant="primary">
-              Save key
-            </Button>
-            <Button id="forget-api-key" onClick={forget}>
-              Forget API key
-            </Button>
-          </div>
-        </form>
-        {status ? (
-          <p id="api-key-status" className="mt-3 text-sm text-muted">
-            {status}
-          </p>
-        ) : (
-          <p id="api-key-status" className="mt-3 text-sm text-muted" />
-        )}
+        <p className="text-sm">
+          Logged in as <span className="font-medium">{user.email}</span>
+          <span className="ml-2 rounded-full bg-surface-raised px-2.5 py-0.5 text-xs font-medium text-muted">
+            {user.role}
+          </span>
+        </p>
       </Card>
     </div>
   );
@@ -195,7 +149,7 @@ function McpSection() {
     queryFn: () => apiFetch<McpStatus>("/mcp-status"),
   });
 
-  const apiKey = getStoredApiKey() || "wl_...";
+  const apiKey = "wl_...";
   const mcpUrl = `${window.location.origin}/mcp/`;
   const configSnippet = JSON.stringify(
     {
@@ -237,8 +191,8 @@ function McpSection() {
               {configSnippet}
             </pre>
             <p className="text-sm text-muted">
-              Mint the agent a scoped token under API Tokens with the read and log scopes rather
-              than pasting your own key above.
+              Mint the agent a scoped token under API Tokens with the read and log scopes, and
+              swap it in for the placeholder above.
             </p>
           </>
         ) : null}
@@ -297,7 +251,7 @@ export function SettingsView() {
   return (
     <section id="settings-view">
       <PageHeading>Settings</PageHeading>
-      <ApiKeySection />
+      <AccountSection />
       <PreferencesSection />
       <McpSection />
       <ExportSection />

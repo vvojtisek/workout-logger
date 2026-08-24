@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
-import { apiFetch, getStoredApiKey } from "@/api/client";
+import { apiFetch } from "@/api/client";
 import type { WorkoutSession } from "@/api/types";
+import { useAuth } from "@/auth/AuthContext";
 import { Toaster } from "@/ui/Toast";
 
 interface AppContextValue {
@@ -54,7 +55,12 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const online = useOnlineStatus();
+  const { logout } = useAuth();
   const [session, setSession] = useState<WorkoutSession | null>(null);
+
+  const handleLogout = useCallback(() => {
+    void logout().then(() => navigate("/login"));
+  }, [logout, navigate]);
 
   const openSession = useCallback(
     (next: WorkoutSession) => {
@@ -74,7 +80,6 @@ export function AppLayout() {
   }, []);
 
   useEffect(() => {
-    if (!getStoredApiKey()) return;
     let cancelled = false;
     apiFetch<WorkoutSession>("/workout-sessions/active")
       .then((active) => {
@@ -96,14 +101,24 @@ export function AppLayout() {
         <header className="sticky top-0 z-40 border-b border-border-subtle bg-surface/90 backdrop-blur">
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
             <h1 className="text-base font-semibold tracking-tight">Workout Logger</h1>
-            <span
-              id="connection-status"
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                online ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
-              }`}
-            >
-              {online ? "online" : "offline"}
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                id="connection-status"
+                className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                  online ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
+                }`}
+              >
+                {online ? "online" : "offline"}
+              </span>
+              <button
+                id="logout-btn"
+                type="button"
+                onClick={handleLogout}
+                className="text-xs font-medium text-muted hover:text-text"
+              >
+                Log out
+              </button>
+            </div>
           </div>
         </header>
 
