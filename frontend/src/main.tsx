@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 
+import { AuthProvider } from "@/auth/AuthContext";
 import { router } from "@/router";
 import "@/styles/tokens.css";
 
@@ -21,7 +22,9 @@ if (!container) throw new Error("Application root element is missing");
 createRoot(container).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,
 );

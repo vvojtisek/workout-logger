@@ -7,6 +7,18 @@ export interface Paginated<T> {
   offset: number;
 }
 
+export const ROLES = ["admin", "user"] as const;
+export type Role = (typeof ROLES)[number];
+
+export interface CurrentUser {
+  id: string;
+  email: string;
+  role: Role;
+  disabled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PlanExercise {
   id: string;
   sort_order: number;
