@@ -6,10 +6,9 @@ import pytest
 from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
 
-from tests.conftest import TEST_API_KEY
+from tests.conftest import mint_mcp_oauth_token
 
 MCP_URL = "http://testserver/mcp/"
-TOKENS = "/api/v1/tokens"
 
 EXPECTED_TOOLS = {
     "create_plan",
@@ -24,9 +23,9 @@ EXPECTED_TOOLS = {
 
 
 @asynccontextmanager
-async def mcp_client(api_key: str):
+async def mcp_client(token: str):
     """An MCP client speaking streamable HTTP to the real mounted app, so every
-    call goes through the same auth middleware a deployed agent would hit."""
+    call goes through the same OAuth verification a deployed agent would hit."""
     from app.main import app
 
     def factory(headers=None, timeout=None, auth=None, **kwargs):
@@ -40,35 +39,29 @@ async def mcp_client(api_key: str):
         )
 
     transport = StreamableHttpTransport(
-        url=MCP_URL, headers={"X-API-Key": api_key}, httpx_client_factory=factory
+        url=MCP_URL,
+        headers={"Authorization": f"Bearer {token}"},
+        httpx_client_factory=factory,
     )
     async with app.router.lifespan_context(app):
         async with Client(transport) as client:
             yield client
 
 
-async def mint_token(client, auth_headers, name: str, scopes: list[str]) -> str:
-    response = await client.post(
-        TOKENS, json={"name": name, "scopes": scopes}, headers=auth_headers
-    )
-    assert response.status_code == 201
-    return response.json()["token"]
-
-
 async def test_mcp_exposes_exactly_the_planned_tools(client, auth_headers):
-    async with mcp_client(TEST_API_KEY) as agent:
+    async with mcp_client(mint_mcp_oauth_token()) as agent:
         tools = await agent.list_tools()
     assert {tool.name for tool in tools} == EXPECTED_TOOLS
 
 
 async def test_every_tool_documents_itself(client, auth_headers):
-    async with mcp_client(TEST_API_KEY) as agent:
+    async with mcp_client(mint_mcp_oauth_token()) as agent:
         tools = await agent.list_tools()
     for tool in tools:
         assert tool.description, f"{tool.name} has no description"
 
 
-async def test_unauthenticated_mcp_request_is_rejected(client):
+async def test_unauthenticated_mcp_request_gets_an_oauth_challenge(client):
     from app.main import app
 
     async with app.router.lifespan_context(app):
@@ -80,16 +73,26 @@ async def test_unauthenticated_mcp_request_is_rejected(client):
                 headers={"Accept": "application/json, text/event-stream"},
             )
     assert response.status_code == 401
-    assert response.json()["code"] == "UNAUTHORIZED"
+    challenge = response.headers.get("www-authenticate", "")
+    assert challenge.startswith("Bearer")
+    assert (
+        'resource_metadata="https://fitness.example.test/.well-known/oauth-protected-resource/mcp/"'
+        in challenge
+    )
 
 
-async def test_revoked_token_is_rejected_at_the_mcp_boundary(client, auth_headers):
+@pytest.mark.parametrize(
+    "make_token",
+    [
+        lambda: mint_mcp_oauth_token(expires_in_seconds=-60),
+        lambda: mint_mcp_oauth_token(issuer="https://wrong-issuer.example.test/"),
+        lambda: mint_mcp_oauth_token(audience="https://wrong-audience.example.test/mcp/"),
+        lambda: mint_mcp_oauth_token(subject="auth0|someone-not-allowlisted"),
+    ],
+    ids=["expired", "wrong-issuer", "wrong-audience", "non-allowlisted-subject"],
+)
+async def test_invalid_or_disallowed_tokens_are_rejected(client, make_token):
     from app.main import app
-
-    raw_token = await mint_token(client, auth_headers, "revoked agent", ["read", "log"])
-    listed = await client.get(TOKENS, headers=auth_headers)
-    token_id = next(t["id"] for t in listed.json()["items"] if t["name"] == "revoked agent")
-    await client.post(f"{TOKENS}/{token_id}/revoke", headers=auth_headers)
 
     async with app.router.lifespan_context(app):
         transport = httpx.ASGITransport(app=app)
@@ -98,35 +101,65 @@ async def test_revoked_token_is_rejected_at_the_mcp_boundary(client, auth_header
                 MCP_URL,
                 json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
                 headers={
-                    "X-API-Key": raw_token,
+                    "Authorization": f"Bearer {make_token()}",
                     "Accept": "application/json, text/event-stream",
                 },
             )
     assert response.status_code == 401
 
 
-async def test_read_scoped_token_can_query_but_not_log(client, auth_headers):
-    raw_token = await mint_token(client, auth_headers, "read agent", ["read"])
-    async with mcp_client(raw_token) as agent:
+async def test_bad_signature_is_rejected(client):
+    from app.main import app
+
+    good = mint_mcp_oauth_token()
+    tampered = good[:-4] + ("A" if good[-4] != "A" else "B") + good[-3:]
+
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as raw:
+            response = await raw.post(
+                MCP_URL,
+                json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+                headers={
+                    "Authorization": f"Bearer {tampered}",
+                    "Accept": "application/json, text/event-stream",
+                },
+            )
+    assert response.status_code == 401
+
+
+async def test_a_read_only_token_can_query_but_not_log(client, auth_headers):
+    token = mint_mcp_oauth_token(scopes=["read"])
+    async with mcp_client(token) as agent:
         summary = await agent.call_tool("get_daily_summary", {"on_date": "2026-05-01"})
         assert summary.data["date"] == "2026-05-01"
 
-        with pytest.raises(Exception, match="log"):
+        with pytest.raises(Exception):
             await agent.call_tool(
                 "log_biometrics",
                 {"measured_at": "2026-05-01T08:00:00Z", "weight_kg": 80.0},
             )
 
 
-async def test_log_scoped_token_cannot_call_a_read_tool_without_read(client, auth_headers):
-    raw_token = await mint_token(client, auth_headers, "log only agent", ["log"])
-    async with mcp_client(raw_token) as agent:
-        with pytest.raises(Exception, match="read"):
+async def test_a_log_only_token_cannot_call_a_read_tool(client, auth_headers):
+    token = mint_mcp_oauth_token(scopes=["log"])
+    async with mcp_client(token) as agent:
+        with pytest.raises(Exception):
             await agent.call_tool("list_programs", {})
 
 
+async def test_a_read_and_log_token_can_call_both(client, auth_headers):
+    token = mint_mcp_oauth_token(scopes=["read", "log"])
+    async with mcp_client(token) as agent:
+        await agent.call_tool("list_programs", {})
+        await agent.call_tool(
+            "log_biometrics",
+            {"measured_at": "2026-05-01T08:00:00Z", "weight_kg": 80.0},
+        )
+
+
 async def test_create_plan_and_get_plan_round_trip(client, auth_headers):
-    async with mcp_client(TEST_API_KEY) as agent:
+    async with mcp_client(mint_mcp_oauth_token()) as agent:
         created = await agent.call_tool(
             "create_plan",
             {
@@ -168,7 +201,7 @@ async def test_list_programs_reflects_rest_created_programs(client, auth_headers
         },
         headers=auth_headers,
     )
-    async with mcp_client(TEST_API_KEY) as agent:
+    async with mcp_client(mint_mcp_oauth_token()) as agent:
         result = await agent.call_tool("list_programs", {})
     assert result.data["total"] == 1
     assert result.data["items"][0]["name"] == "Hockey Pre-Season"
@@ -180,7 +213,7 @@ async def test_schedule_workout_puts_a_plan_on_the_calendar(client, auth_headers
     )
     plan_id = plan.json()["id"]
 
-    async with mcp_client(TEST_API_KEY) as agent:
+    async with mcp_client(mint_mcp_oauth_token()) as agent:
         scheduled = await agent.call_tool(
             "schedule_workout", {"workout_plan_id": plan_id, "scheduled_date": "2026-06-15"}
         )
@@ -219,7 +252,7 @@ async def test_log_set_records_into_an_active_session_and_is_idempotent(client, 
     session_id = workout_session["id"]
     exercise_id = workout_session["exercises"][0]["id"]
 
-    async with mcp_client(TEST_API_KEY) as agent:
+    async with mcp_client(mint_mcp_oauth_token()) as agent:
         first = await agent.call_tool(
             "log_set",
             {
@@ -267,7 +300,7 @@ async def test_log_meal_snapshots_catalogue_nutrition(client, auth_headers):
     )
     food_id = food.json()["id"]
 
-    async with mcp_client(TEST_API_KEY) as agent:
+    async with mcp_client(mint_mcp_oauth_token()) as agent:
         entry = await agent.call_tool(
             "log_meal",
             {
@@ -283,7 +316,7 @@ async def test_log_meal_snapshots_catalogue_nutrition(client, auth_headers):
 
 async def test_log_biometrics_then_get_daily_summary_uses_the_same_database(client, auth_headers):
     measured_at = datetime.now(timezone.utc) - timedelta(days=1)
-    async with mcp_client(TEST_API_KEY) as agent:
+    async with mcp_client(mint_mcp_oauth_token()) as agent:
         metric = await agent.call_tool(
             "log_biometrics",
             {
@@ -315,7 +348,7 @@ async def test_get_daily_summary_reports_targets_and_remaining(client, auth_head
         headers=auth_headers,
     )
     assert created.status_code == 201
-    async with mcp_client(TEST_API_KEY) as agent:
+    async with mcp_client(mint_mcp_oauth_token()) as agent:
         summary = await agent.call_tool("get_daily_summary", {"on_date": on_date.isoformat()})
 
     assert summary.data["target"]["energy_target_kcal"] == 2000
@@ -324,7 +357,7 @@ async def test_get_daily_summary_reports_targets_and_remaining(client, auth_head
 
 
 async def test_tool_errors_surface_the_service_layer_message(client, auth_headers):
-    async with mcp_client(TEST_API_KEY) as agent:
+    async with mcp_client(mint_mcp_oauth_token()) as agent:
         with pytest.raises(Exception):
             await agent.call_tool("get_plan", {"plan_id": "00000000-0000-0000-0000-000000000000"})
 
@@ -335,3 +368,18 @@ async def test_mcp_mount_does_not_shadow_the_spa_or_the_rest_api(client, auth_he
 
     health = await client.get("/health")
     assert health.status_code == 200
+
+
+async def test_x_api_key_no_longer_authenticates_mcp_requests(client, auth_headers):
+    """Definition of done: `/mcp/` no longer depends on X-API-Key at all."""
+    from app.main import app
+
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as raw:
+            response = await raw.post(
+                MCP_URL,
+                json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+                headers={**auth_headers, "Accept": "application/json, text/event-stream"},
+            )
+    assert response.status_code == 401
