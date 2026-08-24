@@ -12,7 +12,7 @@ from app.models import AccountToken, User
 from app.models.base import utcnow
 from app.schemas.invites import AcceptInviteRequest, InviteCreate, InviteRead, InviteStatus
 from app.schemas.users import Role
-from app.security import hash_token
+from app.token_hash import hash_token
 from app.security_passwords import hash_password
 
 _TOKEN_PREFIX = "inv_"

@@ -9,9 +9,8 @@ from app.schemas.invites import InviteCreate, InviteCreated, InviteRead, Paginat
 from app.security import require_admin
 from app.services import invites as invites_service
 
-# Gated on the existing token-scope `admin` for now (the only admin identity
-# that exists before sessions/account-admin land in slice 3). Slice 3 decides
-# whether a session-authenticated account-admin should also reach this router.
+# `require_admin` accepts either a token-scope admin (bootstrap API_KEY or an
+# admin-scoped ApiToken) or a session-authenticated account admin.
 router = APIRouter(prefix="/invites", tags=["invites"], dependencies=[Security(require_admin)])
 
 

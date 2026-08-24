@@ -8,7 +8,7 @@ from app.exceptions import NotFoundError
 from app.models import ApiToken
 from app.models.base import utcnow
 from app.schemas.api_tokens import ApiTokenCreate
-from app.security import hash_token
+from app.token_hash import hash_token
 
 _TOKEN_PREFIX = "wl_"
 _PREFIX_DISPLAY_LEN = 10  # "wl_" plus a handful of chars, enough to recognize a token in a list

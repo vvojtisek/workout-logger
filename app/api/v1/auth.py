@@ -20,9 +20,10 @@ from app.services import login_rate_limit, sessions as sessions_service
 # every route here must be reachable without a *prior* valid credential (there
 # is no session or API key yet at invite-accept/login time; logout/me need to
 # resolve whatever session cookie is presented, which isn't the api_router's
-# X-API-Key gate). This session-cookie resolution is local to this router for
-# now; slice 3 folds it into app/security.py's AuthContext so other REST
-# routes can accept a session cookie too.
+# X-API-Key gate). `require_session_user` below stays local to this router --
+# it's stricter than `app.security.require_api_key` (session cookie only, no
+# API-key fallback), which is what logout/me want. Other REST routes accept a
+# session cookie too, via `app.security.authenticate_request`.
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 _LOGIN_FAILURE_DETAIL = "Invalid email or password"

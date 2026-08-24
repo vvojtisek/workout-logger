@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models import User, UserSession
 from app.models.base import utcnow
-from app.security import hash_token
+from app.token_hash import hash_token
 
 _TOKEN_PREFIX = "sess_"
 _PREFIX_DISPLAY_LEN = 10
