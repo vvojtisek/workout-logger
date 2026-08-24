@@ -11,7 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PRODUCTION_VALUES = ROOT / "helm" / "workout-logger" / "values-prod.yaml"
 PROMOTION_SCRIPT = ROOT / "scripts" / "promote_image.py"
 VERIFICATION_SCRIPT = ROOT / "scripts" / "verify_deployment_image.py"
-WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+WORKFLOW = ROOT / ".github" / "workflows" / "ci-merge.yml"
+SECURITY_WORKFLOW = ROOT / ".github" / "workflows" / "ci-security.yml"
 
 
 def production_image_value(key: str) -> str:
@@ -167,6 +168,7 @@ def test_deployment_verifier_reports_matching_runtime_image(tmp_path: Path) -> N
 
 def test_ci_publishes_only_main_sha_and_promotes_through_protected_branch() -> None:
     workflow = WORKFLOW.read_text()
+    security = SECURITY_WORKFLOW.read_text()
 
     assert "ghcr.io/${{ github.repository }}:${{ github.sha }}" in workflow
     assert "cancel-in-progress: false" in workflow
@@ -180,10 +182,10 @@ def test_ci_publishes_only_main_sha_and_promotes_through_protected_branch() -> N
     assert "actions/runs/$promotion_run_id/approve" in workflow
     assert 'gh run watch "$promotion_run_id" --exit-status' in workflow
     assert 'gh pr merge "$PROMOTION_PR" --squash --delete-branch' in workflow
-    assert "if: github.event_name != 'workflow_dispatch'" in workflow
-    assert "if: github.event_name == 'workflow_dispatch'" in workflow
-    assert "ghcr.io/gitleaks/gitleaks@sha256:" in workflow
-    assert "--log-opts=-1" in workflow
+    assert "if: github.event_name != 'workflow_dispatch'" in security
+    assert "if: github.event_name == 'workflow_dispatch'" in security
+    assert "ghcr.io/gitleaks/gitleaks@sha256:" in security
+    assert "--log-opts=-1" in security
     assert "git push origin HEAD:main" not in workflow
     assert "type=ref,event=branch" not in workflow
     assert "type=raw,value=latest" not in workflow
