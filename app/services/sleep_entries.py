@@ -112,9 +112,7 @@ async def get_trends(session: AsyncSession) -> SleepTrends:
     max_window = max(_TREND_WINDOWS)
     # A bounded, indexed query on sleep_end; the extra day of slack absorbs
     # the timezone offset between UTC storage and each entry's local date.
-    lower_bound = datetime.combine(
-        anchor - timedelta(days=max_window), time.min, tzinfo=UTC
-    )
+    lower_bound = datetime.combine(anchor - timedelta(days=max_window), time.min, tzinfo=UTC)
     upper_bound = datetime.combine(anchor + timedelta(days=1), time.min, tzinfo=UTC)
     result = await session.execute(
         select(SleepEntry).where(
