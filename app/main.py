@@ -3,7 +3,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
@@ -12,7 +12,7 @@ from app.config import get_settings
 from app.database import get_engine
 from app.exceptions import register_exception_handlers
 from app.logging_config import access_logger, setup_logging
-from app.mcp import McpAuthMiddleware, mcp
+from app.mcp import mcp
 from app.schemas.common import HealthResponse
 
 settings = get_settings()
@@ -103,9 +103,31 @@ async def request_id_and_access_log_middleware(request: Request, call_next):
 
 register_exception_handlers(app)
 app.include_router(api_router)
-# The MCP transport is a mounted ASGI app, so it authenticates through its own
-# middleware rather than the REST routers' Security dependency.
-app.mount("/mcp", McpAuthMiddleware(mcp_app))
+
+
+@app.get("/mcp", include_in_schema=False)
+async def mcp_bare_path_redirect() -> RedirectResponse:
+    """The canonical MCP resource identifier has a trailing slash (`/mcp/`).
+    Redirect the bare path instead of 404ing so it never becomes a second,
+    subtly different OAuth resource in metadata or client configuration."""
+    return RedirectResponse(url="/mcp/", status_code=308)
+
+
+# The MCP transport authenticates OAuth bearer tokens itself (FastMCP's
+# AuthProvider), rather than through the REST routers' X-API-Key dependency.
+app.mount("/mcp", mcp_app)
+
+# RFC 9728/8414 discovery metadata (`/.well-known/oauth-protected-resource`,
+# `/.well-known/oauth-authorization-server`, ...) must be reachable at the
+# domain root, not underneath the `/mcp` mount -- MCP/OAuth clients always
+# look there first, regardless of where the resource itself lives. FastMCP
+# already builds these routes into `mcp_app`, but nested under `/mcp` they'd
+# be unreachable at their required root-level path, so the same routes are
+# also registered directly on the outer app.
+if mcp.auth is not None:
+    for well_known_route in mcp.auth.get_well_known_routes(mcp_path="/"):
+        app.router.routes.append(well_known_route)
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -188,6 +210,7 @@ SPA_PREFIX_BLACKLIST = (
     "/openapi.json",
     "/sw.js",
     "/manifest.webmanifest",
+    "/.well-known/",
 )
 
 

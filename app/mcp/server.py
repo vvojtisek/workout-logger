@@ -11,9 +11,11 @@ from typing import Any
 from uuid import UUID
 
 from fastmcp import FastMCP
+from fastmcp.server.auth import require_scopes
 
+from app.config import get_settings
 from app.database import get_session_maker
-from app.mcp.auth import require_scope
+from app.mcp.oauth import build_mcp_oauth_provider
 from app.schemas.body_metrics import BodyMetricCreate, BodyMetricRead
 from app.schemas.meal_entries import MealEntryCreate, MealEntryRead, MealItemCreate
 from app.schemas.plans import PlanExerciseCreate, WorkoutPlanCreate, WorkoutPlanRead
@@ -33,17 +35,18 @@ mcp: FastMCP = FastMCP(
     instructions=(
         "Read and log training, nutrition, and body-composition data for a single "
         "athlete's workout logger. Query tools need a token with the 'read' scope; "
-        "logging tools need 'log'. An 'admin' token satisfies both."
+        "logging tools need 'log'."
     ),
+    auth=build_mcp_oauth_provider(get_settings()),
 )
 
 
 @mcp.tool(
     name="list_programs",
     description="List training programs (blocks), most recently started first.",
+    auth=require_scopes("read"),
 )
 async def list_programs(limit: int = 50, offset: int = 0) -> dict[str, Any]:
-    require_scope("read")
     async with get_session_maker()() as session:
         items, total = await programs_service.list_programs(session, limit, offset)
         return {
@@ -57,9 +60,9 @@ async def list_programs(limit: int = 50, offset: int = 0) -> dict[str, Any]:
 @mcp.tool(
     name="get_plan",
     description="Fetch one workout plan by id, including its ordered exercises.",
+    auth=require_scopes("read"),
 )
 async def get_plan(plan_id: UUID) -> dict[str, Any]:
-    require_scope("read")
     async with get_session_maker()() as session:
         plan = await plans_service.get_plan(session, plan_id)
         return WorkoutPlanRead.model_validate(plan).model_dump(mode="json")
@@ -72,13 +75,13 @@ async def get_plan(plan_id: UUID) -> dict[str, Any]:
         "target_reps_min and target_reps_max; set group_key/group_order to link "
         "exercises into a superset. Exercise order follows the list order."
     ),
+    auth=require_scopes("log"),
 )
 async def create_plan(
     name: str,
     exercises: list[PlanExerciseCreate],
     description: str | None = None,
 ) -> dict[str, Any]:
-    require_scope("log")
     data = WorkoutPlanCreate(name=name, description=description, exercises=exercises)
     async with get_session_maker()() as session:
         plan = await plans_service.create_plan(session, data)
@@ -91,13 +94,13 @@ async def create_plan(
         "Put a workout plan on the calendar for a date, optionally as part of a "
         "program. Overlapping programs may schedule work on the same day."
     ),
+    auth=require_scopes("log"),
 )
 async def schedule_workout(
     workout_plan_id: UUID,
     scheduled_date: date,
     program_id: UUID | None = None,
 ) -> dict[str, Any]:
-    require_scope("log")
     data = ScheduledWorkoutCreate(
         workout_plan_id=workout_plan_id, scheduled_date=scheduled_date, program_id=program_id
     )
@@ -113,6 +116,7 @@ async def schedule_workout(
         "the write idempotent: replaying the same id returns the session unchanged "
         "rather than duplicating the set. Returns the updated session."
     ),
+    auth=require_scopes("log"),
 )
 async def log_set(
     session_id: UUID,
@@ -129,7 +133,6 @@ async def log_set(
     distance_km: float | None = None,
     incline_percent: float | None = None,
 ) -> dict[str, Any]:
-    require_scope("log")
     data = SetEntryCreate(
         session_exercise_id=session_exercise_id,
         set_number=set_number,
@@ -159,6 +162,7 @@ async def log_set(
         "food by food_id (nutrition is snapshotted and scaled by quantity) or "
         "supplies its own name, unit, and macros for an ad hoc entry."
     ),
+    auth=require_scopes("log"),
 )
 async def log_meal(
     consumed_at: datetime,
@@ -166,7 +170,6 @@ async def log_meal(
     items: list[MealItemCreate],
     notes: str | None = None,
 ) -> dict[str, Any]:
-    require_scope("log")
     data = MealEntryCreate(
         consumed_at=consumed_at,
         meal_type=meal_type,  # type: ignore[arg-type]  # validated against the MealType literal
@@ -184,6 +187,7 @@ async def log_meal(
         "Record a body-composition measurement. weight_kg is required; the "
         "circumference fields and body_fat_percent are optional."
     ),
+    auth=require_scopes("log"),
 )
 async def log_biometrics(
     measured_at: datetime,
@@ -198,7 +202,6 @@ async def log_biometrics(
     thighs_cm: float | None = None,
     calves_cm: float | None = None,
 ) -> dict[str, Any]:
-    require_scope("log")
     data = BodyMetricCreate(
         measured_at=measured_at,
         weight_kg=weight_kg,
@@ -223,9 +226,9 @@ async def log_biometrics(
         "Nutrition totals for one date, plus the applicable plan's targets and "
         "what remains against them. Aggregated server-side for that day only."
     ),
+    auth=require_scopes("read"),
 )
 async def get_daily_summary(on_date: date) -> dict[str, Any]:
-    require_scope("read")
     async with get_session_maker()() as session:
         summary = await nutrition_dashboard_service.get_daily_summary(session, on_date)
         return summary.model_dump(mode="json")

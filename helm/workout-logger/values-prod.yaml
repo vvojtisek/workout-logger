@@ -36,6 +36,26 @@ env:
   TRUSTED_HOSTS: "localhost,127.0.0.1,fitness.vvojtisek.eu"
   PUBLIC_BASE_URL: "https://fitness.vvojtisek.eu/"
   RUN_MIGRATIONS_ON_STARTUP: "false"
+  # MCP OAuth: disabled until the Auth0 application described in the README's
+  # "Manual OAuth Provider Setup" section exists and the MCP_OAUTH_CLIENT_SECRET
+  # / MCP_OAUTH_JWT_SIGNING_KEY / MCP_OAUTH_STORAGE_KEY keys have been added to
+  # the `workout-logger-secret` Secret (see mcpOAuth.*SecretKey below). Flip to
+  # "true" and fill in the values below once that setup is complete.
+  MCP_OAUTH_ENABLED: "false"
+  MCP_OAUTH_PROVIDER: auth0
+  MCP_OAUTH_ISSUER: ""
+  MCP_OAUTH_CLIENT_ID: ""
+  MCP_OAUTH_AUDIENCE: "https://fitness.vvojtisek.eu/mcp/"
+  MCP_OAUTH_ALLOWED_SUBJECTS: ""
+  MCP_OAUTH_STORAGE_DIR: /data/mcp-oauth
+
+# Names of the keys within `existingSecret` holding the corresponding MCP
+# OAuth secrets, once created per the README's Secret Bootstrap step. Leave
+# empty (or MCP_OAUTH_ENABLED: "false" above) until then.
+mcpOAuth:
+  clientSecretKey: ""
+  jwtSigningKeySecretKey: ""
+  storageKeySecretKey: ""
 
 persistence:
   enabled: true
