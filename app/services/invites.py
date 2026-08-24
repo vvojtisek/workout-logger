@@ -122,9 +122,10 @@ async def revoke_invite(session: AsyncSession, invite_id: UUID) -> AccountToken:
 
 
 async def accept_invite(session: AsyncSession, data: AcceptInviteRequest) -> User:
+    raw_token = data.token
     result = await session.execute(
         select(AccountToken).where(
-            AccountToken.token_hash == hash_token(data.token),
+            AccountToken.token_hash == hash_token(raw_token),
             AccountToken.purpose == "invite",
         )
     )

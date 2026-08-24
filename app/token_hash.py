@@ -10,4 +10,5 @@ def hash_token(raw_token: str) -> str:
     cost for no security benefit. User passwords go through Argon2id
     instead -- see `app/security_passwords.py`."""
     # codeql[py/weak-sensitive-data-hashing]
-    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(raw_token.encode("utf-8"))  # lgtm[py/weak-sensitive-data-hashing]
+    return digest.hexdigest()
