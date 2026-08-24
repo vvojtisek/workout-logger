@@ -1,0 +1,47 @@
+{{- if and .Values.backupPersistence.enabled (not .Values.backupPersistence.existingClaim) }}
+{{- $bindIdentity := printf "%s|backup-pvc-bind" (include "workout-logger.image" .) }}
+{{- $bindNamePrefix := include "workout-logger.fullname" . | trunc 42 | trimSuffix "-" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $bindNamePrefix }}-backup-pvc-bind-{{ sha256sum $bindIdentity | trunc 12 }}
+  labels:
+    {{- include "workout-logger.labels" . | nindent 4 }}
+spec:
+  activeDeadlineSeconds: 60
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "workout-logger.maintenanceLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: backup-pvc-bind
+          image: {{ include "workout-logger.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          # This job's only purpose is to be the backups PVC's first consumer.
+          # With a WaitForFirstConsumer storage class (e.g. local-path), the
+          # PVC otherwise stays Pending - and Argo CD's sync stuck waiting for
+          # it to become healthy - until the nightly backup CronJob happens to
+          # run and mount it. Mounting it here, as a plain (non-hook) resource
+          # applied in the same wave as the PVC itself, binds it immediately
+          # as part of every sync instead.
+          command: ["sh", "-c"]
+          args:
+            - {{ printf "ls -la %s >/dev/null" .Values.backupPersistence.mountPath | quote }}
+          resources:
+            {{- toYaml .Values.backup.resources | nindent 12 }}
+          volumeMounts:
+            - name: backups
+              mountPath: {{ .Values.backupPersistence.mountPath }}
+      volumes:
+        - name: backups
+          persistentVolumeClaim:
+            claimName: {{ include "workout-logger.backupClaimName" . }}
+{{- end }}
