@@ -27,6 +27,18 @@ class Settings(BaseSettings):
     INVITE_TTL_HOURS: int = 72
     PASSWORD_RESET_TTL_HOURS: int = 72
 
+    # --- Browser login sessions ---
+    SESSION_COOKIE_NAME: str = "wl_session"
+    # Sliding: a session dies if unused for this long, even before the
+    # absolute cap below.
+    SESSION_IDLE_TIMEOUT_MINUTES: int = 10080  # 7 days
+    # Hard cap set once at login; never extended regardless of activity.
+    SESSION_ABSOLUTE_TTL_DAYS: int = 30
+    # Counted independently per-email and per-IP over a trailing window
+    # (DB-backed, so this stays correct across multiple app replicas).
+    LOGIN_RATE_LIMIT_MAX_ATTEMPTS: int = 10
+    LOGIN_RATE_LIMIT_WINDOW_MINUTES: int = 15
+
     # --- MCP OAuth 2.1 (ChatGPT / MCP clients only; REST keeps X-API-Key) ---
     MCP_OAUTH_ENABLED: bool = False
     # "auth0" (default): FastMCP's OAuthProxy bridging Auth0 for MCP clients
