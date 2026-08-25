@@ -31,7 +31,11 @@ ingress:
 
 env:
   APP_ENV: production
+  # Kept in sync with image.digest/image.sourceCommit above by
+  # scripts/promote_image.py on every production promotion -- never edit by hand.
   APP_VERSION: "2.0.0"
+  GIT_COMMIT: "7cded1202083550ee17e1e366e0b7fad4fe8433e"
+  BUILD_TIME: "2026-08-25T06:42:15Z"
   LOG_LEVEL: INFO
   TRUSTED_HOSTS: "localhost,127.0.0.1,fitness.vvojtisek.eu"
   PUBLIC_BASE_URL: "https://fitness.vvojtisek.eu/"

@@ -37,6 +37,33 @@ function useOnlineStatus(): boolean {
   return online;
 }
 
+interface DeploymentInfo {
+  version: string;
+  commit: string;
+}
+
+/** Sourced from `/health`, itself backed by the same APP_VERSION/GIT_COMMIT
+ * environment the Helm chart sets on the container -- see app/config.py. */
+function useDeploymentInfo(online: boolean): DeploymentInfo | null {
+  const [info, setInfo] = useState<DeploymentInfo | null>(null);
+  useEffect(() => {
+    if (!online) return;
+    let cancelled = false;
+    fetch("/health")
+      .then((response) => response.json())
+      .then((body: { version?: string; commit?: string }) => {
+        if (!cancelled && body.version && body.commit) {
+          setInfo({ version: body.version, commit: body.commit });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [online]);
+  return info;
+}
+
 const NAV_ITEMS: { path: string; label: string; glyph: string }[] = [
   { path: "/settings", label: "Settings", glyph: "\u{1F511}" },
   { path: "/plans", label: "Plans", glyph: "\u{1F4CB}" },
@@ -55,6 +82,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const online = useOnlineStatus();
+  const deploymentInfo = useDeploymentInfo(online);
   const { logout } = useAuth();
   const [session, setSession] = useState<WorkoutSession | null>(null);
 
@@ -109,6 +137,9 @@ export function AppLayout() {
                 }`}
               >
                 {online ? "online" : "offline"}
+                {online && deploymentInfo
+                  ? ` · v${deploymentInfo.version} · ${deploymentInfo.commit.slice(0, 7)}`
+                  : ""}
               </span>
               <button
                 id="logout-btn"

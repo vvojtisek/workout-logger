@@ -42,7 +42,9 @@ All configuration is managed via environment variables:
 | `API_KEY` | **yes** | — | Shared secret for `X-API-Key` auth on `/api/v1/*`. Must be 32+ characters. |
 | `DATABASE_URL` | no | `sqlite+aiosqlite:////data/workout_logger.db` | Async SQLAlchemy database URL. |
 | `APP_ENV` | no | `production` | Environment label (`development` / `production`). |
-| `APP_VERSION` | no | `2.0.0` | Reported in `/health` and OpenAPI spec. |
+| `APP_VERSION` | no | baked into the image | Deployment version. Reported in `/health`, the `X-App-Version` header, OpenAPI spec, and the web UI. See [Deployment Version Visibility](#deployment-version-visibility). |
+| `GIT_COMMIT` | no | baked into the image | Full Git SHA the running image was built from. Reported in `/health`, the `X-Git-Commit` header, and the web UI. |
+| `BUILD_TIME` | no | baked into the image | UTC ISO-8601 build timestamp. Reported in `/health` and the `X-Build-Time` header. |
 | `LOG_LEVEL` | no | `INFO` | Python structured log level. |
 | `TRUSTED_HOSTS` | no | `localhost,127.0.0.1` | Comma-separated host allow-list. |
 | `PUBLIC_BASE_URL` | no | `https://fitness.vvojtisek.eu/` | Public HTTPS origin used in OpenAPI servers. |
@@ -137,6 +139,40 @@ helm template workout-logger ./helm/workout-logger -f ./helm/workout-logger/valu
 helm upgrade --install workout-logger ./helm/workout-logger -n prod
 
 ```
+
+---
+
+## Deployment Version Visibility
+
+`scripts/generate_build_info.py` is the single source of truth for `APP_VERSION` (derived from
+`git describe --tags --always`), `GIT_COMMIT` (the full Git SHA), and `BUILD_TIME` (UTC ISO-8601,
+generated at build time). CI runs it once per `main` push and threads the result through the
+whole chain, with nothing downstream recomputing its own value:
+
+```text
+GitHub push to main → scripts/generate_build_info.py
+    → Docker build args (baked into build_info.json + OCI labels in the image)
+    → scripts/promote_image.py (writes image.sourceCommit and env.APP_VERSION/
+      GIT_COMMIT/BUILD_TIME into helm/workout-logger/values-prod.yaml)
+    → Helm renders those into container env vars and the
+      app.kubernetes.io/version Pod label / source-commit Pod annotation
+    → the running app reads them from its environment (app/config.py),
+      falling back to the baked build_info.json if unset
+    → /health, the X-App-Version/X-Git-Commit/X-Build-Time headers, and the
+      "Online · vX.Y.Z · <short commit>" indicator in the web UI
+```
+
+Verify a running production instance end-to-end:
+
+```bash
+curl https://fitness.vvojtisek.eu/health
+curl -I https://fitness.vvojtisek.eu/
+kubectl get pods --show-labels -l app.kubernetes.io/name=workout-logger
+```
+
+`/health`'s `commit`, the `X-Git-Commit` header, and the Pod's `app.kubernetes.io/version` label /
+`workout-logger.vvojtisek.eu/source-commit` annotation must all agree; the
+`scripts/verify_deployment_image.py` check below confirms this automatically.
 
 ---
 

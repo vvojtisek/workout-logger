@@ -28,20 +28,30 @@ def load_pods(namespace: str, selector: str) -> list[dict[str, Any]]:
     return payload["items"]
 
 
+def env_value(contents: str, key: str) -> str:
+    match = re.search(rf'(?m)^  {re.escape(key)}:\s*["\']?([^"\'\s]+)', contents)
+    if not match:
+        raise ValueError(f"could not read env.{key} from production values")
+    return match.group(1)
+
+
 def verify(values: Path, namespace: str, selector: str) -> None:
     contents = values.read_text()
     repository = image_value(contents, "repository")
     digest = image_value(contents, "digest")
     commit = image_value(contents, "sourceCommit")
+    app_version = env_value(contents, "APP_VERSION")
     expected_image = f"{repository}@{digest}"
     pods = load_pods(namespace, selector)
     if not pods:
         raise RuntimeError(f"no Pods found in {namespace!r} for selector {selector!r}")
 
+    print(f"App version: {app_version}")
     print(f"Git commit: {commit}")
     print(f"Image digest: {digest}")
     for pod in pods:
         name = pod["metadata"]["name"]
+        labels = pod["metadata"].get("labels", {})
         annotations = pod["metadata"].get("annotations", {})
         requested_image = pod["spec"]["containers"][0]["image"]
         statuses = pod.get("status", {}).get("containerStatuses", [])
@@ -52,6 +62,8 @@ def verify(values: Path, namespace: str, selector: str) -> None:
             raise RuntimeError(f"Pod {name} source commit annotation does not match Git")
         if annotations.get("workout-logger.vvojtisek.eu/image-digest") != digest:
             raise RuntimeError(f"Pod {name} image digest annotation does not match Git")
+        if labels.get("app.kubernetes.io/version") != app_version:
+            raise RuntimeError(f"Pod {name} version label does not match Git")
         if requested_image != expected_image:
             raise RuntimeError(f"Pod {name} requested image does not match Git")
         if not image_id.endswith(f"@{digest}"):

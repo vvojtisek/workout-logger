@@ -83,6 +83,15 @@ async def security_headers_middleware(request: Request, call_next):
 
 
 @app.middleware("http")
+async def deployment_metadata_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-App-Version"] = settings.APP_VERSION
+    response.headers["X-Git-Commit"] = settings.GIT_COMMIT
+    response.headers["X-Build-Time"] = settings.BUILD_TIME
+    return response
+
+
+@app.middleware("http")
 async def request_id_and_access_log_middleware(request: Request, call_next):
     request.state.request_id = str(uuid.uuid4())
     started_at = time.monotonic()
@@ -156,9 +165,23 @@ async def dependency_health() -> JSONResponse:
     except Exception:
         return JSONResponse(
             status_code=503,
-            content={"status": "error", "database": "unavailable", "version": settings.APP_VERSION},
+            content={
+                "status": "error",
+                "database": "unavailable",
+                "version": settings.APP_VERSION,
+                "commit": settings.GIT_COMMIT,
+                "build_time": settings.BUILD_TIME,
+            },
         )
-    return JSONResponse(content={"status": "ok", "database": "ok", "version": settings.APP_VERSION})
+    return JSONResponse(
+        content={
+            "status": "ok",
+            "database": "ok",
+            "version": settings.APP_VERSION,
+            "commit": settings.GIT_COMMIT,
+            "build_time": settings.BUILD_TIME,
+        }
+    )
 
 
 @app.get(
@@ -172,6 +195,8 @@ async def health_live() -> JSONResponse:
             "status": "ok",
             "database": "not_checked",
             "version": settings.APP_VERSION,
+            "commit": settings.GIT_COMMIT,
+            "build_time": settings.BUILD_TIME,
         }
     )
 

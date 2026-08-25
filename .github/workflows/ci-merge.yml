@@ -151,6 +151,15 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Generate deployment build metadata
+        id: build-info
+        run: python scripts/generate_build_info.py --format github >> "$GITHUB_OUTPUT"
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Log in to GitHub Container Registry
@@ -186,6 +195,10 @@ jobs:
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
+          build-args: |
+            APP_VERSION=${{ steps.build-info.outputs.APP_VERSION }}
+            GIT_COMMIT=${{ steps.build-info.outputs.GIT_COMMIT }}
+            BUILD_TIME=${{ steps.build-info.outputs.BUILD_TIME }}
       - name: Resolve published digest
         id: published-image
         env:
@@ -203,6 +216,8 @@ jobs:
         id: promotion
         env:
           IMAGE_DIGEST: ${{ steps.published-image.outputs.digest }}
+          APP_VERSION: ${{ steps.build-info.outputs.APP_VERSION }}
+          BUILD_TIME: ${{ steps.build-info.outputs.BUILD_TIME }}
         run: |
           short_sha="${GITHUB_SHA:0:12}"
           promotion_branch="chore/promote-production-$short_sha"
@@ -216,7 +231,9 @@ jobs:
           python scripts/promote_image.py \
             --values helm/workout-logger/values-prod.yaml \
             --digest "$IMAGE_DIGEST" \
-            --commit "$GITHUB_SHA"
+            --commit "$GITHUB_SHA" \
+            --app-version "$APP_VERSION" \
+            --build-time "$BUILD_TIME"
           if git diff --quiet -- helm/workout-logger/values-prod.yaml; then
             echo "Production already records $IMAGE_DIGEST for $GITHUB_SHA"
             echo "needed=false" >> "$GITHUB_OUTPUT"

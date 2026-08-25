@@ -54,6 +54,8 @@ def test_promotion_script_updates_digest_and_commit_together(tmp_path: Path) -> 
     values.write_text(PRODUCTION_VALUES.read_text())
     new_digest = "sha256:" + "a" * 64
     new_commit = "b" * 40
+    new_app_version = "v3.1.4"
+    new_build_time = "2026-08-25T06:42:15Z"
 
     subprocess.run(
         [
@@ -65,6 +67,10 @@ def test_promotion_script_updates_digest_and_commit_together(tmp_path: Path) -> 
             new_digest,
             "--commit",
             new_commit,
+            "--app-version",
+            new_app_version,
+            "--build-time",
+            new_build_time,
         ],
         check=True,
     )
@@ -72,6 +78,9 @@ def test_promotion_script_updates_digest_and_commit_together(tmp_path: Path) -> 
     promoted = values.read_text()
     assert f'digest: "{new_digest}"' in promoted
     assert f'sourceCommit: "{new_commit}"' in promoted
+    assert f'APP_VERSION: "{new_app_version}"' in promoted
+    assert f'GIT_COMMIT: "{new_commit}"' in promoted
+    assert f'BUILD_TIME: "{new_build_time}"' in promoted
     assert "feat-v2-initial-setup" not in promoted
 
     rendered = subprocess.run(
@@ -89,6 +98,9 @@ def test_promotion_script_updates_digest_and_commit_together(tmp_path: Path) -> 
     ).stdout
     assert f"ghcr.io/vvojtisek/workout-logger@{new_digest}" in rendered
     assert f'workout-logger.vvojtisek.eu/source-commit: "{new_commit}"' in rendered
+    assert f'app.kubernetes.io/version: "{new_app_version}"' in rendered
+    assert f'value: "{new_commit}"' in rendered
+    assert f'value: "{new_build_time}"' in rendered
 
 
 def test_promotion_script_rejects_non_digest_without_changing_values(tmp_path: Path) -> None:
@@ -106,6 +118,10 @@ def test_promotion_script_rejects_non_digest_without_changing_values(tmp_path: P
             "latest",
             "--commit",
             "b" * 40,
+            "--app-version",
+            "v3.1.4",
+            "--build-time",
+            "2026-08-25T06:42:15Z",
         ],
         check=False,
         capture_output=True,
@@ -119,12 +135,14 @@ def test_promotion_script_rejects_non_digest_without_changing_values(tmp_path: P
 def test_deployment_verifier_reports_matching_runtime_image(tmp_path: Path) -> None:
     promoted_digest = production_image_value("digest")
     promoted_commit = production_image_value("sourceCommit")
+    promoted_app_version = production_image_value("APP_VERSION")
     expected_image = f"ghcr.io/vvojtisek/workout-logger@{promoted_digest}"
     pod = {
         "items": [
             {
                 "metadata": {
                     "name": "workout-logger-test",
+                    "labels": {"app.kubernetes.io/version": promoted_app_version},
                     "annotations": {
                         "workout-logger.vvojtisek.eu/source-commit": promoted_commit,
                         "workout-logger.vvojtisek.eu/image-digest": promoted_digest,
@@ -161,6 +179,7 @@ def test_deployment_verifier_reports_matching_runtime_image(tmp_path: Path) -> N
         env=env,
     )
 
+    assert f"App version: {promoted_app_version}" in result.stdout
     assert f"Git commit: {promoted_commit}" in result.stdout
     assert f"Image digest: {promoted_digest}" in result.stdout
     assert f"imageID={expected_image}" in result.stdout

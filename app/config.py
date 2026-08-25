@@ -3,6 +3,10 @@ from functools import lru_cache
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.build_info import get_build_info
+
+_baked_build_info = get_build_info()
+
 _DEFAULT_DEMO_VALUES = {
     "replace-with-at-least-32-random-characters",
     "changeme",
@@ -17,7 +21,13 @@ class Settings(BaseSettings):
     API_KEY: str
     DATABASE_URL: str = "sqlite+aiosqlite:////data/workout_logger.db"
     APP_ENV: str = "production"
-    APP_VERSION: str = "1.0.0"
+    # Deployment metadata: defaults to whatever scripts/generate_build_info.py
+    # baked into this image at build time, overridable via environment (Helm
+    # sets these explicitly in helm/workout-logger/values-prod.yaml) so both
+    # paths agree on the same CI-computed values -- see app/build_info.py.
+    APP_VERSION: str = _baked_build_info.version
+    GIT_COMMIT: str = _baked_build_info.commit
+    BUILD_TIME: str = _baked_build_info.build_time
     LOG_LEVEL: str = "INFO"
     TRUSTED_HOSTS: str = "localhost,127.0.0.1"
     PUBLIC_BASE_URL: str | None = None
