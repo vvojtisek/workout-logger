@@ -1,4 +1,3 @@
-const API_KEY_STORAGE_KEY = "workout_logger_api_key";
 const API_BASE = "/api/v1";
 
 export class ApiError extends Error {
@@ -13,21 +12,11 @@ export class ApiError extends Error {
   }
 }
 
-export function getStoredApiKey(): string {
-  return localStorage.getItem(API_KEY_STORAGE_KEY) || "";
-}
-
-export function setStoredApiKey(value: string): void {
-  localStorage.setItem(API_KEY_STORAGE_KEY, value);
-}
-
-export function clearStoredApiKey(): void {
-  localStorage.removeItem(API_KEY_STORAGE_KEY);
-}
-
+/** The browser authenticates via the HttpOnly session cookie (set by
+ * `POST /auth/login`), sent automatically by the browser's default
+ * same-origin credential mode -- no header to attach here. */
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers || {});
-  headers.set("X-API-Key", getStoredApiKey());
   if (options.body) {
     headers.set("Content-Type", "application/json");
   }
@@ -64,8 +53,7 @@ function filenameFromContentDisposition(header: string | null): string | null {
 export async function apiFetchBlob(
   path: string
 ): Promise<{ blob: Blob; filename: string | null }> {
-  const headers = new Headers({ "X-API-Key": getStoredApiKey() });
-  const response = await fetch(`${API_BASE}${path}`, { headers });
+  const response = await fetch(`${API_BASE}${path}`);
   if (!response.ok) {
     throw new ApiError(`Request failed (${response.status})`, response.status, null);
   }

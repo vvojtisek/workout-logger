@@ -12,7 +12,7 @@ from app.models import AccountToken, User
 from app.models.base import utcnow
 from app.schemas.invites import AcceptInviteRequest, InviteCreate, InviteRead, InviteStatus
 from app.schemas.users import Role
-from app.security import hash_token
+from app.token_hash import hash_token
 from app.security_passwords import hash_password
 
 _TOKEN_PREFIX = "inv_"
@@ -122,9 +122,10 @@ async def revoke_invite(session: AsyncSession, invite_id: UUID) -> AccountToken:
 
 
 async def accept_invite(session: AsyncSession, data: AcceptInviteRequest) -> User:
+    raw_token = data.token
     result = await session.execute(
         select(AccountToken).where(
-            AccountToken.token_hash == hash_token(data.token),
+            AccountToken.token_hash == hash_token(raw_token),
             AccountToken.purpose == "invite",
         )
     )

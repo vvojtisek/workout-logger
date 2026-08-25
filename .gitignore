@@ -10,6 +10,8 @@ htmlcov/
 node_modules/
 playwright-report/
 test-results/
+# Holds a live session cookie minted by e2e/global-setup.js -- never commit it.
+e2e/.auth/
 .env
 *.db
 *.db-wal

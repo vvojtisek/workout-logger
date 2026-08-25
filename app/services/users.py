@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.exceptions import NotFoundError
 from app.models import AccountToken, User
 from app.models.base import utcnow
-from app.security import hash_token
+from app.token_hash import hash_token
 
 _RESET_TOKEN_PREFIX = "rst_"
 _PREFIX_DISPLAY_LEN = 10

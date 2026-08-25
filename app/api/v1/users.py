@@ -9,8 +9,8 @@ from app.schemas.users import PaginatedUsersResponse, ResetPasswordIssued, UserR
 from app.security import require_admin
 from app.services import users as users_service
 
-# Gated on the existing token-scope `admin` for now -- see the equivalent
-# note in app/api/v1/invites.py.
+# `require_admin` accepts either a token-scope admin (bootstrap API_KEY or an
+# admin-scoped ApiToken) or a session-authenticated account admin.
 router = APIRouter(prefix="/users", tags=["users"], dependencies=[Security(require_admin)])
 
 
