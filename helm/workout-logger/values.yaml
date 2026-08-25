@@ -96,7 +96,14 @@ restore:
 
 env:
   APP_ENV: production
+  # Deployment metadata: CI (scripts/generate_build_info.py) overwrites these
+  # in values-prod.yaml on every promotion -- see scripts/promote_image.py.
+  # Never edit them by hand; they are the same source of truth baked into
+  # the container image (see Dockerfile) and surfaced by /health, the
+  # X-App-Version/X-Git-Commit/X-Build-Time headers, and the web UI.
   APP_VERSION: "2.0.0"
+  GIT_COMMIT: "unknown"
+  BUILD_TIME: "unknown"
   LOG_LEVEL: INFO
   TRUSTED_HOSTS: localhost,127.0.0.1
   PUBLIC_BASE_URL: "https://fitness.vvojtisek.eu/"

@@ -27,6 +27,8 @@ class HealthResponse(BaseModel):
     status: str
     database: str
     version: str
+    commit: str
+    build_time: str
 
 
 def require_non_empty(value: str, field_name: str = "value") -> str:

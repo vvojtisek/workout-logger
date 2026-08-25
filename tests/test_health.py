@@ -8,6 +8,26 @@ async def test_health_returns_ok_without_api_key(client):
     assert body["status"] == "ok"
     assert body["database"] == "ok"
     assert "version" in body
+    assert "commit" in body
+    assert "build_time" in body
+
+
+async def test_health_deployment_metadata_matches_settings(client):
+    import app.main as main_module
+
+    response = await client.get("/health")
+    body = response.json()
+    assert body["version"] == main_module.settings.APP_VERSION
+    assert body["commit"] == main_module.settings.GIT_COMMIT
+    assert body["build_time"] == main_module.settings.BUILD_TIME
+
+
+async def test_deployment_metadata_headers_present_and_match_health(client):
+    response = await client.get("/health")
+    body = response.json()
+    assert response.headers["X-App-Version"] == body["version"]
+    assert response.headers["X-Git-Commit"] == body["commit"]
+    assert response.headers["X-Build-Time"] == body["build_time"]
 
 
 async def test_liveness_does_not_check_database(client, monkeypatch):
@@ -24,6 +44,8 @@ async def test_liveness_does_not_check_database(client, monkeypatch):
         "status": "ok",
         "database": "not_checked",
         "version": main_module.settings.APP_VERSION,
+        "commit": main_module.settings.GIT_COMMIT,
+        "build_time": main_module.settings.BUILD_TIME,
     }
 
 

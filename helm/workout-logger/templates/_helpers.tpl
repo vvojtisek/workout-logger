@@ -34,8 +34,9 @@ Common labels for all chart resources.
 {{- define "workout-logger.labels" -}}
 helm.sh/chart: {{ include "workout-logger.chart" . }}
 {{ include "workout-logger.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- $appVersion := default .Chart.AppVersion .Values.env.APP_VERSION }}
+{{- if $appVersion }}
+app.kubernetes.io/version: {{ $appVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
