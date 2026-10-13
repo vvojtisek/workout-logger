@@ -7,12 +7,18 @@ if [[ ! "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; the
   exit 2
 fi
 
+case "$(uname -m)" in
+  x86_64|amd64) image_arch="amd64" ;;
+  aarch64|arm64) image_arch="arm64" ;;
+  *) echo "Unsupported host architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+
 app_dir="${WORKOUT_LOGGER_DIR:-/srv/workout-logger}"
 chem_app_dir="${CHEM_APP_DIR:-/srv/chem-app}"
 docker_network="${CHEM_APP_DOCKER_NETWORK:-chem-app_public-net}"
 repository="${GITHUB_REPOSITORY:-vvojtisek/workout-logger}"
 asset_base="https://github.com/${repository}/releases/download/${release_tag}"
-image_archive="workout-logger-${release_tag}-linux-arm64-image.tar.gz"
+image_archive="workout-logger-${release_tag}-linux-${image_arch}-image.tar.gz"
 compose_asset="workout-logger-${release_tag}-compose.yaml"
 checksum_asset="workout-logger-${release_tag}-SHA256SUMS"
 image="ghcr.io/vvojtisek/workout-logger:${release_tag}"
@@ -27,7 +33,7 @@ release_assets=(
   "workout-logger-backup.timer"
 )
 
-for command in docker curl sha256sum grep sed install systemctl; do
+for command in docker curl sha256sum grep sed install systemctl uname; do
   command -v "$command" >/dev/null || { echo "Missing required command: $command" >&2; exit 1; }
 done
 docker compose version >/dev/null

@@ -87,12 +87,12 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and publish the EC2 ARM64 image
+      - name: Build and publish multi-architecture image for EC2
         env:
           IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
         run: |
           docker buildx build \
-            --platform linux/arm64 \
+            --platform linux/amd64,linux/arm64 \
             --provenance=true \
             --build-arg "APP_VERSION=${GITHUB_REF_NAME}" \
             --build-arg "GIT_COMMIT=${GITHUB_SHA}" \
@@ -107,8 +107,11 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           mkdir -p release-assets
-          docker pull --platform linux/arm64 "$IMAGE"
-          docker save "$IMAGE" | gzip --fast > "release-assets/workout-logger-${RELEASE_TAG}-linux-arm64-image.tar.gz"
+          for architecture in amd64 arm64; do
+            docker pull --platform "linux/${architecture}" "$IMAGE"
+            docker save "$IMAGE" | gzip --fast \
+              > "release-assets/workout-logger-${RELEASE_TAG}-linux-${architecture}-image.tar.gz"
+          done
           cp deploy/aws/compose.yaml "release-assets/workout-logger-${RELEASE_TAG}-compose.yaml"
           cp deploy/aws/.env.production.example "release-assets/workout-logger-${RELEASE_TAG}-env.example"
           cp deploy/aws/chem-app-Caddyfile.snippet "release-assets/workout-logger-${RELEASE_TAG}-caddy-snippet.txt"
