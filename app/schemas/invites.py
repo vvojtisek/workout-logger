@@ -20,7 +20,7 @@ _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 class InviteCreate(BaseModel):
     email: str = Field(min_length=3, max_length=255)
-    role: Role = "user"
+    role: Literal["user"] = "user"
 
     @field_validator("email")
     @classmethod
