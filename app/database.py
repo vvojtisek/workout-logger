@@ -45,7 +45,7 @@ _OWNED_MODELS = (
     WorkoutPlan,
     WorkoutSession,
 )
-_SHARED_CATALOG_MODELS = (Exercise, Food)
+_SHARED_CATALOG_MODELS = (Exercise,)
 
 
 @event.listens_for(Session, "do_orm_execute")

@@ -130,6 +130,7 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
     exercise_id = None
     shared_exercise_id = None
     food_id = None
+    bootstrap_food_id = None
     meal_id = None
 
     try:
@@ -384,6 +385,24 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
         other_foods = await client.get("/api/v1/foods", headers=other_cookies)
         assert all(item["id"] != food_id for item in other_foods.json()["items"])
 
+        bootstrap_food = await client.post(
+            "/api/v1/foods",
+            json={
+                "name": f"Bootstrap-only food {test_run_id}",
+                "serving_quantity": 100,
+                "serving_unit": "g",
+                "energy_kcal": 200,
+                "protein_g": 20,
+                "carbohydrate_g": 20,
+                "fat_g": 5,
+            },
+            headers=auth_headers,
+        )
+        assert bootstrap_food.status_code == 201
+        bootstrap_food_id = bootstrap_food.json()["id"]
+        other_foods = await client.get("/api/v1/foods", headers=other_cookies)
+        assert all(item["id"] != bootstrap_food_id for item in other_foods.json()["items"])
+
         updated_settings = await client.put(
             "/api/v1/settings",
             json={
@@ -485,6 +504,16 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
                     select(func.count()).select_from(Food).where(Food.id == food_id)
                 )
             assert remaining_food == 0
+        if bootstrap_food_id is not None:
+            deleted_bootstrap_food = await client.delete(
+                f"/api/v1/foods/{bootstrap_food_id}", headers=auth_headers
+            )
+            assert deleted_bootstrap_food.status_code == 204
+            async with app_engine.connect() as connection:
+                remaining_bootstrap_food = await connection.scalar(
+                    select(func.count()).select_from(Food).where(Food.id == bootstrap_food_id)
+                )
+            assert remaining_bootstrap_food == 0
         if shared_exercise_id is not None:
             deleted_shared_exercise = await client.delete(
                 f"/api/v1/exercises/{shared_exercise_id}", headers=auth_headers
