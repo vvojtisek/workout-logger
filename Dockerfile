@@ -36,7 +36,7 @@ COPY pyproject.toml ./
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
-COPY scripts/entrypoint.sh scripts/assert_empty_e2e_database.py scripts/backup_database.py scripts/restore_database.py scripts/run_migrations.py scripts/validate_backup.py ./scripts/
+COPY scripts/entrypoint.sh scripts/assert_empty_e2e_database.py scripts/backup_database.py scripts/create_first_admin.py scripts/restore_database.py scripts/run_migrations.py scripts/validate_backup.py ./scripts/
 
 COPY --from=frontend-build /build/app/static/dist ./app/static/dist
 
