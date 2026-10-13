@@ -91,7 +91,9 @@ def test_aws_release_is_downloadable_and_deploys_through_ssm_only() -> None:
     release = yaml.safe_load(release_text)
     assert release[True]["push"]["tags"] == ["v*"]
     assert "git merge-base --is-ancestor" in release_text
-    assert "--platform linux/arm64" in release_text
+    assert "--platform linux/amd64,linux/arm64" in release_text
+    assert "for architecture in amd64 arm64" in release_text
+    assert "linux-${architecture}-image.tar.gz" in release_text
     assert 'gh release create "$RELEASE_TAG"' in release_text
     assert "sha256sum ./*" in release_text
     assert "gh workflow run deploy-aws.yml" in release_text
@@ -106,6 +108,11 @@ def test_aws_release_is_downloadable_and_deploys_through_ssm_only() -> None:
     assert "sha256sum --check --strict --status" in deploy_text
     assert "https://fitness.vvojtisek.eu/health/ready" in deploy_text
     assert '"ec2:ModifySecurityGroupRules"' not in deploy_text
+
+    release_script = (ROOT / "scripts" / "deploy-aws-release.sh").read_text()
+    assert "x86_64|amd64)" in release_script
+    assert "aarch64|arm64)" in release_script
+    assert "linux-${image_arch}-image.tar.gz" in release_script
 
     compose = yaml.safe_load(AWS_COMPOSE.read_text())
     compose_text = AWS_COMPOSE.read_text()
