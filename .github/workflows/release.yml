@@ -1,0 +1,136 @@
+name: Tagged release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  packages: write
+  actions: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Release quality gates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the tagged source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require a semantic version tag on main
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
+          git fetch origin main
+          git merge-base --is-ancestor "$RELEASE_SHA" origin/main
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install backend and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]" pip-audit
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install, audit, and validate the frontend
+        run: |
+          npm ci
+          npm audit --audit-level=high
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run build
+      - name: Check Python formatting and lint
+        run: |
+          ruff format --check .
+          ruff check --select E4,E7,E9,F .
+      - name: Type-check backend
+        run: mypy app/
+      - name: Run backend tests
+        run: pytest
+      - name: Audit Python dependencies
+        run: pip-audit --strict .
+
+  publish:
+    name: Publish image and downloadable GitHub release
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      actions: write
+    steps:
+      - name: Check out the tagged source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish the EC2 ARM64 image
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --provenance=true \
+            --build-arg "APP_VERSION=${GITHUB_REF_NAME}" \
+            --build-arg "GIT_COMMIT=${GITHUB_SHA}" \
+            --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --label "org.opencontainers.image.version=${GITHUB_REF_NAME}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --tag "$IMAGE" \
+            --push .
+      - name: Export the release image and deployment assets
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p release-assets
+          docker pull --platform linux/arm64 "$IMAGE"
+          docker save "$IMAGE" | gzip --fast > "release-assets/workout-logger-${RELEASE_TAG}-linux-arm64-image.tar.gz"
+          cp deploy/aws/compose.yaml "release-assets/workout-logger-${RELEASE_TAG}-compose.yaml"
+          cp deploy/aws/.env.production.example "release-assets/workout-logger-${RELEASE_TAG}-env.example"
+          cp deploy/aws/chem-app-Caddyfile.snippet "release-assets/workout-logger-${RELEASE_TAG}-caddy-snippet.txt"
+          cp scripts/deploy-aws-release.sh "release-assets/deploy-workout-logger.sh"
+          cp scripts/backup-aws-database.sh "release-assets/backup-workout-logger.sh"
+          cp deploy/aws/workout-logger-backup.service release-assets/
+          cp deploy/aws/workout-logger-backup.timer release-assets/
+          chmod +x release-assets/deploy-workout-logger.sh
+          chmod +x release-assets/backup-workout-logger.sh
+          (cd release-assets && sha256sum ./* > "workout-logger-${RELEASE_TAG}-SHA256SUMS")
+      - name: Create the versioned GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            release-assets/* \
+            --verify-tag \
+            --title "Workout Logger ${RELEASE_TAG}" \
+            --generate-notes
+      - name: Dispatch the guarded AWS deployment workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh workflow run deploy-aws.yml --ref main --field "release_tag=$RELEASE_TAG"

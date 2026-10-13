@@ -1,0 +1,109 @@
+name: Deploy release to AWS EC2 through SSM
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing GitHub release tag to deploy
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: aws-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to fitness.vvojtisek.eu
+    if: vars.AWS_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      AWS_REGION: eu-central-1
+      AWS_INSTANCE_ID: i-08abc66a2687aed45
+      AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+    steps:
+      - name: Resolve and validate the release tag
+        id: release
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          tag="$INPUT_RELEASE_TAG"
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Configure short-lived AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Send the release deployment through Systems Manager
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          AWS_INSTANCE_ID: ${{ env.AWS_INSTANCE_ID }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          tag = os.environ["RELEASE_TAG"]
+          script_path = "/tmp/deploy-workout-logger.sh"
+          script_url = (
+              "https://github.com/vvojtisek/workout-logger/releases/download/"
+              f"{tag}/deploy-workout-logger.sh"
+          )
+          checksum_url = (
+              "https://github.com/vvojtisek/workout-logger/releases/download/"
+              f"{tag}/workout-logger-{tag}-SHA256SUMS"
+          )
+          remote_command = (
+              f"curl --fail --location --silent --show-error '{script_url}' "
+              f"-o {script_path} && "
+              f"curl --fail --location --silent --show-error '{checksum_url}' "
+              f"-o /tmp/workout-logger-{tag}-SHA256SUMS && "
+              f"grep -F './deploy-workout-logger.sh' /tmp/workout-logger-{tag}-SHA256SUMS "
+              f"| (cd /tmp && sha256sum --check --strict --status) && "
+              f"chmod 700 {script_path} && "
+              f"/bin/bash {script_path} '{tag}'"
+          )
+          Path("/tmp/ssm-command.json").write_text(
+              json.dumps(
+                  {
+                      "DocumentName": "AWS-RunShellScript",
+                      "InstanceIds": [os.environ["AWS_INSTANCE_ID"]],
+                      "Parameters": {"commands": [remote_command]},
+                      "Comment": f"Deploy workout-logger {tag}",
+                  }
+              )
+          )
+          PY
+          command_id=$(aws ssm send-command \
+            --region "$AWS_REGION" \
+            --cli-input-json file:///tmp/ssm-command.json \
+            --query 'Command.CommandId' --output text)
+          echo "SSM command: $command_id"
+          if ! aws ssm wait command-executed \
+            --region "$AWS_REGION" \
+            --command-id "$command_id" \
+            --instance-id "$AWS_INSTANCE_ID"; then
+            aws ssm get-command-invocation \
+              --region "$AWS_REGION" \
+              --command-id "$command_id" \
+              --instance-id "$AWS_INSTANCE_ID" \
+              --query '{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}' \
+              --output yaml || true
+            exit 1
+          fi
+          aws ssm get-command-invocation \
+            --region "$AWS_REGION" \
+            --command-id "$command_id" \
+            --instance-id "$AWS_INSTANCE_ID" \
+            --query '{Status:Status,Stdout:StandardOutputContent}' \
+            --output yaml
+      - name: Verify the public HTTPS health endpoint
+        run: curl --fail --retry 8 --retry-delay 10 --retry-all-errors https://fitness.vvojtisek.eu/health/ready

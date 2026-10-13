@@ -1,7 +1,7 @@
 import uuid
 from datetime import date
 
-from sqlalchemy import CheckConstraint, Date, Integer, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, Date, Index, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import GUID, Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -14,10 +14,21 @@ class StepCount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "step_counts"
     __table_args__ = (
         CheckConstraint("steps >= 0", name="ck_step_counts_steps_non_negative"),
-        # NULL external_id would never collide, but every row here is ingested
-        # (external_id is required by the ingest schema), so this constraint
-        # alone is what makes a re-sync idempotent.
-        UniqueConstraint("source", "external_id", name="uq_step_counts_source_external_id"),
+        Index(
+            "uq_step_counts_owner_source_external_id",
+            "owner_id",
+            "source",
+            "external_id",
+            unique=True,
+            sqlite_where=text("owner_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_step_counts_unowned_source_external_id",
+            "source",
+            "external_id",
+            unique=True,
+            sqlite_where=text("owner_id IS NULL"),
+        ),
     )
 
     # Nullable and unenforced by any FK: there is no users table yet. Carrying

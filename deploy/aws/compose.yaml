@@ -1,0 +1,51 @@
+services:
+  workout-logger:
+    image: ghcr.io/vvojtisek/workout-logger:${RELEASE_TAG:?Set RELEASE_TAG in .env.release}
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      API_KEY: ${API_KEY:?Set API_KEY in .env.production}
+      DATABASE_URL: sqlite+aiosqlite:////data/workout_logger.db
+      APP_ENV: production
+      APP_VERSION: ${RELEASE_TAG}
+      TRUSTED_HOSTS: localhost,127.0.0.1,fitness.vvojtisek.eu
+      PUBLIC_BASE_URL: https://fitness.vvojtisek.eu/
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      RUN_MIGRATIONS_ON_STARTUP: "true"
+    volumes:
+      - ./data:/data
+      - ./backups:/backups
+    expose:
+      - "8000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    pids_limit: 100
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 5m
+    networks:
+      - chem-app-public
+
+networks:
+  chem-app-public:
+    external: true
+    name: ${CHEM_APP_DOCKER_NETWORK:-chem-app_public-net}
