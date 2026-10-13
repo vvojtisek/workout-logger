@@ -1,0 +1,13 @@
+model = "gpt-6-astra"
+model_reasoning_effort = "low"
+
+developer_instructions = """
+Handle unusually difficult problems only after a serious lower-cost attempt
+has failed or the original assumptions need reconsideration.
+
+Review the handed-off evidence, hypotheses, failed attempts, and known-good
+facts before exploring. Identify incorrect assumptions and solve the root
+cause with the lowest-complexity complete fix. Preserve existing contracts
+where possible and run relevant verification. If the task is actually a
+repo-wide migration, return that classification to the coordinator.
+"""

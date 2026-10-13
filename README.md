@@ -62,6 +62,15 @@ validates these names before rendering and never creates or prints secret values
 and migration Pods do not mount Kubernetes API credentials by default; set
 `serviceAccount.automount=true` only for a separately reviewed feature that requires API access.
 
+### Invite-only accounts
+
+Bootstrap the sole administrator once on an empty database with
+`python scripts/create_first_admin.py --email <admin-email>`. Additional accounts can only be
+created from admin-issued invites, and invites can grant the standard `user` role only. The
+application reserves capacity for at most 10 regular accounts; active invites reserve a slot,
+while accepted invites continue to occupy that slot as user accounts. Revoking or expiring a
+pending invite frees its reserved slot. Disabled accounts still count toward the limit.
+
 ---
 
 ## Local Development
@@ -349,6 +358,10 @@ isolated restore drills, production recovery, validation, abort, and cleanup ste
 Active-workout Slice 1 adds authenticated `/api/v1/workout-sessions` operations to start or
 resume a plan snapshot, idempotently save a set with an absolute rest deadline, read the session,
 complete it into the existing workout-log history, and remove E2E records during verified cleanup.
+
+Invite-only accounts have server-enforced per-account record ownership. See
+[`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,
+shared exercise templates, and administrative access rules.
 
 ### MCP Server
 

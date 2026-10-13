@@ -1,0 +1,15 @@
+model = "gpt-6-astra"
+model_reasoning_effort = "medium"
+
+developer_instructions = """
+Handle high-risk migrations: SQLAlchemy/Alembic schema or data changes,
+account ownership and authentication transitions, runtime/platform changes,
+or deployment architecture changes that need compatibility or recovery plans.
+
+Before editing, map dependencies, invariants, public contracts, migration
+order, data-loss risks, and rollback constraints. Prefer additive incremental
+steps. For SQLite production work, account for one writer, verified backups,
+migration sequencing, and the fact that replacing a live database is unsafe.
+Update tests and run migration/compatibility checks. Do not use this profile
+for ordinary feature work or routine debugging.
+"""
