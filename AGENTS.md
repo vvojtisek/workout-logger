@@ -1,5 +1,24 @@
 # Repository agent instructions
 
+## Codex agent routing
+
+Use `.codex/skills/adaptive-model-router/SKILL.md` to choose the least costly capable agent.
+The coordinator owns scope, delivery gates, verification, and the final report. Prefer one
+implementation owner for a coherent change and parallelize only independent exploration.
+
+Use the scoped profiles in `.codex/agents/` for small mechanical work, normal implementation,
+cross-layer features, difficult root-cause debugging, unusually hard unresolved problems, and
+high-risk schema or deployment migrations. Active-workout slices must follow
+`docs/active-workout-feature-plan.md`; that plan and the delivery rules below remain authoritative.
+
+Repository-specific review priorities:
+
+- preserve workout history and current plan/log API contracts;
+- keep browser entry flows usable on a phone and readable during desktop review;
+- treat SQLite backup, migration, and single-writer behavior as production invariants;
+- keep session authentication, API-token scopes, and invited-account ownership distinct;
+- do not claim AWS deployment readiness from a Helm-only check; validate the Compose/SSM path too.
+
 Read `docs/active-workout-feature-plan.md` before implementing workout UI or active-workout features.
 
 For active-workout work, that plan supersedes the stage sequencing in `docs/health-tracker-implementation-instructions.md`. The health-tracker document remains the long-term roadmap.
