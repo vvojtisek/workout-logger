@@ -1,7 +1,8 @@
 from datetime import date, datetime, time, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, Float, func, select, type_coerce
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import InstrumentedAttribute
 
 from app.models import MealEntry, MealItem
 from app.schemas.nutrition_dashboard import (
@@ -13,16 +14,22 @@ from app.schemas.nutrition_dashboard import (
 from app.services.nutrition_plans import get_applicable_plan
 
 
+def _sum_or_zero(column: InstrumentedAttribute[float | None]) -> ColumnElement[float]:
+    # COALESCE guarantees a non-null result, but SQLAlchemy types coalesce() from its
+    # first argument only, so declare the expression type explicitly.
+    return type_coerce(func.coalesce(func.sum(column), 0.0), Float)
+
+
 async def _get_totals(session: AsyncSession, on_date: date) -> NutritionTotals:
     day_start = datetime.combine(on_date, time.min, tzinfo=timezone.utc)
     day_end = day_start + timedelta(days=1)
     result = await session.execute(
         select(
-            func.coalesce(func.sum(MealItem.energy_kcal_snapshot), 0.0),
-            func.coalesce(func.sum(MealItem.protein_g_snapshot), 0.0),
-            func.coalesce(func.sum(MealItem.carbohydrate_g_snapshot), 0.0),
-            func.coalesce(func.sum(MealItem.fat_g_snapshot), 0.0),
-            func.coalesce(func.sum(MealItem.fiber_g_snapshot), 0.0),
+            _sum_or_zero(MealItem.energy_kcal_snapshot),
+            _sum_or_zero(MealItem.protein_g_snapshot),
+            _sum_or_zero(MealItem.carbohydrate_g_snapshot),
+            _sum_or_zero(MealItem.fat_g_snapshot),
+            _sum_or_zero(MealItem.fiber_g_snapshot),
         )
         .select_from(MealItem)
         .join(MealEntry, MealItem.meal_entry_id == MealEntry.id)
