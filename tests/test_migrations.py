@@ -125,6 +125,70 @@ def test_active_session_migration_upgrades_a_copy_of_current_schema(
     copied_engine.dispose()
 
 
+def test_workout_plan_owner_migration_preserves_existing_unowned_plans(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "d4e8f1a6c7b3")
+    test_run_id = uuid.uuid4().hex
+    plan_id = str(uuid.uuid4())
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO workout_plans "
+                "(id, name, description, created_at, updated_at) "
+                "VALUES (:id, :name, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": plan_id, "name": f"Legacy ownerless plan {test_run_id}"},
+        )
+
+    command.upgrade(alembic_config, "head")
+
+    with sync_engine.connect() as connection:
+        row = connection.execute(
+            text("SELECT name, owner_id FROM workout_plans WHERE id = :id"), {"id": plan_id}
+        ).one()
+    assert row == (f"Legacy ownerless plan {test_run_id}", None)
+    sync_engine.dispose()
+
+
+def test_workout_plan_owner_migration_assigns_legacy_rows_to_existing_admin(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "fce0c499942e")
+    test_run_id = uuid.uuid4().hex
+    admin_id = str(uuid.uuid4())
+    plan_id = str(uuid.uuid4())
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO users "
+                "(id, email, password_hash, role, disabled_at, created_at, updated_at) "
+                "VALUES (:id, :email, 'not-a-real-password-hash', 'admin', NULL, "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": admin_id, "email": f"admin-{test_run_id}@example.test"},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO workout_plans "
+                "(id, name, description, created_at, updated_at) "
+                "VALUES (:id, :name, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": plan_id, "name": f"Legacy admin plan {test_run_id}"},
+        )
+
+    command.upgrade(alembic_config, "head")
+
+    with sync_engine.connect() as connection:
+        owner_id = connection.scalar(
+            text("SELECT owner_id FROM workout_plans WHERE id = :id"), {"id": plan_id}
+        )
+    assert owner_id == admin_id
+    sync_engine.dispose()
+
+
 def test_grid_group_migration_preserves_slice_one_data(alembic_config, alembic_db_path):
     command.upgrade(alembic_config, "3d62adf731c8")
     plan_id = str(uuid.uuid4())

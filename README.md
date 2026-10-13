@@ -348,6 +348,10 @@ Active-workout Slice 1 adds authenticated `/api/v1/workout-sessions` operations 
 resume a plan snapshot, idempotently save a set with an absolute rest deadline, read the session,
 complete it into the existing workout-log history, and remove E2E records during verified cleanup.
 
+Invite-only accounts have server-enforced per-account record ownership. See
+[`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,
+shared exercise templates, and administrative access rules.
+
 ### MCP Server
 
 An MCP server is mounted at `/mcp` (streamable HTTP) inside this same FastAPI application — one
