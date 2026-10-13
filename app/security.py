@@ -48,7 +48,14 @@ class AuthContext:
 
     @property
     def owner_id(self) -> UUID | None:
-        return self.user.id if self.user is not None else None
+        if self.user is not None:
+            return self.user.id
+        return self.token.owner_id if self.token is not None else None
+
+    @property
+    def can_access_all_data(self) -> bool:
+        """Only the configured bootstrap key has unscoped data access."""
+        return self.user is None and self.token is None and self.has_scope("admin")
 
 
 async def _resolve_db_token(session: AsyncSession, api_key: str) -> ApiToken | None:
@@ -95,6 +102,10 @@ async def require_api_key(
     session: AsyncSession = Depends(get_session),
 ) -> AuthContext:
     auth = await authenticate_request(request, api_key, session)
+    session.sync_session.info["data_owner_id"] = auth.owner_id
+    session.sync_session.info["data_global_access"] = auth.can_access_all_data
+    session.sync_session.info["data_read_shared"] = request.method in _READ_METHODS
+    request.state.auth_context = auth
     required_scope = "read" if request.method in _READ_METHODS else "log"
     if not auth.has_scope(required_scope):
         raise HTTPException(

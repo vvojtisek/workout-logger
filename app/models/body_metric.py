@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import REAL, String, UniqueConstraint
+from sqlalchemy import REAL, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import GUID, Base, TimestampMixin, UTCDateTime, UUIDPrimaryKeyMixin
@@ -13,10 +13,21 @@ class BodyMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __tablename__ = "body_metrics"
     __table_args__ = (
-        # NULL external_id (every manually-logged entry) is never considered a
-        # duplicate of another NULL; only two ingested rows sharing the same
-        # source+external_id collide, which is what makes a re-sync idempotent.
-        UniqueConstraint("source", "external_id", name="uq_body_metrics_source_external_id"),
+        Index(
+            "uq_body_metrics_owner_source_external_id",
+            "owner_id",
+            "source",
+            "external_id",
+            unique=True,
+            sqlite_where=text("owner_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_body_metrics_unowned_source_external_id",
+            "source",
+            "external_id",
+            unique=True,
+            sqlite_where=text("owner_id IS NULL"),
+        ),
     )
 
     # Nullable and unenforced by any FK: there is no users table yet. Carrying
