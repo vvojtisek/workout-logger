@@ -7,8 +7,8 @@ strategy:
 image:
   repository: ghcr.io/vvojtisek/workout-logger
   tag: ""
-  digest: "sha256:27f52eeeab5b382e5a13d7c76350035cb4e89b85016dea8924f82a14083f6f77"
-  sourceCommit: "5a02b03fc3149c38b197dab06b0315f91309b133"
+  digest: "sha256:fef312cc543b893c1e4e054f9ecb2234b23cada18ad5ea42a3f7c4fb2e60f19e"
+  sourceCommit: "05af292dfe02fea900c6dc9614e520389fb98152"
   pullPolicy: IfNotPresent
 
 existingSecret: workout-logger-secret
@@ -33,9 +33,9 @@ env:
   APP_ENV: production
   # Kept in sync with image.digest/image.sourceCommit above by
   # scripts/promote_image.py on every production promotion -- never edit by hand.
-  APP_VERSION: "5a02b03"
-  GIT_COMMIT: "5a02b03fc3149c38b197dab06b0315f91309b133"
-  BUILD_TIME: "2026-10-13T13:32:32Z"
+  APP_VERSION: "v2.0.0-2-g05af292"
+  GIT_COMMIT: "05af292dfe02fea900c6dc9614e520389fb98152"
+  BUILD_TIME: "2026-10-13T18:11:20Z"
   LOG_LEVEL: INFO
   TRUSTED_HOSTS: "localhost,127.0.0.1,fitness.vvojtisek.eu"
   PUBLIC_BASE_URL: "https://fitness.vvojtisek.eu/"
