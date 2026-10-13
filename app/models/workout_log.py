@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import GUID, Base, TimestampMixin, UTCDateTime, UUIDPrimaryKeyMixin
@@ -16,12 +16,29 @@ class WorkoutLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         Index("ix_workout_logs_performed_at", "performed_at"),
         Index("ix_workout_logs_source_plan_id", "source_plan_id"),
-        # NULL external_id (every manually-logged entry) is never considered a
-        # duplicate of another NULL; only two ingested rows sharing the same
-        # source+external_id collide, which is what makes a re-sync idempotent.
-        UniqueConstraint("source", "external_id", name="uq_workout_logs_source_external_id"),
+        Index(
+            "uq_workout_logs_owner_source_external_id",
+            "owner_id",
+            "source",
+            "external_id",
+            unique=True,
+            sqlite_where=text("owner_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_workout_logs_unowned_source_external_id",
+            "source",
+            "external_id",
+            unique=True,
+            sqlite_where=text("owner_id IS NULL"),
+        ),
     )
 
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(),
+        ForeignKey("users.id", ondelete="SET NULL", name="fk_workout_logs_owner_id_users"),
+        nullable=True,
+        index=True,
+    )
     source_plan_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID(), ForeignKey("workout_plans.id", ondelete="SET NULL"), nullable=True
     )

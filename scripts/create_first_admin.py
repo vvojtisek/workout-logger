@@ -11,12 +11,41 @@ import argparse
 import asyncio
 import getpass
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.config import get_settings
 from app.database import get_session_maker
-from app.models import User
+from app.models import (
+    BodyMetric,
+    Food,
+    MealEntry,
+    NutritionPlan,
+    Program,
+    ScheduledWorkout,
+    SleepEntry,
+    StepCount,
+    User,
+    UserSettings,
+    WorkoutLog,
+    WorkoutPlan,
+    WorkoutSession,
+)
 from app.security_passwords import hash_password
+
+_LEGACY_PERSONAL_MODELS = (
+    BodyMetric,
+    Food,
+    MealEntry,
+    NutritionPlan,
+    Program,
+    ScheduledWorkout,
+    SleepEntry,
+    StepCount,
+    UserSettings,
+    WorkoutLog,
+    WorkoutPlan,
+    WorkoutSession,
+)
 
 
 async def create_first_admin(email: str, password: str) -> str:
@@ -31,6 +60,11 @@ async def create_first_admin(email: str, password: str) -> str:
         normalized_email = email.strip().lower()
         user = User(email=normalized_email, password_hash=hash_password(password), role="admin")
         session.add(user)
+        await session.flush()
+        for model in _LEGACY_PERSONAL_MODELS:
+            await session.execute(
+                update(model).where(model.owner_id.is_(None)).values(owner_id=user.id)
+            )
         await session.commit()
     return normalized_email
 
