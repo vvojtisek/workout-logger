@@ -5,7 +5,6 @@ from pathlib import Path
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 FAST_WORKFLOW = WORKFLOWS / "ci-fast.yml"
@@ -13,6 +12,9 @@ MERGE_WORKFLOW = WORKFLOWS / "ci-merge.yml"
 SECURITY_WORKFLOW = WORKFLOWS / "ci-security.yml"
 PACKAGE = ROOT / "package.json"
 E2E = ROOT / "e2e" / "workout.spec.js"
+AWS_RELEASE = WORKFLOWS / "release.yml"
+AWS_DEPLOY = WORKFLOWS / "deploy-aws.yml"
+AWS_COMPOSE = ROOT / "deploy" / "aws" / "compose.yaml"
 
 
 def fast_workflow() -> dict:
@@ -82,3 +84,32 @@ def test_e2e_uses_real_kubernetes_image_database_and_failure_artifacts() -> None
     assert "if: always()" in step_text
     assert "actions/upload-artifact" in step_text
     assert "k3d cluster delete" in step_text
+
+
+def test_aws_release_is_downloadable_and_deploys_through_ssm_only() -> None:
+    release_text = AWS_RELEASE.read_text()
+    release = yaml.safe_load(release_text)
+    assert release[True]["push"]["tags"] == ["v*"]
+    assert "git merge-base --is-ancestor" in release_text
+    assert "--platform linux/arm64" in release_text
+    assert 'gh release create "$RELEASE_TAG"' in release_text
+    assert "sha256sum ./*" in release_text
+    assert "gh workflow run deploy-aws.yml" in release_text
+
+    deploy_text = AWS_DEPLOY.read_text()
+    deploy = yaml.safe_load(deploy_text)
+    assert "workflow_dispatch" in deploy[True]
+    assert "id-token: write" in deploy_text
+    assert "i-08abc66a2687aed45" in deploy_text
+    assert "ssm send-command" in deploy_text
+    assert 'script_path = "/tmp/deploy-workout-logger.sh"' in deploy_text
+    assert "sha256sum --check --strict --status" in deploy_text
+    assert "https://fitness.vvojtisek.eu/health/ready" in deploy_text
+    assert '"ec2:ModifySecurityGroupRules"' not in deploy_text
+
+    compose = yaml.safe_load(AWS_COMPOSE.read_text())
+    compose_text = AWS_COMPOSE.read_text()
+    assert "chem-app_public-net" in compose_text
+    service = compose["services"]["workout-logger"]
+    assert service["expose"] == ["8000"]
+    assert "ports" not in service

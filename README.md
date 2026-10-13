@@ -188,6 +188,8 @@ kubectl get pods --show-labels -l app.kubernetes.io/name=workout-logger
 ## Production Deployment (k3s + ArgoCD)
 
 The application is deployed to production automatically via **ArgoCD** tracking the `main` branch.
+The shared EC2 Compose deployment, tagged downloads, and SSM release workflow are documented in
+[`deploy/aws/README.md`](deploy/aws/README.md).
 
 ### 1. Secret Bootstrap (One-time setup per cluster)
 
@@ -357,6 +359,10 @@ Active-workout Slice 1 adds authenticated `/api/v1/workout-sessions` operations 
 resume a plan snapshot, idempotently save a set with an absolute rest deadline, read the session,
 complete it into the existing workout-log history, and remove E2E records during verified cleanup.
 
+Invite-only accounts have server-enforced per-account record ownership. See
+[`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,
+shared exercise templates, and administrative access rules.
+
 ### MCP Server
 
 An MCP server is mounted at `/mcp` (streamable HTTP) inside this same FastAPI application — one
@@ -436,9 +442,9 @@ specific to this deployment:
 See `.env.example` for the full annotated list (`MCP_OAUTH_ENABLED`, `MCP_OAUTH_PROVIDER`,
 `MCP_OAUTH_ISSUER`, `MCP_OAUTH_CLIENT_ID`, `MCP_OAUTH_CLIENT_SECRET`, `MCP_OAUTH_AUDIENCE`,
 `MCP_OAUTH_BASE_URL`, `MCP_OAUTH_ALLOWED_SUBJECTS`, `MCP_OAUTH_JWT_SIGNING_KEY`,
-`MCP_OAUTH_STORAGE_DIR`, `MCP_OAUTH_STORAGE_KEY`). `MCP_OAUTH_ENABLED` defaults to `false`; when
-disabled, `/mcp/` has **no authentication at all**, so it must only be left disabled for local
-development, never in a network-reachable deployment.
+`MCP_OAUTH_STORAGE_DIR`, `MCP_OAUTH_STORAGE_KEY`). `MCP_OAUTH_ENABLED` defaults to `false`; while
+disabled, the MCP transport and OAuth discovery routes are not mounted. Enable MCP only after its
+OAuth provider and allowed-subject list are configured.
 
 #### Local development setup
 

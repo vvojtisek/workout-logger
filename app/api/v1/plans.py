@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
@@ -11,6 +11,7 @@ from app.schemas.plans import (
     WorkoutPlanRead,
     WorkoutPlanReplace,
 )
+from app.security import AuthContext
 from app.services import plans as plans_service
 
 router = APIRouter(prefix="/plans", tags=["plans"])
@@ -24,11 +25,13 @@ router = APIRouter(prefix="/plans", tags=["plans"])
     response_model=PaginatedPlansResponse,
 )
 async def list_workout_plans(
+    request: Request,
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_session),
 ) -> PaginatedPlansResponse:
-    items, total = await plans_service.list_plans(session, limit, offset)
+    auth: AuthContext = request.state.auth_context
+    items, total = await plans_service.list_plans(session, limit, offset, auth.owner_id)
     return PaginatedPlansResponse(
         items=[WorkoutPlanRead.model_validate(item) for item in items],
         total=total,
@@ -49,9 +52,11 @@ async def list_workout_plans(
 async def create_workout_plan(
     data: WorkoutPlanCreate,
     response: Response,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> WorkoutPlanRead:
-    plan = await plans_service.create_plan(session, data)
+    auth: AuthContext = request.state.auth_context
+    plan = await plans_service.create_plan(session, data, auth.owner_id)
     response.headers["Location"] = f"/api/v1/plans/{plan.id}"
     return WorkoutPlanRead.model_validate(plan)
 
@@ -65,9 +70,12 @@ async def create_workout_plan(
     responses={404: {"model": ErrorResponse, "description": "Plan not found"}},
 )
 async def get_workout_plan(
-    plan_id: UUID, session: AsyncSession = Depends(get_session)
+    plan_id: UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
 ) -> WorkoutPlanRead:
-    plan = await plans_service.get_plan(session, plan_id)
+    auth: AuthContext = request.state.auth_context
+    plan = await plans_service.get_plan(session, plan_id, auth.owner_id)
     return WorkoutPlanRead.model_validate(plan)
 
 
@@ -85,9 +93,11 @@ async def get_workout_plan(
 async def replace_workout_plan(
     plan_id: UUID,
     data: WorkoutPlanReplace,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> WorkoutPlanRead:
-    plan = await plans_service.replace_plan(session, plan_id, data)
+    auth: AuthContext = request.state.auth_context
+    plan = await plans_service.replace_plan(session, plan_id, data, auth.owner_id)
     return WorkoutPlanRead.model_validate(plan)
 
 
@@ -99,5 +109,10 @@ async def replace_workout_plan(
     status_code=status.HTTP_204_NO_CONTENT,
     responses={404: {"model": ErrorResponse, "description": "Plan not found"}},
 )
-async def delete_workout_plan(plan_id: UUID, session: AsyncSession = Depends(get_session)) -> None:
-    await plans_service.delete_plan(session, plan_id)
+async def delete_workout_plan(
+    plan_id: UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    auth: AuthContext = request.state.auth_context
+    await plans_service.delete_plan(session, plan_id, auth.owner_id)

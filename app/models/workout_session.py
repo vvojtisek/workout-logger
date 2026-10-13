@@ -27,6 +27,12 @@ class WorkoutSession(UUIDPrimaryKeyMixin, Base):
         Index("ix_workout_sessions_status_started", "status", "started_at"),
     )
 
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(),
+        ForeignKey("users.id", ondelete="SET NULL", name="fk_workout_sessions_owner_id_users"),
+        nullable=True,
+        index=True,
+    )
     source_plan_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID(), ForeignKey("workout_plans.id", ondelete="SET NULL"), nullable=True
     )

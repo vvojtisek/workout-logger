@@ -1,6 +1,7 @@
 import time
 import uuid
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -43,6 +44,34 @@ app = FastAPI(
     servers=openapi_servers,
     lifespan=mcp_app.lifespan,
 )
+
+
+def register_mcp_routes(
+    application: FastAPI,
+    mcp_application: Any,
+    auth: Any,
+    *,
+    enabled: bool,
+) -> None:
+    """Expose the MCP transport and discovery only when OAuth is configured."""
+    if not enabled:
+        return
+
+    async def mcp_bare_path_redirect() -> RedirectResponse:
+        """Redirect the bare MCP path to its canonical trailing-slash URL."""
+        return RedirectResponse(url="/mcp/", status_code=308)
+
+    application.add_api_route(
+        "/mcp", mcp_bare_path_redirect, methods=["GET"], include_in_schema=False
+    )
+    application.mount("/mcp", mcp_application)
+
+    # OAuth discovery metadata is required at the origin root, not only under
+    # the MCP mount. Register it only with the authenticated transport.
+    if auth is not None:
+        for well_known_route in auth.get_well_known_routes(mcp_path="/"):
+            application.router.routes.append(well_known_route)
+
 
 CONTENT_SECURITY_POLICY = (
     "default-src 'self'; "
@@ -119,28 +148,7 @@ app.include_router(api_router)
 app.include_router(auth_router, prefix="/api/v1")
 
 
-@app.get("/mcp", include_in_schema=False)
-async def mcp_bare_path_redirect() -> RedirectResponse:
-    """The canonical MCP resource identifier has a trailing slash (`/mcp/`).
-    Redirect the bare path instead of 404ing so it never becomes a second,
-    subtly different OAuth resource in metadata or client configuration."""
-    return RedirectResponse(url="/mcp/", status_code=308)
-
-
-# The MCP transport authenticates OAuth bearer tokens itself (FastMCP's
-# AuthProvider), rather than through the REST routers' X-API-Key dependency.
-app.mount("/mcp", mcp_app)
-
-# RFC 9728/8414 discovery metadata (`/.well-known/oauth-protected-resource`,
-# `/.well-known/oauth-authorization-server`, ...) must be reachable at the
-# domain root, not underneath the `/mcp` mount -- MCP/OAuth clients always
-# look there first, regardless of where the resource itself lives. FastMCP
-# already builds these routes into `mcp_app`, but nested under `/mcp` they'd
-# be unreachable at their required root-level path, so the same routes are
-# also registered directly on the outer app.
-if mcp.auth is not None:
-    for well_known_route in mcp.auth.get_well_known_routes(mcp_path="/"):
-        app.router.routes.append(well_known_route)
+register_mcp_routes(app, mcp_app, mcp.auth, enabled=settings.MCP_OAUTH_ENABLED)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 

@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import CheckConstraint, Integer, String, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import GUID, Base, TimestampMixin, UTCDateTime, UUIDPrimaryKeyMixin
@@ -19,10 +19,21 @@ class SleepEntry(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "quality_score IS NULL OR (quality_score >= 1 AND quality_score <= 5)",
             name="ck_sleep_entries_quality_score",
         ),
-        # NULL external_id (every manually-logged entry) is never considered a
-        # duplicate of another NULL; only two ingested rows sharing the same
-        # source+external_id collide, which is what makes a re-sync idempotent.
-        UniqueConstraint("source", "external_id", name="uq_sleep_entries_source_external_id"),
+        Index(
+            "uq_sleep_entries_owner_source_external_id",
+            "owner_id",
+            "source",
+            "external_id",
+            unique=True,
+            sqlite_where=text("owner_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_sleep_entries_unowned_source_external_id",
+            "source",
+            "external_id",
+            unique=True,
+            sqlite_where=text("owner_id IS NULL"),
+        ),
     )
 
     # Nullable and unenforced by any FK: there is no users table yet. Carrying
