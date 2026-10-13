@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+verify_release_checksums() {
+  local checksum_file="$1"
+  shift
+  local selected_checksums="${checksum_file}.selected"
+  : > "$selected_checksums"
+
+  local asset
+  for asset in "$@"; do
+    grep -F "  ./$asset" "$checksum_file" >> "$selected_checksums"
+  done
+
+  (
+    cd "$(dirname "$checksum_file")"
+    sha256sum --check --strict "$(basename "$selected_checksums")"
+  )
+}
+
 release_tag="${1:?Usage: deploy-aws-release.sh vX.Y.Z}"
 if [[ ! "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
   echo "Invalid release tag: $release_tag" >&2
@@ -71,10 +88,7 @@ for asset in "${release_assets[@]}"; do
   curl --fail --location --silent --show-error \
     "$asset_base/$asset" -o "$temporary_dir/$asset"
 done
-(
-  cd "$temporary_dir"
-  sha256sum --check --strict "$checksum_asset"
-)
+verify_release_checksums "$temporary_dir/$checksum_asset" "${release_assets[@]}"
 docker load --input "$temporary_dir/$image_archive"
 install -m 640 "$temporary_dir/$compose_asset" "$app_dir/compose.yaml.new"
 install -m 640 "$temporary_dir/workout-logger-${release_tag}-env.example" \
