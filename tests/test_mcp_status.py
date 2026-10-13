@@ -1,6 +1,19 @@
 BASE = "/api/v1/mcp-status"
 
 
+def test_disabled_mcp_has_no_public_transport_or_discovery_routes():
+    from fastapi import FastAPI
+
+    from app.main import register_mcp_routes
+
+    app = FastAPI()
+    register_mcp_routes(app, FastAPI(), auth=object(), enabled=False)
+    route_paths = {route.path for route in app.routes}
+
+    assert "/mcp" not in route_paths
+    assert "/.well-known/oauth-protected-resource" not in route_paths
+
+
 async def test_mcp_status_reports_enabled_and_the_full_tool_set(client, auth_headers):
     response = await client.get(BASE, headers=auth_headers)
     assert response.status_code == 200

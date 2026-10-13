@@ -1,0 +1,8 @@
+[Unit]
+Description=Create and verify a SQLite backup for Workout Logger
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/backup-workout-logger
