@@ -8,6 +8,7 @@ from app.database import get_session_maker
 from app.models import UserSession
 from app.models.base import utcnow
 from app.security import AuthContext, require_account_admin
+from scripts.create_first_admin import create_first_admin
 
 INVITES = "/api/v1/invites"
 ACCEPT = "/api/v1/auth/invites/accept"
@@ -54,7 +55,10 @@ async def test_session_non_admin_cannot_create_invite(client, auth_headers):
 
 
 async def test_session_admin_can_create_invite(client, auth_headers):
-    await _create_and_login(client, auth_headers, "session.admin@example.test", role="admin")
+    email = "session.admin@example.test"
+    await create_first_admin(email, PASSWORD)
+    login_response = await client.post(LOGIN, json={"email": email, "password": PASSWORD})
+    assert login_response.status_code == 200
     response = await client.post(
         INVITES, json={"email": "someone.new@example.test", "role": "user"}
     )

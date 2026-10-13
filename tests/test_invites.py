@@ -1,8 +1,13 @@
+import asyncio
 from datetime import timedelta
+from uuid import uuid4
+
+from sqlalchemy import delete, func, select
 
 from app.database import get_session_maker
-from app.models import AccountToken
+from app.models import AccountToken, User
 from app.models.base import utcnow
+from scripts.create_first_admin import create_first_admin
 
 BASE = "/api/v1/invites"
 ACCEPT = "/api/v1/auth/invites/accept"
@@ -98,7 +103,7 @@ async def test_revoke_invite_is_idempotent(client, auth_headers):
 
 
 async def test_accept_invite_creates_user_with_hashed_password(client, auth_headers):
-    created = await client.post(BASE, json=make_invite_payload(role="admin"), headers=auth_headers)
+    created = await client.post(BASE, json=make_invite_payload(), headers=auth_headers)
     token = created.json()["token"]
 
     response = await client.post(
@@ -107,9 +112,14 @@ async def test_accept_invite_creates_user_with_hashed_password(client, auth_head
     assert response.status_code == 201
     body = response.json()
     assert body["email"] == "new.person@example.test"
-    assert body["role"] == "admin"
+    assert body["role"] == "user"
     assert "password" not in body
     assert "password_hash" not in body
+
+
+async def test_invite_cannot_grant_another_admin(client, auth_headers):
+    response = await client.post(BASE, json=make_invite_payload(role="admin"), headers=auth_headers)
+    assert response.status_code == 422
 
 
 async def test_accept_invite_twice_is_rejected(client, auth_headers):
@@ -165,3 +175,128 @@ async def test_accept_invite_with_short_password_returns_422(client, auth_header
     token = created.json()["token"]
     response = await client.post(ACCEPT, json={"token": token, "password": "short"})
     assert response.status_code == 422
+
+
+async def test_invites_enforce_one_admin_and_ten_user_capacity(client, auth_headers, app_engine):
+    test_run_id = uuid4().hex
+    email_prefix = f"[TEST_RUN_ID:{test_run_id}]"
+    admin_email = f"admin-{test_run_id}@example.test"
+    invite_ids = []
+    invite_tokens = []
+    try:
+        await create_first_admin(admin_email, "correct horse battery staple")
+        for index in range(10):
+            response = await client.post(
+                BASE,
+                json=make_invite_payload(
+                    email=f"{email_prefix}-user-{index}@example.test",
+                ),
+                headers=auth_headers,
+            )
+            assert response.status_code == 201
+            invite_ids.append(response.json()["id"])
+            invite_tokens.append(response.json()["token"])
+
+        admin_invite = await client.post(
+            BASE,
+            json=make_invite_payload(
+                email=f"{email_prefix}-extra-admin@example.test",
+                role="admin",
+            ),
+            headers=auth_headers,
+        )
+        assert admin_invite.status_code == 422
+
+        accepted = await client.post(
+            ACCEPT,
+            json={"token": invite_tokens[0], "password": "correct horse battery staple"},
+        )
+        assert accepted.status_code == 201
+
+        overflow = await client.post(
+            BASE,
+            json=make_invite_payload(email=f"{email_prefix}-overflow@example.test"),
+            headers=auth_headers,
+        )
+        assert overflow.status_code == 409
+        assert overflow.json()["code"] == "USER_CAPACITY_REACHED"
+
+        revoked = await client.post(
+            f"{BASE}/{invite_ids[1]}/revoke",
+            headers=auth_headers,
+        )
+        assert revoked.status_code == 200
+        replacement = await client.post(
+            BASE,
+            json=make_invite_payload(email=f"{email_prefix}-replacement@example.test"),
+            headers=auth_headers,
+        )
+        assert replacement.status_code == 201
+        invite_ids.append(replacement.json()["id"])
+    finally:
+        async with app_engine.begin() as connection:
+            await connection.execute(
+                delete(AccountToken).where(AccountToken.email.like(f"{email_prefix}%"))
+            )
+            await connection.execute(delete(User).where(User.email == admin_email))
+            await connection.execute(delete(User).where(User.email.like(f"{email_prefix}%")))
+
+        async with app_engine.connect() as connection:
+            leftover_tokens = await connection.scalar(
+                select(func.count())
+                .select_from(AccountToken)
+                .where(AccountToken.email.like(f"{email_prefix}%"))
+            )
+            leftover_users = await connection.scalar(
+                select(func.count())
+                .select_from(User)
+                .where((User.email == admin_email) | User.email.like(f"{email_prefix}%"))
+            )
+        assert leftover_tokens == 0
+        assert leftover_users == 0
+
+
+async def test_concurrent_invites_never_exceed_ten_user_capacity(client, auth_headers, app_engine):
+    test_run_id = uuid4().hex
+    email_prefix = f"[TEST_RUN_ID:{test_run_id}]"
+    responses = []
+    try:
+        responses = await asyncio.gather(
+            *(
+                client.post(
+                    BASE,
+                    json=make_invite_payload(email=f"{email_prefix}-{index}@example.test"),
+                    headers=auth_headers,
+                )
+                for index in range(11)
+            )
+        )
+
+        assert sum(response.status_code == 201 for response in responses) == 10
+        rejected = [response for response in responses if response.status_code == 409]
+        assert len(rejected) == 1
+        assert rejected[0].json()["code"] == "USER_CAPACITY_REACHED"
+
+        async with app_engine.connect() as connection:
+            persisted_invites = await connection.scalar(
+                select(func.count())
+                .select_from(AccountToken)
+                .where(
+                    AccountToken.email.like(f"{email_prefix}%"),
+                    AccountToken.revoked_at.is_(None),
+                    AccountToken.used_at.is_(None),
+                )
+            )
+        assert persisted_invites == 10
+    finally:
+        async with app_engine.begin() as connection:
+            await connection.execute(
+                delete(AccountToken).where(AccountToken.email.like(f"{email_prefix}%"))
+            )
+        async with app_engine.connect() as connection:
+            leftover_tokens = await connection.scalar(
+                select(func.count())
+                .select_from(AccountToken)
+                .where(AccountToken.email.like(f"{email_prefix}%"))
+            )
+        assert leftover_tokens == 0
