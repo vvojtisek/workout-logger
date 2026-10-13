@@ -1,0 +1,49 @@
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+
+[agents]
+enabled = true
+default_subagent_model = "gpt-6-luna"
+default_subagent_reasoning_effort = "high"
+
+[agents.quick_worker]
+description = """
+Use for small, well-scoped changes such as formatting, lint fixes,
+simple test repairs, documentation corrections, and mechanical edits.
+"""
+config_file = "agents/quick-worker.toml"
+
+[agents.implementer]
+description = """
+Use for normal software-engineering tasks such as a well-defined issue,
+a localized API or UI change, or a moderately scoped bug fix.
+"""
+config_file = "agents/implementer.toml"
+
+[agents.feature_engineer]
+description = """
+Use for substantial changes spanning FastAPI services, SQLite persistence,
+React/Vite UI, authentication, or multiple application layers.
+"""
+config_file = "agents/feature-engineer.toml"
+
+[agents.deep_debugger]
+description = """
+Use for difficult root-cause analysis such as intermittent tests, concurrency,
+SQLite locking, production-only failures, or deployment inconsistencies.
+"""
+config_file = "agents/deep-debugger.toml"
+
+[agents.hard_problem_solver]
+description = """
+Use only for unusually difficult problems that remain unresolved after
+evidence-based work by a lower-cost agent.
+"""
+config_file = "agents/hard-problem-solver.toml"
+
+[agents.migration_architect]
+description = """
+Use for high-risk database, authentication ownership, platform, or deployment
+migrations requiring compatibility and recovery planning.
+"""
+config_file = "agents/migration-architect.toml"
