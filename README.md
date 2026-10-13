@@ -191,6 +191,10 @@ The application is deployed to production automatically via **ArgoCD** tracking 
 The shared EC2 Compose deployment, tagged downloads, and SSM release workflow are documented in
 [`deploy/aws/README.md`](deploy/aws/README.md).
 
+The production node has only 2 GiB RAM and no swap by default. Apply the one-time host
+protections in [`deploy/k3s/README.md`](deploy/k3s/README.md) (persistent swap and memory
+reservation for k3s) so Argo reconciliation and rollouts cannot starve the Kubernetes API.
+
 ### 1. Secret Bootstrap (One-time setup per cluster)
 
 Secrets are not stored in Git. The production secret must exist in namespace `prod`:

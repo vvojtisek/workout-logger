@@ -25,3 +25,14 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # The production node has 2 GiB RAM (issue #72): only apply resources that
+      # drifted, instead of re-applying every object against a starved API server.
+      - ApplyOutOfSyncOnly=true
+    # A sync that fails while the API server is timing out retries on its own with
+    # growing delays, rather than staying failed until k3s is restarted by hand.
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m
