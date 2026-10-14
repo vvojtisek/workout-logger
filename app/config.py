@@ -22,9 +22,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:////data/workout_logger.db"
     APP_ENV: str = "production"
     # Deployment metadata: defaults to whatever scripts/generate_build_info.py
-    # baked into this image at build time, overridable via environment (Helm
-    # sets these explicitly in helm/workout-logger/values-prod.yaml) so both
-    # paths agree on the same CI-computed values -- see app/build_info.py.
+    # baked into this image at build time, overridable via environment
+    # (deploy/aws/compose.yaml sets APP_VERSION to the release tag) -- see
+    # app/build_info.py.
     APP_VERSION: str = _baked_build_info.version
     GIT_COMMIT: str = _baked_build_info.commit
     BUILD_TIME: str = _baked_build_info.build_time

@@ -2,6 +2,9 @@ services:
   workout-logger:
     image: ghcr.io/vvojtisek/workout-logger:${RELEASE_TAG:?Set RELEASE_TAG in .env.release}
     restart: unless-stopped
+    # Longer than uvicorn's --timeout-graceful-shutdown (scripts/entrypoint.sh) so
+    # in-flight requests and SQLite writes finish before Docker sends SIGKILL.
+    stop_grace_period: 60s
     env_file:
       - .env.production
     environment:

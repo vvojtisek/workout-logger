@@ -67,38 +67,25 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
-  manifests:
-    name: Kubernetes manifest validation
+  deployment:
+    name: Deployment configuration validation
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
-      - name: Install kubeconform
+      - name: Validate the production Compose file and the end-to-end overlay
         env:
-          KUBECONFORM_VERSION: v0.8.0
+          RELEASE_TAG: v0.0.0-ci
         run: |
-          curl --fail --location --silent --show-error \
-            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
-            --output /tmp/kubeconform-linux-amd64.tar.gz
-          curl --fail --location --silent --show-error \
-            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/CHECKSUMS" \
-            --output /tmp/kubeconform-checksums.txt
-          (cd /tmp && grep ' kubeconform-linux-amd64.tar.gz$' kubeconform-checksums.txt \
-            | sha256sum --check --strict)
-          tar -xzf /tmp/kubeconform-linux-amd64.tar.gz -C /tmp kubeconform
-          sudo install /tmp/kubeconform /usr/local/bin/kubeconform
-      - name: Lint Helm chart
-        run: helm lint helm/workout-logger
-      - name: Render and validate default manifests
+          printf 'API_KEY=%s\n' "$(openssl rand -hex 32)" > deploy/aws/.env.production
+          docker compose --env-file deploy/aws/.env.production \
+            -f deploy/aws/compose.yaml config --quiet
+          docker compose --env-file deploy/aws/.env.production \
+            -f deploy/aws/compose.yaml -f e2e/compose.e2e.yaml config --quiet
+      - name: Check deployment shell script syntax
         run: |
-          helm template workout-logger helm/workout-logger \
-            | kubeconform -strict -summary -kubernetes-version 1.35.0
-      - name: Render and validate production manifests
-        run: |
-          helm template workout-logger helm/workout-logger \
-            --values helm/workout-logger/values-prod.yaml \
-            | kubeconform -strict -summary -kubernetes-version 1.35.0
+          bash -n scripts/deploy-aws-release.sh
+          bash -n scripts/backup-aws-database.sh
+          sh -n scripts/entrypoint.sh

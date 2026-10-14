@@ -1,6 +1,14 @@
 # Deployment simplification and product roadmap
 
-Status: proposal, 2026-10-14. Supersedes the k3s/Argo CD sections of `README.md` and
+Status: accepted, 2026-10-14. Supersedes Stages 8–9 of
+`docs/health-tracker-implementation-instructions.md`.
+
+**Progress (2026-10-14):** v2.0.2 runs on the shared EC2 host through the `deploy/aws` Compose
+path at `https://fitness.vvojtisek.eu`. k3s never served production, so M0 and D3 are void (no
+data to migrate). D4 (remove Kubernetes, Compose-based E2E) is the current slice; D1 is reduced
+to pulling by digest and host-agnostic settings because the Compose path already works.
+
+Original proposal text follows. It also superseded the k3s/Argo CD sections of `README.md` and
 Stages 8–9 of `docs/health-tracker-implementation-instructions.md` once accepted.
 
 ## 1. Goal, restated as requirements

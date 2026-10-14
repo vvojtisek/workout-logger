@@ -1,6 +1,6 @@
 # Workout Logger & Planner v2.0
 
-A single-user Workout Logger & Planner API with a React Progressive Web App frontend. Built with **FastAPI + SQLAlchemy (async) + SQLite**, packaged as a container image and deployed declaratively to **Kubernetes (k3s)** using **GitOps (ArgoCD)** and **Helm**.
+A single-user Workout Logger & Planner API with a React Progressive Web App frontend. Built with **FastAPI + SQLAlchemy (async) + SQLite**, packaged as a container image and deployed with **Docker Compose** on a shared AWS EC2 host.
 
 ---
 
@@ -9,11 +9,9 @@ A single-user Workout Logger & Planner API with a React Progressive Web App fron
 * **Backend & API:** FastAPI (Python 3.11+), Pydantic v2, SQLAlchemy (asyncio), SQLite (WAL mode)
 * **Frontend:** React 19 + TypeScript PWA, bundled by Vite with Tailwind CSS v4 (compiled into `app/static/dist/`)
 * **Container Runtime:** Docker / OCI image (`ghcr.io/vvojtisek/workout-logger`)
-* **Infrastructure:** K3s Kubernetes on AWS EC2
-* **GitOps Operator:** ArgoCD
-* **Packaging:** Helm chart (`helm/workout-logger`)
-* **Ingress & TLS:** Traefik + cert-manager (Let's Encrypt HTTP-01)
-* **Secrets:** Kubernetes Secret (`workout-logger-secret`) injected at runtime
+* **Infrastructure:** Docker Compose on AWS EC2 (`deploy/aws/compose.yaml`), deployed through AWS Systems Manager
+* **Reverse proxy & TLS:** the host's shared Caddy (Let's Encrypt via Route 53 DNS-01)
+* **Secrets:** `/srv/workout-logger/.env.production` on the host (mode `0600`), never in Git or CI
 
 ---
 
@@ -22,10 +20,9 @@ A single-user Workout Logger & Planner API with a React Progressive Web App fron
 ```text
 app/            FastAPI application (API, MCP server, models, schemas, services, compiled PWA bundle)
 alembic/        Database schema migrations
-helm/           Helm chart for Kubernetes deployment
-deploy/         ArgoCD application manifests
+deploy/aws/     Production Compose file, environment example, Caddy snippet, backup timer
 tests/          pytest suite (unit + integration, httpx ASGI transport)
-e2e/            Playwright journey against a deployed Kubernetes stack
+e2e/            Playwright journeys run against the production Compose file
 scripts/        entrypoint.sh (startup script) and backup_database.py
 frontend/       React + TypeScript single-page application source and Vitest unit tests
 
@@ -49,18 +46,11 @@ All configuration is managed via environment variables:
 | `TRUSTED_HOSTS` | no | `localhost,127.0.0.1` | Comma-separated host allow-list. |
 | `PUBLIC_BASE_URL` | no | `https://fitness.vvojtisek.eu/` | Public HTTPS origin used in OpenAPI servers. |
 
-> `API_KEY` is never logged, never embedded in the container image, and supplied exclusively via Kubernetes Secret at runtime.
+> `API_KEY` is never logged, never embedded in the container image, and supplied only through the host's production environment file at runtime.
 
 The MCP server (`/mcp/`, used by ChatGPT and other MCP clients) authenticates separately via
 OAuth 2.1 rather than `X-API-Key`; see [MCP Server](#mcp-server) below and `.env.example` for its
 `MCP_OAUTH_*` variables.
-
-The Helm chart requires `existingSecret` to name that externally managed Secret and
-`apiKeySecretKey` to identify its data key. The defaults are `workout-logger-secret` and
-`API_KEY`; override both the created Secret name and `existingSecret` together. The chart
-validates these names before rendering and never creates or prints secret values. Application
-and migration Pods do not mount Kubernetes API credentials by default; set
-`serviceAccount.automount=true` only for a separately reviewed feature that requires API access.
 
 ### Invite-only accounts
 
@@ -118,35 +108,32 @@ files must pass the full rules, and issue #28's known baseline must not get wors
 
 ### Continuous-integration gates
 
-Pull requests and pushes to `main` run independent backend, frontend, Kubernetes-manifest,
-security, and real-cluster E2E jobs. The manifest job validates default and production Helm
-renders against Kubernetes 1.35.0. The E2E job deploys the exact locally built image and a
-real SQLite PVC into an ephemeral k3d cluster, exercises API CRUD plus the browser UI, deletes
-its run-tagged records in a `finally` block, verifies absence through both the API and direct
-SQLite counts, uploads diagnostics even on failure, and deletes the cluster.
+Every pull request runs three required jobs: backend (format, Ruff, mypy, pytest), frontend
+(lint, typecheck, Vitest, build) and deployment configuration validation (renders
+`deploy/aws/compose.yaml` with `docker compose config` and syntax-checks the deploy scripts).
+
+Every push to `main` then runs the end-to-end job against the **same Compose file production
+uses**: it builds the exact image, starts it with `deploy/aws/compose.yaml` plus the CI-only
+`e2e/compose.e2e.yaml` overlay (which only publishes a loopback port), checks the Alembic
+revision, bootstraps an admin, runs every Playwright journey, verifies through direct SQLite
+counts that run-tagged records were deleted, uploads diagnostics even on failure, and removes
+the stack. Only after that passes does `main` publish an image tagged with the full commit SHA.
 
 Security gates reject any Python advisory reported by `pip-audit`, npm vulnerabilities at
 high or critical severity, repository secrets reported by gitleaks, and fixed high or critical
 container vulnerabilities reported by Trivy. Unfixed image findings remain visible but do not
-fail the gate. Every scanned image also produces a downloadable SPDX JSON SBOM. Only a trusted
-`main` push that passes all five gates can publish an immutable image or prepare a promotion.
+fail the gate. Every scanned image also produces a downloadable SPDX JSON SBOM.
 
-### 2. Local Kubernetes Cluster (k3d)
+### 2. Run the production Compose file locally
 
 ```bash
-# Create local cluster mapping host port 8000 to Ingress
-k3d cluster create workout-cluster -p "8000:80@loadbalancer"
-
-# Create required secret
-kubectl create namespace prod
-kubectl create secret generic workout-logger-secret \
-  --namespace prod \
-  --from-literal=API_KEY="local-dev-secret-key-must-be-32-chars-or-more"
-
-# Deploy via Helm
-helm template workout-logger ./helm/workout-logger -f ./helm/workout-logger/values.yaml
-helm upgrade --install workout-logger ./helm/workout-logger -n prod
-
+docker build --tag ghcr.io/vvojtisek/workout-logger:local .
+printf 'API_KEY=%s\n' "$(openssl rand -hex 32)" > deploy/aws/.env.production
+mkdir -p deploy/aws/data deploy/aws/backups && sudo chown 10001:10001 deploy/aws/data deploy/aws/backups
+docker network create chem-app_public-net
+RELEASE_TAG=local docker compose --env-file deploy/aws/.env.production \
+  -f deploy/aws/compose.yaml -f e2e/compose.e2e.yaml up --detach --wait
+curl http://127.0.0.1:18000/health/ready
 ```
 
 ---
@@ -155,166 +142,45 @@ helm upgrade --install workout-logger ./helm/workout-logger -n prod
 
 `scripts/generate_build_info.py` is the single source of truth for `APP_VERSION` (derived from
 `git describe --tags --always`), `GIT_COMMIT` (the full Git SHA), and `BUILD_TIME` (UTC ISO-8601,
-generated at build time). CI runs it once per `main` push and threads the result through the
-whole chain, with nothing downstream recomputing its own value:
-
-```text
-GitHub push to main → scripts/generate_build_info.py
-    → Docker build args (baked into build_info.json + OCI labels in the image)
-    → scripts/promote_image.py (writes image.sourceCommit and env.APP_VERSION/
-      GIT_COMMIT/BUILD_TIME into helm/workout-logger/values-prod.yaml)
-    → Helm renders those into container env vars and the
-      app.kubernetes.io/version Pod label / source-commit Pod annotation
-    → the running app reads them from its environment (app/config.py),
-      falling back to the baked build_info.json if unset
-    → /health, the X-App-Version/X-Git-Commit/X-Build-Time headers, and the
-      "Online · vX.Y.Z · <short commit>" indicator in the web UI
-```
-
-Verify a running production instance end-to-end:
+generated at build time). CI passes them as Docker build args; they are baked into the image's
+`build_info.json` and OCI labels, and the production Compose file sets `APP_VERSION` to the
+release tag. They surface in `/health`, the `X-App-Version`/`X-Git-Commit`/`X-Build-Time`
+headers, and the "Online · vX.Y.Z · <short commit>" indicator in the web UI:
 
 ```bash
 curl https://fitness.vvojtisek.eu/health
 curl -I https://fitness.vvojtisek.eu/
-kubectl get pods --show-labels -l app.kubernetes.io/name=workout-logger
 ```
-
-`/health`'s `commit`, the `X-Git-Commit` header, and the Pod's `app.kubernetes.io/version` label /
-`workout-logger.vvojtisek.eu/source-commit` annotation must all agree; the
-`scripts/verify_deployment_image.py` check below confirms this automatically.
 
 ---
 
-## Production Deployment (k3s + ArgoCD)
+## Production Deployment
 
-The application is deployed to production automatically via **ArgoCD** tracking the `main` branch.
-The shared EC2 Compose deployment, tagged downloads, and SSM release workflow are documented in
+Production runs `deploy/aws/compose.yaml` on the shared EC2 host behind chem-app's Caddy.
+Releases are semantic-version Git tags: the tag workflow publishes the image and a GitHub
+Release with checksummed deployment assets, then deploys through AWS Systems Manager, taking
+a verified SQLite backup before the new image starts and rolling back the image if it fails its
+readiness check. Host setup, the release procedure, and admin bootstrap are documented in
 [`deploy/aws/README.md`](deploy/aws/README.md).
-
-The production node has only 2 GiB RAM and no swap by default. Apply the one-time host
-protections in [`deploy/k3s/README.md`](deploy/k3s/README.md) (persistent swap and memory
-reservation for k3s) so Argo reconciliation and rollouts cannot starve the Kubernetes API.
-
-### 1. Secret Bootstrap (One-time setup per cluster)
-
-Secrets are not stored in Git. The production secret must exist in namespace `prod`:
-
-```bash
-kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
-
-kubectl create secret generic workout-logger-secret \
-  --namespace prod \
-  --from-literal=API_KEY="<YOUR_PRODUCTION_API_KEY>" \
-  --from-literal=MCP_OAUTH_CLIENT_SECRET="<AUTH0_APPLICATION_CLIENT_SECRET>" \
-  --from-literal=MCP_OAUTH_JWT_SIGNING_KEY="<GENERATED_WITH_secrets.token_urlsafe_32_>" \
-  --from-literal=MCP_OAUTH_STORAGE_KEY="<GENERATED_WITH_secrets.token_urlsafe_32_>"
-
-```
-
-The three `MCP_OAUTH_*` keys are only required when MCP OAuth is enabled (`values-prod.yaml`'s
-`env.MCP_OAUTH_ENABLED: "true"`); the chart wires them into the Deployment via
-`mcpOAuth.clientSecretKey` / `mcpOAuth.jwtSigningKeySecretKey` / `mcpOAuth.storageKeySecretKey`
-(each names the key within this same Secret — set them in `values-prod.yaml`, never the values
-themselves). See [Manual OAuth Provider Setup](#manual-oauth-provider-setup) for the Auth0 side.
-
-The cluster must also provide a ready cert-manager `ClusterIssuer` named
-`letsencrypt-prod`. The production Ingress requests its certificate from that issuer and
-stores it in the `workout-logger-tls` Secret:
-
-```bash
-kubectl get clusterissuer letsencrypt-prod
-kubectl wait --for=condition=Ready clusterissuer/letsencrypt-prod --timeout=60s
-```
-
-### 2. Apply ArgoCD Application
-
-```bash
-kubectl apply -f deploy/argocd/application.yaml
-
-```
-
-ArgoCD continuously reconciles the cluster with Git:
-
-* Applies `helm/workout-logger` using `values-prod.yaml`.
-* Deploys the exact `image.digest` recorded in Git; mutable tags are not used in production.
-* Configures persistent volume storage (`/data`).
-* Manages Traefik Ingress with automatic Let's Encrypt TLS cert generation via `cert-manager`.
-
-After each successful `main` workflow, CI publishes exactly one image tagged with the full
-Git commit SHA and opens a promotion pull request that records both the source commit and
-immutable registry digest in `values-prod.yaml`. CI approves the bot-created pull request's
-workflow run when GitHub holds it for contributor approval, waits for the required checks,
-and then squash-merges the pull request through normal branch protection. Argo CD detects
-the Git change and remains the only deployment reconciler.
-Promotion-only commits retain a `[skip image publish]` marker as defense in depth against
-recursive image publication.
-
-Verify the promoted commit, requested image digest, and image ID actually running in the
-cluster with:
-
-```bash
-python scripts/verify_deployment_image.py \
-  --values helm/workout-logger/values-prod.yaml \
-  --namespace prod \
-  --selector app.kubernetes.io/name=workout-logger
-```
-
-The check fails if the Pod annotation, requested image, or runtime image ID differs from
-the Git-tracked promotion.
 
 ### SQLite upgrade and shutdown behavior
 
-Production deliberately runs one replica with the Kubernetes `Recreate` strategy while
-SQLite is stored on a ReadWriteOnce volume. During an upgrade, Kubernetes fully terminates
-the old Pod before starting the new one, so two application processes never access the
-database concurrently. The application is unavailable during that interval; allow several
-minutes for the five-second endpoint-drain delay, graceful shutdown, image pull, migration,
-and startup.
-
-The startup probe allows up to five minutes for initialization before liveness checks begin.
-Liveness checks only the running process at `/health/live`; a database outage instead fails
-`/health/ready` and removes the Pod from Service endpoints without causing liveness restart
-thrashing. Kubernetes provides a 60-second termination budget: after a five-second pre-stop
-drain, Uvicorn handles SIGTERM and has up to 50 seconds to finish in-flight requests before
-the remaining safety margin expires.
+Exactly one container writes the SQLite database. `docker compose up --force-recreate` stops
+the old container before starting the new one, so two processes never write concurrently; the
+app is briefly unavailable during an upgrade. Docker allows 60 seconds (`stop_grace_period`)
+after SIGTERM, longer than Uvicorn's 50-second graceful shutdown. The container healthcheck
+uses `/health/ready`, which fails when the database is unavailable.
 
 ---
 
 ## Database Migrations
 
-Migrations are managed with **Alembic**. Standalone containers execute them on startup through
-`scripts/entrypoint.sh`; Kubernetes releases use the controlled job described below.
-
-In Kubernetes, migrations run as a bounded Argo CD `PreSync` Job using the exact promoted
-application image and database PVC. Application Pods receive
-`RUN_MIGRATIONS_ON_STARTUP=false`, so restarts do not independently migrate production.
-The Job name is derived from the release image and migration command, so repeated syncs do
-not rerun Alembic for the same release. A locked success marker on the database PVC makes
-this guarantee survive Job deletion or recreation. Each attempt also writes its combined
-output to `/data/migration-releases/<release-id>.log`, so logs survive later Argo pruning.
-Inspect the immediate Job logs and the durable copy with:
-
-```bash
-kubectl get jobs -n prod -l app.kubernetes.io/name=workout-logger
-kubectl logs -n prod job/<migration-job-name>
-kubectl describe -n prod job/<migration-job-name>
-kubectl exec -n prod deployment/workout-logger -- \
-  cat /data/migration-releases/<release-id>.log
-```
-
-A failed PreSync hook blocks the Deployment update. Capture its logs before retrying, fix
-the migration through Git, and promote a corrected image so Argo CD creates a fresh Job. Do not run a
-manual `alembic downgrade` for a non-reversible migration. Instead, create a reviewed Git
-maintenance change that scales the application to zero, verify no application Pod remains,
-take a diagnostic backup, restore a previously verified pre-release backup with a dedicated
-one-shot recovery Pod/Job, and revert the promoted image digest in Git. Argo CD must remain
-the reconciler throughout recovery.
-
-Do not delete a `.succeeded` release marker to force a rerun. Recovery must use a new reviewed
-release identity so the original execution record remains auditable.
-
-Standalone container use retains the historical behavior and runs migrations unless
-`RUN_MIGRATIONS_ON_STARTUP=false` is explicitly set.
+Migrations are managed with **Alembic** and run on container startup through
+`scripts/entrypoint.sh` (`RUN_MIGRATIONS_ON_STARTUP=true`). The deploy script takes a verified
+online backup before starting an image that may migrate. Migrations must stay
+backward-compatible with the previous release, because an automatic image rollback keeps the
+already-migrated schema. Do not run a manual `alembic downgrade` for a non-reversible migration;
+restore a verified pre-release backup instead (see below).
 
 ```bash
 # Apply migrations manually (when running locally)
@@ -335,21 +201,15 @@ alembic downgrade -1
 
 ## Backup and Restore
 
-SQLite backups are created online by the chart's CronJob and written to the dedicated
-backup PVC, never to the application data PVC. Every `.db` artifact has a `.json` sidecar
-containing its UTC timestamp, source commit/release, immutable image reference, SHA-256,
-size, and Alembic schema revision. Backup creation and restore both require checksum and
-`PRAGMA integrity_check` validation.
+A systemd timer on the host runs a daily online SQLite backup into
+`/srv/workout-logger/backups` and keeps the 14 newest; the deploy script also backs up before
+every upgrade. Every `.db` artifact has a `.json` sidecar containing its UTC timestamp, source
+release, image reference, SHA-256, size, and Alembic schema revision. Backup creation and
+restore both require checksum and `PRAGMA integrity_check` validation. Backups currently stay
+on the same instance; copy them off the host until off-site replication exists.
 
-Never copy a database over `/data/workout_logger.db` in a live Pod. Production restore is
-a deliberate GitOps maintenance operation: the chart refuses to render the restore Job
-unless the Deployment is scaled to zero and the migration hook is disabled. The later
-recovery change makes an explicit migration decision before scaling back up. This design
-accepts downtime for the entire maintenance window because SQLite cannot provide a safe
-zero-downtime file replacement.
-
-See [SQLite backup and restore runbook](docs/sqlite-backup-restore.md) for backup inspection,
-isolated restore drills, production recovery, validation, abort, and cleanup steps.
+Never copy a database over `/data/workout_logger.db` while the app is running. See the
+[SQLite backup and restore runbook](docs/sqlite-backup-restore.md) for the restore procedure.
 
 ---
 
@@ -472,7 +332,7 @@ match what you passed above, `MCP_OAUTH_JWT_PUBLIC_KEY` to the printed public ke
 #### Production setup
 
 See [Manual OAuth Provider Setup](#manual-oauth-provider-setup) for the exact Auth0 configuration,
-and [Deployment](#deployment) for the Helm/Kubernetes wiring.
+and [`deploy/aws/README.md`](deploy/aws/README.md) for where production environment variables live.
 
 #### Testing OAuth
 
@@ -513,7 +373,7 @@ This has to be done once, outside the repository, in the Auth0 dashboard:
 | Required grant types | Authorization Code (with PKCE); enable "Allow Skipping User Consent" only if you want to bypass FastMCP's own consent screen |
 | Issuer URL | `https://<your-tenant>.<region>.auth0.com` — this becomes `MCP_OAUTH_ISSUER` |
 | Client ID location | Auth0 Application → Settings → Client ID → set as `MCP_OAUTH_CLIENT_ID` |
-| Client secret location | Auth0 Application → Settings → Client Secret → store as the `MCP_OAUTH_CLIENT_SECRET` key in the `workout-logger-secret` Kubernetes Secret (never in Git) |
+| Client secret location | Auth0 Application → Settings → Client Secret → store as `MCP_OAUTH_CLIENT_SECRET` in the host's `/srv/workout-logger/.env.production` (never in Git) |
 | Auth0 Action/rule required | None for the MVP. Add a Post-Login Action only if you want to restrict which Auth0 users can even attempt login (defense in depth — the app's own `MCP_OAUTH_ALLOWED_SUBJECTS` allowlist is the actual access-control boundary and is required regardless) |
 
 After creating the application, note the user's Auth0 subject identifier (`sub`, e.g.

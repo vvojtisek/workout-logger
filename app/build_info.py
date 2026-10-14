@@ -1,11 +1,10 @@
 """Reads the deployment metadata baked into the image by the Dockerfile.
 
-`build_info.json` is written at image-build time from the same
-scripts/generate_build_info.py output that CI also writes into the Helm
-values used to deploy that image (see helm/workout-logger/values-prod.yaml
-and scripts/promote_image.py) -- so this file's contents are the fallback
-`Settings` defaults, overridden by the `APP_VERSION`/`GIT_COMMIT`/
-`BUILD_TIME` environment variables Helm sets on the container.
+`build_info.json` is written at image-build time from the
+scripts/generate_build_info.py output CI passes as Docker build args, so
+this file's contents are the fallback `Settings` defaults, overridden by
+any `APP_VERSION`/`GIT_COMMIT`/`BUILD_TIME` environment variables set on the
+container (deploy/aws/compose.yaml sets `APP_VERSION` to the release tag).
 """
 
 from __future__ import annotations
