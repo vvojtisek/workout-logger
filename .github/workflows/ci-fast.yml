@@ -1,11 +1,10 @@
 name: Fast checks
 
+# No path filter: these jobs are required status checks on main, and a workflow
+# filtered out at the trigger never reports, leaving documentation-only pull
+# requests permanently blocked.
 on:
   pull_request:
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/PULL_REQUEST_TEMPLATE/**'
   workflow_dispatch:
 
 concurrency:
