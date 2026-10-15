@@ -49,7 +49,9 @@ async def delete_program(session: AsyncSession, program_id: UUID) -> None:
     Logged workouts keep their own copy of the plan name, so history survives.
     """
     program = await get_program(session, program_id)
-    owned_plans = await session.scalars(select(WorkoutPlan).where(WorkoutPlan.program_id == program.id))
+    owned_plans = await session.scalars(
+        select(WorkoutPlan).where(WorkoutPlan.program_id == program.id)
+    )
     await session.delete(program)
     await session.flush()
     for plan in owned_plans.all():

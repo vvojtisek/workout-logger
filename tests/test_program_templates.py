@@ -116,9 +116,7 @@ async def test_installing_twice_is_a_conflict(client, auth_headers):
     assert second.json()["code"] == "PROGRAM_TEMPLATE_ALREADY_INSTALLED"
 
 
-async def test_removing_a_program_frees_it_to_start_again_and_keeps_history(
-    client, auth_headers
-):
+async def test_removing_a_program_frees_it_to_start_again_and_keeps_history(client, auth_headers):
     first = await client.post(
         f"{TEMPLATES}/local-gym-ab/install", json={"start_date": "2026-10-19"}, headers=auth_headers
     )
@@ -190,8 +188,13 @@ async def test_removing_a_hand_made_program_keeps_its_plans(client, auth_headers
         json={
             "name": "My own plan",
             "exercises": [
-                {"exercise_name": "Row", "target_sets": 1, "target_reps_min": 5,
-                 "target_reps_max": 8, "rest_time_seconds": 60}
+                {
+                    "exercise_name": "Row",
+                    "target_sets": 1,
+                    "target_reps_min": 5,
+                    "target_reps_max": 8,
+                    "rest_time_seconds": 60,
+                }
             ],
         },
         headers=auth_headers,
