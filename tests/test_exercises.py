@@ -207,3 +207,55 @@ async def test_list_exercises_search_matches_name_or_alias_without_case(client, 
 async def test_list_exercises_search_rejects_overlong_query(client, auth_headers):
     response = await client.get(BASE, params={"q": "x" * 151}, headers=auth_headers)
     assert response.status_code == 422
+
+
+async def test_create_exercise_reads_equipment_tags_from_the_text(client, auth_headers):
+    payload = make_exercise_payload(name="Tagged Press", equipment="barbell or dumbbell, bench")
+    response = await client.post(BASE, json=payload, headers=auth_headers)
+    assert response.status_code == 201
+    assert response.json()["equipment_any_of"] == [["barbell", "bench"], ["bench", "dumbbell"]]
+
+
+async def test_create_exercise_keeps_explicit_equipment_tags(client, auth_headers):
+    payload = make_exercise_payload(
+        name="Explicit Row",
+        equipment="whatever is around",
+        equipment_any_of=[["dumbbell", "bench", "dumbbell"], ["band"], ["band"]],
+    )
+    response = await client.post(BASE, json=payload, headers=auth_headers)
+    assert response.status_code == 201
+    assert response.json()["equipment_any_of"] == [["bench", "dumbbell"], ["band"]]
+
+
+async def test_create_exercise_with_unknown_equipment_text_is_untagged(client, auth_headers):
+    payload = make_exercise_payload(name="Odd Lift", equipment="sandbag")
+    response = await client.post(BASE, json=payload, headers=auth_headers)
+    assert response.status_code == 201
+    assert response.json()["equipment_any_of"] == []
+
+
+async def test_create_exercise_with_unknown_equipment_tag_returns_422(client, auth_headers):
+    payload = make_exercise_payload(name="Bad Tag", equipment_any_of=[["sandbag"]])
+    response = await client.post(BASE, json=payload, headers=auth_headers)
+    assert response.status_code == 422
+
+
+async def test_create_exercise_with_empty_equipment_option_returns_422(client, auth_headers):
+    payload = make_exercise_payload(name="Empty Option", equipment_any_of=[[]])
+    response = await client.post(BASE, json=payload, headers=auth_headers)
+    assert response.status_code == 422
+
+
+async def test_replace_exercise_updates_equipment_tags(client, auth_headers):
+    created = await client.post(
+        BASE, json=make_exercise_payload(name="Swap Gear"), headers=auth_headers
+    )
+    exercise_id = created.json()["id"]
+    assert created.json()["equipment_any_of"] == [["barbell"]]
+    response = await client.put(
+        f"{BASE}/{exercise_id}",
+        json=make_exercise_payload(name="Swap Gear", equipment_any_of=[["kettlebell"]]),
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["equipment_any_of"] == [["kettlebell"]]

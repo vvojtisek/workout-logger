@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { MUSCLE_TAGS } from "@/api/types";
+import { EQUIPMENT_TAGS, MUSCLE_TAGS } from "@/api/types";
+import { equipmentOptionsError } from "@/lib/equipment";
 
 // Mirrors the server-side validation in `app/schemas/exercises.py` so an
 // exercise can be rejected in the browser instead of round-tripping a raw 422.
@@ -27,6 +28,14 @@ export const exercisePayloadSchema = z.object({
     z.string().trim().min(1, "Step cannot be blank").max(1000, "Max 1000 characters"),
   ),
   equipment: z.string().max(200, "Max 200 characters").nullable(),
+  // null asks the server to read the tags from `equipment`.
+  equipment_any_of: z
+    .array(z.array(z.enum(EQUIPMENT_TAGS)))
+    .nullable()
+    .superRefine((options, ctx) => {
+      const message = options ? equipmentOptionsError(options) : null;
+      if (message) ctx.addIssue({ code: "custom", message });
+    }),
   safety_notes: z.string().max(4000, "Max 4000 characters").nullable(),
 });
 

@@ -43,6 +43,15 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     await page.getByLabel("Instructions 2", { exact: true }).fill(`${tag} Press the bar up.`);
 
     await page.getByLabel("Equipment (optional)").fill("Barbell");
+    // Pick the equipment tags by hand: barbell and bench, or dumbbells and bench.
+    await page.getByRole("button", { name: "Choose tags" }).click();
+    const firstOption = page.getByRole("group", { name: "Option 1 equipment" });
+    await firstOption.getByRole("button", { name: "Barbell", exact: true }).click();
+    await firstOption.getByRole("button", { name: "Bench", exact: true }).click();
+    await page.getByRole("button", { name: "+ Add alternative" }).click();
+    const secondOption = page.getByRole("group", { name: "Option 2 equipment" });
+    await secondOption.getByRole("button", { name: "Dumbbells", exact: true }).click();
+    await secondOption.getByRole("button", { name: "Bench", exact: true }).click();
     await page.getByLabel("Safety notes (optional)").fill("Use a spotter.");
 
     await page.getByRole("button", { name: "Create exercise" }).click();
@@ -71,6 +80,10 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
       secondary_muscles: ["triceps"],
       instructions: [`${tag} Lie on the bench.`, `${tag} Press the bar up.`],
       equipment: "Barbell",
+      equipment_any_of: [
+        ["barbell", "bench"],
+        ["bench", "dumbbell"],
+      ],
       safety_notes: "Use a spotter.",
     });
 
@@ -86,7 +99,10 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     await expect(page.getByText("Triceps", { exact: true })).toBeVisible();
     await expect(page.getByText(`${tag} Lie on the bench.`)).toBeVisible();
     await expect(page.getByText(`${tag} Press the bar up.`)).toBeVisible();
-    await expect(detailPane(page).getByText("Barbell")).toBeVisible();
+    await expect(detailPane(page).getByText("Barbell", { exact: true })).toBeVisible();
+    await expect(detailPane(page).getByTestId("exercise-equipment-tags")).toHaveText(
+      "Barbell + Bench, or Bench + Dumbbells",
+    );
     await expect(page.getByText("Use a spotter.")).toBeVisible();
 
     // Creating a second exercise with the same name must surface the 409
@@ -116,7 +132,11 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
 
     const updated = await request.get(`/api/v1/exercises/${exerciseId}`);
     expect(updated.status()).toBe(200);
-    expect((await updated.json()).equipment).toBe("Barbell, bench");
+    // Tags not touched in this edit follow the new text.
+    expect(await updated.json()).toMatchObject({
+      equipment: "Barbell, bench",
+      equipment_any_of: [["barbell", "bench"]],
+    });
 
     // Delete through the GUI and prove it is gone.
     await openPage(page, "Exercises");

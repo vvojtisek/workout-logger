@@ -1,11 +1,12 @@
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.common import OrmModel, PaginatedResponse, require_non_empty
+from app.services.equipment import normalize_any_of, parse_equipment_text
 
 MuscleTag = Literal[
     "chest",
@@ -22,6 +23,30 @@ MuscleTag = Literal[
     "full_body",
 ]
 
+EquipmentTag = Literal[
+    "bodyweight",
+    "dumbbell",
+    "kettlebell",
+    "barbell",
+    "trap_bar",
+    "rack",
+    "bench",
+    "pullup_bar",
+    "cable",
+    "machine",
+    "band",
+    "trx",
+    "dip_bars",
+    "ab_wheel",
+    "box",
+    "medicine_ball",
+    "jump_rope",
+    "bike",
+    "rower",
+    "treadmill",
+]
+EquipmentOption = Annotated[list[EquipmentTag], Field(min_length=1, max_length=8)]
+
 Alias = Annotated[str, Field(min_length=1, max_length=150)]
 InstructionStep = Annotated[str, Field(min_length=1, max_length=1000)]
 
@@ -36,6 +61,9 @@ class ExerciseCreate(BaseModel):
     secondary_muscles: list[MuscleTag] = Field(default_factory=list)
     instructions: list[InstructionStep] = Field(default_factory=list)
     equipment: str | None = Field(default=None, max_length=200)
+    # Alternatives, each a full set of tags. Left out, it is read from the
+    # free-text `equipment`; an empty list means "not tagged".
+    equipment_any_of: list[EquipmentOption] | None = Field(default=None, max_length=8)
     safety_notes: str | None = Field(default=None, max_length=4000)
 
     @field_validator("name")
@@ -52,6 +80,17 @@ class ExerciseCreate(BaseModel):
     @classmethod
     def instructions_not_blank(cls, value: list[str]) -> list[str]:
         return [require_non_empty(step, "instruction step") for step in value]
+
+    @model_validator(mode="after")
+    def fill_equipment_tags(self) -> "ExerciseCreate":
+        options = (
+            parse_equipment_text(self.equipment)
+            if self.equipment_any_of is None
+            else normalize_any_of(self.equipment_any_of)
+        )
+        # Both helpers only return known tags, so the Literal type still holds.
+        self.equipment_any_of = cast(list[list[EquipmentTag]], options)
+        return self
 
     @field_validator("media_url")
     @classmethod
@@ -77,6 +116,7 @@ class ExerciseRead(OrmModel):
     secondary_muscles: list[str]
     instructions: list[str]
     equipment: str | None
+    equipment_any_of: list[list[str]]
     safety_notes: str | None
     created_at: datetime
     updated_at: datetime
