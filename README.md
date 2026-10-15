@@ -112,8 +112,8 @@ Every pull request runs three required jobs: backend (format, Ruff, mypy, pytest
 (lint, typecheck, Vitest, build) and deployment configuration validation (renders
 `deploy/aws/compose.yaml` with `docker compose config` and syntax-checks the deploy scripts).
 
-Every push to `main` then runs the end-to-end job against the **same Compose file production
-uses**: it builds the exact image, starts it with `deploy/aws/compose.yaml` plus the CI-only
+Every pull request, and every push to `main`, also runs the end-to-end job against the **same
+Compose file production uses**, so a breaking change is caught before it is merged: it builds the exact image, starts it with `deploy/aws/compose.yaml` plus the CI-only
 `e2e/compose.e2e.yaml` overlay (which only publishes a loopback port), checks the Alembic
 revision, bootstraps an admin, runs every Playwright journey, verifies through direct SQLite
 counts that run-tagged records were deleted, uploads diagnostics even on failure, and removes
