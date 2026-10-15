@@ -36,6 +36,13 @@ class WorkoutPlan(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     name: Mapped[str] = mapped_column(String(120, collation="NOCASE"), nullable=False)
     description: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    # Set when a ready-made program created this plan; removing that program removes the plan.
+    program_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(),
+        ForeignKey("programs.id", ondelete="SET NULL", name="fk_workout_plans_program_id_programs"),
+        nullable=True,
+        index=True,
+    )
 
     exercises: Mapped[list["PlanExercise"]] = relationship(
         back_populates="workout_plan",

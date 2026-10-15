@@ -4,12 +4,11 @@ import { useEffect, useState } from "react";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { Paginated, Program, ScheduledWorkout, WorkoutPlan, WorkoutSession } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
+import { CALENDAR_WEEKDAYS, leadingBlankDays } from "@/lib/calendar";
 import { Button, Card, PageHeading } from "@/ui";
 import { Dialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { formatDate } from "@/lib/format";
-
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const STATUS_STYLES: Record<ScheduledWorkout["status"], string> = {
   scheduled: "bg-surface-raised text-text",
@@ -35,10 +34,6 @@ function isoDate(year: number, monthIndex: number, day: number): string {
 
 function daysInMonth(year: number, monthIndex: number): number {
   return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-}
-
-function firstWeekday(year: number, monthIndex: number): number {
-  return new Date(Date.UTC(year, monthIndex, 1)).getUTCDay();
 }
 
 function monthLabel(year: number, monthIndex: number): string {
@@ -299,7 +294,7 @@ export function CalendarView() {
     entriesByDate.set(item.scheduled_date, list);
   }
 
-  const leadingBlanks = firstWeekday(cursor.year, cursor.month);
+  const leadingBlanks = leadingBlankDays(cursor.year, cursor.month);
   const dayCells = Array.from({ length: monthLength }, (_, index) => index + 1);
 
   return (
@@ -344,8 +339,11 @@ export function CalendarView() {
         </p>
       ) : null}
 
-      <div className="grid grid-cols-7 gap-1.5 text-center text-xs font-medium text-muted">
-        {WEEKDAY_LABELS.map((label) => (
+      <div
+        id="calendar-weekdays"
+        className="grid grid-cols-7 gap-1.5 text-center text-xs font-medium text-muted"
+      >
+        {CALENDAR_WEEKDAYS.map((label) => (
           <div key={label}>{label}</div>
         ))}
       </div>
