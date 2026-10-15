@@ -71,6 +71,10 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     // Schedule the plan on today through the calendar GUI.
     await page.getByRole("button", { name: "Calendar" }).click();
     await expect(page.getByRole("heading", { name: "Calendar" })).toBeVisible();
+    // Weeks start on Monday, whatever the browser locale.
+    await expect(page.locator("#calendar-weekdays > div")).toHaveText([
+      "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun",
+    ]);
     await page.getByRole("button", { name: `Schedule a workout on ${today}` }).click();
     await expect(page.getByRole("heading", { name: /^Schedule a workout/ })).toBeVisible();
     await page.getByLabel("Workout plan").selectOption({ label: `${tag} plan` });
