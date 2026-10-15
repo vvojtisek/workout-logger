@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -19,6 +19,7 @@ from app.models import (
 )
 from app.models.base import utcnow
 from app.schemas.workout_sessions import (
+    SessionExerciseSwap,
     SetEntryCreate,
     SetEntryUpdate,
     WorkoutSessionComplete,
@@ -26,6 +27,9 @@ from app.schemas.workout_sessions import (
     WorkoutSessionRestUpdate,
 )
 from app.services.plans import get_plan
+
+# Most sets an exercise can grow to during a session with "Add set".
+MAX_SESSION_SETS = 20
 
 _LOAD_SESSION = selectinload(WorkoutSession.exercises).selectinload(SessionExercise.set_entries)
 
@@ -414,3 +418,67 @@ async def delete_session(session: AsyncSession, session_id: UUID) -> None:
     await _sync_scheduled_workout(session, session_id, "scheduled")
     await session.delete(workout_session)
     await session.commit()
+
+
+def _require_active(workout_session: WorkoutSession) -> None:
+    if workout_session.status != "active":
+        raise ConflictError("Workout session is not active", code="SESSION_NOT_ACTIVE")
+
+
+async def add_set(session: AsyncSession, session_id: UUID, exercise_id: UUID) -> WorkoutSession:
+    """Adds one more set to an exercise for this session only and focuses it."""
+    workout_session = await get_session(session, session_id)
+    _require_active(workout_session)
+    exercise = _exercise(workout_session, exercise_id)
+    if exercise.target_sets >= MAX_SESSION_SETS:
+        raise ConflictError(
+            f"An exercise can have at most {MAX_SESSION_SETS} sets",
+            code="SET_LIMIT_REACHED",
+        )
+    exercise.target_sets += 1
+    workout_session.focused_exercise_id = exercise.id
+    workout_session.focused_set_number = exercise.target_sets
+    workout_session.version += 1
+    await session.commit()
+    return await get_session(session, workout_session.id)
+
+
+async def _latest_by_name(session: AsyncSession, exercise_name: str) -> ExerciseLog | None:
+    result = await session.execute(
+        select(ExerciseLog)
+        .join(WorkoutLog, ExerciseLog.workout_log_id == WorkoutLog.id)
+        .where(func.lower(func.trim(ExerciseLog.exercise_name)) == exercise_name.strip().lower())
+        .order_by(WorkoutLog.performed_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def swap_exercise(
+    session: AsyncSession, session_id: UUID, exercise_id: UUID, data: SessionExerciseSwap
+) -> WorkoutSession:
+    """Replaces an exercise that has nothing logged yet (machine taken, swap a
+    variation). The plan itself is untouched; the session logs the new name.
+    Suggestions come from that exercise's most recent history, if any."""
+    workout_session = await get_session(session, session_id)
+    _require_active(workout_session)
+    exercise = _exercise(workout_session, exercise_id)
+    if exercise.set_entries:
+        raise ConflictError(
+            "Undo this exercise's logged sets before swapping it",
+            code="EXERCISE_HAS_SETS",
+        )
+    history = await _latest_by_name(session, data.exercise_name)
+    exercise.exercise_name = data.exercise_name
+    exercise.exercise_kind = data.exercise_kind
+    if history is not None and history.reps_per_set:
+        exercise.suggested_weight_kg = history.weight_kg
+        exercise.suggested_reps = history.reps_per_set[0]
+        exercise.suggestion_source = "history"
+    else:
+        exercise.suggested_weight_kg = None
+        exercise.suggested_reps = exercise.target_reps_min
+        exercise.suggestion_source = "plan"
+    workout_session.version += 1
+    await session.commit()
+    return await get_session(session, workout_session.id)
