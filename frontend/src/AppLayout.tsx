@@ -193,7 +193,7 @@ function ConnectionStatus({
       aria-label={
         online && buildLabel ? `Online. ${buildLabel.description}` : undefined
       }
-      className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${
+      className={`inline-block min-w-0 max-w-full truncate rounded-full align-middle px-2.5 py-1 text-xs font-medium ${
         online ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
       }`}
     >
@@ -409,10 +409,10 @@ function MobileShell({
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-line-muted bg-surface px-4">
-        <p className="min-w-0 truncate text-base font-semibold tracking-tight">
+        <p className="shrink-0 text-base font-semibold tracking-tight">
           {current?.label ?? "Workout Logger"}
         </p>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex min-w-0 items-center justify-end gap-3">
           {status}
           {logoutButton}
         </div>
