@@ -165,3 +165,34 @@ async def test_undo_and_permanent_correction_persist_exact_values(client, auth_h
     reloaded = await client.get(f"{SESSIONS}/{session['id']}", headers=auth_headers)
     assert reloaded.status_code == 200
     assert reloaded.json()["exercises"][0]["set_entries"] == []
+
+
+async def test_focus_follows_superset_rounds(client, auth_headers):
+    """A superset is done back to back: after Row set 1 comes Push-up set 1,
+    not Row set 2, so the phone HUD advances to the exercise actually next."""
+    _, session = await create_session(client, auth_headers)
+    squat, row, push_up = session["exercises"]
+
+    async def log(exercise: dict, set_number: int) -> dict:
+        response = await client.post(
+            f"{SESSIONS}/{session['id']}/sets",
+            json={
+                "session_exercise_id": exercise["id"],
+                "set_number": set_number,
+                "weight_kg": 40,
+                "reps": 8,
+                "rir": 2,
+                "state": "completed",
+                "client_operation_id": f"rounds-{exercise['id']}-{set_number}",
+            },
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
+        body = response.json()
+        return {"exercise": body["focused_exercise_id"], "set": body["focused_set_number"]}
+
+    assert await log(squat, 1) == {"exercise": squat["id"], "set": 2}
+    assert await log(squat, 2) == {"exercise": row["id"], "set": 1}
+    assert await log(row, 1) == {"exercise": push_up["id"], "set": 1}
+    assert await log(push_up, 1) == {"exercise": row["id"], "set": 2}
+    assert await log(row, 2) == {"exercise": push_up["id"], "set": 2}

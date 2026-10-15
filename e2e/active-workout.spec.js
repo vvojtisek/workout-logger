@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openPage } from "./support/navigation.js";
+import { REST_RUNNING, expectRir, saveOnlySet, setRir } from "./support/workout.js";
 
 test("starts, saves, resumes, completes, and cleans up a real active workout", async ({
   page,
@@ -78,18 +79,18 @@ test("starts, saves, resumes, completes, and cleans up a real active workout", a
     sessionId = active.id;
     expect(active.source_plan_id).toBe(planId);
 
-    await page.getByLabel("RIR").fill("2");
-    await page.getByRole("button", { name: "Save set" }).click();
+    await setRir(page, "2");
+    await saveOnlySet(page);
     await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-    await expect(page.getByText(/Rest: \d+s/)).toBeVisible();
+    await expect(page.getByRole("timer")).toContainText(REST_RUNNING);
 
     await page.reload();
     await expect(page.getByRole("heading", { name: `${tag} Bench Press` })).toBeVisible();
     await expect(page.getByText("Saved", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Weight (kg)")).toHaveValue("47.5");
     await expect(page.getByLabel("Repetitions")).toHaveValue("7");
-    await expect(page.getByLabel("RIR")).toHaveValue("2");
-    await expect(page.getByText(/Rest: \d+s/)).toBeVisible();
+    await expectRir(page, "2");
+    await expect(page.getByRole("timer")).toContainText(REST_RUNNING);
 
     await expect(page.locator("#rir-hint")).toContainText("reps in reserve");
     await expect(page.locator("#active-feeling option:checked")).toHaveText("3 · OK");

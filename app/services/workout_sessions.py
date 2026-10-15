@@ -40,14 +40,33 @@ def _exercise(workout_session: WorkoutSession, exercise_id: UUID) -> SessionExer
     return exercise
 
 
+def _performance_order(exercises) -> list[tuple]:
+    """Every (exercise, set number) in the order it is performed. Exercises
+    sharing a group_key form a superset and are interleaved by round (set 1 of
+    each, then set 2 of each); the frontend lists sets the same way."""
+    groups: dict[object, list] = {}
+    for exercise in sorted(exercises, key=lambda item: item.sort_order):
+        key = exercise.group_key if exercise.group_key else exercise.id
+        groups.setdefault(key, []).append(exercise)
+    order: list[tuple] = []
+    for members in groups.values():
+        members.sort(
+            key=lambda item: item.group_order if item.group_order is not None else item.sort_order
+        )
+        rounds = max(member.target_sets for member in members)
+        for set_number in range(1, rounds + 1):
+            order.extend(
+                (member, set_number) for member in members if set_number <= member.target_sets
+            )
+    return order
+
+
 def _focus_next_incomplete(workout_session: WorkoutSession) -> None:
-    for exercise in workout_session.exercises:
-        saved = {entry.set_number for entry in exercise.set_entries}
-        for set_number in range(1, exercise.target_sets + 1):
-            if set_number not in saved:
-                workout_session.focused_exercise_id = exercise.id
-                workout_session.focused_set_number = set_number
-                return
+    for exercise, set_number in _performance_order(workout_session.exercises):
+        if all(entry.set_number != set_number for entry in exercise.set_entries):
+            workout_session.focused_exercise_id = exercise.id
+            workout_session.focused_set_number = set_number
+            return
 
 
 async def _sync_scheduled_workout(

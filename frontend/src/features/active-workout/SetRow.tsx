@@ -25,7 +25,7 @@ export interface SetValues {
   incline_percent: number | null;
 }
 
-const EMPTY_DRAFT: SetDraft = {
+export const EMPTY_DRAFT: SetDraft = {
   weight: "",
   reps: "",
   rir: "",
@@ -45,7 +45,7 @@ export const ROW_GRID = "grid grid-cols-[3.5rem_6rem_5.5rem_5.5rem_5.5rem_12rem]
 
 /** The three input cells shown for each exercise kind, in column order. Every
  *  kind gets exactly three, matching the grid's three middle columns. */
-interface FieldSpec {
+export interface FieldSpec {
   draftKey: keyof SetDraft;
   label: string;
   type: "number" | "text";
@@ -61,7 +61,7 @@ export const COLUMN_HEADERS_BY_KIND: Record<ExerciseKind, string[]> = {
   cardio: ["Set", "Previous", "Duration (s)", "Distance (km)", "Incline (%)", "Complete"],
 };
 
-const FIELD_SPECS_BY_KIND: Record<ExerciseKind, FieldSpec[]> = {
+export const FIELD_SPECS_BY_KIND: Record<ExerciseKind, FieldSpec[]> = {
   strength: [
     { draftKey: "weight", label: "Weight (kg)", type: "number", inputMode: "decimal", min: "0", step: "0.25" },
     { draftKey: "reps", label: "Repetitions", type: "number", inputMode: "numeric", min: "1", max: "1000" },
@@ -110,6 +110,24 @@ const FIELD_SPECS_BY_KIND: Record<ExerciseKind, FieldSpec[]> = {
 
 function numericValue(raw: string): number | null {
   return raw ? Number.parseFloat(raw) : null;
+}
+
+/** Converts a row's typed field values into what is sent to the server. */
+export function draftToValues(kind: ExerciseKind, raw: Partial<SetDraft>): SetValues {
+  const rir = raw.rir ?? "";
+  return {
+    weight: kind === "strength" ? numericValue(raw.weight ?? "") : null,
+    // A cardio set has no meaningful rep count; the field stays required
+    // server-side, so it is sent as a fixed placeholder rather than shown.
+    reps: kind === "cardio" ? 1 : Number.parseInt(raw.reps ?? "", 10),
+    rir: kind === "strength" && rir ? Number.parseInt(rir, 10) : null,
+    added_weight_kg: kind === "bodyweight" ? numericValue(raw.added_weight_kg ?? "") : null,
+    band_level: kind === "bodyweight" ? raw.band_level || null : null,
+    duration_seconds:
+      kind === "cardio" && raw.duration_seconds ? Number.parseInt(raw.duration_seconds, 10) : null,
+    distance_km: kind === "cardio" ? numericValue(raw.distance_km ?? "") : null,
+    incline_percent: kind === "cardio" ? numericValue(raw.incline_percent ?? "") : null,
+  };
 }
 
 /**
@@ -283,26 +301,11 @@ export function SetRow({
   }
 
   function currentValues(): SetValues {
-    const raw: Record<string, string> = {};
+    const raw: Partial<SetDraft> = {};
     fieldSpecs.forEach((spec, index) => {
       raw[spec.draftKey] = fieldRefs[index].current?.value ?? "";
     });
-    const rir = raw.rir ?? "";
-    return {
-      weight: kind === "strength" ? numericValue(raw.weight ?? "") : null,
-      // A cardio set has no meaningful rep count; the field stays required
-      // server-side, so it is sent as a fixed placeholder rather than shown.
-      reps: kind === "cardio" ? 1 : Number.parseInt(raw.reps ?? "", 10),
-      rir: kind === "strength" && rir ? Number.parseInt(rir, 10) : null,
-      added_weight_kg: kind === "bodyweight" ? numericValue(raw.added_weight_kg ?? "") : null,
-      band_level: kind === "bodyweight" ? raw.band_level || null : null,
-      duration_seconds:
-        kind === "cardio" && raw.duration_seconds
-          ? Number.parseInt(raw.duration_seconds, 10)
-          : null,
-      distance_km: kind === "cardio" ? numericValue(raw.distance_km ?? "") : null,
-      incline_percent: kind === "cardio" ? numericValue(raw.incline_percent ?? "") : null,
-    };
+    return draftToValues(kind, raw);
   }
 
   const disabled = row.entry !== null && !editing;

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { ExerciseStatsResponse, SessionExercise, WorkoutSession } from "@/api/types";
@@ -29,7 +29,10 @@ import { RestOverlay } from "./RestOverlay";
 import { COLUMN_HEADERS_BY_KIND, ROW_GRID, SetRow } from "./SetRow";
 import type { SetValues } from "./SetRow";
 import { FEELING_SCALE, RIR_HINT } from "@/lib/scales";
+import { useIsDesktop } from "@/lib/use-media-query";
+import { hudIndex, performanceOrder } from "@/lib/workout-hud";
 import { ScaleSelect } from "@/ui/ScaleSelect";
+import { WorkoutHud } from "./WorkoutHud";
 
 // Shared verbatim with SetRow's own grid template - see the comment there.
 const HEADER_GRID = ROW_GRID;
@@ -77,6 +80,8 @@ function ActiveWorkoutSession({
   const [confirmFinish, setConfirmFinish] = useState(false);
   const syncInProgress = useRef(false);
   const gridRef = useRef<HTMLDivElement>(null);
+  const isDesktop = useIsDesktop();
+  const navigate = useNavigate();
 
   const progress = workoutProgress(session);
   const groups = groupSessionExercises(session.exercises);
@@ -310,6 +315,50 @@ function ActiveWorkoutSession({
     void completeWorkout();
   }
 
+  const confirmDialog = (
+    <ConfirmDialog
+      open={confirmFinish}
+      onClose={() => setConfirmFinish(false)}
+      onConfirm={() => void completeWorkout()}
+      title="Finish incomplete workout?"
+      message="Not every set has been logged yet. Finish anyway?"
+      confirmLabel="Finish workout"
+      confirmVariant="primary"
+    />
+  );
+
+  if (!isDesktop) {
+    const hudRows = performanceOrder(session);
+    const shown = hudRows[hudIndex(session, hudRows)];
+    return (
+      <>
+        <WorkoutHud
+          session={session}
+          rows={hudRows}
+          index={hudIndex(session, hudRows)}
+          progress={progress}
+          sync={sync}
+          restWasSkipped={restWasSkipped}
+          stats={statsByName}
+          statsLine={shown ? exerciseStatsLine(shown.exercise as SessionExercise) : null}
+          feeling={feeling}
+          onFeelingChange={setFeeling}
+          onComplete={(target, values) => void persistSet(target, values, "completed")}
+          onSkip={(target, values) => void persistSet(target, values, "skipped")}
+          onCorrect={(target, values) => void correctSet(target, values)}
+          onUndo={(target) => void undoSet(target)}
+          onFocus={(target) => void focusSet(target)}
+          onAdjustRest={(seconds) => void updateRest({ adjustment_seconds: seconds })}
+          onSkipRest={() => void updateRest({ skip: true })}
+          onRetrySync={() => void flushSetQueue()}
+          onFinish={finishWorkout}
+          onMinimize={() => void navigate("/plans")}
+        />
+        {confirmDialog}
+      </>
+    );
+  }
+
   function columnHeaderFor(exercise: SessionExercise) {
     return (
       <div className={`${HEADER_GRID} text-xs font-semibold text-muted`}>
@@ -470,15 +519,7 @@ function ActiveWorkoutSession({
         onRetrySync={() => void flushSetQueue()}
       />
 
-      <ConfirmDialog
-        open={confirmFinish}
-        onClose={() => setConfirmFinish(false)}
-        onConfirm={() => void completeWorkout()}
-        title="Finish incomplete workout?"
-        message="Not every set has been logged yet. Finish anyway?"
-        confirmLabel="Finish workout"
-        confirmVariant="primary"
-      />
+      {confirmDialog}
     </section>
   );
 }
