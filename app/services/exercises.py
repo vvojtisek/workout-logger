@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,12 +9,27 @@ from app.models import Exercise
 from app.schemas.exercises import ExerciseCreate, ExerciseReplace
 
 
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 async def list_exercises(
-    session: AsyncSession, limit: int, offset: int
+    session: AsyncSession, limit: int, offset: int, query: str | None = None
 ) -> tuple[list[Exercise], int]:
-    total = await session.scalar(select(func.count()).select_from(Exercise))
+    statement = select(Exercise)
+    term = (query or "").strip().lower()
+    if term:
+        pattern = f"%{_escape_like(term)}%"
+        # Aliases are a JSON list; searching its text form matches any alias.
+        statement = statement.where(
+            or_(
+                func.lower(Exercise.name).like(pattern, escape="\\"),
+                func.lower(cast(Exercise.aliases, String)).like(pattern, escape="\\"),
+            )
+        )
+    total = await session.scalar(select(func.count()).select_from(statement.subquery()))
     result = await session.execute(
-        select(Exercise).order_by(Exercise.name.asc()).limit(limit).offset(offset)
+        statement.order_by(Exercise.name.asc()).limit(limit).offset(offset)
     )
     return list(result.scalars().all()), total or 0
 

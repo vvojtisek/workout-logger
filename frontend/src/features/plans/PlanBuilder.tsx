@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
-import type { WorkoutPlan } from "@/api/types";
+import type { CatalogExercise, Paginated, WorkoutPlan } from "@/api/types";
+import { fetchCatalogueNames } from "@/lib/exercise-catalogue";
 import { planPayloadSchema } from "@/lib/plan-schema";
 import { useSettingsQuery } from "@/lib/settings-query";
 import type { ExerciseKind } from "@/lib/workout-utils";
@@ -109,6 +110,13 @@ export function PlanBuilder() {
     queryFn: () => apiFetch<WorkoutPlan>(`/plans/${planId}`),
     enabled: isEditing,
   });
+  // Suggestions only: a name outside the catalogue is still a valid plan exercise.
+  const { data: catalogueNames = [] } = useQuery({
+    queryKey: ["exercise-catalogue-names"],
+    queryFn: () =>
+      fetchCatalogueNames((path) => apiFetch<Paginated<CatalogExercise>>(path)),
+    staleTime: 5 * 60_000,
+  });
 
   useEffect(() => {
     if (!existingPlan || seededPlanId.current === existingPlan.id) return;
@@ -191,6 +199,11 @@ export function PlanBuilder() {
 
   return (
     <section id="plan-builder-view">
+      <datalist id="exercise-catalogue-names">
+        {catalogueNames.map((catalogueName) => (
+          <option key={catalogueName} value={catalogueName} />
+        ))}
+      </datalist>
       <PageHeading hint="Superset rows by giving them the same group name.">
         {isEditing ? "Edit Program" : "New Program"}
       </PageHeading>
@@ -263,6 +276,8 @@ export function PlanBuilder() {
                 </label>
                 <Input
                   id={`exercise-name-${row.key}`}
+                  list="exercise-catalogue-names"
+                  autoComplete="off"
                   value={row.exercise_name}
                   onChange={(event) => updateRow(row.key, { exercise_name: event.target.value })}
                 />

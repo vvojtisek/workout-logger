@@ -374,10 +374,13 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
         )
         assert shared_exercise.status_code == 201
         shared_exercise_id = shared_exercise.json()["id"]
-        other_exercises = await client.get("/api/v1/exercises", headers=other_cookies)
-        other_exercise_ids = {item["id"] for item in other_exercises.json()["items"]}
-        assert exercise_id not in other_exercise_ids
-        assert shared_exercise_id in other_exercise_ids
+        # Search by run id: the shared catalogue is larger than one page, and the
+        # query matches both entries, so only account scoping can hide the private one.
+        other_exercises = await client.get(
+            "/api/v1/exercises", params={"q": test_run_id}, headers=other_cookies
+        )
+        assert [item["id"] for item in other_exercises.json()["items"]] == [shared_exercise_id]
+        assert other_exercises.json()["total"] == 1
         blocked_edit = await client.put(
             f"/api/v1/exercises/{shared_exercise_id}",
             json={
