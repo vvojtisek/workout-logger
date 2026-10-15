@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { Paginated, WorkoutLogSummary } from "@/api/types";
+import { logSummaryFacts, logTitle } from "@/lib/activity";
 import { EmptyState, PageHeading } from "@/ui";
 
 export function HistoryView() {
@@ -51,11 +52,10 @@ export function HistoryView() {
               onClick={() => void navigate(`/history/${log.id}`)}
               className="card w-full p-4 text-left transition-colors hover:bg-surface-sunken"
             >
-              <p className="font-medium">
-                {log.source_plan_name || new Date(log.performed_at).toLocaleString()}
-              </p>
+              <p className="font-medium">{logTitle(log)}</p>
               <p className="mt-0.5 text-sm text-muted" data-numeric>
-                Feeling: {log.overall_feeling}/5 · {log.total_time_minutes} min
+                {log.activity_type ? `${new Date(log.performed_at).toLocaleString()} · ` : ""}
+                {logSummaryFacts(log).join(" · ")}
               </p>
             </button>
           </li>

@@ -75,6 +75,7 @@ const NAV_ITEMS: { path: string; label: string; glyph: string }[] = [
   { path: "/sleep", label: "Sleep", glyph: "\u{1F634}" },
   { path: "/tokens", label: "Tokens", glyph: "\u{1F510}" },
   { path: "/log/new", label: "New Workout", glyph: "➕" },
+  { path: "/activity/new", label: "Log Activity", glyph: "\u{1F3D2}" },
   { path: "/history", label: "History", glyph: "\u{1F5C2}" },
 ];
 

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { WorkoutLog } from "@/api/types";
+import { activityLabel, logSummaryFacts } from "@/lib/activity";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { Button, Card, PageHeading } from "@/ui";
 
@@ -50,9 +51,11 @@ export function LogDetailView() {
           <>
             <Card className="p-4">
               <p className="text-sm text-muted" data-numeric>
-                {new Date(log.performed_at).toLocaleString()} · {log.total_time_minutes} min ·
-                Feeling {log.overall_feeling}/5
+                {[new Date(log.performed_at).toLocaleString(), ...logSummaryFacts(log)].join(" · ")}
               </p>
+              {log.activity_type ? (
+                <p className="mt-1 font-medium">{activityLabel(log.activity_type)}</p>
+              ) : null}
               {log.source_plan_name ? (
                 <p className="mt-1 font-medium">Plan: {log.source_plan_name}</p>
               ) : null}
