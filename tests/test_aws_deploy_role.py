@@ -34,9 +34,16 @@ def test_only_the_production_environment_of_this_repository_can_assume_it() -> N
     assert trust["Action"] == "sts:AssumeRoleWithWebIdentity"
     assert condition["token.actions.githubusercontent.com:aud"] == "sts.amazonaws.com"
     assert condition["token.actions.githubusercontent.com:sub"] == {
-        "Fn::Sub": "repo:${Repository}:environment:production"
+        "Fn::Sub": (
+            "repo:${RepositoryOwner}@${RepositoryOwnerId}/"
+            "${RepositoryName}@${RepositoryId}:environment:production"
+        )
     }
-    assert template()["Parameters"]["Repository"]["Default"] == "vvojtisek/workout-logger"
+    parameters = template()["Parameters"]
+    assert parameters["RepositoryOwner"]["Default"] == "vvojtisek"
+    assert parameters["RepositoryOwnerId"]["Default"] == "10126301"
+    assert parameters["RepositoryName"]["Default"] == "workout-logger"
+    assert parameters["RepositoryId"]["Default"] == "1304765025"
 
 
 def test_it_can_only_send_the_shell_document_to_the_app_host_and_read_results() -> None:

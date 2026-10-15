@@ -18,10 +18,24 @@ Parameters:
     Default: i-08abc66a2687aed45
     AllowedPattern: "i-[0-9a-f]{8,17}"
     Description: EC2 instance that runs Workout Logger.
-  Repository:
+  RepositoryOwner:
     Type: String
-    Default: vvojtisek/workout-logger
-    Description: GitHub repository allowed to assume the role.
+    Default: vvojtisek
+    Description: GitHub repository owner allowed to assume the role.
+  RepositoryOwnerId:
+    Type: String
+    Default: "10126301"
+    AllowedPattern: "[0-9]+"
+    Description: Immutable GitHub owner ID used in the OIDC subject.
+  RepositoryName:
+    Type: String
+    Default: workout-logger
+    Description: GitHub repository name allowed to assume the role.
+  RepositoryId:
+    Type: String
+    Default: "1304765025"
+    AllowedPattern: "[0-9]+"
+    Description: Immutable GitHub repository ID used in the OIDC subject.
 
 Conditions:
   CreateProvider:
@@ -56,7 +70,8 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
                 token.actions.githubusercontent.com:sub:
-                  Fn::Sub: repo:${Repository}:environment:production
+                  Fn::Sub: >-
+                    repo:${RepositoryOwner}@${RepositoryOwnerId}/${RepositoryName}@${RepositoryId}:environment:production
       Policies:
         - PolicyName: send-release-deploy-command
           PolicyDocument:
