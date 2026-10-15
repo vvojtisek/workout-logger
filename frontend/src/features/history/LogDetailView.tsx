@@ -6,6 +6,7 @@ import type { WorkoutLog } from "@/api/types";
 import { activityLabel, logSummaryFacts } from "@/lib/activity";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { Button, Card, PageHeading } from "@/ui";
+import { TRAINING_LOAD_HINT } from "@/lib/scales";
 
 export function LogDetailView() {
   const { logId } = useParams<{ logId: string }>();
@@ -58,6 +59,9 @@ export function LogDetailView() {
               ) : null}
               {log.source_plan_name ? (
                 <p className="mt-1 font-medium">Plan: {log.source_plan_name}</p>
+              ) : null}
+              {log.effort_rpe != null ? (
+                <p className="mt-1 text-xs text-muted">{TRAINING_LOAD_HINT}</p>
               ) : null}
               {log.notes ? <p className="mt-2 text-sm">{log.notes}</p> : null}
             </Card>

@@ -7,6 +7,8 @@ import type { SleepEntry } from "@/api/types";
 import { sleepEntryPayloadSchema } from "@/lib/sleep-entry-schema";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
+import { SLEEP_QUALITY_SCALE } from "@/lib/scales";
+import { ScaleSelect } from "@/ui/ScaleSelect";
 
 function pad(value: number): string {
   return String(value).padStart(2, "0");
@@ -227,15 +229,14 @@ export function SleepEntryForm() {
           </div>
           <div>
             <label className="field-label" htmlFor="sleep-quality">
-              Quality (1–5, optional)
+              Quality (optional)
             </label>
-            <Input
+            <ScaleSelect
               id="sleep-quality"
-              type="number"
-              min="1"
-              max="5"
+              scale={SLEEP_QUALITY_SCALE}
+              optional
               value={fields.quality_score}
-              onChange={(e) => update("quality_score", e.target.value)}
+              onChange={(value) => update("quality_score", value)}
             />
             {errors.quality_score ? (
               <p className="mt-1 text-sm text-danger">{errors.quality_score}</p>

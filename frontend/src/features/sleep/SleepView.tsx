@@ -6,6 +6,7 @@ import type { Paginated, SleepEntry, SleepTrends } from "@/api/types";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { Button, Card, EmptyState, PageHeading } from "@/ui";
+import { SLEEP_QUALITY_SCALE, scaleText } from "@/lib/scales";
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -50,7 +51,7 @@ function TrendCard({ trends }: { trends: SleepTrends }) {
         <p className="text-xs text-muted">Avg. quality (7d)</p>
         <p className="mt-1 text-lg font-semibold tabular-nums">
           {trends.average_quality_score_7d != null
-            ? `${trends.average_quality_score_7d.toFixed(1)} / 5`
+            ? scaleText(SLEEP_QUALITY_SCALE, Number(trends.average_quality_score_7d.toFixed(1)))
             : "—"}
         </p>
       </div>
@@ -135,7 +136,9 @@ export function SleepView() {
               <p className="mt-0.5 text-sm text-muted">
                 {new Date(entry.sleep_start).toLocaleString()} →{" "}
                 {new Date(entry.sleep_end).toLocaleString()}
-                {entry.quality_score != null ? ` · Quality ${entry.quality_score}/5` : ""}
+                {entry.quality_score != null
+                  ? ` · Quality ${scaleText(SLEEP_QUALITY_SCALE, entry.quality_score)}`
+                  : ""}
               </p>
               {entry.notes ? <p className="mt-0.5 text-sm text-muted">{entry.notes}</p> : null}
             </div>

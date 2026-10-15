@@ -42,10 +42,10 @@ describe("logSummaryFacts", () => {
   it("lists duration, distance, effort and training load for an activity", () => {
     expect(
       logSummaryFacts({ ...base, activity_type: "swimming", distance_km: 1.5, effort_rpe: 6 }),
-    ).toEqual(["75 min", "1.5 km", "Effort 6/10", "Load 450", "Feeling 4/5"]);
+    ).toEqual(["75 min", "1.5 km", "Effort 6/10 (Hard to very hard)", "Load 450", "Feeling 4/5 (Good)"]);
   });
 
   it("keeps a strength workout to duration and feeling", () => {
-    expect(logSummaryFacts(base)).toEqual(["75 min", "Feeling 4/5"]);
+    expect(logSummaryFacts(base)).toEqual(["75 min", "Feeling 4/5 (Good)"]);
   });
 });

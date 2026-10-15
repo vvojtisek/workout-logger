@@ -7,18 +7,10 @@ import { ACTIVITY_TYPES, activityLabel } from "@/lib/activity";
 import type { ActivityType } from "@/lib/activity";
 import { toast } from "@/ui/Toast";
 import { Button, Card, Input, PageHeading } from "@/ui";
+import { EFFORT_SCALE, FEELING_SCALE } from "@/lib/scales";
+import { ScaleSelect } from "@/ui/ScaleSelect";
 
 // Borg CR-10 anchors, so the number means the same thing session to session.
-const EFFORT_LABELS: Record<number, string> = {
-  1: "Very easy",
-  2: "Easy",
-  3: "Moderate",
-  4: "Somewhat hard",
-  5: "Hard",
-  7: "Very hard",
-  10: "Maximal",
-};
-
 function localNow(): string {
   const now = new Date();
   now.setSeconds(0, 0);
@@ -135,36 +127,24 @@ export function LogActivityView() {
               <label className="field-label" htmlFor="activity-effort">
                 Effort (optional)
               </label>
-              <select
+              <ScaleSelect
                 id="activity-effort"
-                className="input"
+                scale={EFFORT_SCALE}
+                optional
                 value={effort}
-                onChange={(event) => setEffort(event.target.value)}
-              >
-                <option value="">Not rated</option>
-                {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => (
-                  <option key={value} value={String(value)}>
-                    {EFFORT_LABELS[value] ? `${value} · ${EFFORT_LABELS[value]}` : String(value)}
-                  </option>
-                ))}
-              </select>
+                onChange={setEffort}
+              />
             </div>
             <div>
               <label className="field-label" htmlFor="activity-feeling">
-                How you felt (1-5)
+                How you felt
               </label>
-              <select
+              <ScaleSelect
                 id="activity-feeling"
-                className="input"
+                scale={FEELING_SCALE}
                 value={feeling}
-                onChange={(event) => setFeeling(event.target.value)}
-              >
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <option key={value} value={String(value)}>
-                    {value}
-                  </option>
-                ))}
-              </select>
+                onChange={setFeeling}
+              />
             </div>
           </div>
 

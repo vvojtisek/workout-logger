@@ -27,7 +27,11 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
     await page.getByLabel("Timezone").fill("America/New_York");
     await page.getByLabel("Estimated sleep (minutes, optional)").fill("440");
     await page.getByLabel("Time awake (minutes, optional)").fill("20");
-    await page.getByLabel("Quality (1–5, optional)").fill("4");
+    // Every quality score is explained where it is picked.
+    await expect(page.locator("#sleep-quality option")).toHaveText([
+      "Not rated", "1 · Very poor", "2 · Poor", "3 · Fair", "4 · Good", "5 · Excellent",
+    ]);
+    await page.getByLabel("Quality (optional)").selectOption("4");
     await page.getByLabel("Resting heart rate (bpm, optional)").fill("58");
     await page.getByLabel("Notes (optional)").fill(`${tag} slept well`);
     await page.getByRole("button", { name: "Log sleep", exact: true }).click();
@@ -43,7 +47,7 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
 
     // The trend card and history list reflect the logged entry.
     await expect(page.getByText("8h 0m").first()).toBeVisible();
-    await expect(page.getByText(/Quality 4\/5/)).toBeVisible();
+    await expect(page.getByText(/Quality 4\/5 \(Good\)/)).toBeVisible();
 
     const trends = await request.get("/api/v1/sleep-entries/trends");
     expect(trends.status()).toBe(200);
