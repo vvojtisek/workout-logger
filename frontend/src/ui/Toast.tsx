@@ -40,7 +40,7 @@ function useToasts(): Toast[] {
 }
 
 const VARIANT_CLASS: Record<ToastVariant, string> = {
-  info: "bg-surface-raised border-border-strong text-text",
+  info: "bg-elevated border-line text-main",
   success: "bg-success-soft border-success text-success",
   error: "bg-danger-soft border-danger text-danger",
 };

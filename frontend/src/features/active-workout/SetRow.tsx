@@ -342,7 +342,7 @@ export function SetRow({
       data-set-number={String(row.setNumber)}
       data-state={row.state}
       onSubmit={submit}
-      className={`${ROW_GRID} items-end border-t border-border-subtle py-2 ${stateClass}`}
+      className={`${ROW_GRID} items-end border-t border-line-muted py-2 ${stateClass}`}
     >
       <strong className="self-center" data-numeric>
         {roundLabel ?? row.setNumber}

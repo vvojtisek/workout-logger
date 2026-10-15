@@ -29,7 +29,7 @@ function MuscleBadgeList({ title, muscles }: { title: string; muscles: MuscleTag
         {muscles.map((muscle) => (
           <li
             key={muscle}
-            className="rounded-full bg-surface-raised px-3 py-1 text-sm font-medium"
+            className="rounded-full bg-elevated px-3 py-1 text-sm font-medium"
           >
             {MUSCLE_LABELS[muscle]}
           </li>
@@ -76,7 +76,7 @@ function MediaContainer({ mediaUrl }: { mediaUrl: string | null }) {
       href={mediaUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="card flex items-center justify-between gap-3 p-4 hover:bg-surface-raised"
+      className="card flex items-center justify-between gap-3 p-4 hover:bg-elevated"
     >
       <div className="min-w-0">
         <p className="font-medium">Watch demonstration</p>
@@ -148,7 +148,7 @@ export function ExerciseDetailView() {
               <li key={index} className="flex gap-3">
                 <span
                   aria-hidden="true"
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-medium text-white"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-medium text-on-accent"
                 >
                   {index + 1}
                 </span>

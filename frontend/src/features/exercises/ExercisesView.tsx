@@ -102,7 +102,7 @@ export function ExercisesView() {
               {exercise.primary_muscles.length > 0 ? (
                 <p className="mt-1 flex flex-wrap gap-1 text-xs text-muted">
                   {exercise.primary_muscles.map((muscle) => (
-                    <span key={muscle} className="rounded-full bg-surface-raised px-2 py-0.5">
+                    <span key={muscle} className="rounded-full bg-elevated px-2 py-0.5">
                       {muscle.replace("_", " ")}
                     </span>
                   ))}

@@ -1,157 +1,167 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Semantic design tokens.
+   Semantic design tokens (v3).
 
-   Every colour used by the application is named for its ROLE, never its hue,
-   so a theme swap is a token swap. The light palette is the base definition;
-   dark is layered on twice so that both the system preference and an explicit
-   `data-theme` choice resolve correctly:
+   Every colour is named for its ROLE, never its hue, so a theme swap is a
+   token swap. Dark is the default and also what renders before JavaScript
+   runs; lib/theme.ts then sets `data-theme` on <html> from the stored choice
+   (Dark, Light, or System, which follows the device).
 
-     :root                                     -> light (always defined)
-     @media (prefers-color-scheme: dark)       -> dark, unless forced light
-     :root[data-theme="dark"]                  -> dark, forced
-
-   Accent is a single hue reserved for the primary action and progress. Success,
-   warning, and danger stay semantically distinct from it so a completed set can
-   never be confused with a call to action.
+   Accent primary is reserved for the main action and progress. Success, warn,
+   purple and danger stay distinct from it, so a completed set can never be
+   confused with a call to action.
 --------------------------------------------------------------------------- */
 
-:root {
-  --bg: hsl(220 20% 97%);
-  --surface: hsl(0 0% 100%);
-  --surface-raised: hsl(220 20% 99%);
-  --surface-sunken: hsl(220 18% 94%);
-  --border: hsl(220 13% 89%);
-  --border-strong: hsl(220 13% 78%);
-  --text: hsl(222 47% 11%);
-  --text-muted: hsl(215 16% 42%);
-  --text-inverted: hsl(0 0% 100%);
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
 
-  --accent: hsl(243 75% 58%);
-  --accent-hover: hsl(243 75% 50%);
-  --accent-soft: hsl(243 75% 96%);
-  --accent-ring: hsl(243 75% 58% / 0.35);
+  /* Surfaces */
+  --bg-base: #090d16; /* nav rail and deep background */
+  --bg-surface: #111827; /* primary workspace and cards */
+  --bg-subtle: #0d1322; /* master list pane and secondary headers */
+  --bg-elevated: #1e293b; /* hover states, pills, steppers */
+  --bg-input: #0f172a; /* numeric inputs and form controls */
+  --hud-gradient: radial-gradient(circle at top, #172554 0%, #090d16 60%);
 
-  --success: hsl(160 84% 30%);
-  --success-soft: hsl(152 76% 95%);
-  --warn: hsl(32 81% 38%);
-  --warn-soft: hsl(48 96% 93%);
-  --danger: hsl(0 72% 47%);
-  --danger-hover: hsl(0 72% 40%);
-  --danger-soft: hsl(0 86% 96%);
+  /* Borders */
+  --border-subtle: #334155;
+  --border-muted: rgba(255, 255, 255, 0.06);
+  --border-focus: #3b82f6;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  /* Typography */
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --text-on-accent: #ffffff;
+
+  /* Accents and status */
+  --accent-primary: #3b82f6;
+  --accent-primary-hover: #60a5fa;
+  --accent-primary-soft: rgba(59, 130, 246, 0.16);
+  --accent-success: #10b981;
+  --accent-success-soft: rgba(16, 185, 129, 0.14);
+  --accent-success-text: #042f2e;
+  --accent-warn: #f59e0b;
+  --accent-warn-soft: rgba(245, 158, 11, 0.16);
+  --accent-purple: #8b5cf6;
+  --accent-purple-soft: rgba(139, 92, 246, 0.16);
+  --accent-danger: #ef4444;
+  --accent-danger-hover: #f87171;
+  --accent-danger-soft: rgba(239, 68, 68, 0.14);
+
+  /* Geometry and type. The fonts are bundled (see main.tsx) because the CSP
+     allows nothing from other origins. */
+  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-elevated: 0 12px 32px rgba(0, 0, 0, 0.45);
 
   --touch: 48px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: hsl(224 32% 8%);
-    --surface: hsl(224 28% 11%);
-    --surface-raised: hsl(224 26% 14%);
-    --surface-sunken: hsl(224 32% 6%);
-    --border: hsl(223 20% 22%);
-    --border-strong: hsl(223 18% 32%);
-    --text: hsl(210 40% 96%);
-    --text-muted: hsl(215 18% 65%);
-    --text-inverted: hsl(224 32% 8%);
+[data-theme="light"] {
+  color-scheme: light;
 
-    --accent: hsl(243 90% 72%);
-    --accent-hover: hsl(243 90% 79%);
-    --accent-soft: hsl(243 45% 20%);
-    --accent-ring: hsl(243 90% 72% / 0.4);
+  /* Surfaces */
+  --bg-base: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f8fafc;
+  --bg-elevated: #e2e8f0;
+  --bg-input: #ffffff;
+  --hud-gradient: radial-gradient(circle at top, #dbeafe 0%, #f8fafc 60%);
 
-    --success: hsl(158 64% 58%);
-    --success-soft: hsl(160 50% 16%);
-    --warn: hsl(43 92% 66%);
-    --warn-soft: hsl(38 60% 16%);
-    --danger: hsl(0 84% 70%);
-    --danger-hover: hsl(0 84% 76%);
-    --danger-soft: hsl(0 50% 18%);
-  }
+  /* Borders */
+  --border-subtle: #cbd5e1;
+  --border-muted: rgba(15, 23, 42, 0.08);
+  --border-focus: #2563eb;
+
+  /* Typography */
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #94a3b8;
+  --text-on-accent: #ffffff;
+
+  /* Accents and status */
+  --accent-primary: #2563eb;
+  --accent-primary-hover: #1d4ed8;
+  --accent-primary-soft: rgba(37, 99, 235, 0.12);
+  --accent-success: #059669;
+  --accent-success-soft: rgba(5, 150, 105, 0.12);
+  --accent-success-text: #ffffff;
+  --accent-warn: #d97706;
+  --accent-warn-soft: rgba(217, 119, 6, 0.14);
+  --accent-purple: #7c3aed;
+  --accent-purple-soft: rgba(124, 58, 237, 0.12);
+  --accent-danger: #dc2626;
+  --accent-danger-hover: #b91c1c;
+  --accent-danger-soft: rgba(220, 38, 38, 0.1);
+
+  --shadow-elevated: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 
-:root[data-theme="dark"] {
-  --bg: hsl(224 32% 8%);
-  --surface: hsl(224 28% 11%);
-  --surface-raised: hsl(224 26% 14%);
-  --surface-sunken: hsl(224 32% 6%);
-  --border: hsl(223 20% 22%);
-  --border-strong: hsl(223 18% 32%);
-  --text: hsl(210 40% 96%);
-  --text-muted: hsl(215 18% 65%);
-  --text-inverted: hsl(224 32% 8%);
-
-  --accent: hsl(243 90% 72%);
-  --accent-hover: hsl(243 90% 79%);
-  --accent-soft: hsl(243 45% 20%);
-  --accent-ring: hsl(243 90% 72% / 0.4);
-
-  --success: hsl(158 64% 58%);
-  --success-soft: hsl(160 50% 16%);
-  --warn: hsl(43 92% 66%);
-  --warn-soft: hsl(38 60% 16%);
-  --danger: hsl(0 84% 70%);
-  --danger-hover: hsl(0 84% 76%);
-  --danger-soft: hsl(0 50% 18%);
-}
-
-/* Expose the semantic tokens to Tailwind as `bg-surface`, `text-muted`, etc.
-   `inline` keeps the generated utilities pointing at the custom properties, so
-   they re-resolve when the theme changes instead of baking in a literal. */
+/* Expose the tokens to Tailwind as `bg-canvas`, `bg-surface`, `text-muted`, `border-line`,
+   etc. `inline` keeps the utilities pointing at the custom properties, so they
+   re-resolve when the theme changes instead of baking in a literal. */
 @theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-surface-raised: var(--surface-raised);
-  --color-surface-sunken: var(--surface-sunken);
-  --color-border-subtle: var(--border);
-  --color-border-strong: var(--border-strong);
-  --color-text: var(--text);
+  --color-canvas: var(--bg-base);
+  --color-surface: var(--bg-surface);
+  --color-subtle: var(--bg-subtle);
+  --color-elevated: var(--bg-elevated);
+  --color-input: var(--bg-input);
+  --color-line: var(--border-subtle);
+  --color-line-muted: var(--border-muted);
+  --color-focus: var(--border-focus);
+  --color-main: var(--text-main);
   --color-muted: var(--text-muted);
-  --color-inverted: var(--text-inverted);
-  --color-accent: var(--accent);
-  --color-accent-soft: var(--accent-soft);
-  --color-success: var(--success);
-  --color-success-soft: var(--success-soft);
-  --color-warn: var(--warn);
-  --color-warn-soft: var(--warn-soft);
-  --color-danger: var(--danger);
-  --color-danger-soft: var(--danger-soft);
+  --color-dim: var(--text-dim);
+  --color-on-accent: var(--text-on-accent);
+  --color-accent: var(--accent-primary);
+  --color-accent-soft: var(--accent-primary-soft);
+  --color-success: var(--accent-success);
+  --color-success-soft: var(--accent-success-soft);
+  --color-on-success: var(--accent-success-text);
+  --color-warn: var(--accent-warn);
+  --color-warn-soft: var(--accent-warn-soft);
+  --color-purple: var(--accent-purple);
+  --color-purple-soft: var(--accent-purple-soft);
+  --color-danger: var(--accent-danger);
+  --color-danger-soft: var(--accent-danger-soft);
 
   --radius-card: var(--radius-md);
   --spacing-touch: var(--touch);
+  --shadow-elevated: var(--shadow-elevated);
 
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
 @layer base {
   html {
-    color-scheme: light dark;
     -webkit-text-size-adjust: 100%;
   }
 
   body {
-    background-color: var(--bg);
-    color: var(--text);
+    background-color: var(--bg-base);
+    color: var(--text-main);
     font-family: var(--font-sans);
     min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Metrics must not jitter as digits change during a live workout. */
+  /* Numbers (weights, reps, RIR, times, macros, versions) are monospaced with
+     tabular digits so they line up and do not jitter while a value changes. */
   input[type="number"],
   [data-numeric] {
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
 
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--border-focus);
     outline-offset: 2px;
   }
 }
@@ -181,31 +191,31 @@
   }
 
   .btn-primary {
-    background-color: var(--accent);
-    color: var(--text-inverted);
+    background-color: var(--accent-primary);
+    color: var(--text-on-accent);
   }
 
   .btn-primary:hover:not(:disabled) {
-    background-color: var(--accent-hover);
+    background-color: var(--accent-primary-hover);
   }
 
   .btn-secondary {
-    background-color: var(--surface);
-    border-color: var(--border-strong);
-    color: var(--text);
+    background-color: var(--bg-elevated);
+    border-color: var(--border-subtle);
+    color: var(--text-main);
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background-color: var(--surface-sunken);
+    border-color: var(--border-focus);
   }
 
   .btn-danger {
-    background-color: var(--danger);
-    color: var(--text-inverted);
+    background-color: var(--accent-danger);
+    color: var(--text-on-accent);
   }
 
   .btn-danger:hover:not(:disabled) {
-    background-color: var(--danger-hover);
+    background-color: var(--accent-danger-hover);
   }
 
   .btn-ghost {
@@ -214,8 +224,8 @@
   }
 
   .btn-ghost:hover:not(:disabled) {
-    background-color: var(--surface-sunken);
-    color: var(--text);
+    background-color: var(--bg-elevated);
+    color: var(--text-main);
   }
 
   /* Any control a sweaty thumb has to hit mid-set. */
@@ -225,23 +235,27 @@
   }
 
   .card {
-    background-color: var(--surface);
-    border: 1px solid var(--border);
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-muted);
     border-radius: var(--radius-md);
   }
 
   .input {
     width: 100%;
-    background-color: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border-strong);
+    background-color: var(--bg-input);
+    color: var(--text-main);
+    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
     padding: 0.55rem 0.7rem;
     font-size: 0.9375rem;
   }
 
+  .input:focus {
+    border-color: var(--border-focus);
+  }
+
   .input:disabled {
-    background-color: var(--surface-sunken);
+    background-color: var(--bg-subtle);
     color: var(--text-muted);
   }
 
@@ -251,21 +265,21 @@
     inline-size: 100%;
     border: 0;
     border-radius: 999px;
-    background-color: var(--surface-sunken);
+    background-color: var(--bg-elevated);
     overflow: hidden;
   }
 
   progress::-webkit-progress-bar {
-    background-color: var(--surface-sunken);
+    background-color: var(--bg-elevated);
   }
 
   progress::-webkit-progress-value {
-    background-color: var(--accent);
+    background-color: var(--accent-primary);
     transition: inline-size 200ms ease;
   }
 
   progress::-moz-progress-bar {
-    background-color: var(--accent);
+    background-color: var(--accent-primary);
   }
 
   .field-label {

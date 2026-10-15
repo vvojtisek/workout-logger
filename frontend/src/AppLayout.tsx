@@ -125,7 +125,7 @@ export function AppLayout() {
   return (
     <AppContext.Provider value={ctx}>
       <div className="min-h-dvh">
-        <header className="sticky top-0 z-40 border-b border-border-subtle bg-surface/90 backdrop-blur">
+        <header className="sticky top-0 z-40 border-b border-line-muted bg-surface/90 backdrop-blur">
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
             <h1 className="text-base font-semibold tracking-tight">Workout Logger</h1>
             <div className="flex items-center gap-2">
@@ -141,7 +141,7 @@ export function AppLayout() {
               >
                 {online ? "online" : "offline"}
                 {online && buildLabel ? (
-                  <span id="build-version" data-build-kind={buildLabel.kind}>
+                  <span id="build-version" data-build-kind={buildLabel.kind} data-numeric>
                     {` · ${buildLabel.text}`}
                   </span>
                 ) : null}
@@ -150,7 +150,7 @@ export function AppLayout() {
                 id="logout-btn"
                 type="button"
                 onClick={handleLogout}
-                className="text-xs font-medium text-muted hover:text-text"
+                className="text-xs font-medium text-muted hover:text-main"
               >
                 Log out
               </button>
@@ -161,7 +161,7 @@ export function AppLayout() {
         {showGlobalNav ? (
           <nav
             aria-label="Main navigation"
-            className="fixed inset-x-0 bottom-0 z-40 border-t border-border-subtle bg-surface pb-[env(safe-area-inset-bottom)] md:sticky md:top-[57px] md:border-b md:border-t-0 md:pb-0"
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-line-muted bg-surface pb-[env(safe-area-inset-bottom)] md:sticky md:top-[57px] md:border-b md:border-t-0 md:pb-0"
           >
             <div className="mx-auto flex max-w-3xl">
               {NAV_ITEMS.map((item) => {
@@ -173,7 +173,7 @@ export function AppLayout() {
                     onClick={() => void navigate(item.path)}
                     aria-current={active ? "page" : undefined}
                     className={`flex flex-1 flex-col items-center gap-0.5 px-2 py-2 text-xs font-medium md:flex-row md:justify-center md:gap-2 md:py-2.5 md:text-sm ${
-                      active ? "text-accent" : "text-muted hover:text-text"
+                      active ? "text-accent" : "text-muted hover:text-main"
                     }`}
                     style={{ minHeight: "var(--touch)" }}
                   >

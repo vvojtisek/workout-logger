@@ -5,6 +5,7 @@ import { apiFetch, apiFetchBlob, errorMessage, triggerBlobDownload } from "@/api
 import type { McpStatus, UserSettings, Units } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { SETTINGS_QUERY_KEY, useSettingsQuery } from "@/lib/settings-query";
+import { THEME_PREFERENCES, useThemePreference } from "@/lib/theme";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
 
@@ -21,9 +22,52 @@ function AccountSection() {
       <Card className="p-4">
         <p className="text-sm">
           Logged in as <span className="font-medium">{user.email}</span>
-          <span className="ml-2 rounded-full bg-surface-raised px-2.5 py-0.5 text-xs font-medium text-muted">
+          <span className="ml-2 rounded-full bg-elevated px-2.5 py-0.5 text-xs font-medium text-muted">
             {user.role}
           </span>
+        </p>
+      </Card>
+    </div>
+  );
+}
+
+/** Stored on this device only: a phone in a dark gym and a desktop by a window
+ * can each keep their own choice. */
+function AppearanceSection() {
+  const [preference, setPreference] = useThemePreference();
+  return (
+    <div className="mb-6">
+      <SectionHeading>Appearance</SectionHeading>
+      <Card className="flex flex-col gap-2 p-4">
+        <p className="field-label" id="theme-label">
+          Theme
+        </p>
+        <div
+          id="theme-control"
+          role="radiogroup"
+          aria-labelledby="theme-label"
+          className="inline-flex w-fit rounded-[var(--radius-md)] border border-line bg-subtle p-1"
+        >
+          {THEME_PREFERENCES.map((option) => {
+            const selected = option.value === preference;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => setPreference(option.value)}
+                className={`min-w-20 rounded-[var(--radius-sm)] px-4 py-2 text-sm font-medium transition-colors ${
+                  selected ? "bg-elevated text-main shadow-sm" : "text-muted hover:text-main"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-sm text-muted">
+          System follows your device. Saved on this device only.
         </p>
       </Card>
     </div>
@@ -187,7 +231,7 @@ function McpSection() {
                 {data.tool_count} tool{data.tool_count === 1 ? "" : "s"} at {data.path}
               </span>
             </p>
-            <pre className="overflow-x-auto rounded-md bg-surface-raised p-3 text-xs">
+            <pre className="overflow-x-auto rounded-md bg-elevated p-3 text-xs">
               {configSnippet}
             </pre>
             <p className="text-sm text-muted">
@@ -252,6 +296,7 @@ export function SettingsView() {
     <section id="settings-view">
       <PageHeading>Settings</PageHeading>
       <AccountSection />
+      <AppearanceSection />
       <PreferencesSection />
       <McpSection />
       <ExportSection />

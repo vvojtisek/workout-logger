@@ -69,3 +69,44 @@ test("saves preferences, shows MCP status, and exports data through the real GUI
     });
   }
 });
+
+test("switches the theme from Settings and keeps the choice across reloads", async ({ page }) => {
+  page.setDefaultTimeout(5_000);
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/");
+
+  // Dark is the default before anything is chosen, whatever the device prefers.
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  const darkBackground = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  expect(darkBackground).toBe("rgb(9, 13, 22)");
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  const theme = page.getByRole("radiogroup", { name: "Theme" });
+  await expect(theme.getByRole("radio", { name: "Dark" })).toHaveAttribute("aria-checked", "true");
+
+  await theme.getByRole("radio", { name: "Light" }).click();
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await expect
+    .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
+    .toBe("rgb(241, 245, 249)");
+
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await expect(theme.getByRole("radio", { name: "Light" })).toHaveAttribute("aria-checked", "true");
+
+  // System follows the device, including a change while the page is open.
+  await theme.getByRole("radio", { name: "System" }).click();
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(html).toHaveAttribute("data-theme", "dark");
+
+  // Numbers use the bundled monospace font.
+  const numericFont = await page
+    .locator("#rest-compound")
+    .evaluate((element) => getComputedStyle(element).fontFamily);
+  expect(numericFont).toContain("JetBrains Mono");
+
+  await theme.getByRole("radio", { name: "Dark" }).click();
+  await expect(html).toHaveAttribute("data-theme", "dark");
+});

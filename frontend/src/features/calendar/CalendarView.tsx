@@ -11,8 +11,8 @@ import { toast } from "@/ui/Toast";
 import { formatDate } from "@/lib/format";
 
 const STATUS_STYLES: Record<ScheduledWorkout["status"], string> = {
-  scheduled: "bg-surface-raised text-text",
-  in_progress: "bg-accent text-white",
+  scheduled: "bg-elevated text-main",
+  in_progress: "bg-accent text-on-accent",
   completed: "bg-success-soft text-success",
   skipped: "bg-danger-soft text-danger",
 };
