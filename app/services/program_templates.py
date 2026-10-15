@@ -92,17 +92,10 @@ async def install_template(
     )
     if existing:
         raise ConflictError(
-            "This program is already in your plans. Delete its plans to add it again.",
+            "Plans with this program's names already exist. Delete the program, or rename or "
+            "delete those plans, to start it again.",
             code="PROGRAM_TEMPLATE_ALREADY_INSTALLED",
         )
-
-    plans: dict[str, WorkoutPlan] = {}
-    for template_plan in template.plans:
-        plan = WorkoutPlan(name=template_plan.name, description=template_plan.description)
-        for index, exercise in enumerate(template_plan.exercises):
-            plan.exercises.append(PlanExercise(sort_order=index, **exercise.model_dump()))
-        session.add(plan)
-        plans[template_plan.key] = plan
 
     program = Program(
         name=template.name,
@@ -113,6 +106,17 @@ async def install_template(
         notes=template.notes,
     )
     session.add(program)
+    await session.flush()
+
+    plans: dict[str, WorkoutPlan] = {}
+    for template_plan in template.plans:
+        plan = WorkoutPlan(
+            name=template_plan.name, description=template_plan.description, program_id=program.id
+        )
+        for index, exercise in enumerate(template_plan.exercises):
+            plan.exercises.append(PlanExercise(sort_order=index, **exercise.model_dump()))
+        session.add(plan)
+        plans[template_plan.key] = plan
     await session.flush()
 
     for scheduled_date, plan_key, note in sessions:

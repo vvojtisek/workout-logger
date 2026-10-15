@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import NotFoundError
-from app.models import Program
+from app.models import Program, WorkoutPlan
 from app.schemas.programs import ProgramCreate, ProgramReplace
 
 
@@ -44,6 +44,14 @@ async def replace_program(session: AsyncSession, program_id: UUID, data: Program
 
 
 async def delete_program(session: AsyncSession, program_id: UUID) -> None:
+    """Deletes the program and its planned sessions, plus any plans it created.
+
+    Logged workouts keep their own copy of the plan name, so history survives.
+    """
     program = await get_program(session, program_id)
+    owned_plans = await session.scalars(select(WorkoutPlan).where(WorkoutPlan.program_id == program.id))
     await session.delete(program)
+    await session.flush()
+    for plan in owned_plans.all():
+        await session.delete(plan)
     await session.commit()
