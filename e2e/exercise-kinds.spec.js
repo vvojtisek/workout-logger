@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openPage } from "./support/navigation.js";
+import { openExercise } from "./support/workout.js";
 
 test("builds a plan with bodyweight and cardio exercises and logs kind-specific sets", async ({
   page,
@@ -77,6 +78,7 @@ test("builds a plan with bodyweight and cardio exercises and logs kind-specific 
       .click();
     await expect(bodyweightSet).toHaveAttribute("data-state", "completed");
 
+    await openExercise(page, `${tag} Row Erg`);
     const cardioSet = setRow(`${tag} Row Erg`, 1);
     await cardioSet.getByLabel("Duration (seconds)").fill("1800");
     await cardioSet.getByLabel("Distance (km)").fill("5.2");
@@ -84,6 +86,9 @@ test("builds a plan with bodyweight and cardio exercises and logs kind-specific 
     await cardioSet
       .getByRole("button", { name: `Complete ${tag} Row Erg set 1` })
       .click();
+    // Logging moves on to the first set still open, which is a Pull-up.
+    await expect(page.getByRole("heading", { name: `${tag} Pull-up` })).toBeVisible();
+    await openExercise(page, `${tag} Row Erg`);
     await expect(cardioSet).toHaveAttribute("data-state", "completed");
 
     const session = await request.get(`/api/v1/workout-sessions/${sessionId}`);

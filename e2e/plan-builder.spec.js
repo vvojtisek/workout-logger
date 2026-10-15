@@ -107,7 +107,11 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
     const planCard = page.getByRole("listitem").filter({ hasText: `${tag} plan` });
     await planCard.getByRole("button", { name: "Start workout" }).click();
     await expect(page.getByRole("heading", { name: `${tag} Squat` })).toBeVisible();
-    await expect(page.getByRole("heading", { name: `${tag} Lunge` })).toBeVisible();
+    await expect(
+      page
+        .getByRole("navigation", { name: "Workout exercises" })
+        .getByRole("button", { name: new RegExp(`A2.*${tag.replace(/[[\]]/g, "\\$&")} Lunge`) }),
+    ).toBeVisible();
     const activeResponse = await request.get("/api/v1/workout-sessions/active");
     expect(activeResponse.status()).toBe(200);
     sessionId = (await activeResponse.json()).id;

@@ -102,7 +102,7 @@ function seedDraft(row: HudRow, previous: HudRow | null): SetDraft {
   };
 }
 
-function ElapsedClock({ startedAt }: { startedAt: string }) {
+export function ElapsedClock({ startedAt }: { startedAt: string }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const handle = window.setInterval(() => setNow(new Date()), 1000);
@@ -128,7 +128,8 @@ export interface WorkoutHudProps {
   onFeelingChange: (value: string) => void;
   onComplete: (row: HudRow, values: SetValues) => void;
   onSkip: (row: HudRow, values: SetValues) => void;
-  onCorrect: (row: HudRow, values: SetValues) => void;
+  /** Resolves true once the correction is saved, which ends editing. */
+  onCorrect: (row: HudRow, values: SetValues) => Promise<boolean>;
   onUndo: (row: HudRow) => void;
   onFocus: (row: HudRow) => void;
   onAdjustRest: (seconds: number) => void;
@@ -614,7 +615,11 @@ function SetPanel({
       <button
         type="button"
         className="btn btn-primary h-[54px] w-full text-base font-bold"
-        onClick={() => onCorrect(row, values())}
+        onClick={() =>
+          void onCorrect(row, values()).then((saved) => {
+            if (saved) setEditing(false);
+          })
+        }
       >
         Save correction
       </button>

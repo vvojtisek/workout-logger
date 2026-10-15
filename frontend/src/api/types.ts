@@ -66,6 +66,14 @@ export interface WorkoutSession extends GridSession {
   exercises: SessionExercise[];
 }
 
+/** One past session of an exercise, for the progression chart. */
+export interface ExerciseSessionPoint {
+  performed_at: string;
+  weight_kg: number | null;
+  top_reps: number;
+  estimated_one_rep_max_kg: number | null;
+}
+
 export interface ExerciseStats {
   exercise_name: string;
   sessions_count: number;
@@ -76,6 +84,8 @@ export interface ExerciseStats {
   best_weight_reps: number | null;
   estimated_one_rep_max_kg: number | null;
   trend: "up" | "down" | "flat" | null;
+  /** Up to the last twelve sessions, oldest first. */
+  recent: ExerciseSessionPoint[];
 }
 
 export interface ExerciseStatsResponse {
