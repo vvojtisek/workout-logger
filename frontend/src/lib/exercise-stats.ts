@@ -1,4 +1,5 @@
 import type { ExerciseStats } from "@/api/types";
+import { formatDate } from "./format";
 
 const TREND_LABELS = { up: "load up", down: "load down", flat: "load steady" } as const;
 
@@ -6,9 +7,6 @@ function formatKg(value: number): string {
   return `${Number.isInteger(value) ? value : value.toFixed(1)} kg`;
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-}
 
 /** Short facts shown under an exercise heading during a workout: last session,
  * heaviest set, estimated 1RM and load trend. Empty when nothing is logged yet. */

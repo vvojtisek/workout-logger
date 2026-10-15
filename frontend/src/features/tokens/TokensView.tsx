@@ -6,6 +6,7 @@ import type { ApiToken, Paginated } from "@/api/types";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { Button, Card, EmptyState, PageHeading } from "@/ui";
+import { formatDateTime } from "@/lib/format";
 
 function formatScopes(scopes: ApiToken["scopes"]): string {
   return scopes.join(" + ");
@@ -102,7 +103,7 @@ export function TokensView() {
               </p>
               <p className="mt-0.5 text-sm text-muted">
                 {token.last_used_at
-                  ? `Last used ${new Date(token.last_used_at).toLocaleString()}`
+                  ? `Last used ${formatDateTime(token.last_used_at)}`
                   : "Never used"}
               </p>
             </div>

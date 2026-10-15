@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { Paginated, Program, ScheduledWorkout, WorkoutPlan, WorkoutSession } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
+import { CALENDAR_WEEKDAYS, leadingBlankDays } from "@/lib/calendar";
 import { Button, Card, PageHeading } from "@/ui";
 import { Dialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
-
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+import { formatDate } from "@/lib/format";
 
 const STATUS_STYLES: Record<ScheduledWorkout["status"], string> = {
   scheduled: "bg-surface-raised text-text",
@@ -34,10 +34,6 @@ function isoDate(year: number, monthIndex: number, day: number): string {
 
 function daysInMonth(year: number, monthIndex: number): number {
   return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-}
-
-function firstWeekday(year: number, monthIndex: number): number {
-  return new Date(Date.UTC(year, monthIndex, 1)).getUTCDay();
 }
 
 function monthLabel(year: number, monthIndex: number): string {
@@ -87,7 +83,7 @@ function ScheduleDialog({
   });
 
   return (
-    <Dialog open={open} onClose={onClose} title={`Schedule a workout${date ? ` — ${date}` : ""}`}>
+    <Dialog open={open} onClose={onClose} title={`Schedule a workout${date ? ` — ${formatDate(date)}` : ""}`}>
       <div className="flex flex-col gap-3">
         <div>
           <label className="field-label" htmlFor="schedule-plan">
@@ -198,7 +194,7 @@ function EntryDialog({
     <Dialog open={entry !== null} onClose={onClose} title={entry.workout_plan_name}>
       <div className="flex flex-col gap-3">
         <p className="text-sm text-muted">
-          {entry.program_name ? `${entry.program_name} · ` : ""}
+          {formatDate(entry.scheduled_date)} · {entry.program_name ? `${entry.program_name} · ` : ""}
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[entry.status]}`}>
             {STATUS_LABELS[entry.status]}
           </span>
@@ -298,7 +294,7 @@ export function CalendarView() {
     entriesByDate.set(item.scheduled_date, list);
   }
 
-  const leadingBlanks = firstWeekday(cursor.year, cursor.month);
+  const leadingBlanks = leadingBlankDays(cursor.year, cursor.month);
   const dayCells = Array.from({ length: monthLength }, (_, index) => index + 1);
 
   return (
@@ -343,8 +339,11 @@ export function CalendarView() {
         </p>
       ) : null}
 
-      <div className="grid grid-cols-7 gap-1.5 text-center text-xs font-medium text-muted">
-        {WEEKDAY_LABELS.map((label) => (
+      <div
+        id="calendar-weekdays"
+        className="grid grid-cols-7 gap-1.5 text-center text-xs font-medium text-muted"
+      >
+        {CALENDAR_WEEKDAYS.map((label) => (
           <div key={label}>{label}</div>
         ))}
       </div>

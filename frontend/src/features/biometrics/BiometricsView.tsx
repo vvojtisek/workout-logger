@@ -9,6 +9,7 @@ import { formatWeightDeltaKg, formatWeightKg } from "@/lib/units";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { Button, Card, EmptyState, PageHeading } from "@/ui";
+import { formatDateTime } from "@/lib/format";
 
 function TrendCard({ trends, units }: { trends: BodyMetricTrends; units: Units }) {
   if (!trends.latest) {
@@ -120,7 +121,7 @@ export function BiometricsView() {
             <div className="min-w-0">
               <p className="font-medium tabular-nums">{formatWeightKg(metric.weight_kg, units)}</p>
               <p className="mt-0.5 text-sm text-muted">
-                {new Date(metric.measured_at).toLocaleString()}
+                {formatDateTime(metric.measured_at)}
                 {metric.body_fat_percent != null ? ` · ${metric.body_fat_percent.toFixed(1)}% BF` : ""}
               </p>
             </div>

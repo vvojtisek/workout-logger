@@ -2,7 +2,22 @@ import { expect, test } from "@playwright/test";
 
 const LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-test("adds the ready-made local gym program to plans and the calendar through the GUI", async ({
+/**
+ * Leaves exactly the given weekdays (Monday = 0) pressed on a template card.
+ * @param {import("@playwright/test").Locator} card
+ * @param {number[]} weekdays
+ */
+async function chooseWeekdays(card, weekdays) {
+  for (const label of LABELS) {
+    const day = card.getByRole("button", { name: label, exact: true });
+    if ((await day.getAttribute("aria-pressed")) === "true") await day.click();
+  }
+  for (const weekday of weekdays) {
+    await card.getByRole("button", { name: LABELS[weekday], exact: true }).click();
+  }
+}
+
+test("adds, removes and restarts the ready-made local gym program through the GUI", async ({
   page,
   request,
 }) => {
@@ -27,12 +42,7 @@ test("adds the ready-made local gym program to plans and the calendar through th
     const card = page.getByRole("listitem", { name: /^Local gym A\/B/ });
     await expect(card).toBeVisible();
     await card.getByLabel("First session on or after").fill(today);
-    for (const label of LABELS) {
-      const day = card.getByRole("button", { name: label, exact: true });
-      if ((await day.getAttribute("aria-pressed")) === "true") await day.click();
-    }
-    await card.getByRole("button", { name: LABELS[todayWeekday], exact: true }).click();
-    await card.getByRole("button", { name: LABELS[laterWeekday], exact: true }).click();
+    await chooseWeekdays(card, [todayWeekday, laterWeekday]);
     await card.getByRole("button", { name: "Start this program" }).click();
 
     const programRow = page.locator("#programs-list").getByText(/^Local gym A\/B/);
@@ -59,7 +69,7 @@ test("adds the ready-made local gym program to plans and the calendar through th
 
     // Adding it a second time is refused instead of duplicating the plans.
     await card.getByRole("button", { name: "Start this program" }).click();
-    await expect(page.getByText(/already in your plans/)).toBeVisible();
+    await expect(page.getByText(/names already exist/)).toBeVisible();
 
     // The calendar entry shows that session's instructions.
     await page.getByRole("button", { name: "Calendar" }).click();
@@ -67,6 +77,33 @@ test("adds the ready-made local gym program to plans and the calendar through th
     await expect(page.getByRole("dialog").locator(".scheduled-notes")).toContainText(
       "Session 1 of 12: Establish comfortable ranges",
     );
+
+    // Removing it clears its calendar sessions and plans, so it can start again later.
+    await page.goto("/programs");
+    const row = page.locator("#programs-list").getByRole("listitem", { name: /^Local gym A\/B/ });
+    await row.getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+    await expect(row).toBeHidden();
+    for (const planId of planIds) {
+      expect((await request.get(`/api/v1/plans/${planId}`)).status()).toBe(404);
+    }
+    const cleared = await request.get(`/api/v1/calendar?from=${today}&to=${until}`);
+    /** @type {{items: Array<{program_id: string}>}} */
+    const clearedBody = await cleared.json();
+    expect(clearedBody.items.filter((item) => item.program_id === programId)).toHaveLength(0);
+    programId = undefined;
+
+    const nextWeek = new Date(now.getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+    await card.getByLabel("First session on or after").fill(nextWeek);
+    await chooseWeekdays(card, [todayWeekday, laterWeekday]);
+    await card.getByRole("button", { name: "Start this program" }).click();
+    await expect(row).toBeVisible();
+    const restarted = await request.get("/api/v1/programs?limit=100");
+    /** @type {{items: Array<{id: string, name: string, start_date: string}>}} */
+    const restartedBody = await restarted.json();
+    const again = restartedBody.items.find((item) => item.name.startsWith("Local gym A/B"));
+    expect(again?.start_date).toBe(nextWeek);
+    programId = again?.id;
   } finally {
     if (!programId) {
       const programs = await request.get("/api/v1/programs?limit=100");

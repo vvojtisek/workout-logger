@@ -5,6 +5,7 @@ import { apiFetch, errorMessage } from "@/api/client";
 import type { Paginated, WorkoutLogSummary } from "@/api/types";
 import { logSummaryFacts, logTitle } from "@/lib/activity";
 import { EmptyState, PageHeading } from "@/ui";
+import { formatDateTime } from "@/lib/format";
 
 export function HistoryView() {
   const navigate = useNavigate();
@@ -54,7 +55,7 @@ export function HistoryView() {
             >
               <p className="font-medium">{logTitle(log)}</p>
               <p className="mt-0.5 text-sm text-muted" data-numeric>
-                {log.activity_type ? `${new Date(log.performed_at).toLocaleString()} · ` : ""}
+                {log.activity_type ? `${formatDateTime(log.performed_at)} · ` : ""}
                 {logSummaryFacts(log).join(" · ")}
               </p>
             </button>

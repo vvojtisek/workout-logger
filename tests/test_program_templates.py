@@ -116,6 +116,111 @@ async def test_installing_twice_is_a_conflict(client, auth_headers):
     assert second.json()["code"] == "PROGRAM_TEMPLATE_ALREADY_INSTALLED"
 
 
+async def test_removing_a_program_frees_it_to_start_again_and_keeps_history(client, auth_headers):
+    first = await client.post(
+        f"{TEMPLATES}/local-gym-ab/install", json={"start_date": "2026-10-19"}, headers=auth_headers
+    )
+    assert first.status_code == 201
+    program_id = first.json()["program"]["id"]
+    old_plan_ids = first.json()["plan_ids"]
+
+    # Train the first session so there is history to keep.
+    items = await calendar(client, auth_headers, "2026-10-19", "2026-10-19")
+    started = await client.post(
+        f"/api/v1/scheduled-workouts/{items[0]['id']}/start", headers=auth_headers
+    )
+    assert started.status_code == 201
+    session_id = started.json()["id"]
+    await client.post(
+        f"/api/v1/workout-sessions/{session_id}/sets",
+        json={
+            "session_exercise_id": started.json()["exercises"][0]["id"],
+            "set_number": 1,
+            "weight_kg": 80,
+            "reps": 10,
+            "rir": 2,
+            "state": "completed",
+            "client_operation_id": "op-remove-program",
+        },
+        headers=auth_headers,
+    )
+    completed = await client.post(
+        f"/api/v1/workout-sessions/{session_id}/complete",
+        json={"overall_feeling": 4},
+        headers=auth_headers,
+    )
+    assert completed.status_code == 200
+    logs_before = (await client.get("/api/v1/logs", headers=auth_headers)).json()
+
+    removed = await client.delete(f"/api/v1/programs/{program_id}", headers=auth_headers)
+    assert removed.status_code == 204
+
+    # The program's plans and planned sessions are gone; the trained session is not.
+    for plan_id in old_plan_ids:
+        gone = await client.get(f"/api/v1/plans/{plan_id}", headers=auth_headers)
+        assert gone.status_code == 404
+    plans = (await client.get("/api/v1/plans", headers=auth_headers)).json()["items"]
+    assert not [plan for plan in plans if plan["name"].startswith("Local gym ")]
+    assert await calendar(client, auth_headers, "2026-10-01", "2026-12-31") == []
+    logs_after = (await client.get("/api/v1/logs", headers=auth_headers)).json()
+    # Only the link to the deleted plan is cleared.
+    for log in logs_before["items"]:
+        log["source_plan_id"] = None
+    assert logs_after == logs_before
+    assert logs_after["items"][0]["source_plan_name"].startswith("Local gym A")
+
+    # It can be started again on a different day.
+    again = await client.post(
+        f"{TEMPLATES}/local-gym-ab/install",
+        json={"start_date": "2026-11-03", "weekdays": [1, 4]},
+        headers=auth_headers,
+    )
+    assert again.status_code == 201
+    assert again.json()["program"]["start_date"] == "2026-11-03"
+    items = await calendar(client, auth_headers, "2026-10-01", "2026-12-31")
+    assert len(items) == 12
+    assert items[0]["scheduled_date"] == "2026-11-03"
+
+
+async def test_removing_a_hand_made_program_keeps_its_plans(client, auth_headers):
+    plan = await client.post(
+        "/api/v1/plans",
+        json={
+            "name": "My own plan",
+            "exercises": [
+                {
+                    "exercise_name": "Row",
+                    "target_sets": 1,
+                    "target_reps_min": 5,
+                    "target_reps_max": 8,
+                    "rest_time_seconds": 60,
+                }
+            ],
+        },
+        headers=auth_headers,
+    )
+    program = await client.post(
+        "/api/v1/programs",
+        json={"name": "Mine", "kind": "Strength", "start_date": "2026-10-20"},
+        headers=auth_headers,
+    )
+    await client.post(
+        "/api/v1/scheduled-workouts",
+        json={
+            "workout_plan_id": plan.json()["id"],
+            "program_id": program.json()["id"],
+            "scheduled_date": "2026-10-21",
+        },
+        headers=auth_headers,
+    )
+
+    removed = await client.delete(f"/api/v1/programs/{program.json()['id']}", headers=auth_headers)
+
+    assert removed.status_code == 204
+    kept = await client.get(f"/api/v1/plans/{plan.json()['id']}", headers=auth_headers)
+    assert kept.status_code == 200
+
+
 async def test_install_validates_template_and_weekdays(client, auth_headers):
     unknown = await client.post(
         f"{TEMPLATES}/nope/install", json={"start_date": "2026-10-20"}, headers=auth_headers

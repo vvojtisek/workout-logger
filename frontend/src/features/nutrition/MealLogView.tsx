@@ -6,6 +6,7 @@ import type { MealEntry, Paginated } from "@/api/types";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { Button, EmptyState, PageHeading } from "@/ui";
+import { formatDateTime } from "@/lib/format";
 
 const MEAL_TYPE_LABELS: Record<MealEntry["meal_type"], string> = {
   breakfast: "Breakfast",
@@ -76,7 +77,7 @@ export function MealLogView() {
               <p className="font-medium">
                 {MEAL_TYPE_LABELS[entry.meal_type]}
                 <span className="ml-2 text-sm font-normal text-muted">
-                  {new Date(entry.consumed_at).toLocaleString()}
+                  {formatDateTime(entry.consumed_at)}
                 </span>
               </p>
               <p className="mt-0.5 text-sm text-muted">

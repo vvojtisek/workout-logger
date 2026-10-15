@@ -6,6 +6,7 @@ import type { WorkoutLog } from "@/api/types";
 import { activityLabel, logSummaryFacts } from "@/lib/activity";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { Button, Card, PageHeading } from "@/ui";
+import { formatDateTime } from "@/lib/format";
 
 export function LogDetailView() {
   const { logId } = useParams<{ logId: string }>();
@@ -51,7 +52,7 @@ export function LogDetailView() {
           <>
             <Card className="p-4">
               <p className="text-sm text-muted" data-numeric>
-                {[new Date(log.performed_at).toLocaleString(), ...logSummaryFacts(log)].join(" · ")}
+                {[formatDateTime(log.performed_at), ...logSummaryFacts(log)].join(" · ")}
               </p>
               {log.activity_type ? (
                 <p className="mt-1 font-medium">{activityLabel(log.activity_type)}</p>

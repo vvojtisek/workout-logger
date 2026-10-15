@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -8,6 +9,7 @@ import { toast } from "@/ui/Toast";
 import { Button, EmptyState, PageHeading } from "@/ui";
 
 import { ProgramTemplates } from "./ProgramTemplates";
+import { formatDate } from "@/lib/format";
 
 const STATUS_LABELS: Record<Program["status"], string> = {
   active: "Active",
@@ -17,6 +19,7 @@ const STATUS_LABELS: Record<Program["status"], string> = {
 
 export function ProgramsView() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +47,8 @@ export function ProgramsView() {
       await apiFetch(`/programs/${program.id}`, { method: "DELETE" });
       toast.success(`Deleted "${program.name}"`);
       void load();
+      void queryClient.invalidateQueries({ queryKey: ["plans"] });
+      void queryClient.invalidateQueries({ queryKey: ["calendar"] });
     } catch (err) {
       toast.error(`Failed to delete program: ${errorMessage(err)}`);
     }
@@ -72,13 +77,14 @@ export function ProgramsView() {
         {programs.map((program) => (
           <li
             key={program.id}
+            aria-label={program.name}
             className="card flex flex-wrap items-center justify-between gap-3 p-4"
           >
             <div className="min-w-0">
               <p className="font-medium">{program.name}</p>
               <p className="mt-0.5 text-sm text-muted">
-                {program.kind} &middot; {program.start_date}
-                {program.end_date ? ` – ${program.end_date}` : " – ongoing"}
+                {program.kind} &middot; {formatDate(program.start_date)}
+                {program.end_date ? ` – ${formatDate(program.end_date)}` : " – ongoing"}
               </p>
               <p className="mt-1 text-xs text-muted">{STATUS_LABELS[program.status]}</p>
             </div>
@@ -101,7 +107,7 @@ export function ProgramsView() {
           if (deleteTarget) void deleteProgram(deleteTarget);
         }}
         title="Delete program"
-        message={`Are you sure you want to delete "${deleteTarget?.name}"? Its scheduled workouts will be unscheduled.`}
+        message={`Delete "${deleteTarget?.name}"? Its planned sessions are removed from the calendar, along with any plans it created. Workouts you already logged stay in History.`}
         confirmLabel="Delete"
       />
     </section>
