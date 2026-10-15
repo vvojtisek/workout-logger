@@ -16,27 +16,15 @@ import {
   synchronizationState,
 } from "@/lib/active-workout-state";
 import type { SetOperation } from "@/lib/active-workout-state";
-import {
-  buildGroupRounds,
-  buildWorkoutGrid,
-  groupSessionExercises,
-  workoutProgress,
-} from "@/lib/workout-utils";
-import type { ExerciseGroup, GridRow } from "@/lib/workout-utils";
+import { workoutProgress } from "@/lib/workout-utils";
+import type { GridRow } from "@/lib/workout-utils";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
-import { RestOverlay } from "./RestOverlay";
-import { COLUMN_HEADERS_BY_KIND, ROW_GRID, SetRow } from "./SetRow";
+import { DesktopWorkout } from "./DesktopWorkout";
 import type { SetValues } from "./SetRow";
-import { FEELING_SCALE, RIR_HINT } from "@/lib/scales";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { hudIndex, performanceOrder } from "@/lib/workout-hud";
-import { ScaleSelect } from "@/ui/ScaleSelect";
 import { WorkoutHud } from "./WorkoutHud";
-
-// Shared verbatim with SetRow's own grid template - see the comment there.
-const HEADER_GRID = ROW_GRID;
-const ROUND_LETTERS = "ABCDEFGHIJ";
 
 export function ActiveWorkoutView() {
   const { session, online, updateSession, finishSession } = useAppContext();
@@ -84,15 +72,14 @@ function ActiveWorkoutSession({
   const navigate = useNavigate();
 
   const progress = workoutProgress(session);
-  const groups = groupSessionExercises(session.exercises);
-  const rows = buildWorkoutGrid(session);
   const sync = synchronizationState(queue, online, syncError);
 
   // History stats are a read-only aid: a failed or offline fetch just leaves
   // them out and never blocks logging.
   const exerciseNames = [...new Set(session.exercises.map((exercise) => exercise.exercise_name))];
   const { data: statsResponse } = useQuery({
-    queryKey: ["exercise-stats", session.id],
+    // A swap renames an exercise, so the names are part of the key.
+    queryKey: ["exercise-stats", session.id, ...exerciseNames],
     queryFn: () => {
       const params = new URLSearchParams();
       for (const name of exerciseNames) params.append("name", name);
@@ -214,11 +201,11 @@ function ActiveWorkoutSession({
   );
 
   const correctSet = useCallback(
-    async (row: GridRow, values: SetValues) => {
-      if (!row.entry) return;
+    async (row: GridRow, values: SetValues): Promise<boolean> => {
+      if (!row.entry) return false;
       if (!Number.isInteger(values.reps) || values.reps < 1) {
         toast.error("Enter a whole number of reps before saving the correction.");
-        return;
+        return false;
       }
       try {
         const updated = await apiFetch<WorkoutSession>(
@@ -238,8 +225,10 @@ function ActiveWorkoutSession({
           }
         );
         onSessionChange(updated);
+        return true;
       } catch (err) {
         toast.error(`Failed to save correction: ${errorMessage(err)}`);
+        return false;
       }
     },
     [session.id, onSessionChange]
@@ -345,7 +334,7 @@ function ActiveWorkoutSession({
           onFeelingChange={setFeeling}
           onComplete={(target, values) => void persistSet(target, values, "completed")}
           onSkip={(target, values) => void persistSet(target, values, "skipped")}
-          onCorrect={(target, values) => void correctSet(target, values)}
+          onCorrect={correctSet}
           onUndo={(target) => void undoSet(target)}
           onFocus={(target) => void focusSet(target)}
           onAdjustRest={(seconds) => void updateRest({ adjustment_seconds: seconds })}
@@ -359,167 +348,33 @@ function ActiveWorkoutSession({
     );
   }
 
-  function columnHeaderFor(exercise: SessionExercise) {
-    return (
-      <div className={`${HEADER_GRID} text-xs font-semibold text-muted`}>
-        {COLUMN_HEADERS_BY_KIND[exercise.exercise_kind].map((label) => (
-          <span key={label} role="columnheader">
-            {label}
-          </span>
-        ))}
-      </div>
-    );
-  }
-
-  function setRowProps() {
-    return {
-      sessionId: session.id,
-      totalSets: progress.total,
-      onComplete: (target: GridRow, values: SetValues) =>
-        void persistSet(target, values, "completed"),
-      onSkip: (target: GridRow, values: SetValues) => void persistSet(target, values, "skipped"),
-      onCorrect: (target: GridRow, values: SetValues) => void correctSet(target, values),
-      onUndo: (target: GridRow) => void undoSet(target),
-      onFocusSet: (target: GridRow) => void focusSet(target),
-    };
-  }
-
-  function renderExercise(exercise: SessionExercise) {
-    return (
-      <section key={exercise.id}>
-        <div className="p-3">
-          <h3 className="text-lg font-semibold tracking-tight">{exercise.exercise_name}</h3>
-          {exerciseStatsLine(exercise)}
-        </div>
-        <div className="overflow-x-auto px-3 pb-2">
-          {columnHeaderFor(exercise)}
-          {rows
-            .filter((row) => row.exercise.id === exercise.id)
-            .map((row) => (
-              <SetRow
-                key={`${exercise.id}:${row.setNumber}`}
-                row={row}
-                {...setRowProps()}
-              />
-            ))}
-        </div>
-      </section>
-    );
-  }
-
-  // A real superset is performed back-to-back across exercises, not one
-  // exercise's sets to completion before the next - so its rows interleave
-  // by round ("1A", "1B", "2A", "2B", ...) instead of each exercise getting
-  // its own sequential block. Every exercise still gets exactly one heading
-  // (labelled with its round letter) so it stays identifiable while collapsed
-  // or scrolled past. The column header assumes every exercise in the group
-  // shares one kind, since a mixed-kind superset has no single column set.
-  function renderSuperset(group: ExerciseGroup) {
-    const exercises = group.exercises as SessionExercise[];
-    return (
-      <>
-        <div className="flex flex-col gap-1 px-3 pt-2">
-          {exercises.map((exercise, index) => (
-            <div key={exercise.id}>
-              <h3 className="text-base font-semibold tracking-tight">
-                {ROUND_LETTERS[index] ?? index}: {exercise.exercise_name}
-              </h3>
-              {exerciseStatsLine(exercise)}
-            </div>
-          ))}
-        </div>
-        <div className="overflow-x-auto px-3 pb-2">
-          {columnHeaderFor(exercises[0])}
-          {buildGroupRounds(rows, group.exercises).map((row) => (
-            <SetRow
-              key={`${row.exercise.id}:${row.setNumber}`}
-              row={row}
-              roundLabel={row.roundLabel}
-              {...setRowProps()}
-            />
-          ))}
-        </div>
-      </>
-    );
-  }
-
+  const desktopRows = performanceOrder(session);
   return (
-    <section id="active-workout-view">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <p id="active-plan-name" className="text-sm text-muted">
-            {session.source_plan_name}
-          </p>
-          <h2 className="text-xl font-semibold tracking-tight">Active Workout</h2>
-          <p id="active-progress-text" className="text-sm font-medium" data-numeric>
-            {progress.done} of {progress.total} sets
-          </p>
-        </div>
-        <button
-          type="button"
-          id="finish-active-workout"
-          onClick={finishWorkout}
-          className="btn btn-secondary btn-touch"
-        >
-          Finish workout
-        </button>
-      </div>
-
-      <progress id="active-progress" className="mb-4 w-full" max={100} value={progress.percent} />
-      {session.exercises.some((exercise) => exercise.exercise_kind === "strength") ? (
-        <p id="rir-hint" className="-mt-2 mb-4 text-xs text-muted">
-          {RIR_HINT}
-        </p>
-      ) : null}
-
-      <div id="active-grid" ref={gridRef} className="flex flex-col gap-3">
-        {groups.map((group) =>
-          group.label ? (
-            <details
-              key={group.key}
-              open
-              role="group"
-              aria-label={group.label}
-              className="card overflow-hidden"
-            >
-              <summary className="cursor-pointer p-3 font-semibold" style={{ minHeight: "var(--touch)" }}>
-                {group.label}
-              </summary>
-              {group.exercises.length > 1
-                ? renderSuperset(group)
-                : group.exercises.map((exercise) => renderExercise(exercise as SessionExercise))}
-            </details>
-          ) : (
-            <article key={group.key} className="card overflow-hidden">
-              {renderExercise(group.exercises[0] as SessionExercise)}
-            </article>
-          )
-        )}
-      </div>
-
-      <footer className="card mt-3 p-4">
-        <label className="field-label" htmlFor="active-feeling">
-          Overall feeling
-        </label>
-        <ScaleSelect
-          id="active-feeling"
-          className="input min-h-touch"
-          scale={FEELING_SCALE}
-          value={feeling}
-          onChange={setFeeling}
-        />
-      </footer>
-
-      <RestOverlay
-        restEndsAt={session.rest_ends_at}
-        restWasSkipped={restWasSkipped}
+    <>
+      <DesktopWorkout
+        session={session}
+        rows={desktopRows}
+        index={hudIndex(session, desktopRows)}
+        progress={progress}
         sync={sync}
-        onAdjust={(seconds) => void updateRest({ adjustment_seconds: seconds })}
-        onSkip={() => void updateRest({ skip: true })}
+        restWasSkipped={restWasSkipped}
+        stats={statsByName}
+        statsLine={exerciseStatsLine}
+        gridRef={gridRef}
+        feeling={feeling}
+        onFeelingChange={setFeeling}
+        onComplete={(target, values) => void persistSet(target, values, "completed")}
+        onSkip={(target, values) => void persistSet(target, values, "skipped")}
+        onCorrect={correctSet}
+        onUndo={(target) => void undoSet(target)}
+        onFocus={(target) => void focusSet(target)}
+        onAdjustRest={(seconds) => void updateRest({ adjustment_seconds: seconds })}
+        onSkipRest={() => void updateRest({ skip: true })}
         onRetrySync={() => void flushSetQueue()}
+        onFinish={finishWorkout}
+        onSessionChange={onSessionChange}
       />
-
       {confirmDialog}
-    </section>
+    </>
   );
 }

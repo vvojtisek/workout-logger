@@ -69,7 +69,13 @@ test("rest timer and an offline set retry recover against the real server", asyn
     expect(overlayBox).not.toBeNull();
     expect(currentBox).not.toBeNull();
     if (!overlayBox || !currentBox) throw new Error("Timer or current set is not rendered");
-    expect(currentBox.y + currentBox.height).toBeLessThanOrEqual(overlayBox.y);
+    // The rest card is docked beside or below the set table, never over a set.
+    const apart =
+      currentBox.x + currentBox.width <= overlayBox.x ||
+      overlayBox.x + overlayBox.width <= currentBox.x ||
+      currentBox.y + currentBox.height <= overlayBox.y ||
+      overlayBox.y + overlayBox.height <= currentBox.y;
+    expect(apart).toBe(true);
 
     const savedResponse = await request.get(`/api/v1/workout-sessions/${sessionId}`);
     const saved = await savedResponse.json();

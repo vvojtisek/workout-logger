@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_session
 from app.schemas.common import ErrorResponse
 from app.schemas.workout_sessions import (
+    SessionExerciseSwap,
     SetEntryCreate,
     SetEntryUpdate,
     WorkoutSessionComplete,
@@ -121,6 +122,45 @@ async def delete_workout_session_set(
     session: SessionDep,
 ) -> WorkoutSessionRead:
     workout_session = await workout_sessions_service.delete_set(session, session_id, entry_id)
+    return WorkoutSessionRead.model_validate(workout_session)
+
+
+@router.post(
+    "/{session_id}/exercises/{exercise_id}/sets",
+    operation_id="add_workout_session_set",
+    response_model=WorkoutSessionRead,
+    responses={
+        404: {"model": ErrorResponse, "description": "Session or exercise not found"},
+        409: {"model": ErrorResponse, "description": "Session not active or set limit reached"},
+    },
+)
+async def add_workout_session_set(
+    session_id: UUID,
+    exercise_id: UUID,
+    session: SessionDep,
+) -> WorkoutSessionRead:
+    workout_session = await workout_sessions_service.add_set(session, session_id, exercise_id)
+    return WorkoutSessionRead.model_validate(workout_session)
+
+
+@router.patch(
+    "/{session_id}/exercises/{exercise_id}",
+    operation_id="swap_workout_session_exercise",
+    response_model=WorkoutSessionRead,
+    responses={
+        404: {"model": ErrorResponse, "description": "Session or exercise not found"},
+        409: {"model": ErrorResponse, "description": "Exercise already has logged sets"},
+    },
+)
+async def swap_workout_session_exercise(
+    session_id: UUID,
+    exercise_id: UUID,
+    data: SessionExerciseSwap,
+    session: SessionDep,
+) -> WorkoutSessionRead:
+    workout_session = await workout_sessions_service.swap_exercise(
+        session, session_id, exercise_id, data
+    )
     return WorkoutSessionRead.model_validate(workout_session)
 
 

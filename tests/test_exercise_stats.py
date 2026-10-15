@@ -47,6 +47,7 @@ async def test_stats_for_unlogged_exercise_are_empty(client, auth_headers):
                 "best_weight_reps": None,
                 "estimated_one_rep_max_kg": None,
                 "trend": None,
+                "recent": [],
             }
         ]
     }
@@ -116,3 +117,47 @@ async def test_stats_reject_too_many_names(client, auth_headers):
     )
 
     assert response.status_code == 422
+
+
+async def test_stats_list_recent_sessions_oldest_first_for_charts(client, auth_headers):
+    await log_exercise(client, auth_headers, "2026-10-01T08:00:00Z", "Floor press", 30, [15, 15])
+    await log_exercise(client, auth_headers, "2026-10-05T08:00:00Z", "Floor press", 32.5, [10, 8])
+    await log_exercise(client, auth_headers, "2026-10-08T08:00:00Z", "Floor press", None, [20])
+
+    response = await client.get(STATS, params={"name": "Floor press"}, headers=auth_headers)
+
+    assert response.json()["items"][0]["recent"] == [
+        {
+            "performed_at": "2026-10-01T08:00:00Z",
+            "weight_kg": 30,
+            "top_reps": 15,
+            "estimated_one_rep_max_kg": 45.0,
+        },
+        {
+            "performed_at": "2026-10-05T08:00:00Z",
+            "weight_kg": 32.5,
+            "top_reps": 10,
+            "estimated_one_rep_max_kg": 43.5,
+        },
+        # A session without load still counts; it just has no estimate.
+        {
+            "performed_at": "2026-10-08T08:00:00Z",
+            "weight_kg": None,
+            "top_reps": 20,
+            "estimated_one_rep_max_kg": None,
+        },
+    ]
+
+
+async def test_stats_recent_keeps_the_last_twelve_sessions(client, auth_headers):
+    for day in range(1, 16):
+        await log_exercise(
+            client, auth_headers, f"2026-09-{day:02d}T08:00:00Z", "Row", 40 + day, [8]
+        )
+
+    response = await client.get(STATS, params={"name": "Row"}, headers=auth_headers)
+
+    recent = response.json()["items"][0]["recent"]
+    assert len(recent) == 12
+    assert recent[0]["performed_at"] == "2026-09-04T08:00:00Z"
+    assert recent[-1]["weight_kg"] == 55

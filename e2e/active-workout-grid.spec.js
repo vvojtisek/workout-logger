@@ -76,11 +76,13 @@ test("logs and progresses through a real multi-exercise workout grid", async ({
     for (const heading of ["Set", "Previous", "kg", "Reps", "RIR", "Complete"]) {
       await expect(page.getByRole("columnheader", { name: heading }).first()).toBeVisible();
     }
-    await expect(page.locator("[data-set-row]")).toHaveCount(6);
+    // The table shows the exercise in focus; the list beside it shows them all
+    // in the order they are performed, the superset badged A1/A2.
+    await expect(page.locator("[data-set-row]")).toHaveCount(2);
     await expect(page.locator('[data-state="current"]')).toHaveCount(1);
-    await expect(page.locator('[data-state="future"]')).toHaveCount(5);
-    await expect(page.locator('input[inputmode="decimal"]')).toHaveCount(6);
-    await expect(page.locator('input[inputmode="numeric"]')).toHaveCount(12);
+    await expect(page.locator('[data-state="future"]')).toHaveCount(1);
+    await expect(page.locator('input[inputmode="decimal"]')).toHaveCount(2);
+    await expect(page.locator('input[inputmode="numeric"]')).toHaveCount(4);
     const firstCompleteSize = await page
       .getByRole("button", { name: `Complete ${tag} Squat set 1` })
       .boundingBox();
@@ -89,11 +91,14 @@ test("logs and progresses through a real multi-exercise workout grid", async ({
     expect(firstCompleteSize.width).toBeGreaterThanOrEqual(48);
     expect(firstCompleteSize.height).toBeGreaterThanOrEqual(48);
 
-    const linkedGroup = page.getByRole("group", { name: `${tag} superset` });
-    await expect(linkedGroup.getByRole("heading", { name: `${tag} Row` })).toBeVisible();
-    await linkedGroup.locator("summary").click();
-    await expect(linkedGroup.getByRole("heading", { name: `${tag} Row` })).toBeHidden();
-    await linkedGroup.locator("summary").click();
+    const exerciseList = page.getByRole("navigation", { name: "Workout exercises" });
+    const items = exerciseList.getByRole("button");
+    await expect(items).toHaveCount(3);
+    await expect(items.nth(0)).toContainText(`${tag} Squat`);
+    await expect(items.nth(0)).toHaveAttribute("aria-current", "true");
+    await expect(items.nth(1)).toContainText(`A1${tag} Row`);
+    await expect(items.nth(2)).toContainText(`A2${tag} Push-up`);
+    const listItem = (/** @type {string} */ name) => items.filter({ hasText: `${tag} ${name}` });
 
     /** @param {string} exercise @param {number} setNumber */
     const row = (exercise, setNumber) =>
@@ -115,7 +120,12 @@ test("logs and progresses through a real multi-exercise workout grid", async ({
     const squatTwo = row(`${tag} Squat`, 2);
     await expect(squatTwo).toHaveAttribute("data-state", "current");
     await squatTwo.getByRole("button", { name: `Skip ${tag} Squat set 2` }).click();
-    await expect(squatTwo).toHaveAttribute("data-state", "skipped");
+
+    // Squat is done, so the view moves on to the superset by itself.
+    await expect(page.getByRole("heading", { name: `${tag} Row` })).toBeVisible();
+    await expect(page.getByTestId("superset-badge")).toHaveText("A1");
+    await expect(listItem("Squat")).toContainText("2 of 2 sets logged");
+    await expect(listItem("Row")).toHaveAttribute("aria-current", "true");
 
     const rowTwo = row(`${tag} Row`, 2);
     await rowTwo.getByRole("button", { name: `Open ${tag} Row set 2` }).click();
@@ -131,12 +141,21 @@ test("logs and progresses through a real multi-exercise workout grid", async ({
     await rowOne.getByLabel("Repetitions").fill("8");
     await rowOne.getByLabel("RIR").fill("2");
     await rowOne.getByRole("button", { name: `Complete ${tag} Row set 1` }).click();
+
+    // Row 1 leads into its superset partner; going back through the list
+    // still allows a correction.
+    await expect(page.getByRole("heading", { name: `${tag} Push-up` })).toBeVisible();
+    await expect(page.getByTestId("superset-badge")).toHaveText("A2");
+    await listItem("Row").click();
+    await expect(page.getByRole("heading", { name: `${tag} Row` })).toBeVisible();
     await rowOne.getByRole("button", { name: "Edit" }).click();
     await rowOne.getByLabel("Weight (kg)").fill("33.75");
     await rowOne.getByLabel("Repetitions").fill("7");
     await rowOne.getByLabel("RIR").fill("1");
     await rowOne.getByRole("button", { name: "Save correction" }).click();
+    await expect(rowOne.getByRole("button", { name: "Edit" })).toBeVisible();
 
+    await listItem("Push-up").click();
     const pushOne = row(`${tag} Push-up`, 1);
     await pushOne.getByLabel("Weight (kg)").fill("0");
     await pushOne.getByLabel("Repetitions").fill("12");

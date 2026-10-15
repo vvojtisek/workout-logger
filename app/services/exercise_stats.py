@@ -6,7 +6,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ExerciseLog, WorkoutLog
-from app.schemas.exercise_stats import ExerciseStatsRead
+from app.schemas.exercise_stats import ExerciseSessionPoint, ExerciseStatsRead
+
+# Sessions returned for progression charts.
+RECENT_SESSIONS = 12
 
 
 def _normalize(name: str) -> str:
@@ -61,9 +64,24 @@ def _summarize(name: str, history: list[tuple[datetime, ExerciseLog]]) -> Exerci
         else:
             trend = "flat"
 
+    recent = [
+        ExerciseSessionPoint(
+            performed_at=performed_at,
+            weight_kg=entry.weight_kg,
+            top_reps=max(entry.reps_per_set) if entry.reps_per_set else None,
+            estimated_one_rep_max_kg=(
+                _estimated_one_rep_max(entry.weight_kg, max(entry.reps_per_set))
+                if entry.weight_kg and entry.reps_per_set
+                else None
+            ),
+        )
+        for performed_at, entry in reversed(history[:RECENT_SESSIONS])
+    ]
+
     return ExerciseStatsRead(
         exercise_name=name,
         sessions_count=len(history),
+        recent=recent,
         last_performed_at=last_performed_at,
         last_weight_kg=last.weight_kg,
         last_reps_per_set=list(last.reps_per_set),

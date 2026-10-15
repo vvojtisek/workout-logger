@@ -29,8 +29,9 @@ export function useRestCountdown(restEndsAt: string | null) {
 }
 
 /**
- * The rest countdown owns its own one-second tick so that ticking re-renders
- * only this overlay, never the logging grid underneath it. Remaining time is
+ * The desktop rest card, docked beside the set table. It owns its own
+ * one-second tick so that ticking re-renders only this card, never the set
+ * table. Remaining time is
  * always derived from the server's absolute `rest_ends_at`, so backgrounding,
  * reloading, or a slow tick can never drift the timer.
  */
@@ -56,30 +57,31 @@ export function RestOverlay({
   return (
     <aside
       id="active-rest-overlay"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-line-muted bg-elevated shadow-lg pb-[env(safe-area-inset-bottom)]"
+      aria-label="Rest timer"
+      className="card flex flex-col gap-3 p-4"
     >
-      <div className="mx-auto flex max-w-3xl flex-col gap-2 px-4 py-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex-1">
-            <p
-              id="active-rest-timer"
-              role="timer"
-              aria-live="polite"
-              className={`text-lg font-semibold ${expired ? "text-success" : ""}`}
-              data-numeric
-            >
-              {expired ? "Rest: 0s" : label}
-            </p>
-            <p
-              id="active-rest-expired"
-              role="status"
-              aria-live="assertive"
-              className="text-sm font-semibold text-success"
-              hidden={!expired}
-            >
-              Rest complete
-            </p>
-          </div>
+      <div className="flex flex-col gap-3">
+        <div>
+          <p
+            id="active-rest-timer"
+            role="timer"
+            aria-live="polite"
+            className={`font-mono text-[32px] leading-none font-semibold ${expired ? "text-success" : ""}`}
+            data-numeric
+          >
+            {expired ? "Rest: 0s" : label}
+          </p>
+          <p
+            id="active-rest-expired"
+            role="status"
+            aria-live="assertive"
+            className="mt-1 text-sm font-semibold text-success"
+            hidden={!expired}
+          >
+            Rest complete
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             id="subtract-rest-time"

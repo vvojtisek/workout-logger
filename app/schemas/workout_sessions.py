@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.common import OrmModel
 
@@ -41,6 +41,21 @@ class SetEntryUpdate(BaseModel):
     distance_km: float | None = Field(default=None, ge=0)
     incline_percent: float | None = Field(default=None, ge=-100, le=100)
     rpe: int | None = Field(default=None, ge=0, le=10)
+
+
+class SessionExerciseSwap(BaseModel):
+    """Replaces an exercise that has nothing logged yet, for this session only."""
+
+    exercise_name: str = Field(min_length=1, max_length=150)
+    exercise_kind: Literal["strength", "bodyweight", "cardio"] = "strength"
+
+    @field_validator("exercise_name")
+    @classmethod
+    def _strip_name(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Exercise name must not be blank")
+        return stripped
 
 
 class WorkoutSessionFocus(BaseModel):

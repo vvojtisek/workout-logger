@@ -376,14 +376,21 @@ function DesktopShell({
           <div>{status}</div>
         </div>
       </aside>
-      <main className="min-h-0 overflow-y-auto bg-surface">
-        <div className="px-8">
-          <SectionPages section={current} pathname={pathname} />
-        </div>
-        <div className="max-w-5xl px-8 pt-6 pb-16">
+      {pathname === WORKOUT_PATH ? (
+        // The live workout lays out its own exercise list and detail panes.
+        <main className="min-h-0 overflow-hidden bg-surface">
           <Outlet />
-        </div>
-      </main>
+        </main>
+      ) : (
+        <main className="min-h-0 overflow-y-auto bg-surface">
+          <div className="px-8">
+            <SectionPages section={current} pathname={pathname} />
+          </div>
+          <div className="max-w-5xl px-8 pt-6 pb-16">
+            <Outlet />
+          </div>
+        </main>
+      )}
     </div>
   );
 }

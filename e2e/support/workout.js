@@ -38,3 +38,16 @@ export async function saveOnlySet(page) {
   const name = isDesktop(page) ? "Save set" : "Complete set & start rest";
   await page.getByRole("button", { name }).click();
 }
+
+/**
+ * Shows an exercise of the desktop workout by picking it in the exercise list.
+ * @param {import("@playwright/test").Page} page @param {string} name
+ */
+export async function openExercise(page, name) {
+  await page
+    .getByRole("navigation", { name: "Workout exercises" })
+    .getByRole("button")
+    .filter({ hasText: name })
+    .click();
+  await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+}

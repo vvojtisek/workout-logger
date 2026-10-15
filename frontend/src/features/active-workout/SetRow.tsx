@@ -195,7 +195,8 @@ export function SetRow({
   roundLabel?: string | null;
   onComplete: (row: GridRow, values: SetValues) => void;
   onSkip: (row: GridRow, values: SetValues) => void;
-  onCorrect: (row: GridRow, values: SetValues) => void;
+  /** Resolves true once the correction is saved, which ends editing. */
+  onCorrect: (row: GridRow, values: SetValues) => Promise<boolean>;
   onUndo: (row: GridRow) => void;
   onFocusSet: (row: GridRow) => void;
 }) {
@@ -389,7 +390,9 @@ export function SetRow({
                   setEditing(true);
                   return;
                 }
-                onCorrect(row, currentValues());
+                void onCorrect(row, currentValues()).then((saved) => {
+                  if (saved) setEditing(false);
+                });
               }}
             >
               {editing ? "Save correction" : "Edit"}

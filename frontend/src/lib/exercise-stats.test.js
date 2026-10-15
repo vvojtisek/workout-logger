@@ -13,6 +13,7 @@ const base = {
   best_weight_reps: 10,
   estimated_one_rep_max_kg: 45,
   trend: "down",
+  recent: [],
 };
 
 describe("exerciseStatsFacts", () => {
