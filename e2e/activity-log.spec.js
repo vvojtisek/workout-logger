@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 test("logs an ice hockey session and a swim through the GUI and shows them in history", async ({
   page,
@@ -26,7 +27,7 @@ test("logs an ice hockey session and a swim through the GUI and shows them in hi
     await page.goto("/");
 
     // Hockey: no distance field, effort on the CR-10 scale.
-    await page.getByRole("button", { name: "Log Activity" }).click();
+    await openPage(page, "Log Activity");
     await expect(page.getByRole("heading", { name: "Log Activity", exact: true })).toBeVisible();
     await expect(page.getByLabel("Activity")).toHaveValue("ice_hockey");
     await expect(page.getByLabel("Distance (km, optional)")).toBeHidden();
@@ -52,7 +53,7 @@ test("logs an ice hockey session and a swim through the GUI and shows them in hi
     });
 
     // Swim: distance appears once the activity is not hockey.
-    await page.getByRole("button", { name: "Log Activity" }).click();
+    await openPage(page, "Log Activity");
     await page.getByLabel("Activity").selectOption("swimming");
     await page.getByLabel("Started at").fill("2032-05-05T07:00");
     await page.getByLabel("Duration (minutes)").fill("40");

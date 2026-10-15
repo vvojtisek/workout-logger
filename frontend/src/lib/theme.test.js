@@ -116,8 +116,12 @@ describe("createThemeController", () => {
 
     controller.setPreference("system");
     expect(root.dataset.theme).toBe("dark");
+    const listener = vi.fn();
+    controller.subscribe(listener);
     media.flip(false);
     expect(root.dataset.theme).toBe("light");
+    expect(controller.getTheme()).toBe("light");
+    expect(listener).toHaveBeenCalledTimes(1);
 
     controller.setPreference("dark");
     media.flip(false);

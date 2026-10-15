@@ -42,6 +42,7 @@ interface ThemeRoot {
 export interface ThemeController {
   start(): void;
   getPreference(): ThemePreference;
+  getTheme(): Theme;
   setPreference(next: ThemePreference): void;
   subscribe(listener: () => void): () => void;
 }
@@ -62,10 +63,14 @@ export function createThemeController({
   let preference: ThemePreference = DEFAULT_THEME_PREFERENCE;
   const listeners = new Set<() => void>();
 
+  const current = (): Theme => resolveTheme(preference, media?.matches ?? true);
   const apply = () => {
-    const theme = resolveTheme(preference, media?.matches ?? true);
+    const theme = current();
     root.dataset.theme = theme;
     root.style.colorScheme = theme;
+  };
+  const notify = () => {
+    for (const listener of listeners) listener();
   };
 
   return {
@@ -77,10 +82,13 @@ export function createThemeController({
       }
       apply();
       media?.addEventListener("change", () => {
-        if (preference === "system") apply();
+        if (preference !== "system") return;
+        apply();
+        notify();
       });
     },
     getPreference: () => preference,
+    getTheme: current,
     setPreference(next) {
       preference = next;
       try {
@@ -89,7 +97,7 @@ export function createThemeController({
         // The choice still applies for this visit.
       }
       apply();
-      for (const listener of listeners) listener();
+      notify();
     },
     subscribe(listener) {
       listeners.add(listener);
@@ -118,6 +126,12 @@ export function themeController(): ThemeController {
     });
   }
   return browserController;
+}
+
+/** The theme on screen right now, for controls that flip between the two. */
+export function useTheme(): Theme {
+  const controller = themeController();
+  return useSyncExternalStore(controller.subscribe, controller.getTheme);
 }
 
 export function useThemePreference(): [ThemePreference, (next: ThemePreference) => void] {

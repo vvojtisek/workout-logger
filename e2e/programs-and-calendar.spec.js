@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 function todayIso() {
   const now = new Date();
@@ -49,7 +50,7 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
 
     // Build the program entirely through the GUI.
     await page.goto("/");
-    await page.getByRole("button", { name: "Programs" }).click();
+    await openPage(page, "Programs");
     await expect(page.getByRole("heading", { name: "Programs", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "New program" }).click();
     await expect(page.getByRole("heading", { name: "New Program" })).toBeVisible();
@@ -69,7 +70,7 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     programId = createdProgram?.id;
 
     // Schedule the plan on today through the calendar GUI.
-    await page.getByRole("button", { name: "Calendar" }).click();
+    await openPage(page, "Calendar");
     await expect(page.getByRole("heading", { name: "Calendar" })).toBeVisible();
     // Weeks start on Monday, whatever the browser locale.
     await expect(page.locator("#calendar-weekdays > div")).toHaveText([

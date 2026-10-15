@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 /** @param {number} hour */
 function todayDatetimeLocal(hour) {
@@ -27,7 +28,7 @@ test("builds a food and nutrition plan, logs a meal, and verifies the daily dash
     }, process.env.E2E_API_KEY || "");
 
     await page.goto("/");
-    await page.getByRole("button", { name: "Nutrition" }).click();
+    await openPage(page, "Nutrition");
     await expect(page.getByRole("heading", { name: "Nutrition", exact: true })).toBeVisible();
 
     // Build the food entirely through the GUI.

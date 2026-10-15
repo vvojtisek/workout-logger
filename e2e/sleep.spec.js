@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 test("logs, views trends for, edits, and deletes a real sleep entry through the GUI", async ({
   page,
@@ -16,7 +17,7 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
     }, process.env.E2E_API_KEY || "");
 
     await page.goto("/");
-    await page.getByRole("button", { name: "Sleep" }).click();
+    await openPage(page, "Sleep");
     await expect(page.getByRole("heading", { name: "Sleep", exact: true })).toBeVisible();
 
     // Log a sleep entry entirely through the GUI.

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 test("rest timer and an offline set retry recover against the real server", async ({
   context,
@@ -39,7 +40,7 @@ test("rest timer and an offline set retry recover against the real server", asyn
       localStorage.setItem("workout_logger_api_key", key);
     }, process.env.E2E_API_KEY || "");
     await page.goto("/");
-    await page.getByRole("button", { name: "Plans" }).click();
+    await openPage(page, "Plans");
     await page
       .getByRole("listitem")
       .filter({ hasText: `${tag} plan` })
