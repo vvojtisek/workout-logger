@@ -1,10 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
-import type { SessionExercise, WorkoutSession } from "@/api/types";
+import type { ExerciseStatsResponse, SessionExercise, WorkoutSession } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
 import { activeWorkoutStorage } from "@/lib/active-workout-storage";
+import { exerciseStatsFacts } from "@/lib/exercise-stats";
 import {
   clearSetDraft,
   draftStorageKey,
@@ -78,6 +80,34 @@ function ActiveWorkoutSession({
   const groups = groupSessionExercises(session.exercises);
   const rows = buildWorkoutGrid(session);
   const sync = synchronizationState(queue, online, syncError);
+
+  // History stats are a read-only aid: a failed or offline fetch just leaves
+  // them out and never blocks logging.
+  const exerciseNames = [...new Set(session.exercises.map((exercise) => exercise.exercise_name))];
+  const { data: statsResponse } = useQuery({
+    queryKey: ["exercise-stats", session.id],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      for (const name of exerciseNames) params.append("name", name);
+      return apiFetch<ExerciseStatsResponse>(`/exercise-stats?${params.toString()}`);
+    },
+    enabled: exerciseNames.length > 0,
+    staleTime: Infinity,
+    retry: false,
+  });
+  const statsByName = new Map(
+    (statsResponse?.items ?? []).map((item) => [item.exercise_name, item])
+  );
+
+  function exerciseStatsLine(exercise: SessionExercise) {
+    const facts = exerciseStatsFacts(statsByName.get(exercise.exercise_name));
+    if (facts.length === 0) return null;
+    return (
+      <p className="exercise-stats text-xs text-muted" data-numeric>
+        {facts.join(" · ")}
+      </p>
+    );
+  }
 
   // The queue lives in IndexedDB (async), so it can't be read inline during
   // render like the old localStorage version - this keeps a mirror of it in
@@ -306,7 +336,10 @@ function ActiveWorkoutSession({
   function renderExercise(exercise: SessionExercise) {
     return (
       <section key={exercise.id}>
-        <h3 className="p-3 text-lg font-semibold tracking-tight">{exercise.exercise_name}</h3>
+        <div className="p-3">
+          <h3 className="text-lg font-semibold tracking-tight">{exercise.exercise_name}</h3>
+          {exerciseStatsLine(exercise)}
+        </div>
         <div className="overflow-x-auto px-3 pb-2">
           {columnHeaderFor(exercise)}
           {rows
@@ -336,9 +369,12 @@ function ActiveWorkoutSession({
       <>
         <div className="flex flex-col gap-1 px-3 pt-2">
           {exercises.map((exercise, index) => (
-            <h3 key={exercise.id} className="text-base font-semibold tracking-tight">
-              {ROUND_LETTERS[index] ?? index}: {exercise.exercise_name}
-            </h3>
+            <div key={exercise.id}>
+              <h3 className="text-base font-semibold tracking-tight">
+                {ROUND_LETTERS[index] ?? index}: {exercise.exercise_name}
+              </h3>
+              {exerciseStatsLine(exercise)}
+            </div>
           ))}
         </div>
         <div className="overflow-x-auto px-3 pb-2">

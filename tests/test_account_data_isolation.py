@@ -207,12 +207,36 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
                 "total_time_minutes": 45,
                 "overall_feeling": 4,
                 "notes": f"[TEST_RUN_ID:{test_run_id}] private history",
-                "exercises": [],
+                "exercises": [
+                    {
+                        "exercise_name": f"Squat {test_run_id}",
+                        "sets_count": 1,
+                        "reps_per_set": [5],
+                        "weight_kg": 100,
+                        "rest_time_seconds": 60,
+                    }
+                ],
             },
             headers=owner_cookies,
         )
         assert created_log.status_code == 201
         log_id = created_log.json()["id"]
+
+        owner_stats = await client.get(
+            "/api/v1/exercise-stats",
+            params={"name": f"Squat {test_run_id}"},
+            headers=owner_cookies,
+        )
+        assert owner_stats.status_code == 200
+        assert owner_stats.json()["items"][0]["sessions_count"] == 1
+        other_stats = await client.get(
+            "/api/v1/exercise-stats",
+            params={"name": f"Squat {test_run_id}"},
+            headers=other_cookies,
+        )
+        assert other_stats.status_code == 200
+        assert other_stats.json()["items"][0]["sessions_count"] == 0
+        assert other_stats.json()["items"][0]["best_weight_kg"] is None
 
         other_logs = await client.get("/api/v1/logs", headers=other_cookies)
         assert other_logs.status_code == 200
