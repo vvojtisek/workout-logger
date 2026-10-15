@@ -176,3 +176,34 @@ async def test_delete_nonexistent_exercise_returns_404(client, auth_headers):
 async def test_invalid_uuid_path_param_returns_422(client, auth_headers):
     response = await client.get(f"{BASE}/not-a-uuid", headers=auth_headers)
     assert response.status_code == 422
+
+
+async def test_list_exercises_search_matches_name_or_alias_without_case(client, auth_headers):
+    await client.post(
+        BASE,
+        json=make_exercise_payload(name="Romanian deadlift", aliases=["RDL"]),
+        headers=auth_headers,
+    )
+    await client.post(
+        BASE, json=make_exercise_payload(name="Goblet squat", aliases=[]), headers=auth_headers
+    )
+    await client.post(
+        BASE, json=make_exercise_payload(name="Dead bug", aliases=[]), headers=auth_headers
+    )
+
+    by_alias = await client.get(BASE, params={"q": "rdl"}, headers=auth_headers)
+    assert by_alias.status_code == 200
+    assert [e["name"] for e in by_alias.json()["items"]] == ["Romanian deadlift"]
+    assert by_alias.json()["total"] == 1
+
+    by_name = await client.get(BASE, params={"q": " DEAD "}, headers=auth_headers)
+    assert [e["name"] for e in by_name.json()["items"]] == ["Dead bug", "Romanian deadlift"]
+    assert by_name.json()["total"] == 2
+
+    wildcard = await client.get(BASE, params={"q": "%"}, headers=auth_headers)
+    assert wildcard.json()["total"] == 0
+
+
+async def test_list_exercises_search_rejects_overlong_query(client, auth_headers):
+    response = await client.get(BASE, params={"q": "x" * 151}, headers=auth_headers)
+    assert response.status_code == 422
