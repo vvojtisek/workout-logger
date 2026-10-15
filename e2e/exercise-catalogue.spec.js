@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 test("builds, views, edits, and deletes a real exercise catalogue entry through the GUI", async ({
   page,
@@ -14,7 +15,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
       localStorage.setItem("workout_logger_api_key", key);
     }, process.env.E2E_API_KEY || "");
     await page.goto("/");
-    await page.getByRole("button", { name: "Exercises" }).click();
+    await openPage(page, "Exercises");
     await expect(page.getByRole("heading", { name: "Exercise Catalogue" })).toBeVisible();
 
     // Build a fully-populated exercise entirely through the UI.
@@ -90,7 +91,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
 
     // Creating a second exercise with the same name must surface the 409
     // inline, never as a native alert.
-    await page.getByRole("button", { name: "Exercises" }).click();
+    await openPage(page, "Exercises");
     await page.getByRole("button", { name: "New exercise" }).click();
     await page.getByLabel("Name").fill(`${tag} Bench Press`);
     await page.getByRole("button", { name: "Create exercise" }).click();
@@ -118,7 +119,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     expect((await updated.json()).equipment).toBe("Barbell, bench");
 
     // Delete through the GUI and prove it is gone.
-    await page.getByRole("button", { name: "Exercises" }).click();
+    await openPage(page, "Exercises");
     await page.getByLabel("Search exercises").fill(tag);
     await page
       .getByRole("listitem")

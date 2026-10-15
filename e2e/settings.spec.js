@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 test("saves preferences, shows MCP status, and exports data through the real GUI", async ({
   page,
@@ -11,7 +12,7 @@ test("saves preferences, shows MCP status, and exports data through the real GUI
 
   try {
     await page.goto("/");
-    await page.getByRole("button", { name: "Settings" }).click();
+    await openPage(page, "Settings");
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 
     // Preferences: change units and rest defaults, save, and confirm the
@@ -52,7 +53,7 @@ test("saves preferences, shows MCP status, and exports data through the real GUI
     expect(csvDownload.suggestedFilename()).toMatch(/^workout-logger-export-.*\.zip$/);
 
     // The plan builder now pre-fills rest seconds from the saved defaults.
-    await page.getByRole("button", { name: "Plans" }).click();
+    await openPage(page, "Plans");
     await page.getByRole("button", { name: "New program" }).click();
     await page.getByRole("button", { name: "+ Add compound exercise" }).click();
     await expect(page.locator("#plan-exercises-list > div").getByLabel("Rest seconds")).toHaveValue(
@@ -81,7 +82,7 @@ test("switches the theme from Settings and keeps the choice across reloads", asy
   const darkBackground = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   expect(darkBackground).toBe("rgb(9, 13, 22)");
 
-  await page.getByRole("button", { name: "Settings" }).click();
+  await openPage(page, "Settings");
   const theme = page.getByRole("radiogroup", { name: "Theme" });
   await expect(theme.getByRole("radio", { name: "Dark" })).toHaveAttribute("aria-checked", "true");
 

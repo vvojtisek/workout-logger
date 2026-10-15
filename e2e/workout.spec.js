@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 test("creates, reads, updates, displays, and deletes a real workout plan", async ({
   page,
@@ -26,7 +27,7 @@ test("creates, reads, updates, displays, and deletes a real workout plan", async
       localStorage.setItem("workout_logger_api_key", key);
     }, process.env.E2E_API_KEY || "");
     await page.goto("/");
-    await page.getByRole("button", { name: "Plans" }).click();
+    await openPage(page, "Plans");
     await expect(page.getByText(`[E2E:${TEST_RUN_ID}] updated`)).toBeVisible();
   } finally {
     if (planId) {

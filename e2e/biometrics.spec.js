@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 test("logs, views trends for, edits, and deletes real biometrics entries through the GUI", async ({
   page,
@@ -14,7 +15,7 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
 
   try {
     await page.goto("/");
-    await page.getByRole("button", { name: "Biometrics" }).click();
+    await openPage(page, "Biometrics");
     await expect(page.getByRole("heading", { name: "Biometrics", exact: true })).toBeVisible();
 
     // First entry, entirely through the GUI.

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 test("mints a scoped token, verifies scope enforcement, and revokes it through the GUI", async ({
   page,
@@ -17,7 +18,7 @@ test("mints a scoped token, verifies scope enforcement, and revokes it through t
     }, bootstrapKey);
 
     await page.goto("/");
-    await page.getByRole("button", { name: "Tokens" }).click();
+    await openPage(page, "Tokens");
     await expect(page.getByRole("heading", { name: "API Tokens" })).toBeVisible();
 
     // Mint a read-only token entirely through the GUI.

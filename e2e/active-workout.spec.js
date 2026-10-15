@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 test("starts, saves, resumes, completes, and cleans up a real active workout", async ({
   page,
@@ -59,7 +60,7 @@ test("starts, saves, resumes, completes, and cleans up a real active workout", a
       localStorage.setItem("workout_logger_api_key", key);
     }, process.env.E2E_API_KEY || "");
     await page.goto("/");
-    await page.getByRole("button", { name: "Plans" }).click();
+    await openPage(page, "Plans");
     const planItem = page.getByRole("listitem").filter({ hasText: `${tag} active plan` });
     await planItem.getByRole("button", { name: "Start workout" }).click();
 

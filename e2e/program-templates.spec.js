@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 const LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -37,7 +38,7 @@ test("adds, removes and restarts the ready-made local gym program through the GU
       localStorage.setItem("workout_logger_api_key", key);
     }, process.env.E2E_API_KEY || "");
     await page.goto("/");
-    await page.getByRole("button", { name: "Programs" }).click();
+    await openPage(page, "Programs");
 
     const card = page.getByRole("listitem", { name: /^Local gym A\/B/ });
     await expect(card).toBeVisible();
@@ -72,7 +73,7 @@ test("adds, removes and restarts the ready-made local gym program through the GU
     await expect(page.getByText(/names already exist/)).toBeVisible();
 
     // The calendar entry shows that session's instructions.
-    await page.getByRole("button", { name: "Calendar" }).click();
+    await openPage(page, "Calendar");
     await page.getByRole("button", { name: sessions[0].workout_plan_name }).first().click();
     await expect(page.getByRole("dialog").locator(".scheduled-notes")).toContainText(
       "Session 1 of 12: Establish comfortable ranges",

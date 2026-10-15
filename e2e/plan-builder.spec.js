@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 test("builds, edits, and deletes a real superset plan through the GUI", async ({
   page,
@@ -15,7 +16,7 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
       localStorage.setItem("workout_logger_api_key", key);
     }, process.env.E2E_API_KEY || "");
     await page.goto("/");
-    await page.getByRole("button", { name: "Plans" }).click();
+    await openPage(page, "Plans");
     await expect(page.getByRole("heading", { name: "Workout Plans" })).toBeVisible();
 
     // Build a two-exercise superset plan entirely through the UI.

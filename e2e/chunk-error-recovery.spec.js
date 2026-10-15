@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 
 // The service worker registers on page load and takes over fetches for
 // `/static/`, racing unpredictably with Playwright's own route interception
@@ -34,7 +35,7 @@ test("recovers automatically from a stale chunk reference by reloading once", as
   });
 
   await page.goto("/");
-  await page.getByRole("button", { name: "History" }).click();
+  await openPage(page, "History");
 
   // The failed dynamic import triggers one automatic reload; the retried
   // request is allowed through, landing on a working History page instead

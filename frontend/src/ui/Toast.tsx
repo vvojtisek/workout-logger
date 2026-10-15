@@ -87,7 +87,7 @@ export function Toaster() {
   return (
     <div
       aria-label="Notifications"
-      className="fixed bottom-20 right-4 z-[60] flex flex-col gap-2 md:bottom-4"
+      className="fixed bottom-20 right-4 z-[60] flex flex-col gap-2 lg:bottom-4"
     >
       {items.map((item) => (
         <ToastItem key={item.id} item={item} />
