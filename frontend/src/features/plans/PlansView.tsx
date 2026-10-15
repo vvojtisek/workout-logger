@@ -1,9 +1,18 @@
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
-import type { Paginated, WorkoutPlan, WorkoutSession } from "@/api/types";
+import type {
+  Location,
+  LocationCheck,
+  Paginated,
+  WorkoutPlan,
+  WorkoutSession,
+} from "@/api/types";
 import { useAppContext } from "@/AppLayout";
+import { LocationCheckDialog } from "@/features/locations/LocationCheckDialog";
+import { readTrainingLocation, writeTrainingLocation } from "@/lib/locations";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { Button, EmptyState, PageHeading } from "@/ui";
@@ -15,6 +24,28 @@ export function PlansView() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<WorkoutPlan | null>(null);
+  const [pickedLocation, setPickedLocation] = useState<string | null>(null);
+  const [pendingCheck, setPendingCheck] = useState<{
+    session: WorkoutSession;
+    check: LocationCheck;
+  } | null>(null);
+  const { data: locationData } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => apiFetch<Paginated<Location>>("/locations?limit=100"),
+  });
+  const locations = locationData?.items ?? [];
+  // Until a pick in this visit, use the one remembered from last time.
+  const locationId =
+    pickedLocation ??
+    readTrainingLocation(
+      window.localStorage,
+      locations.map((location) => location.id),
+    );
+
+  function pickLocation(id: string) {
+    setPickedLocation(id);
+    writeTrainingLocation(window.localStorage, id);
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,8 +68,18 @@ export function PlansView() {
     try {
       const session = await apiFetch<WorkoutSession>("/workout-sessions", {
         method: "POST",
-        body: JSON.stringify({ source_plan_id: planId }),
+        body: JSON.stringify({ source_plan_id: planId, location_id: locationId || null }),
       });
+      if (session.location_id) {
+        // Advisory only: if the check fails, the workout still starts.
+        const check = await apiFetch<LocationCheck>(
+          `/workout-sessions/${session.id}/location-check`,
+        ).catch(() => null);
+        if (check && check.items.length > 0) {
+          setPendingCheck({ session, check });
+          return;
+        }
+      }
       openSession(session);
     } catch (err) {
       toast.error(`Failed to start workout: ${errorMessage(err)}`);
@@ -95,6 +136,26 @@ export function PlansView() {
           New program
         </Button>
       </div>
+      {locations.length > 0 ? (
+        <div className="mb-4 max-w-xs">
+          <label className="field-label" htmlFor="training-location">
+            Training at
+          </label>
+          <select
+            id="training-location"
+            className="input"
+            value={locationId}
+            onChange={(event) => pickLocation(event.target.value)}
+          >
+            <option value="">Anywhere</option>
+            {locations.map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
       <ul id="plans-list" className="flex flex-col gap-3">
         {error ? <li className="text-sm text-danger">{error}</li> : null}
         {!error && !loading && plans.length === 0 ? (
@@ -136,6 +197,17 @@ export function PlansView() {
           </li>
         ))}
       </ul>
+
+      {pendingCheck ? (
+        <LocationCheckDialog
+          session={pendingCheck.session}
+          check={pendingCheck.check}
+          onDone={(session) => {
+            setPendingCheck(null);
+            openSession(session);
+          }}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={deleteTarget !== null}

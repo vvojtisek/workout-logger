@@ -1,9 +1,10 @@
 const PAGE_SIZE = 100;
 
-export function exerciseListPath(query: string, offset = 0): string {
+export function exerciseListPath(query: string, offset = 0, locationId = ""): string {
   const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
   const term = query.trim();
   if (term) params.set("q", term);
+  if (locationId) params.set("location_id", locationId);
   return `/exercises?${params.toString()}`;
 }
 

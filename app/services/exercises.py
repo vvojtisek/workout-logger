@@ -14,7 +14,7 @@ def _escape_like(value: str) -> str:
 
 
 async def list_exercises(
-    session: AsyncSession, limit: int, offset: int, query: str | None = None
+    session: AsyncSession, limit: int | None, offset: int, query: str | None = None
 ) -> tuple[list[Exercise], int]:
     statement = select(Exercise)
     term = (query or "").strip().lower()

@@ -37,6 +37,15 @@ class WorkoutSession(UUIDPrimaryKeyMixin, Base):
         GUID(), ForeignKey("workout_plans.id", ondelete="SET NULL"), nullable=True
     )
     source_plan_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    # Where this workout happens; exercises it can't host are flagged at start.
+    location_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(),
+        ForeignKey(
+            "locations.id", ondelete="SET NULL", name="fk_workout_sessions_location_id_locations"
+        ),
+        nullable=True,
+        index=True,
+    )
     workout_log_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID(), ForeignKey("workout_logs.id", ondelete="SET NULL"), nullable=True, unique=True
     )

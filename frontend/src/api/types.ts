@@ -57,6 +57,7 @@ export interface WorkoutSession extends GridSession {
   id: string;
   source_plan_id: string | null;
   source_plan_name: string;
+  location_id: string | null;
   workout_log_id: string | null;
   status: string;
   started_at: string;
@@ -193,6 +194,16 @@ export interface Location {
   default_minutes: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface LocationCheck {
+  location: { id: string; name: string } | null;
+  items: Array<{
+    session_exercise_id: string;
+    exercise_name: string;
+    needs: EquipmentTag[][];
+    swaps: Array<{ exercise_name: string; exercise_kind: ExerciseKind }>;
+  }>;
 }
 
 export type ProgramStatus = "active" | "completed" | "archived";

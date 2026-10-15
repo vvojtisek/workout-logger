@@ -26,6 +26,7 @@ from app.schemas.workout_sessions import (
     WorkoutSessionFocus,
     WorkoutSessionRestUpdate,
 )
+from app.services.locations import get_location
 from app.services.plans import get_plan
 
 # Most sets an exercise can grow to during a session with "Add set".
@@ -132,7 +133,9 @@ async def _latest_history(
     return result.scalar_one_or_none()
 
 
-async def start_session(session: AsyncSession, source_plan_id: UUID) -> tuple[WorkoutSession, bool]:
+async def start_session(
+    session: AsyncSession, source_plan_id: UUID, location_id: UUID | None = None
+) -> tuple[WorkoutSession, bool]:
     existing_result = await session.execute(
         select(WorkoutSession)
         .options(_LOAD_SESSION)
@@ -146,6 +149,8 @@ async def start_session(session: AsyncSession, source_plan_id: UUID) -> tuple[Wo
         return existing, False
 
     plan = await get_plan(session, source_plan_id)
+    if location_id is not None:
+        await get_location(session, location_id)
     if not plan.exercises:
         raise ConflictError(
             "Cannot start a workout plan without exercises",
@@ -155,6 +160,7 @@ async def start_session(session: AsyncSession, source_plan_id: UUID) -> tuple[Wo
     workout_session = WorkoutSession(
         source_plan_id=plan.id,
         source_plan_name=plan.name,
+        location_id=location_id,
         status="active",
         focused_set_number=1,
     )

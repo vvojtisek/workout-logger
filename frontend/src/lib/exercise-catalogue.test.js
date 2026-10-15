@@ -12,6 +12,12 @@ describe("exerciseListPath", () => {
       "/exercises?limit=100&offset=100&q=dead+bug%26x",
     );
   });
+
+  it("filters by a location when one is picked", () => {
+    expect(exerciseListPath("", 0, "loc-1")).toBe(
+      "/exercises?limit=100&offset=0&location_id=loc-1",
+    );
+  });
 });
 
 describe("fetchCatalogueNames", () => {

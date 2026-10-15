@@ -1,8 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
-import type { CatalogExercise, Paginated } from "@/api/types";
+import type { CatalogExercise, Location, Paginated } from "@/api/types";
 import { exerciseListPath } from "@/lib/exercise-catalogue";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
@@ -17,6 +18,12 @@ export function ExercisesView() {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [total, setTotal] = useState(0);
+  const [locationId, setLocationId] = useState("");
+  const { data: locationData } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => apiFetch<Paginated<Location>>("/locations?limit=100"),
+  });
+  const locations = locationData?.items ?? [];
 
   useEffect(() => {
     const timer = window.setTimeout(() => setQuery(search), 250);
@@ -26,7 +33,9 @@ export function ExercisesView() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiFetch<Paginated<CatalogExercise>>(exerciseListPath(query));
+      const data = await apiFetch<Paginated<CatalogExercise>>(
+        exerciseListPath(query, 0, locationId),
+      );
       setExercises(data.items);
       setTotal(data.total);
       setError(null);
@@ -35,7 +44,7 @@ export function ExercisesView() {
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, locationId]);
 
   useEffect(() => {
     void load();
@@ -72,6 +81,26 @@ export function ExercisesView() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
+        {locations.length > 0 ? (
+          <div className="mt-3">
+            <label className="field-label" htmlFor="exercise-location">
+              Available at
+            </label>
+            <select
+              id="exercise-location"
+              className="input"
+              value={locationId}
+              onChange={(event) => setLocationId(event.target.value)}
+            >
+              <option value="">Any location</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         {!loading && total > exercises.length ? (
           <p className="mt-1 text-xs text-muted">
             Showing {exercises.length} of {total}. Search to narrow the list.
@@ -83,9 +112,9 @@ export function ExercisesView() {
         {!error && !loading && exercises.length === 0 ? (
           <li>
             <EmptyState
-              title={query.trim() ? "No matching exercises" : "No exercises yet"}
+              title={query.trim() || locationId ? "No matching exercises" : "No exercises yet"}
               description={
-                query.trim()
+                query.trim() || locationId
                   ? "Try another name or alias, or add it with 'New exercise'."
                   : "Tap 'New exercise' to add your first catalogue entry."
               }

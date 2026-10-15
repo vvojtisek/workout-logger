@@ -9,6 +9,7 @@ from app.schemas.common import OrmModel
 
 class WorkoutSessionStart(BaseModel):
     source_plan_id: UUID
+    location_id: UUID | None = None
 
 
 class SetEntryCreate(BaseModel):
@@ -121,6 +122,7 @@ class WorkoutSessionRead(OrmModel):
     id: UUID
     source_plan_id: UUID | None
     source_plan_name: str
+    location_id: UUID | None
     workout_log_id: UUID | None
     status: str
     started_at: datetime
@@ -130,3 +132,26 @@ class WorkoutSessionRead(OrmModel):
     rest_ends_at: datetime | None
     version: int
     exercises: list[SessionExerciseRead]
+
+
+class LocationRef(BaseModel):
+    id: UUID
+    name: str
+
+
+class SwapSuggestion(BaseModel):
+    exercise_name: str
+    exercise_kind: Literal["strength", "bodyweight", "cardio"]
+
+
+class LocationCheckItem(BaseModel):
+    session_exercise_id: UUID
+    exercise_name: str
+    # The catalogue's alternatives, none of which the location has.
+    needs: list[list[str]]
+    swaps: list[SwapSuggestion]
+
+
+class LocationCheckRead(BaseModel):
+    location: LocationRef | None
+    items: list[LocationCheckItem]
