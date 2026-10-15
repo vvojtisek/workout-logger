@@ -1,4 +1,5 @@
 import { formatDateTime } from "./format";
+import { EFFORT_SCALE, FEELING_SCALE, scaleText } from "./scales";
 
 export const ACTIVITY_TYPES = [
   "ice_hockey",
@@ -44,9 +45,9 @@ export function logSummaryFacts(log: LogLike): string[] {
   const facts = [`${log.total_time_minutes} min`];
   if (log.distance_km != null) facts.push(`${log.distance_km} km`);
   if (log.effort_rpe != null) {
-    facts.push(`Effort ${log.effort_rpe}/10`);
+    facts.push(`Effort ${scaleText(EFFORT_SCALE, log.effort_rpe)}`);
     facts.push(`Load ${log.effort_rpe * log.total_time_minutes}`);
   }
-  facts.push(`Feeling ${log.overall_feeling}/5`);
+  facts.push(`Feeling ${scaleText(FEELING_SCALE, log.overall_feeling)}`);
   return facts;
 }

@@ -33,7 +33,7 @@ test("logs an ice hockey session and a swim through the GUI and shows them in hi
     await page.getByLabel("Started at").fill("2032-05-04T19:30");
     await page.getByLabel("Duration (minutes)").fill("75");
     await page.getByLabel("Effort (optional)").selectOption("7");
-    await page.getByLabel("How you felt (1-5)").selectOption("4");
+    await page.getByLabel("How you felt", { exact: true }).selectOption("4");
     await page.getByLabel("Notes (optional)").fill(`${tag} hockey`);
     await page.getByRole("button", { name: "Save activity" }).click();
     await expect(page.getByRole("heading", { name: "Workout History", exact: true })).toBeVisible();
@@ -69,13 +69,13 @@ test("logs an ice hockey session and a swim through the GUI and shows them in hi
 
     // History names the activity and shows its load (RPE x minutes).
     const history = page.locator("#history-list");
-    await expect(history.getByText(/75 min · Effort 7\/10 · Load 525/)).toBeVisible();
+    await expect(history.getByText(/75 min · Effort 7\/10 \(Very hard\) · Load 525/)).toBeVisible();
     await expect(history.getByText(/40 min · 1\.5 km/)).toBeVisible();
     // Dates are day first with a 24-hour clock, whatever the browser locale.
     await expect(history.getByText(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} · 75 min/)).toBeVisible();
     await expect(history.getByText(/\b(AM|PM)\b/)).toHaveCount(0);
 
-    await history.getByText(/75 min · Effort 7\/10 · Load 525/).click();
+    await history.getByText(/75 min · Effort 7\/10 \(Very hard\) · Load 525/).click();
     await expect(page.getByRole("heading", { name: "Workout Detail" })).toBeVisible();
     await expect(page.locator("#detail-content").getByText("Ice hockey", { exact: true })).toBeVisible();
     await expect(page.getByText(`${tag} hockey`)).toBeVisible();

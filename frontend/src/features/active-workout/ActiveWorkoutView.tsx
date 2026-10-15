@@ -28,6 +28,8 @@ import { toast } from "@/ui/Toast";
 import { RestOverlay } from "./RestOverlay";
 import { COLUMN_HEADERS_BY_KIND, ROW_GRID, SetRow } from "./SetRow";
 import type { SetValues } from "./SetRow";
+import { FEELING_SCALE, RIR_HINT } from "@/lib/scales";
+import { ScaleSelect } from "@/ui/ScaleSelect";
 
 // Shared verbatim with SetRow's own grid template - see the comment there.
 const HEADER_GRID = ROW_GRID;
@@ -415,6 +417,11 @@ function ActiveWorkoutSession({
       </div>
 
       <progress id="active-progress" className="mb-4 w-full" max={100} value={progress.percent} />
+      {session.exercises.some((exercise) => exercise.exercise_kind === "strength") ? (
+        <p id="rir-hint" className="-mt-2 mb-4 text-xs text-muted">
+          {RIR_HINT}
+        </p>
+      ) : null}
 
       <div id="active-grid" ref={gridRef} className="flex flex-col gap-3">
         {groups.map((group) =>
@@ -445,18 +452,13 @@ function ActiveWorkoutSession({
         <label className="field-label" htmlFor="active-feeling">
           Overall feeling
         </label>
-        <select
+        <ScaleSelect
           id="active-feeling"
           className="input min-h-touch"
+          scale={FEELING_SCALE}
           value={feeling}
-          onChange={(event) => setFeeling(event.target.value)}
-        >
-          {["1", "2", "3", "4", "5"].map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+          onChange={setFeeling}
+        />
       </footer>
 
       <RestOverlay

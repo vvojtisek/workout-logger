@@ -90,6 +90,8 @@ test("starts, saves, resumes, completes, and cleans up a real active workout", a
     await expect(page.getByLabel("RIR")).toHaveValue("2");
     await expect(page.getByText(/Rest: \d+s/)).toBeVisible();
 
+    await expect(page.locator("#rir-hint")).toContainText("reps in reserve");
+    await expect(page.locator("#active-feeling option:checked")).toHaveText("3 · OK");
     await page.locator("#active-feeling").selectOption("4");
     await page.getByRole("button", { name: "Finish workout" }).click();
     await expect(page.getByRole("heading", { name: "Workout History" })).toBeVisible();

@@ -8,6 +8,8 @@ import { useAppContext } from "@/AppLayout";
 import { parseRepsPerSet } from "@/lib/workout-utils";
 import { toast } from "@/ui/Toast";
 import { Button, Card, Input, PageHeading } from "@/ui";
+import { FEELING_SCALE } from "@/lib/scales";
+import { ScaleSelect } from "@/ui/ScaleSelect";
 
 interface ExerciseRow {
   key: string;
@@ -30,7 +32,7 @@ export function NewLogView() {
   const [performedAt, setPerformedAt] = useState("");
   const [totalTime, setTotalTime] = useState("");
   const [calories, setCalories] = useState("");
-  const [feeling, setFeeling] = useState("");
+  const [feeling, setFeeling] = useState("3");
   const [notes, setNotes] = useState("");
   const [rows, setRows] = useState<ExerciseRow[]>([]);
 
@@ -163,16 +165,13 @@ export function NewLogView() {
             </div>
             <div>
               <label className="field-label" htmlFor="log-feeling">
-                Overall feeling (1-5)
+                Overall feeling
               </label>
-              <Input
+              <ScaleSelect
                 id="log-feeling"
-                type="number"
-                min="1"
-                max="5"
-                required
+                scale={FEELING_SCALE}
                 value={feeling}
-                onChange={(event) => setFeeling(event.target.value)}
+                onChange={setFeeling}
               />
             </div>
           </div>
