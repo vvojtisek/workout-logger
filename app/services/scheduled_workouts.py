@@ -37,6 +37,7 @@ async def schedule_workout(session: AsyncSession, data: ScheduledWorkoutCreate) 
         workout_plan_id=data.workout_plan_id,
         scheduled_date=data.scheduled_date,
         status="scheduled",
+        notes=data.notes,
     )
     session.add(scheduled_workout)
     await session.commit()

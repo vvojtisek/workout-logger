@@ -2,7 +2,7 @@ import uuid
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, Index, String
+from sqlalchemy import CheckConstraint, Date, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import GUID, Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -39,6 +39,8 @@ class ScheduledWorkout(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     scheduled_date: Mapped[date] = mapped_column(Date(), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="scheduled")
+    # What this particular session asks for, e.g. a program's week-by-week load change.
+    notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     workout_session_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID(), ForeignKey("workout_sessions.id", ondelete="SET NULL"), nullable=True, unique=True
     )

@@ -203,6 +203,9 @@ function EntryDialog({
             {STATUS_LABELS[entry.status]}
           </span>
         </p>
+        {entry.notes ? (
+          <p className="scheduled-notes whitespace-pre-line text-sm">{entry.notes}</p>
+        ) : null}
 
         {entry.status === "scheduled" ? (
           <div>

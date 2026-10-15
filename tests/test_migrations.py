@@ -772,3 +772,21 @@ def test_activity_fields_migration_keeps_strength_logs_and_enforces_values(
     assert "activity_type" not in columns
     assert kept == 30
     sync_engine.dispose()
+
+
+def test_scheduled_workout_notes_migration_round_trips(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "d8f2a4c6e1b3")
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.connect() as connection:
+        columns = {
+            row[1] for row in connection.execute(text("PRAGMA table_info(scheduled_workouts)"))
+        }
+    assert "notes" in columns
+
+    command.downgrade(alembic_config, "c5e1b8f3a6d2")
+    with sync_engine.connect() as connection:
+        columns = {
+            row[1] for row in connection.execute(text("PRAGMA table_info(scheduled_workouts)"))
+        }
+    assert "notes" not in columns
+    sync_engine.dispose()

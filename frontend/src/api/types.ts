@@ -155,6 +155,25 @@ export interface Program {
   updated_at: string;
 }
 
+export interface ProgramTemplate {
+  key: string;
+  name: string;
+  kind: string;
+  location: string;
+  summary: string;
+  schedule_type: "sequence" | "weekly";
+  session_count: number;
+  max_sessions_per_week: number | null;
+  default_weekdays: number[] | null;
+  plan_names: string[];
+}
+
+export interface ProgramTemplateInstallResult {
+  program: Program;
+  plan_ids: string[];
+  scheduled_count: number;
+}
+
 export type ScheduledWorkoutStatus = "scheduled" | "in_progress" | "completed" | "skipped";
 
 export interface ScheduledWorkout {
@@ -165,6 +184,7 @@ export interface ScheduledWorkout {
   workout_plan_name: string;
   scheduled_date: string;
   status: ScheduledWorkoutStatus;
+  notes: string | null;
   workout_session_id: string | null;
   created_at: string;
   updated_at: string;

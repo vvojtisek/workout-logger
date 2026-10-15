@@ -50,14 +50,14 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     // Build the program entirely through the GUI.
     await page.goto("/");
     await page.getByRole("button", { name: "Programs" }).click();
-    await expect(page.getByRole("heading", { name: "Programs" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Programs", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "New program" }).click();
     await expect(page.getByRole("heading", { name: "New Program" })).toBeVisible();
     await page.getByLabel("Name").fill(`${tag} program`);
     await page.getByLabel("Kind").fill("Hypertrophy");
     await page.getByLabel("Start date").fill(today);
     await page.getByRole("button", { name: "Create program" }).click();
-    await expect(page.getByRole("heading", { name: "Programs" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Programs", exact: true })).toBeVisible();
 
     const programList = await request.get("/api/v1/programs?limit=100");
     /** @type {{items: Array<{id: string, name: string}>}} */
