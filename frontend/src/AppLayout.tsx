@@ -5,6 +5,8 @@ import { apiFetch } from "@/api/client";
 import type { WorkoutSession } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { Toaster } from "@/ui/Toast";
+import { describeBuild } from "@/lib/build-label";
+import type { BuildLabel, BuildMetadata } from "@/lib/build-label";
 
 interface AppContextValue {
   session: WorkoutSession | null;
@@ -37,31 +39,27 @@ function useOnlineStatus(): boolean {
   return online;
 }
 
-interface DeploymentInfo {
-  version: string;
-  commit: string;
-}
-
-/** Sourced from `/health`, itself backed by the APP_VERSION/GIT_COMMIT values
- * baked into the image or set on the container -- see app/config.py. */
-function useDeploymentInfo(online: boolean): DeploymentInfo | null {
-  const [info, setInfo] = useState<DeploymentInfo | null>(null);
+/** Sourced from `/health` (never cached by the service worker), itself backed by
+ * the APP_VERSION/GIT_COMMIT values baked into the image or set on the container
+ * -- see app/config.py. Null until the server answers. */
+function useBuildLabel(online: boolean): BuildLabel | null {
+  const [label, setLabel] = useState<BuildLabel | null>(null);
   useEffect(() => {
     if (!online) return;
     let cancelled = false;
-    fetch("/health")
+    fetch("/health", { cache: "no-store" })
       .then((response) => response.json())
-      .then((body: { version?: string; commit?: string }) => {
-        if (!cancelled && body.version && body.commit) {
-          setInfo({ version: body.version, commit: body.commit });
-        }
+      .then((body: BuildMetadata) => {
+        if (!cancelled) setLabel(describeBuild(body));
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setLabel(describeBuild(null));
+      });
     return () => {
       cancelled = true;
     };
   }, [online]);
-  return info;
+  return label;
 }
 
 const NAV_ITEMS: { path: string; label: string; glyph: string }[] = [
@@ -83,7 +81,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const online = useOnlineStatus();
-  const deploymentInfo = useDeploymentInfo(online);
+  const buildLabel = useBuildLabel(online);
   const { logout } = useAuth();
   const [session, setSession] = useState<WorkoutSession | null>(null);
 
@@ -133,14 +131,20 @@ export function AppLayout() {
             <div className="flex items-center gap-2">
               <span
                 id="connection-status"
+                title={online && buildLabel ? buildLabel.description : undefined}
+                aria-label={
+                  online && buildLabel ? `Online. ${buildLabel.description}` : undefined
+                }
                 className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                   online ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
                 }`}
               >
                 {online ? "online" : "offline"}
-                {online && deploymentInfo
-                  ? ` · v${deploymentInfo.version} · ${deploymentInfo.commit.slice(0, 7)}`
-                  : ""}
+                {online && buildLabel ? (
+                  <span id="build-version" data-build-kind={buildLabel.kind}>
+                    {` · ${buildLabel.text}`}
+                  </span>
+                ) : null}
               </span>
               <button
                 id="logout-btn"
