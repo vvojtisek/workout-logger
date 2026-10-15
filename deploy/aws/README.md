@@ -39,9 +39,10 @@ workflow only after the GitHub `production` environment permits it and the
    credentials in GitHub Actions variables or release assets.
 6. Create the GitHub deploy role with
    [`github-deploy-role.yaml`](github-deploy-role.yaml). It trusts only the
-   `production` environment of `vvojtisek/workout-logger` through GitHub OIDC
-   and may only send `AWS-RunShellScript` to `i-08abc66a2687aed45` and read
-   the result; it has no EC2 or security-group permissions. From a workstation
+   `production` environment of `vvojtisek/workout-logger` through GitHub OIDC,
+   using GitHub's immutable owner and repository IDs in the subject claim, and
+   may only send `AWS-RunShellScript` to `i-08abc66a2687aed45` and read the
+   result; it has no EC2 or security-group permissions. From a workstation
    with admin credentials for the account:
 
    ```bash
