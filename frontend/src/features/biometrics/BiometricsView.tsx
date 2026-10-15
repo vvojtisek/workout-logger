@@ -91,7 +91,7 @@ export function BiometricsView() {
 
   return (
     <section id="biometrics-view">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Track weight, body fat, and body measurements over time.">
           Biometrics
         </PageHeading>

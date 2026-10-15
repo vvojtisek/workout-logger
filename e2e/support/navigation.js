@@ -51,3 +51,12 @@ export async function openPage(page, label) {
       .click();
   }
 }
+
+/**
+ * Where a list page shows its detail: the right-hand pane on desktop, the
+ * whole page on a phone.
+ * @param {import("@playwright/test").Page} page
+ */
+export function detailPane(page) {
+  return isDesktop(page) ? page.getByTestId("detail-pane") : page.locator("body");
+}

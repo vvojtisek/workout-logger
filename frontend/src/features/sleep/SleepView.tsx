@@ -101,7 +101,7 @@ export function SleepView() {
 
   return (
     <section id="sleep-view">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Track sleep duration and quality over time.">Sleep</PageHeading>
         <Button variant="primary" onClick={() => void navigate("/sleep/new")}>
           Log sleep

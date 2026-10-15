@@ -11,6 +11,7 @@ const MOBILE_SPECS = [
   "auth.spec.js",
   "active-workout.spec.js",
   "workout-hud.spec.js",
+  "master-detail.spec.js",
 ];
 
 export default defineConfig({

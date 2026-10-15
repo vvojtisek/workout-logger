@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openPage } from "./support/navigation.js";
+import { detailPane, openPage } from "./support/navigation.js";
 
 /** @param {number} hour */
 function todayDatetimeLocal(hour) {
@@ -96,7 +96,7 @@ test("builds a food and nutrition plan, logs a meal, and verifies the daily dash
     await page.getByLabel("Carbohydrate (g)").fill("27");
     await page.getByLabel("Fat (g)").fill("3");
 
-    await page.getByRole("button", { name: "Log meal", exact: true }).click();
+    await detailPane(page).getByRole("button", { name: "Log meal", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Meal Log" })).toBeVisible();
 
     const entriesList = await request.get("/api/v1/meal-entries?limit=100");

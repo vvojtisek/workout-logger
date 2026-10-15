@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openPage } from "./support/navigation.js";
+import { detailPane, openPage } from "./support/navigation.js";
 
 test("logs, views trends for, edits, and deletes real biometrics entries through the GUI", async ({
   page,
@@ -25,7 +25,7 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
     await page.getByLabel("Weight (kg)").fill("80.0");
     await page.getByLabel("Body fat (%, optional)").fill("20.0");
     await page.getByLabel("Waist (cm)").fill("88");
-    await page.getByRole("button", { name: "Log entry" }).click();
+    await detailPane(page).getByRole("button", { name: "Log entry" }).click();
     await expect(page.getByRole("heading", { name: "Biometrics", exact: true })).toBeVisible();
 
     const listAfterFirst = await request.get("/api/v1/body-metrics?limit=100");
@@ -45,7 +45,7 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
     await page.getByRole("button", { name: "Log entry" }).click();
     await page.getByLabel("Date and time").fill("2031-02-08T08:00");
     await page.getByLabel("Weight (kg)").fill("79.0");
-    await page.getByRole("button", { name: "Log entry" }).click();
+    await detailPane(page).getByRole("button", { name: "Log entry" }).click();
     await expect(page.getByRole("heading", { name: "Biometrics", exact: true })).toBeVisible();
 
     const listAfterSecond = await request.get("/api/v1/body-metrics?limit=100");

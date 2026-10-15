@@ -114,7 +114,7 @@ export function ExerciseDetailView() {
 
   return (
     <section id="exercise-detail-view">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading
           hint={exercise.aliases.length > 0 ? `Also known as: ${exercise.aliases.join(", ")}` : undefined}
         >

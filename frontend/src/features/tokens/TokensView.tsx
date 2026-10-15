@@ -55,7 +55,7 @@ export function TokensView() {
 
   return (
     <section id="tokens-view">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Scoped credentials for other clients (an MCP agent, an automation) alongside your bootstrap API key.">
           API Tokens
         </PageHeading>

@@ -1,8 +1,26 @@
+import type { ComponentType } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { AppLayout } from "@/AppLayout";
+import { FULL_BLEED, MasterDetail } from "@/app/MasterDetail";
 import { RouteErrorBoundary } from "@/app/RouteErrorBoundary";
 import { RequireAuth } from "@/auth/RequireAuth";
+
+/** Lazily loads a list page and wraps it in the list-and-detail layout. */
+function masterDetail(
+  base: string,
+  placeholder: string,
+  loadList: () => Promise<ComponentType>
+): () => Promise<{ Component: ComponentType }> {
+  return async () => {
+    const List = await loadList();
+    return {
+      Component: function ListWithDetail() {
+        return <MasterDetail base={base} list={<List />} placeholder={placeholder} />;
+      },
+    };
+  };
+}
 
 export const router = createBrowserRouter([
   {
@@ -33,46 +51,43 @@ export const router = createBrowserRouter([
           },
           {
             path: "plans",
-            lazy: () =>
-              import("@/features/plans/PlansView").then((m) => ({ Component: m.PlansView })),
-          },
-          {
-            path: "plans/new",
-            lazy: () =>
-              import("@/features/plans/PlanBuilder").then((m) => ({ Component: m.PlanBuilder })),
-          },
-          {
-            path: "plans/:planId/edit",
-            lazy: () =>
-              import("@/features/plans/PlanBuilder").then((m) => ({ Component: m.PlanBuilder })),
+            handle: FULL_BLEED,
+            lazy: masterDetail("/plans", "Pick a plan to edit, or start a new one.", () =>
+              import("@/features/plans/PlansView").then((m) => m.PlansView)
+            ),
+            children: [
+              { index: true },
+              {
+                path: "new",
+                lazy: () => import("@/features/plans/PlanBuilder").then((m) => ({ Component: m.PlanBuilder })),
+              },
+              {
+                path: ":planId/edit",
+                lazy: () => import("@/features/plans/PlanBuilder").then((m) => ({ Component: m.PlanBuilder })),
+              },
+            ],
           },
           {
             path: "exercises",
-            lazy: () =>
-              import("@/features/exercises/ExercisesView").then((m) => ({
-                Component: m.ExercisesView,
-              })),
-          },
-          {
-            path: "exercises/new",
-            lazy: () =>
-              import("@/features/exercises/ExerciseBuilder").then((m) => ({
-                Component: m.ExerciseBuilder,
-              })),
-          },
-          {
-            path: "exercises/:exerciseId/edit",
-            lazy: () =>
-              import("@/features/exercises/ExerciseBuilder").then((m) => ({
-                Component: m.ExerciseBuilder,
-              })),
-          },
-          {
-            path: "exercises/:exerciseId",
-            lazy: () =>
-              import("@/features/exercises/ExerciseDetailView").then((m) => ({
-                Component: m.ExerciseDetailView,
-              })),
+            handle: FULL_BLEED,
+            lazy: masterDetail("/exercises", "Pick an exercise to see its details.", () =>
+              import("@/features/exercises/ExercisesView").then((m) => m.ExercisesView)
+            ),
+            children: [
+              { index: true },
+              {
+                path: "new",
+                lazy: () => import("@/features/exercises/ExerciseBuilder").then((m) => ({ Component: m.ExerciseBuilder })),
+              },
+              {
+                path: ":exerciseId",
+                lazy: () => import("@/features/exercises/ExerciseDetailView").then((m) => ({ Component: m.ExerciseDetailView })),
+              },
+              {
+                path: ":exerciseId/edit",
+                lazy: () => import("@/features/exercises/ExerciseBuilder").then((m) => ({ Component: m.ExerciseBuilder })),
+              },
+            ],
           },
           {
             path: "calendar",
@@ -83,45 +98,39 @@ export const router = createBrowserRouter([
           },
           {
             path: "programs",
-            lazy: () =>
-              import("@/features/programs/ProgramsView").then((m) => ({
-                Component: m.ProgramsView,
-              })),
-          },
-          {
-            path: "programs/new",
-            lazy: () =>
-              import("@/features/programs/ProgramBuilder").then((m) => ({
-                Component: m.ProgramBuilder,
-              })),
-          },
-          {
-            path: "programs/:programId/edit",
-            lazy: () =>
-              import("@/features/programs/ProgramBuilder").then((m) => ({
-                Component: m.ProgramBuilder,
-              })),
+            handle: FULL_BLEED,
+            lazy: masterDetail("/programs", "Pick a program to edit, or start a new one.", () =>
+              import("@/features/programs/ProgramsView").then((m) => m.ProgramsView)
+            ),
+            children: [
+              { index: true },
+              {
+                path: "new",
+                lazy: () => import("@/features/programs/ProgramBuilder").then((m) => ({ Component: m.ProgramBuilder })),
+              },
+              {
+                path: ":programId/edit",
+                lazy: () => import("@/features/programs/ProgramBuilder").then((m) => ({ Component: m.ProgramBuilder })),
+              },
+            ],
           },
           {
             path: "biometrics",
-            lazy: () =>
-              import("@/features/biometrics/BiometricsView").then((m) => ({
-                Component: m.BiometricsView,
-              })),
-          },
-          {
-            path: "biometrics/new",
-            lazy: () =>
-              import("@/features/biometrics/BiometricEntryForm").then((m) => ({
-                Component: m.BiometricEntryForm,
-              })),
-          },
-          {
-            path: "biometrics/:metricId/edit",
-            lazy: () =>
-              import("@/features/biometrics/BiometricEntryForm").then((m) => ({
-                Component: m.BiometricEntryForm,
-              })),
+            handle: FULL_BLEED,
+            lazy: masterDetail("/biometrics", "Pick an entry to edit, or log a new one.", () =>
+              import("@/features/biometrics/BiometricsView").then((m) => m.BiometricsView)
+            ),
+            children: [
+              { index: true },
+              {
+                path: "new",
+                lazy: () => import("@/features/biometrics/BiometricEntryForm").then((m) => ({ Component: m.BiometricEntryForm })),
+              },
+              {
+                path: ":metricId/edit",
+                lazy: () => import("@/features/biometrics/BiometricEntryForm").then((m) => ({ Component: m.BiometricEntryForm })),
+              },
+            ],
           },
           {
             path: "nutrition",
@@ -132,97 +141,89 @@ export const router = createBrowserRouter([
           },
           {
             path: "nutrition/foods",
-            lazy: () =>
-              import("@/features/nutrition/FoodsView").then((m) => ({
-                Component: m.FoodsView,
-              })),
-          },
-          {
-            path: "nutrition/foods/new",
-            lazy: () =>
-              import("@/features/nutrition/FoodBuilder").then((m) => ({
-                Component: m.FoodBuilder,
-              })),
-          },
-          {
-            path: "nutrition/foods/:foodId/edit",
-            lazy: () =>
-              import("@/features/nutrition/FoodBuilder").then((m) => ({
-                Component: m.FoodBuilder,
-              })),
+            handle: FULL_BLEED,
+            lazy: masterDetail("/nutrition/foods", "Pick a food to edit, or add a new one.", () =>
+              import("@/features/nutrition/FoodsView").then((m) => m.FoodsView)
+            ),
+            children: [
+              { index: true },
+              {
+                path: "new",
+                lazy: () => import("@/features/nutrition/FoodBuilder").then((m) => ({ Component: m.FoodBuilder })),
+              },
+              {
+                path: ":foodId/edit",
+                lazy: () => import("@/features/nutrition/FoodBuilder").then((m) => ({ Component: m.FoodBuilder })),
+              },
+            ],
           },
           {
             path: "nutrition/plans",
-            lazy: () =>
-              import("@/features/nutrition/NutritionPlansView").then((m) => ({
-                Component: m.NutritionPlansView,
-              })),
-          },
-          {
-            path: "nutrition/plans/new",
-            lazy: () =>
-              import("@/features/nutrition/NutritionPlanBuilder").then((m) => ({
-                Component: m.NutritionPlanBuilder,
-              })),
-          },
-          {
-            path: "nutrition/plans/:planId/edit",
-            lazy: () =>
-              import("@/features/nutrition/NutritionPlanBuilder").then((m) => ({
-                Component: m.NutritionPlanBuilder,
-              })),
+            handle: FULL_BLEED,
+            lazy: masterDetail("/nutrition/plans", "Pick a nutrition plan to edit, or start a new one.", () =>
+              import("@/features/nutrition/NutritionPlansView").then((m) => m.NutritionPlansView)
+            ),
+            children: [
+              { index: true },
+              {
+                path: "new",
+                lazy: () => import("@/features/nutrition/NutritionPlanBuilder").then((m) => ({ Component: m.NutritionPlanBuilder })),
+              },
+              {
+                path: ":planId/edit",
+                lazy: () => import("@/features/nutrition/NutritionPlanBuilder").then((m) => ({ Component: m.NutritionPlanBuilder })),
+              },
+            ],
           },
           {
             path: "nutrition/meals",
-            lazy: () =>
-              import("@/features/nutrition/MealLogView").then((m) => ({
-                Component: m.MealLogView,
-              })),
-          },
-          {
-            path: "nutrition/meals/new",
-            lazy: () =>
-              import("@/features/nutrition/MealEntryForm").then((m) => ({
-                Component: m.MealEntryForm,
-              })),
-          },
-          {
-            path: "nutrition/meals/:entryId/edit",
-            lazy: () =>
-              import("@/features/nutrition/MealEntryForm").then((m) => ({
-                Component: m.MealEntryForm,
-              })),
+            handle: FULL_BLEED,
+            lazy: masterDetail("/nutrition/meals", "Pick a meal to edit, or log a new one.", () =>
+              import("@/features/nutrition/MealLogView").then((m) => m.MealLogView)
+            ),
+            children: [
+              { index: true },
+              {
+                path: "new",
+                lazy: () => import("@/features/nutrition/MealEntryForm").then((m) => ({ Component: m.MealEntryForm })),
+              },
+              {
+                path: ":entryId/edit",
+                lazy: () => import("@/features/nutrition/MealEntryForm").then((m) => ({ Component: m.MealEntryForm })),
+              },
+            ],
           },
           {
             path: "sleep",
-            lazy: () =>
-              import("@/features/sleep/SleepView").then((m) => ({ Component: m.SleepView })),
-          },
-          {
-            path: "sleep/new",
-            lazy: () =>
-              import("@/features/sleep/SleepEntryForm").then((m) => ({
-                Component: m.SleepEntryForm,
-              })),
-          },
-          {
-            path: "sleep/:entryId/edit",
-            lazy: () =>
-              import("@/features/sleep/SleepEntryForm").then((m) => ({
-                Component: m.SleepEntryForm,
-              })),
+            handle: FULL_BLEED,
+            lazy: masterDetail("/sleep", "Pick a night to edit, or log a new one.", () =>
+              import("@/features/sleep/SleepView").then((m) => m.SleepView)
+            ),
+            children: [
+              { index: true },
+              {
+                path: "new",
+                lazy: () => import("@/features/sleep/SleepEntryForm").then((m) => ({ Component: m.SleepEntryForm })),
+              },
+              {
+                path: ":entryId/edit",
+                lazy: () => import("@/features/sleep/SleepEntryForm").then((m) => ({ Component: m.SleepEntryForm })),
+              },
+            ],
           },
           {
             path: "tokens",
-            lazy: () =>
-              import("@/features/tokens/TokensView").then((m) => ({ Component: m.TokensView })),
-          },
-          {
-            path: "tokens/new",
-            lazy: () =>
-              import("@/features/tokens/TokenCreateForm").then((m) => ({
-                Component: m.TokenCreateForm,
-              })),
+            handle: FULL_BLEED,
+            lazy: masterDetail("/tokens", "New token opens the form here.", () =>
+              import("@/features/tokens/TokensView").then((m) => m.TokensView)
+            ),
+            children: [
+              { index: true },
+              {
+                path: "new",
+                lazy: () => import("@/features/tokens/TokenCreateForm").then((m) => ({ Component: m.TokenCreateForm })),
+              },
+            ],
           },
           {
             path: "log/new",
@@ -238,20 +239,21 @@ export const router = createBrowserRouter([
           },
           {
             path: "history",
-            lazy: () =>
-              import("@/features/history/HistoryView").then((m) => ({
-                Component: m.HistoryView,
-              })),
-          },
-          {
-            path: "history/:logId",
-            lazy: () =>
-              import("@/features/history/LogDetailView").then((m) => ({
-                Component: m.LogDetailView,
-              })),
+            handle: FULL_BLEED,
+            lazy: masterDetail("/history", "Pick a workout to see what was logged.", () =>
+              import("@/features/history/HistoryView").then((m) => m.HistoryView)
+            ),
+            children: [
+              { index: true },
+              {
+                path: ":logId",
+                lazy: () => import("@/features/history/LogDetailView").then((m) => ({ Component: m.LogDetailView })),
+              },
+            ],
           },
           {
             path: "workout",
+            handle: FULL_BLEED,
             lazy: () =>
               import("@/features/active-workout/ActiveWorkoutView").then((m) => ({
                 Component: m.ActiveWorkoutView,

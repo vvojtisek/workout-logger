@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMatch, useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { Paginated, WorkoutLogSummary } from "@/api/types";
@@ -9,6 +9,7 @@ import { formatDateTime } from "@/lib/format";
 
 export function HistoryView() {
   const navigate = useNavigate();
+  const openLogId = useMatch("/history/:logId")?.params.logId;
   const [logs, setLogs] = useState<WorkoutLogSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,7 +52,10 @@ export function HistoryView() {
             <button
               type="button"
               onClick={() => void navigate(`/history/${log.id}`)}
-              className="card w-full p-4 text-left transition-colors hover:bg-subtle"
+              aria-current={log.id === openLogId ? "true" : undefined}
+              className={`card w-full p-4 text-left transition-colors hover:bg-elevated ${
+                log.id === openLogId ? "border-accent bg-elevated" : ""
+              }`}
             >
               <p className="font-medium">{logTitle(log)}</p>
               <p className="mt-0.5 text-sm text-muted" data-numeric>

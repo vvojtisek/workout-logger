@@ -299,7 +299,7 @@ export function CalendarView() {
 
   return (
     <section id="calendar-view">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Tap a day to schedule a workout. Tap a scheduled workout to start, move, skip, or remove it.">
           Calendar
         </PageHeading>
