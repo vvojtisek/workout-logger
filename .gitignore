@@ -19,3 +19,6 @@ e2e/.auth/
 data/
 dist/
 build/
+# Created when running deploy/aws/compose.yaml locally or in CI end-to-end tests.
+deploy/aws/.env.production
+deploy/aws/backups/

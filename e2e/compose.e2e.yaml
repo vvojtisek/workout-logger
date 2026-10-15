@@ -1,0 +1,6 @@
+# CI-only overlay for deploy/aws/compose.yaml: publishes the app on loopback so
+# Playwright on the runner can reach it. Production publishes no host port.
+services:
+  workout-logger:
+    ports:
+      - "127.0.0.1:18000:8000"

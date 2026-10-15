@@ -29,7 +29,7 @@ def test_ci_runs_required_parallel_gates_on_pull_requests_and_main() -> None:
     fast = fast_workflow()
     fast_triggers = fast[True]
     assert "pull_request" in fast_triggers
-    assert {"backend", "frontend", "manifests"} <= set(fast["jobs"])
+    assert {"backend", "frontend", "deployment"} <= set(fast["jobs"])
 
     merge = merge_workflow()
     merge_triggers = merge[True]
@@ -44,12 +44,22 @@ def test_untrusted_pull_requests_cannot_publish_or_promote() -> None:
     assert "!contains(github.event.head_commit.message, '[skip image publish]')" in publish["if"]
 
 
-def test_manifest_and_security_gates_have_explicit_thresholds() -> None:
-    fast_text = FAST_WORKFLOW.read_text()
+def test_main_builds_publish_an_image_without_promotion_pull_requests() -> None:
+    publish_text = yaml.safe_dump(merge_workflow()["jobs"]["publish"])
+
+    assert "docker/build-push-action" in publish_text
+    assert "promote_image.py" not in publish_text
+    assert "gh pr create" not in publish_text
+    assert "gh pr merge" not in publish_text
+
+
+def test_deployment_and_security_gates_have_explicit_thresholds() -> None:
+    deployment_text = yaml.safe_dump(fast_workflow()["jobs"]["deployment"])
     security_text = SECURITY_WORKFLOW.read_text()
 
-    assert "kubeconform" in fast_text
-    assert "-kubernetes-version 1.35.0" in fast_text
+    assert "deploy/aws/compose.yaml" in deployment_text
+    assert "config --quiet" in deployment_text
+    assert "bash -n scripts/deploy-aws-release.sh" in deployment_text
     assert "pip-audit" in security_text
     assert "npm audit --audit-level=high" in security_text
     assert "gitleaks" in security_text
@@ -72,18 +82,34 @@ def test_frontend_commands_and_real_browser_journey_are_configured() -> None:
     assert "finally" in e2e
 
 
-def test_e2e_uses_real_kubernetes_image_database_and_failure_artifacts() -> None:
+def test_e2e_runs_the_production_compose_file_with_real_image_and_database() -> None:
     text = MERGE_WORKFLOW.read_text()
     e2e_job = merge_workflow()["jobs"]["e2e"]
     step_text = yaml.safe_dump(e2e_job)
 
-    assert "k3d cluster create" in step_text
     assert "docker build" in step_text
-    assert "alembic" in text
+    assert "-f deploy/aws/compose.yaml -f e2e/compose.e2e.yaml" in step_text
+    assert "--wait" in step_text
+    assert "alembic_version" in text
     assert "npm run test:e2e" in step_text
-    assert "if: always()" in step_text
+    assert "assert_empty_e2e_database.py" in step_text
+    assert "always()" in step_text
     assert "actions/upload-artifact" in step_text
-    assert "k3d cluster delete" in step_text
+    assert "down --volumes" in step_text
+    assert "k3d" not in text
+    assert "kubectl" not in text
+
+
+def test_kubernetes_deployment_artifacts_are_removed() -> None:
+    for path in (
+        "helm",
+        "deploy/argocd",
+        "deploy/k3s",
+        "values-local.yaml",
+        "scripts/promote_image.py",
+        "scripts/verify_deployment_image.py",
+    ):
+        assert not (ROOT / path).exists(), path
 
 
 def test_aws_release_is_downloadable_and_deploys_through_ssm_only() -> None:

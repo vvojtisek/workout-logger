@@ -23,7 +23,7 @@ Please report security issues privately using [GitHub Private Vulnerability Repo
 To help resolve the issue quickly, please provide:
 * Description of the vulnerability and potential impact.
 * Clear step-by-step reproduction steps or a minimal Proof of Concept (PoC).
-* Affected component (e.g., FastAPI endpoint, authentication middleware, Helm/k3s configuration).
+* Affected component (e.g., FastAPI endpoint, authentication middleware, Docker Compose deployment configuration).
 
 ### Response SLA
 

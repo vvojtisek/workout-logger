@@ -17,7 +17,8 @@ Repository-specific review priorities:
 - keep browser entry flows usable on a phone and readable during desktop review;
 - treat SQLite backup, migration, and single-writer behavior as production invariants;
 - keep session authentication, API-token scopes, and invited-account ownership distinct;
-- do not claim AWS deployment readiness from a Helm-only check; validate the Compose/SSM path too.
+- validate deployment changes against `deploy/aws/compose.yaml` and the SSM release path; the
+  merge E2E job runs that same Compose file.
 
 Read `docs/active-workout-feature-plan.md` before implementing workout UI or active-workout features.
 
@@ -38,12 +39,13 @@ For active-workout work, that plan supersedes the stage sequencing in `docs/heal
   rule required and recorded in `docs/gui-and-platform-expansion-plan.md`. Source lives in
   `frontend/src`; `npm run build` compiles it into `app/static/dist`, which FastAPI serves and which
   is a build artifact, never committed.
-- Do not mix unrelated CI/CD, Kubernetes, sleep, nutrition, PostgreSQL, multi-user, or framework work into a feature PR.
+- Do not mix unrelated CI/CD, deployment, sleep, nutrition, PostgreSQL, multi-user, or framework work into a feature PR.
 - Create a separate issue for non-blocking defects found during feature implementation.
 - Preserve current plan/log API behavior and workout history unless an additive, tested migration replaces it.
 - Use Conventional Commits.
 - Do not commit secrets.
-- Git is the Argo CD source of truth; do not deploy or roll back production with imperative Helm changes.
+- Production changes only through tagged releases (`vX.Y.Z`) and the SSM deploy workflow; roll back by
+  deploying the previous release tag, never by editing containers on the host.
 
 ## Active-workout Ruff baseline ratchet
 

@@ -2,9 +2,8 @@
 
 This is the single source of truth for the version/commit/build-time trio
 that CI threads through the whole deployment chain: it is passed as Docker
-build args (baked into the image as `build_info.json` and OCI labels),
-written into the Helm values that describe production, and from there
-becomes the application's environment -- surfaced by `/health`, the
+build args (baked into the image as `build_info.json` and OCI labels), and
+from there becomes the application's settings -- surfaced by `/health`, the
 `X-App-Version`/`X-Git-Commit`/`X-Build-Time` response headers, and the web
 UI. Nothing downstream recomputes these values independently.
 """

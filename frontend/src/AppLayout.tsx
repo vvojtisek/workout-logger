@@ -42,8 +42,8 @@ interface DeploymentInfo {
   commit: string;
 }
 
-/** Sourced from `/health`, itself backed by the same APP_VERSION/GIT_COMMIT
- * environment the Helm chart sets on the container -- see app/config.py. */
+/** Sourced from `/health`, itself backed by the APP_VERSION/GIT_COMMIT values
+ * baked into the image or set on the container -- see app/config.py. */
 function useDeploymentInfo(online: boolean): DeploymentInfo | null {
   const [info, setInfo] = useState<DeploymentInfo | null>(null);
   useEffect(() => {
