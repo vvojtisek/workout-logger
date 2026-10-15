@@ -17,7 +17,7 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
 
     await page.goto("/");
     await page.getByRole("button", { name: "Sleep" }).click();
-    await expect(page.getByRole("heading", { name: "Sleep" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sleep", exact: true })).toBeVisible();
 
     // Log a sleep entry entirely through the GUI.
     await page.getByRole("button", { name: "Log sleep" }).click();
@@ -31,7 +31,7 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
     await page.getByLabel("Resting heart rate (bpm, optional)").fill("58");
     await page.getByLabel("Notes (optional)").fill(`${tag} slept well`);
     await page.getByRole("button", { name: "Log sleep", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Sleep" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sleep", exact: true })).toBeVisible();
 
     const list = await request.get("/api/v1/sleep-entries?limit=100");
     /** @type {{items: Array<{id: string, notes: string | null, time_in_bed_seconds: number, sleep_date: string}>}} */
@@ -59,7 +59,7 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
     await expect(page.getByLabel("Went to bed")).toHaveValue("2032-04-10T23:00");
     await page.getByLabel("Woke up").fill("2032-04-11T08:00");
     await page.getByRole("button", { name: "Save changes" }).click();
-    await expect(page.getByRole("heading", { name: "Sleep" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sleep", exact: true })).toBeVisible();
 
     const afterEdit = await request.get(`/api/v1/sleep-entries/${entryId}`);
     expect((await afterEdit.json()).time_in_bed_seconds).toBe(32_400);
