@@ -7,6 +7,7 @@ import { useAppContext } from "@/AppLayout";
 import { Button, Card, PageHeading } from "@/ui";
 import { Dialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
+import { formatDate } from "@/lib/format";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -87,7 +88,7 @@ function ScheduleDialog({
   });
 
   return (
-    <Dialog open={open} onClose={onClose} title={`Schedule a workout${date ? ` — ${date}` : ""}`}>
+    <Dialog open={open} onClose={onClose} title={`Schedule a workout${date ? ` — ${formatDate(date)}` : ""}`}>
       <div className="flex flex-col gap-3">
         <div>
           <label className="field-label" htmlFor="schedule-plan">
@@ -198,7 +199,7 @@ function EntryDialog({
     <Dialog open={entry !== null} onClose={onClose} title={entry.workout_plan_name}>
       <div className="flex flex-col gap-3">
         <p className="text-sm text-muted">
-          {entry.program_name ? `${entry.program_name} · ` : ""}
+          {formatDate(entry.scheduled_date)} · {entry.program_name ? `${entry.program_name} · ` : ""}
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[entry.status]}`}>
             {STATUS_LABELS[entry.status]}
           </span>
