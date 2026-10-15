@@ -66,3 +66,13 @@ def test_release_checksum_verification_only_requires_downloaded_architecture(
     )
 
     assert failed_result.returncode != 0
+
+
+def test_pre_upgrade_backup_compose_loads_production_environment() -> None:
+    script = DEPLOY_SCRIPT.read_text()
+    backup_block = re.search(
+        r"(?ms)if \[\[ -f .*?scripts/backup_database\.py.*?^\s+fi", script
+    )
+    assert backup_block, "deployment script must back up the previous database before upgrade"
+    assert '--env-file "$previous_file"' in backup_block.group()
+    assert '--env-file "$app_dir/.env.production"' in backup_block.group()

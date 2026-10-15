@@ -117,7 +117,8 @@ if [[ -s "$release_file" ]]; then
 
   if [[ -f "$app_dir/data/workout_logger.db" ]]; then
     docker compose --project-name workout-logger \
-      --env-file "$previous_file" -f "$app_dir/compose.yaml" \
+      --env-file "$previous_file" --env-file "$app_dir/.env.production" \
+      -f "$app_dir/compose.yaml" \
       run --rm --no-deps --entrypoint python workout-logger \
       scripts/backup_database.py \
       --source-release "$previous_tag" \
