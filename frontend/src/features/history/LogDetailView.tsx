@@ -68,9 +68,12 @@ export function LogDetailView() {
             </Card>
             <ul className="flex flex-col gap-2">
               {log.exercises.map((exercise) => (
-                <li key={exercise.id} className="card p-3 text-sm" data-numeric>
-                  {exercise.exercise_name}: {exercise.reps_per_set.join(", ")} reps
-                  {exercise.weight_kg ? ` @ ${exercise.weight_kg}kg` : ""}
+                <li key={exercise.id} className="card p-3 text-sm">
+                  {exercise.exercise_name}:{" "}
+                  <span data-numeric>
+                    {exercise.reps_per_set.join(", ")} reps
+                    {exercise.weight_kg ? ` @ ${exercise.weight_kg}kg` : ""}
+                  </span>
                 </li>
               ))}
             </ul>

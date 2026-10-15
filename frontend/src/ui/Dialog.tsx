@@ -32,7 +32,7 @@ export function Dialog({
       ref={ref}
       onClose={onClose}
       aria-labelledby={titleId}
-      className="m-auto max-w-lg rounded-[var(--radius-lg)] border border-border-subtle bg-surface p-0 shadow-xl backdrop:bg-black/40"
+      className="m-auto max-w-lg rounded-[var(--radius-lg)] border border-line-muted bg-surface p-0 shadow-elevated backdrop:bg-black/40"
     >
       <div className="flex flex-col gap-4 p-5">
         <h2 id={titleId} className="text-lg font-semibold">

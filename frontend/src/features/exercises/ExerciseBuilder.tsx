@@ -47,8 +47,8 @@ function MuscleTagPicker({
               onClick={() => onToggle(tag)}
               className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
                 active
-                  ? "border-accent bg-accent text-white"
-                  : "border-border-subtle bg-surface text-muted hover:text-text"
+                  ? "border-accent bg-accent text-on-accent"
+                  : "border-line-muted bg-surface text-muted hover:text-main"
               }`}
               style={{ minHeight: "var(--touch)" }}
             >

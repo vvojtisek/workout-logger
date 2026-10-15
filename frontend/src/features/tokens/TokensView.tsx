@@ -71,7 +71,7 @@ export function TokensView() {
             <p className="mt-1 text-sm text-muted">
               This is the only time the full secret is shown. It cannot be recovered later.
             </p>
-            <code className="mt-3 block break-all rounded-md bg-surface-raised p-3 text-sm">
+            <code className="mt-3 block break-all rounded-md bg-elevated p-3 text-sm">
               {newToken}
             </code>
             <Button className="mt-3" variant="primary" onClick={dismissNewToken}>

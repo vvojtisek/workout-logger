@@ -3,9 +3,16 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 
+import "@fontsource-variable/inter";
+import "@fontsource-variable/jetbrains-mono";
+
 import { AuthProvider } from "@/auth/AuthContext";
+import { themeController } from "@/lib/theme";
 import { router } from "@/router";
 import "@/styles/tokens.css";
+
+// Before the first render, so a stored Light choice never flashes dark.
+themeController().start();
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -51,7 +51,7 @@ export function HistoryView() {
             <button
               type="button"
               onClick={() => void navigate(`/history/${log.id}`)}
-              className="card w-full p-4 text-left transition-colors hover:bg-surface-sunken"
+              className="card w-full p-4 text-left transition-colors hover:bg-subtle"
             >
               <p className="font-medium">{logTitle(log)}</p>
               <p className="mt-0.5 text-sm text-muted" data-numeric>

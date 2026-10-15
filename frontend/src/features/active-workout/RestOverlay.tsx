@@ -44,7 +44,7 @@ export function RestOverlay({
   return (
     <aside
       id="active-rest-overlay"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-border-subtle bg-surface-raised shadow-lg pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-line-muted bg-elevated shadow-lg pb-[env(safe-area-inset-bottom)]"
     >
       <div className="mx-auto flex max-w-3xl flex-col gap-2 px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
