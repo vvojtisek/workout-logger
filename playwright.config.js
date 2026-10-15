@@ -9,6 +9,8 @@ const MOBILE_SPECS = [
   "settings.spec.js",
   "build-version.spec.js",
   "auth.spec.js",
+  "active-workout.spec.js",
+  "workout-hud.spec.js",
 ];
 
 export default defineConfig({

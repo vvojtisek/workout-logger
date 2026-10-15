@@ -398,6 +398,14 @@ function MobileShell({
 }: ShellProps) {
   const current = sectionForPath(MOBILE_SECTIONS, pathname);
   const inWorkout = pathname === WORKOUT_PATH;
+  // The live workout is a full-screen HUD: no top bar, no tabs.
+  if (inWorkout) {
+    return (
+      <main className="h-dvh overflow-hidden">
+        <Outlet />
+      </main>
+    );
+  }
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-line-muted bg-surface px-4">

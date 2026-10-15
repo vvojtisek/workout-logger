@@ -1,7 +1,32 @@
 import { useEffect, useState } from "react";
 
 import { restTimerState } from "@/lib/active-workout-state";
+import { remainingTimeSeconds } from "@/lib/workout-utils";
 import type { SynchronizationState } from "@/lib/active-workout-state";
+
+/** Ticks once a second while mounted. Remaining time is always derived from
+ * the server's absolute `rest_ends_at`, so backgrounding, reloading, or a slow
+ * tick can never drift the timer. */
+export function useRestCountdown(restEndsAt: string | null) {
+  const [now, setNow] = useState(() => new Date());
+
+  // Resynchronise the instant rest starts, changes, or is skipped - not just on
+  // the next tick. Without the immediate resync the first frame after a set is
+  // saved would count down from a `now` captured when the overlay mounted,
+  // briefly showing more time remaining than there actually is.
+  useEffect(() => {
+    setNow(new Date());
+    const handle = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(handle);
+  }, [restEndsAt]);
+
+  const state = restTimerState(restEndsAt, now);
+  return {
+    state,
+    expired: state.status === "expired",
+    remainingSeconds: remainingTimeSeconds(restEndsAt, now),
+  };
+}
 
 /**
  * The rest countdown owns its own one-second tick so that ticking re-renders
@@ -24,20 +49,7 @@ export function RestOverlay({
   onSkip: () => void;
   onRetrySync: () => void;
 }) {
-  const [now, setNow] = useState(() => new Date());
-
-  // Resynchronise the instant rest starts, changes, or is skipped - not just on
-  // the next tick. Without the immediate resync the first frame after a set is
-  // saved would count down from a `now` captured when the overlay mounted,
-  // briefly showing more time remaining than there actually is.
-  useEffect(() => {
-    setNow(new Date());
-    const handle = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(handle);
-  }, [restEndsAt]);
-
-  const state = restTimerState(restEndsAt, now);
-  const expired = state.status === "expired";
+  const { state, expired } = useRestCountdown(restEndsAt);
   const label = restWasSkipped && !restEndsAt ? "Rest skipped" : state.label;
   const canAdjust = Boolean(restEndsAt);
 
