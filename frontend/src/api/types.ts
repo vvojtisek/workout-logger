@@ -65,6 +65,22 @@ export interface WorkoutSession extends GridSession {
   exercises: SessionExercise[];
 }
 
+export interface ExerciseStats {
+  exercise_name: string;
+  sessions_count: number;
+  last_performed_at: string | null;
+  last_weight_kg: number | null;
+  last_reps_per_set: number[] | null;
+  best_weight_kg: number | null;
+  best_weight_reps: number | null;
+  estimated_one_rep_max_kg: number | null;
+  trend: "up" | "down" | "flat" | null;
+}
+
+export interface ExerciseStatsResponse {
+  items: ExerciseStats[];
+}
+
 export interface ExerciseLog {
   id: string;
   exercise_name: string;

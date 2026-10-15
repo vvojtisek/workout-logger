@@ -4,6 +4,7 @@ from app.api.v1 import (
     api_tokens,
     body_metrics,
     calendar,
+    exercise_stats,
     exercises,
     export,
     foods,
@@ -31,6 +32,7 @@ api_router.include_router(users.router)
 api_router.include_router(plans.router)
 api_router.include_router(exercises.router)
 api_router.include_router(logs.router)
+api_router.include_router(exercise_stats.router)
 api_router.include_router(workout_sessions.router)
 api_router.include_router(programs.router)
 api_router.include_router(scheduled_workouts.router)

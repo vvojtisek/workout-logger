@@ -65,6 +65,9 @@ test("starts, saves, resumes, completes, and cleans up a real active workout", a
 
     await expect(page.getByRole("heading", { name: `${tag} Bench Press` })).toBeVisible();
     await expect(page.getByText("Suggested from history · not saved")).toBeVisible();
+    // Exercise stats are computed by the real API from the prior history fixture.
+    await expect(page.locator(".exercise-stats")).toContainText("Best 47.5 kg × 7");
+    await expect(page.locator(".exercise-stats")).toContainText("e1RM 58.5 kg");
     await expect(page.getByLabel("Weight (kg)")).toHaveValue("47.5");
     await expect(page.getByLabel("Repetitions")).toHaveValue("7");
 
