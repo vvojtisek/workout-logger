@@ -11,7 +11,17 @@ rm -f /data/.write_test
 case "${RUN_MIGRATIONS_ON_STARTUP:-true}" in
   true)
     echo "[entrypoint] 3/4 running database migrations..."
-    alembic upgrade head
+    # After a rollback the database may be at a newer release's revision,
+    # which this image cannot upgrade from; run on it unchanged instead.
+    set +e
+    python -m app.schema_guard
+    guard_status=$?
+    set -e
+    case "$guard_status" in
+      0) alembic upgrade head ;;
+      10) echo "[entrypoint] 3/4 database schema is newer than this release; leaving it as is." ;;
+      *) exit "$guard_status" ;;
+    esac
     ;;
   false)
     echo "[entrypoint] 3/4 Skipping database migrations; managed by release job."

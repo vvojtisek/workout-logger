@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  GitHub Actions OIDC role that lets the "Deploy release to AWS EC2 through SSM"
+  workflow run the release deploy script on the Workout Logger EC2 host. It can
+  send one SSM document to one instance and read the result; nothing else.
+
+Parameters:
+  CreateGitHubOidcProvider:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+    Description: >-
+      Set to "false" if this AWS account already has the
+      token.actions.githubusercontent.com OIDC provider (an account can have
+      only one).
+  InstanceId:
+    Type: String
+    Default: i-08abc66a2687aed45
+    AllowedPattern: "i-[0-9a-f]{8,17}"
+    Description: EC2 instance that runs Workout Logger.
+  Repository:
+    Type: String
+    Default: vvojtisek/workout-logger
+    Description: GitHub repository allowed to assume the role.
+
+Conditions:
+  CreateProvider:
+    Fn::Equals: [Ref: CreateGitHubOidcProvider, "true"]
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Deploys Workout Logger releases through SSM from GitHub Actions.
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated:
+                Fn::If:
+                  - CreateProvider
+                  - Ref: GitHubOidcProvider
+                  - Fn::Sub: arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub:
+                  Fn::Sub: repo:${Repository}:environment:production
+      Policies:
+        - PolicyName: send-release-deploy-command
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: RunTheDeployScriptOnTheAppHostOnly
+                Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - Fn::Sub: arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${InstanceId}
+                  - Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}::document/AWS-RunShellScript
+              - Sid: ReadTheCommandResult
+                Effect: Allow
+                Action: ssm:GetCommandInvocation
+                Resource: "*"
+
+Outputs:
+  DeployRoleArn:
+    Description: Set this as the AWS_DEPLOY_ROLE_ARN repository variable in GitHub.
+    Value:
+      Fn::GetAtt: [DeployRole, Arn]

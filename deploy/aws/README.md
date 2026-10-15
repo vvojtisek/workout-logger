@@ -37,15 +37,29 @@ workflow only after the GitHub `production` environment permits it and the
    directory first and edit the secret file interactively (for example with
    `sudoedit`) so the API key does not enter shell history. Do not put
    credentials in GitHub Actions variables or release assets.
-6. Set the GitHub repository variable `AWS_DEPLOY_ROLE_ARN`. Configure the
-   `production` environment with the desired reviewer gate. The role trust
-   policy must trust `token.actions.githubusercontent.com`, the audience
-   `sts.amazonaws.com`, and repository `vvojtisek/workout-logger`; restrict
-   the subject to the repository's `production` environment.
-7. Grant the role `ssm:SendCommand` only for
-   `AWS-RunShellScript` and instance `i-08abc66a2687aed45`, plus
-   `ssm:GetCommandInvocation` on `*` as required by that SSM API.
-   Do not grant EC2 or security-group mutation permissions.
+6. Create the GitHub deploy role with
+   [`github-deploy-role.yaml`](github-deploy-role.yaml). It trusts only the
+   `production` environment of `vvojtisek/workout-logger` through GitHub OIDC
+   and may only send `AWS-RunShellScript` to `i-08abc66a2687aed45` and read
+   the result; it has no EC2 or security-group permissions. From a workstation
+   with admin credentials for the account:
+
+   ```bash
+   aws cloudformation deploy --region eu-central-1 \
+     --stack-name workout-logger-github-deploy \
+     --template-file deploy/aws/github-deploy-role.yaml \
+     --capabilities CAPABILITY_IAM
+   aws cloudformation describe-stacks --region eu-central-1 \
+     --stack-name workout-logger-github-deploy \
+     --query "Stacks[0].Outputs[?OutputKey=='DeployRoleArn'].OutputValue" --output text
+   ```
+
+   If the account already has the `token.actions.githubusercontent.com` OIDC
+   provider, add `--parameter-overrides CreateGitHubOidcProvider=false`.
+7. Set the printed ARN as the `AWS_DEPLOY_ROLE_ARN` repository variable
+   (`gh variable set AWS_DEPLOY_ROLE_ARN --body <arn>`), and optionally add a
+   required reviewer to the `production` environment. Until this variable is
+   set, the deploy workflow is skipped.
 8. Protect the `v*` tag pattern with a GitHub ruleset that blocks tag updates
    and deletion. Release tags identify immutable image versions.
 
@@ -87,6 +101,22 @@ The tagged-release workflow builds and publishes the ARM64 image, then creates
 the downloadable GitHub Release and dispatches the SSM deployment workflow. A
 maintainer can also select **Deploy release to AWS EC2 through SSM** in GitHub
 Actions and enter an existing release tag.
+
+To roll back, or to redeploy a release after fixing something on the host,
+deploy any earlier release tag:
+
+```bash
+gh workflow run deploy-aws.yml --ref main -f release_tag=v2.0.2
+```
+
+The deploy script backs up the database before migration-bearing upgrades and
+restores the previous image if the new one fails its readiness check. Rolling
+back keeps the newer database schema, which is why migrations must stay
+backward-compatible with the previous release. From v2.1.0 on, an image that
+starts on a schema newer than it knows skips `alembic upgrade` instead of
+crash-looping (`app/schema_guard.py`). Releases up to v2.0.2 lack that guard:
+to go back to one of them after a newer release migrated the database, restore
+the pre-upgrade backup from `/srv/workout-logger/backups` first.
 
 After the first deployment, bootstrap the administrator in an interactive SSM
 session so the password is entered at the script prompt rather than stored in
