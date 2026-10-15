@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { NutritionDailySummary } from "@/api/types";
 import { Button, Card, PageHeading } from "@/ui";
+import { formatDate } from "@/lib/format";
 
 function pad(value: number): string {
   return String(value).padStart(2, "0");
@@ -76,7 +77,7 @@ export function NutritionDashboardView() {
         <Button aria-label="Previous day" onClick={() => setDate((d) => addDays(d, -1))}>
           ← Prev
         </Button>
-        <h3 className="font-medium">{date}</h3>
+        <h3 className="font-medium">{formatDate(date)}</h3>
         <Button aria-label="Next day" onClick={() => setDate((d) => addDays(d, 1))}>
           Next →
         </Button>

@@ -12,6 +12,7 @@ import {
 } from "@/lib/program-templates";
 import { toast } from "@/ui/Toast";
 import { Button, Card, Input } from "@/ui";
+import { formatDate } from "@/lib/format";
 
 function TemplateCard({
   template,
@@ -43,7 +44,7 @@ function TemplateCard({
         },
       );
       toast.success(
-        `Added "${result.program.name}": ${result.scheduled_count} sessions from ${result.program.start_date}`,
+        `Added "${result.program.name}": ${result.scheduled_count} sessions from ${formatDate(result.program.start_date)}`,
       );
       onInstalled();
     } catch (err) {
