@@ -7,6 +7,8 @@ import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { Button, EmptyState, PageHeading } from "@/ui";
 
+import { ProgramTemplates } from "./ProgramTemplates";
+
 const STATUS_LABELS: Record<Program["status"], string> = {
   active: "Active",
   completed: "Completed",
@@ -63,7 +65,7 @@ export function ProgramsView() {
           <li>
             <EmptyState
               title="No programs yet"
-              description="Tap 'New program' to define a training block, e.g. 'Hypertrophy' or 'Hockey Pre-Season'."
+              description="Tap 'New program', or add a ready-made program below."
             />
           </li>
         ) : null}
@@ -89,6 +91,8 @@ export function ProgramsView() {
           </li>
         ))}
       </ul>
+
+      <ProgramTemplates onInstalled={() => void load()} />
 
       <ConfirmDialog
         open={deleteTarget !== null}

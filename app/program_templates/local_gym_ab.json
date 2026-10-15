@@ -1,0 +1,222 @@
+{
+  "key": "local-gym-ab",
+  "name": "Local gym A/B: hockey strength and shoulder tolerance",
+  "kind": "Strength block",
+  "location": "Local gym",
+  "summary": "12 full-body sessions, at most 2 a week, alternating A (bilateral and posterior chain) and B (single-leg and hip control).",
+  "notes": "12 full-body sessions for hockey strength and shoulder tolerance.\n\nStructure: at most 2 gym visits a week. Alternate A and B whenever you attend, normally with at least 48 hours between gym sessions. If you miss a visit, continue the sequence without catching up. Progress by recovery and symptoms, not by elapsed time.\n\nPriorities: leg and hip strength for skating; single-leg strength and pelvic control; hamstring and adductor capacity; upper-back, rotator-cuff and scapular control; keep pressing strength without disproportionate pressing volume; preserve muscle during weight loss.\n\nEvery session, prepare with: easy stationary cycling; dynamic hip and ankle mobility; your prescribed shoulder preparation; a progressive exercise-specific warm-up.\n\nShoulders: build capacity rather than just pulling the shoulders back. Each session has one row and one extra back or rear-shoulder exercise alongside one press; this balance is a programming choice, not a proven injury-prevention ratio. Let the shoulder blades move naturally; do not force them back and down on every exercise. Integrate your prescribed rehab exercises without duplicating their workload. Optional support work where compatible with your rehab: supported cable or band external rotation (rotator cuff), serratus wall slide (upward rotation and control). Modify aggravating exercises: shoulder pain, movement and function should not be worse the next morning. Returning night pain, restricted movement or new weakness needs clinical reassessment.\n\nHockey: avoid demanding leg training immediately before hockey, and reduce lower-body demand when training within the 24 hours before.",
+  "plans": [
+    {
+      "key": "A",
+      "name": "Local gym A: bilateral strength and posterior chain",
+      "description": "Bilateral strength and posterior chain. Alternate with B.",
+      "exercises": [
+        {
+          "exercise_name": "Leg press",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 120,
+          "notes": "Quadriceps and glute strength. Sets and reps are a starting default (the source plan says they are still to follow): stop with 2-3 reps in reserve and choose loads you can repeat with good technique. "
+        },
+        {
+          "exercise_name": "Dumbbell Romanian deadlift",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 120,
+          "notes": "Hamstrings and hip-extension strength. Swap: cable pull-through if holding dumbbells aggravates the shoulders."
+        },
+        {
+          "exercise_name": "Chest-supported row",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Upper-back strength with limited trunk fatigue."
+        },
+        {
+          "exercise_name": "Neutral-grip dumbbell floor press",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Pressing strength with a limited bottom range. Use a tolerated grip and range; your 80+ kg bench does not set the starting load. Swap: whichever press is better tolerated, or omit temporarily."
+        },
+        {
+          "exercise_name": "Reverse pec deck",
+          "exercise_kind": "strength",
+          "target_sets": 2,
+          "target_reps_min": 12,
+          "target_reps_max": 15,
+          "target_weight_kg": null,
+          "rest_time_seconds": 60,
+          "notes": "Rear-deltoid and scapular-retractor capacity. Swap: comfortable cable reverse fly, or omit if aggravating."
+        },
+        {
+          "exercise_name": "Hip adductor machine",
+          "exercise_kind": "strength",
+          "target_sets": 2,
+          "target_reps_min": 10,
+          "target_reps_max": 15,
+          "target_weight_kg": null,
+          "rest_time_seconds": 60,
+          "notes": "Inner-thigh strength relevant to hockey."
+        },
+        {
+          "exercise_name": "Pallof press",
+          "exercise_kind": "strength",
+          "target_sets": 2,
+          "target_reps_min": 8,
+          "target_reps_max": 10,
+          "target_weight_kg": null,
+          "rest_time_seconds": 60,
+          "notes": "Trunk resistance to rotation; reps per side. Swap: dead bug if the cable position irritates the shoulder."
+        }
+      ]
+    },
+    {
+      "key": "B",
+      "name": "Local gym B: single-leg strength and hip control",
+      "description": "Single-leg strength and hip control. Alternate with A.",
+      "exercises": [
+        {
+          "exercise_name": "Supported split squat",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 120,
+          "notes": "Single-leg strength and pelvic control; reps per leg. Swap: single-leg leg press if balance or holding weights is limiting. Sets and reps are a starting default (the source plan says they are still to follow): stop with 2-3 reps in reserve and choose loads you can repeat with good technique. "
+        },
+        {
+          "exercise_name": "Hip-thrust machine",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 120,
+          "notes": "Hip-extension strength."
+        },
+        {
+          "exercise_name": "Seated cable row with independent handles",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Back strength through a comfortable shoulder path."
+        },
+        {
+          "exercise_name": "Neutral-grip chest-press machine",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Controlled pressing with an adjustable starting position. Swap: whichever press is better tolerated, or omit temporarily."
+        },
+        {
+          "exercise_name": "Neutral-grip lat pulldown",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Vertical pulling in front, through a tolerated overhead range. Swap: supported row if overhead pulling aggravates symptoms."
+        },
+        {
+          "exercise_name": "Hip adductor machine",
+          "exercise_kind": "strength",
+          "target_sets": 2,
+          "target_reps_min": 10,
+          "target_reps_max": 15,
+          "target_weight_kg": null,
+          "rest_time_seconds": 60,
+          "notes": "Consistent progressive adductor training."
+        },
+        {
+          "exercise_name": "Dead bug",
+          "exercise_kind": "bodyweight",
+          "target_sets": 2,
+          "target_reps_min": 6,
+          "target_reps_max": 10,
+          "target_weight_kg": null,
+          "rest_time_seconds": 60,
+          "notes": "Trunk control during limb movement; reps per side."
+        }
+      ]
+    }
+  ],
+  "schedule": {
+    "type": "sequence",
+    "max_sessions_per_week": 2,
+    "default_weekdays": [
+      0,
+      2
+    ],
+    "sessions": [
+      {
+        "plan": "A",
+        "note": "Session 1 of 12: Establish comfortable ranges and baseline tolerance."
+      },
+      {
+        "plan": "B",
+        "note": "Session 2 of 12: Establish single-leg control and machine settings."
+      },
+      {
+        "plan": "A",
+        "note": "Session 3 of 12: Repeat baseline and assess recovery."
+      },
+      {
+        "plan": "B",
+        "note": "Session 4 of 12: Confirm tolerance before progression."
+      },
+      {
+        "plan": "A",
+        "note": "Session 5 of 12: Begin gradual strength progression."
+      },
+      {
+        "plan": "B",
+        "note": "Session 6 of 12: Develop single-leg and hip strength."
+      },
+      {
+        "plan": "A",
+        "note": "Session 7 of 12: Progress legs and upper back while controlling pressing demand."
+      },
+      {
+        "plan": "B",
+        "note": "Session 8 of 12: Consolidate unilateral strength and adductor tolerance."
+      },
+      {
+        "plan": "A",
+        "note": "Session 9 of 12: Continue progression where symptoms and technique remain stable."
+      },
+      {
+        "plan": "B",
+        "note": "Session 10 of 12: Develop strength while preserving hockey recovery."
+      },
+      {
+        "plan": "A",
+        "note": "Session 11 of 12: Compare with session 1 without maximum testing."
+      },
+      {
+        "plan": "B",
+        "note": "Session 12 of 12: Compare with session 2 and select the next training block."
+      }
+    ]
+  }
+}

@@ -16,6 +16,7 @@ from app.api.v1 import (
     nutrition_dashboard,
     nutrition_plans,
     plans,
+    program_templates,
     programs,
     scheduled_workouts,
     settings,
@@ -35,6 +36,7 @@ api_router.include_router(logs.router)
 api_router.include_router(exercise_stats.router)
 api_router.include_router(workout_sessions.router)
 api_router.include_router(programs.router)
+api_router.include_router(program_templates.router)
 api_router.include_router(scheduled_workouts.router)
 api_router.include_router(calendar.router)
 api_router.include_router(body_metrics.router)

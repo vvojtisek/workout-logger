@@ -16,6 +16,7 @@ class ScheduledWorkoutCreate(BaseModel):
     program_id: UUID | None = None
     workout_plan_id: UUID
     scheduled_date: date
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class ScheduledWorkoutUpdate(BaseModel):
@@ -32,6 +33,7 @@ class ScheduledWorkoutRead(OrmModel):
     workout_plan_name: str
     scheduled_date: date
     status: ScheduledWorkoutStatus
+    notes: str | None
     workout_session_id: UUID | None
     created_at: datetime
     updated_at: datetime

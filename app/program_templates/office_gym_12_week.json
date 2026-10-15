@@ -1,0 +1,666 @@
+{
+  "key": "office-gym-12-week",
+  "name": "Office gym 12-week strength and hypertrophy (hockey-adjusted)",
+  "kind": "Strength block",
+  "location": "Office gym",
+  "summary": "12 weeks, Monday to Wednesday: lower body, upper push and pull, upper hypertrophy. Three 4-week phases with deloads in weeks 4 and 8.",
+  "notes": "3-month office gym strength and hypertrophy plan, adjusted for hockey.\n\nDays: Monday (A, lower body and core), Tuesday (B, upper push and pull), Wednesday (C, upper hypertrophy, arms and prehab). Thursday and Saturday are ice hockey; Sunday is active recovery (swim and sauna). Monday carries the heavy lower-body work after Sunday recovery; Wednesday avoids heavy posterior-chain and spinal loading before Thursday hockey.\n\nEquipment: barbell, dumbbells, EZ-bar, flat/incline bench, ab roller.\n\nMonth 1, accumulation (weeks 1-4): compounds 8-10 reps, accessories 12-15, core 10-12, RPE about 7.5, rest 120 s compound / 75 s accessory.\nMonth 2, intensification (weeks 5-8): compounds 6-8, accessories 10-12, core 12-15, RPE about 8, rest 150 s / 90 s.\nMonth 3, peak strength (weeks 9-12): compounds 5-6, accessories 8-12, core 15, RPE about 8.5, rest 180 s / 75 s.\nWeeks 4 and 8 are deloads; week 12 is a taper. Each calendar session carries that week's load and set instruction.",
+  "plans": [
+    {
+      "key": "M1A",
+      "name": "Office M1 Day A: lower body and core",
+      "description": "Month 1 (accumulation and volume base), target RPE 7.5. Hypertrophy, tendon conditioning and work capacity without CNS burnout.",
+      "exercises": [
+        {
+          "exercise_name": "Barbell Romanian deadlift",
+          "exercise_kind": "strength",
+          "target_sets": 4,
+          "target_reps_min": 8,
+          "target_reps_max": 10,
+          "target_weight_kg": 65.0,
+          "rest_time_seconds": 120,
+          "notes": "Controlled 3 s eccentric; stop just below the knee to keep hamstring tension and protect the lower back."
+        },
+        {
+          "exercise_name": "Dumbbell Bulgarian split squat",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 10,
+          "target_weight_kg": 16.0,
+          "rest_time_seconds": 120,
+          "notes": "Weight is per hand (month 1 base 16 kg). Reps per leg. Slight forward torso lean to mimic the skating stride and recruit the glutes."
+        },
+        {
+          "exercise_name": "Dumbbell goblet squat",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 10,
+          "target_weight_kg": 20.0,
+          "rest_time_seconds": 120,
+          "notes": "Deep range of motion, 1 s pause at the bottom."
+        },
+        {
+          "exercise_name": "Standing dumbbell calf raise",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 12,
+          "target_reps_max": 15,
+          "target_weight_kg": 20.0,
+          "rest_time_seconds": 75,
+          "notes": "Weight is per hand (month 1 base 20 kg). 1 s peak contraction at the top."
+        },
+        {
+          "exercise_name": "Ab roller rollout",
+          "exercise_kind": "bodyweight",
+          "target_sets": 4,
+          "target_reps_min": 10,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 75,
+          "notes": "Keep a posterior pelvic tilt throughout; do not let the lower back sag."
+        }
+      ]
+    },
+    {
+      "key": "M1B",
+      "name": "Office M1 Day B: upper body push and pull",
+      "description": "Month 1 (accumulation and volume base), target RPE 7.5. Hypertrophy, tendon conditioning and work capacity without CNS burnout.",
+      "exercises": [
+        {
+          "exercise_name": "Barbell bench press",
+          "exercise_kind": "strength",
+          "target_sets": 4,
+          "target_reps_min": 8,
+          "target_reps_max": 10,
+          "target_weight_kg": 70.0,
+          "rest_time_seconds": 120,
+          "notes": "Retracted scapula, controlled touch on the lower chest, explosive press."
+        },
+        {
+          "exercise_name": "EZ-bar bent-over row",
+          "exercise_kind": "strength",
+          "target_sets": 4,
+          "target_reps_min": 8,
+          "target_reps_max": 10,
+          "target_weight_kg": 55.0,
+          "rest_time_seconds": 120,
+          "notes": "Underhand or semi-supinated grip; pull toward the hips or lower abdomen."
+        },
+        {
+          "exercise_name": "Seated dumbbell Arnold press",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 12,
+          "target_reps_max": 15,
+          "target_weight_kg": 16.0,
+          "rest_time_seconds": 75,
+          "notes": "Weight is per hand (month 1 base 16 kg). Smooth rotational path; avoid locking the elbows at the top."
+        },
+        {
+          "exercise_name": "Lying EZ-bar pullover",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 12,
+          "target_reps_max": 15,
+          "target_weight_kg": 25.0,
+          "rest_time_seconds": 75,
+          "notes": "Slight bend in the elbows; focus on the thoracic and lat stretch."
+        },
+        {
+          "exercise_name": "Dumbbell farmer's walk or static hold",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 1,
+          "target_reps_max": 1,
+          "target_weight_kg": 24.0,
+          "rest_time_seconds": 75,
+          "notes": "Weight is per hand (month 1 base 24 kg). One rep = one 45-60 s walk or hold, for grip and forearm endurance."
+        }
+      ]
+    },
+    {
+      "key": "M1C",
+      "name": "Office M1 Day C: upper hypertrophy, arms and prehab",
+      "description": "Month 1 (accumulation and volume base), target RPE 7.5. Hypertrophy, tendon conditioning and work capacity without CNS burnout.",
+      "exercises": [
+        {
+          "exercise_name": "Incline dumbbell bench press",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 10,
+          "target_weight_kg": 22.0,
+          "rest_time_seconds": 120,
+          "notes": "Weight is per hand (month 1 base 22 kg). 30-degree bench; full stretch at the bottom."
+        },
+        {
+          "exercise_name": "Chest-supported dumbbell row",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 10,
+          "target_weight_kg": 24.0,
+          "rest_time_seconds": 120,
+          "notes": "Weight is per hand (month 1 base 24 kg). Or single-arm bench row. Chest or bench support spares the lower back before Thursday skating."
+        },
+        {
+          "exercise_name": "Dumbbell lateral raise",
+          "exercise_kind": "strength",
+          "target_sets": 4,
+          "target_reps_min": 12,
+          "target_reps_max": 15,
+          "target_weight_kg": 10.0,
+          "rest_time_seconds": 75,
+          "notes": "Weight is per hand (month 1 base 10 kg). Strict, slightly forward (scapular plane), no momentum."
+        },
+        {
+          "exercise_name": "EZ-bar biceps curl",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 12,
+          "target_reps_max": 15,
+          "target_weight_kg": 30.0,
+          "rest_time_seconds": 75,
+          "notes": "Elbows pinned to the sides, 2 s lowering."
+        },
+        {
+          "exercise_name": "Lying EZ-bar triceps extension",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 12,
+          "target_reps_max": 15,
+          "target_weight_kg": 27.5,
+          "rest_time_seconds": 75,
+          "notes": "Skullcrusher: lower the bar slightly behind the crown of the head."
+        },
+        {
+          "exercise_name": "Ab roller rollout or weighted plank",
+          "exercise_kind": "bodyweight",
+          "target_sets": 3,
+          "target_reps_min": 10,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 75,
+          "notes": "Stop 2-3 reps short of failure (RPE 7) so the trunk is fresh for Thursday."
+        }
+      ]
+    },
+    {
+      "key": "M2A",
+      "name": "Office M2 Day A: lower body and core",
+      "description": "Month 2 (strength-hypertrophy intensification), target RPE 8. More mechanical tension on the primary lifts (bench, RDL, rows) while keeping leg soreness low by Thursday.",
+      "exercises": [
+        {
+          "exercise_name": "Barbell Romanian deadlift",
+          "exercise_kind": "strength",
+          "target_sets": 4,
+          "target_reps_min": 6,
+          "target_reps_max": 8,
+          "target_weight_kg": null,
+          "rest_time_seconds": 150,
+          "notes": "Month 1 base was 65 kg; follow this week's note. Controlled 3 s eccentric; stop just below the knee to keep hamstring tension and protect the lower back."
+        },
+        {
+          "exercise_name": "Dumbbell Bulgarian split squat",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 6,
+          "target_reps_max": 8,
+          "target_weight_kg": null,
+          "rest_time_seconds": 150,
+          "notes": "Weight is per hand. Reps per leg. Slight forward torso lean to mimic the skating stride and recruit the glutes."
+        },
+        {
+          "exercise_name": "Dumbbell goblet squat",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 6,
+          "target_reps_max": 8,
+          "target_weight_kg": null,
+          "rest_time_seconds": 150,
+          "notes": "Month 1 base was 20 kg; follow this week's note. Deep range of motion, 1 s pause at the bottom."
+        },
+        {
+          "exercise_name": "Standing dumbbell calf raise",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 10,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Weight is per hand. 1 s peak contraction at the top."
+        },
+        {
+          "exercise_name": "Ab roller rollout",
+          "exercise_kind": "bodyweight",
+          "target_sets": 4,
+          "target_reps_min": 12,
+          "target_reps_max": 15,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Keep a posterior pelvic tilt throughout; do not let the lower back sag."
+        }
+      ]
+    },
+    {
+      "key": "M2B",
+      "name": "Office M2 Day B: upper body push and pull",
+      "description": "Month 2 (strength-hypertrophy intensification), target RPE 8. More mechanical tension on the primary lifts (bench, RDL, rows) while keeping leg soreness low by Thursday.",
+      "exercises": [
+        {
+          "exercise_name": "Barbell bench press",
+          "exercise_kind": "strength",
+          "target_sets": 4,
+          "target_reps_min": 6,
+          "target_reps_max": 8,
+          "target_weight_kg": null,
+          "rest_time_seconds": 150,
+          "notes": "Month 1 base was 70 kg; follow this week's note. Retracted scapula, controlled touch on the lower chest, explosive press."
+        },
+        {
+          "exercise_name": "EZ-bar bent-over row",
+          "exercise_kind": "strength",
+          "target_sets": 4,
+          "target_reps_min": 6,
+          "target_reps_max": 8,
+          "target_weight_kg": null,
+          "rest_time_seconds": 150,
+          "notes": "Month 1 base was 55 kg; follow this week's note. Underhand or semi-supinated grip; pull toward the hips or lower abdomen."
+        },
+        {
+          "exercise_name": "Seated dumbbell Arnold press",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 10,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Weight is per hand. Smooth rotational path; avoid locking the elbows at the top."
+        },
+        {
+          "exercise_name": "Lying EZ-bar pullover",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 10,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Month 1 base was 25 kg; follow this week's note. Slight bend in the elbows; focus on the thoracic and lat stretch."
+        },
+        {
+          "exercise_name": "Dumbbell farmer's walk or static hold",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 1,
+          "target_reps_max": 1,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Weight is per hand. One rep = one 45-60 s walk or hold, for grip and forearm endurance."
+        }
+      ]
+    },
+    {
+      "key": "M2C",
+      "name": "Office M2 Day C: upper hypertrophy, arms and prehab",
+      "description": "Month 2 (strength-hypertrophy intensification), target RPE 8. More mechanical tension on the primary lifts (bench, RDL, rows) while keeping leg soreness low by Thursday.",
+      "exercises": [
+        {
+          "exercise_name": "Incline dumbbell bench press",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 6,
+          "target_reps_max": 8,
+          "target_weight_kg": null,
+          "rest_time_seconds": 150,
+          "notes": "Weight is per hand. 30-degree bench; full stretch at the bottom."
+        },
+        {
+          "exercise_name": "Chest-supported dumbbell row",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 6,
+          "target_reps_max": 8,
+          "target_weight_kg": null,
+          "rest_time_seconds": 150,
+          "notes": "Weight is per hand. Or single-arm bench row. Chest or bench support spares the lower back before Thursday skating."
+        },
+        {
+          "exercise_name": "Dumbbell lateral raise",
+          "exercise_kind": "strength",
+          "target_sets": 4,
+          "target_reps_min": 10,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Weight is per hand. Strict, slightly forward (scapular plane), no momentum."
+        },
+        {
+          "exercise_name": "EZ-bar biceps curl",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 10,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Month 1 base was 30 kg; follow this week's note. Elbows pinned to the sides, 2 s lowering."
+        },
+        {
+          "exercise_name": "Lying EZ-bar triceps extension",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 10,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Month 1 base was 27.5 kg; follow this week's note. Skullcrusher: lower the bar slightly behind the crown of the head."
+        },
+        {
+          "exercise_name": "Ab roller rollout or weighted plank",
+          "exercise_kind": "bodyweight",
+          "target_sets": 3,
+          "target_reps_min": 12,
+          "target_reps_max": 15,
+          "target_weight_kg": null,
+          "rest_time_seconds": 90,
+          "notes": "Stop 2-3 reps short of failure (RPE 7) so the trunk is fresh for Thursday."
+        }
+      ]
+    },
+    {
+      "key": "M3A",
+      "name": "Office M3 Day A: lower body and core",
+      "description": "Month 3 (peak strength and work capacity), target RPE 8.5. Peak force on the primary lifts and high metabolic efficiency on accessories.",
+      "exercises": [
+        {
+          "exercise_name": "Barbell Romanian deadlift",
+          "exercise_kind": "strength",
+          "target_sets": 4,
+          "target_reps_min": 5,
+          "target_reps_max": 6,
+          "target_weight_kg": null,
+          "rest_time_seconds": 180,
+          "notes": "Month 1 base was 65 kg; follow this week's note. Controlled 3 s eccentric; stop just below the knee to keep hamstring tension and protect the lower back."
+        },
+        {
+          "exercise_name": "Dumbbell Bulgarian split squat",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 5,
+          "target_reps_max": 6,
+          "target_weight_kg": null,
+          "rest_time_seconds": 180,
+          "notes": "Weight is per hand. Reps per leg. Slight forward torso lean to mimic the skating stride and recruit the glutes."
+        },
+        {
+          "exercise_name": "Dumbbell goblet squat",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 5,
+          "target_reps_max": 6,
+          "target_weight_kg": null,
+          "rest_time_seconds": 180,
+          "notes": "Month 1 base was 20 kg; follow this week's note. Deep range of motion, 1 s pause at the bottom."
+        },
+        {
+          "exercise_name": "Standing dumbbell calf raise",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 75,
+          "notes": "Weight is per hand. 1 s peak contraction at the top."
+        },
+        {
+          "exercise_name": "Ab roller rollout",
+          "exercise_kind": "bodyweight",
+          "target_sets": 4,
+          "target_reps_min": 15,
+          "target_reps_max": 15,
+          "target_weight_kg": null,
+          "rest_time_seconds": 75,
+          "notes": "Keep a posterior pelvic tilt throughout; do not let the lower back sag."
+        }
+      ]
+    },
+    {
+      "key": "M3B",
+      "name": "Office M3 Day B: upper body push and pull",
+      "description": "Month 3 (peak strength and work capacity), target RPE 8.5. Peak force on the primary lifts and high metabolic efficiency on accessories.",
+      "exercises": [
+        {
+          "exercise_name": "Barbell bench press",
+          "exercise_kind": "strength",
+          "target_sets": 4,
+          "target_reps_min": 5,
+          "target_reps_max": 6,
+          "target_weight_kg": null,
+          "rest_time_seconds": 180,
+          "notes": "Month 1 base was 70 kg; follow this week's note. Retracted scapula, controlled touch on the lower chest, explosive press."
+        },
+        {
+          "exercise_name": "EZ-bar bent-over row",
+          "exercise_kind": "strength",
+          "target_sets": 4,
+          "target_reps_min": 5,
+          "target_reps_max": 6,
+          "target_weight_kg": null,
+          "rest_time_seconds": 180,
+          "notes": "Month 1 base was 55 kg; follow this week's note. Underhand or semi-supinated grip; pull toward the hips or lower abdomen."
+        },
+        {
+          "exercise_name": "Seated dumbbell Arnold press",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 75,
+          "notes": "Weight is per hand. Smooth rotational path; avoid locking the elbows at the top."
+        },
+        {
+          "exercise_name": "Lying EZ-bar pullover",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 75,
+          "notes": "Month 1 base was 25 kg; follow this week's note. Slight bend in the elbows; focus on the thoracic and lat stretch."
+        },
+        {
+          "exercise_name": "Dumbbell farmer's walk or static hold",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 1,
+          "target_reps_max": 1,
+          "target_weight_kg": null,
+          "rest_time_seconds": 75,
+          "notes": "Weight is per hand. One rep = one 45-60 s walk or hold, for grip and forearm endurance."
+        }
+      ]
+    },
+    {
+      "key": "M3C",
+      "name": "Office M3 Day C: upper hypertrophy, arms and prehab",
+      "description": "Month 3 (peak strength and work capacity), target RPE 8.5. Peak force on the primary lifts and high metabolic efficiency on accessories.",
+      "exercises": [
+        {
+          "exercise_name": "Incline dumbbell bench press",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 5,
+          "target_reps_max": 6,
+          "target_weight_kg": null,
+          "rest_time_seconds": 180,
+          "notes": "Weight is per hand. 30-degree bench; full stretch at the bottom."
+        },
+        {
+          "exercise_name": "Chest-supported dumbbell row",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 5,
+          "target_reps_max": 6,
+          "target_weight_kg": null,
+          "rest_time_seconds": 180,
+          "notes": "Weight is per hand. Or single-arm bench row. Chest or bench support spares the lower back before Thursday skating."
+        },
+        {
+          "exercise_name": "Dumbbell lateral raise",
+          "exercise_kind": "strength",
+          "target_sets": 4,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 75,
+          "notes": "Weight is per hand. Strict, slightly forward (scapular plane), no momentum."
+        },
+        {
+          "exercise_name": "EZ-bar biceps curl",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 75,
+          "notes": "Month 1 base was 30 kg; follow this week's note. Elbows pinned to the sides, 2 s lowering."
+        },
+        {
+          "exercise_name": "Lying EZ-bar triceps extension",
+          "exercise_kind": "strength",
+          "target_sets": 3,
+          "target_reps_min": 8,
+          "target_reps_max": 12,
+          "target_weight_kg": null,
+          "rest_time_seconds": 75,
+          "notes": "Month 1 base was 27.5 kg; follow this week's note. Skullcrusher: lower the bar slightly behind the crown of the head."
+        },
+        {
+          "exercise_name": "Ab roller rollout or weighted plank",
+          "exercise_kind": "bodyweight",
+          "target_sets": 3,
+          "target_reps_min": 15,
+          "target_reps_max": 15,
+          "target_weight_kg": null,
+          "rest_time_seconds": 75,
+          "notes": "Stop 2-3 reps short of failure (RPE 7) so the trunk is fresh for Thursday."
+        }
+      ]
+    }
+  ],
+  "schedule": {
+    "type": "weekly",
+    "weeks": [
+      {
+        "week": 1,
+        "note": "Week 1 of 12, RPE 7. Load: 100% of base working weight. Sets/reps: Target sets as listed. Establish baseline rep speeds and log exact reps achieved.",
+        "days": {
+          "0": "M1A",
+          "1": "M1B",
+          "2": "M1C"
+        }
+      },
+      {
+        "week": 2,
+        "note": "Week 2 of 12, RPE 7.5. Load: 100% of base working weight. Sets/reps: Add 1 rep per set across all exercises. Volume progression via reps before adding external load.",
+        "days": {
+          "0": "M1A",
+          "1": "M1B",
+          "2": "M1C"
+        }
+      },
+      {
+        "week": 3,
+        "note": "Week 3 of 12, RPE 8. Load: +2.5 kg on barbell/EZ-bar lifts, +1-2 kg on dumbbells. Sets/reps: Target sets as listed. Peak accumulation week for month 1.",
+        "days": {
+          "0": "M1A",
+          "1": "M1B",
+          "2": "M1C"
+        }
+      },
+      {
+        "week": 4,
+        "note": "Week 4 of 12, RPE 6. Load: 85% of week 3 weights. Sets/reps: -1 set on all exercises. Deload week to clear cumulative fatigue from gym plus 2x weekly hockey.",
+        "days": {
+          "0": "M1A",
+          "1": "M1B",
+          "2": "M1C"
+        }
+      },
+      {
+        "week": 5,
+        "note": "Week 5 of 12, RPE 7.5. Load: +2.5 kg over week 3 weights on barbell RDL (67.5-70 kg) and bench press (72.5 kg). Sets/reps: Target sets as listed. Drop to 6-8 reps on primary compounds; focus on bar speed.",
+        "days": {
+          "0": "M2A",
+          "1": "M2B",
+          "2": "M2C"
+        }
+      },
+      {
+        "week": 6,
+        "note": "Week 6 of 12, RPE 8. Load: Keep week 5 weights. Sets/reps: Add 1 rep per set on compounds (aim for the top of 6-8). Consolidate strength gains.",
+        "days": {
+          "0": "M2A",
+          "1": "M2B",
+          "2": "M2C"
+        }
+      },
+      {
+        "week": 7,
+        "note": "Week 7 of 12, RPE 8.5. Load: +2.5 kg on barbell bench (75 kg) and RDL (70-72.5 kg); +1-2 kg on DB split squats and rows. Sets/reps: Target sets as listed. Heaviest week of month 2. Cap Monday RDL at RPE 8.5 to protect the lower back.",
+        "days": {
+          "0": "M2A",
+          "1": "M2B",
+          "2": "M2C"
+        }
+      },
+      {
+        "week": 8,
+        "note": "Week 8 of 12, RPE 6. Load: 85% of week 7 weights. Sets/reps: -1 set on all exercises. Deload week.",
+        "days": {
+          "0": "M2A",
+          "1": "M2B",
+          "2": "M2C"
+        }
+      },
+      {
+        "week": 9,
+        "note": "Week 9 of 12, RPE 8. Load: Use week 7 weights for sets of 5-6 reps. Sets/reps: Target sets as listed. Clean, explosive lifting phase on bench press, RDL and split squats.",
+        "days": {
+          "0": "M3A",
+          "1": "M3B",
+          "2": "M3C"
+        }
+      },
+      {
+        "week": 10,
+        "note": "Week 10 of 12, RPE 8.5. Load: +2.5 kg on barbell bench (77.5 kg) and RDL (75 kg). Sets/reps: Target sets as listed. Keep strict technique; do not sacrifice depth or tempo.",
+        "days": {
+          "0": "M3A",
+          "1": "M3B",
+          "2": "M3C"
+        }
+      },
+      {
+        "week": 11,
+        "note": "Week 11 of 12, RPE 9. Load: Hold week 10 weights, or +2.5 kg if week 10 was below RPE 8.5. Sets/reps: Aim for 5-6 clean reps across all working sets. Peak strength test week of the block.",
+        "days": {
+          "0": "M3A",
+          "1": "M3B",
+          "2": "M3C"
+        }
+      },
+      {
+        "week": 12,
+        "note": "Week 12 of 12, RPE 5.5. Load: 80% of week 11 weights. Sets/reps: 2 sets per exercise only. Full taper and recovery week before the next cycle.",
+        "days": {
+          "0": "M3A",
+          "1": "M3B",
+          "2": "M3C"
+        }
+      }
+    ]
+  }
+}

@@ -381,6 +381,22 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
         )
         assert [item["id"] for item in other_exercises.json()["items"]] == [shared_exercise_id]
         assert other_exercises.json()["total"] == 1
+        owner_install = await client.post(
+            "/api/v1/program-templates/local-gym-ab/install",
+            json={"start_date": "2026-10-20"},
+            headers=owner_cookies,
+        )
+        assert owner_install.status_code == 201
+        other_programs = await client.get("/api/v1/programs", headers=other_cookies)
+        assert all(
+            item["id"] != owner_install.json()["program"]["id"]
+            for item in other_programs.json()["items"]
+        )
+        other_plans = await client.get("/api/v1/plans?limit=100", headers=other_cookies)
+        assert all(
+            item["id"] not in owner_install.json()["plan_ids"]
+            for item in other_plans.json()["items"]
+        )
         blocked_edit = await client.put(
             f"/api/v1/exercises/{shared_exercise_id}",
             json={
