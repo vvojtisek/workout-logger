@@ -660,3 +660,48 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
                 )
             assert remaining_other_plan == 0
         await _delete_test_users(app_engine, test_run_id)
+
+
+async def test_locations_are_private_per_invited_account(migrated_client, auth_headers):
+    client, app_engine = migrated_client
+    test_run_id = uuid4().hex
+    owner_cookies = None
+    location_id = None
+    try:
+        owner_cookies = await _create_logged_in_user(
+            client, auth_headers, f"owner-{test_run_id}@example.test"
+        )
+        other_cookies = await _create_logged_in_user(
+            client, auth_headers, f"other-{test_run_id}@example.test"
+        )
+        created = await client.post(
+            "/api/v1/locations",
+            json={"name": "Office", "kind": "office", "equipment": ["dumbbell"]},
+            headers=owner_cookies,
+        )
+        assert created.status_code == 201
+        location_id = created.json()["id"]
+
+        # The same name is free for another account.
+        other_created = await client.post(
+            "/api/v1/locations",
+            json={"name": "Office", "kind": "office"},
+            headers=other_cookies,
+        )
+        assert other_created.status_code == 201
+        other_list = await client.get("/api/v1/locations", headers=other_cookies)
+        assert [item["id"] for item in other_list.json()["items"]] == [other_created.json()["id"]]
+        other_detail = await client.get(f"/api/v1/locations/{location_id}", headers=other_cookies)
+        assert other_detail.status_code == 404
+        other_delete = await client.delete(
+            f"/api/v1/locations/{location_id}", headers=other_cookies
+        )
+        assert other_delete.status_code == 404
+        deleted_own = await client.delete(
+            f"/api/v1/locations/{other_created.json()['id']}", headers=other_cookies
+        )
+        assert deleted_own.status_code == 204
+    finally:
+        if location_id and owner_cookies:
+            await client.delete(f"/api/v1/locations/{location_id}", headers=owner_cookies)
+        await _delete_test_users(app_engine, test_run_id)

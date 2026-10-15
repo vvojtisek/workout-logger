@@ -180,6 +180,21 @@ export interface CatalogExercise {
   updated_at: string;
 }
 
+export const LOCATION_KINDS = ["home", "office", "gym", "travel"] as const;
+
+export type LocationKind = (typeof LOCATION_KINDS)[number];
+
+export interface Location {
+  id: string;
+  name: string;
+  kind: LocationKind;
+  // What the place has; bodyweight is implied everywhere.
+  equipment: EquipmentTag[];
+  default_minutes: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type ProgramStatus = "active" | "completed" | "archived";
 
 export interface Program {

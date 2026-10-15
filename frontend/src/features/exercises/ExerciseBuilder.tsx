@@ -4,10 +4,11 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, EquipmentTag, MuscleTag } from "@/api/types";
-import { EQUIPMENT_TAGS, MUSCLE_TAGS } from "@/api/types";
-import { EQUIPMENT_LABELS, MAX_EQUIPMENT_OPTIONS, toggleEquipmentTag } from "@/lib/equipment";
+import { MUSCLE_TAGS } from "@/api/types";
+import { MAX_EQUIPMENT_OPTIONS, toggleEquipmentTag } from "@/lib/equipment";
 import { exercisePayloadSchema } from "@/lib/exercise-schema";
 import { Button, Card, Input, PageHeading } from "@/ui";
+import { EquipmentChips } from "@/ui/EquipmentChips";
 import { toast } from "@/ui/Toast";
 
 const MUSCLE_LABELS: Record<MuscleTag, string> = {
@@ -150,31 +151,11 @@ function EquipmentTagsEditor({
                   Remove
                 </Button>
               </div>
-              <div
-                className="flex flex-wrap gap-2"
-                role="group"
-                aria-label={`Option ${index + 1} equipment`}
-              >
-                {EQUIPMENT_TAGS.map((tag) => {
-                  const active = option.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => onChange(toggleEquipmentTag(options, index, tag))}
-                      className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
-                        active
-                          ? "border-accent bg-accent text-on-accent"
-                          : "border-line-muted bg-surface text-muted hover:text-main"
-                      }`}
-                      style={{ minHeight: "var(--touch)" }}
-                    >
-                      {EQUIPMENT_LABELS[tag]}
-                    </button>
-                  );
-                })}
-              </div>
+              <EquipmentChips
+                label={`Option ${index + 1} equipment`}
+                selected={option}
+                onToggle={(tag) => onChange(toggleEquipmentTag(options, index, tag))}
+              />
             </div>
           ))}
           <div className="flex flex-wrap gap-2">

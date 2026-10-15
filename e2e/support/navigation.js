@@ -8,7 +8,7 @@ const DESKTOP_SECTIONS = {
   "Programs & Plans": ["Plans", "Programs"],
   Calendar: ["Calendar"],
   "Workout History": ["History"],
-  "Exercise Catalogue": ["Exercises"],
+  "Exercise Catalogue": ["Exercises", "Locations"],
   "Nutrition & Meals": ["Nutrition"],
   "Body Metrics & Sleep": ["Biometrics", "Sleep"],
   "API & MCP Tokens": ["Tokens"],
@@ -18,7 +18,7 @@ const DESKTOP_SECTIONS = {
 /** @type {Record<string, string[]>} */
 const MOBILE_SECTIONS = {
   Train: ["New Workout", "Log Activity", "Calendar", "History"],
-  Plans: ["Plans", "Programs", "Exercises"],
+  Plans: ["Plans", "Programs", "Exercises", "Locations"],
   Nutrition: ["Nutrition"],
   Body: ["Biometrics", "Sleep"],
   More: ["Settings", "Tokens"],

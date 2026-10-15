@@ -43,6 +43,13 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/plans" replace /> },
           {
+            path: "locations",
+            lazy: () =>
+              import("@/features/locations/LocationsView").then((m) => ({
+                Component: m.LocationsView,
+              })),
+          },
+          {
             path: "settings",
             lazy: () =>
               import("@/features/settings/SettingsView").then((m) => ({
