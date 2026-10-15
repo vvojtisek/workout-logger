@@ -60,7 +60,7 @@ export function NutritionDashboardView() {
 
   return (
     <section id="nutrition-dashboard-view">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Daily energy and macro totals against your current target.">
           Nutrition
         </PageHeading>

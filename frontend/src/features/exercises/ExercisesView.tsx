@@ -53,7 +53,7 @@ export function ExercisesView() {
 
   return (
     <section id="exercises-view">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Build a library of exercises with media, muscles worked, and step-by-step instructions.">
           Exercise Catalogue
         </PageHeading>

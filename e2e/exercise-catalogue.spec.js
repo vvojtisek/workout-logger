@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openPage } from "./support/navigation.js";
+import { detailPane, openPage } from "./support/navigation.js";
 
 test("builds, views, edits, and deletes a real exercise catalogue entry through the GUI", async ({
   page,
@@ -86,7 +86,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     await expect(page.getByText("Triceps", { exact: true })).toBeVisible();
     await expect(page.getByText(`${tag} Lie on the bench.`)).toBeVisible();
     await expect(page.getByText(`${tag} Press the bar up.`)).toBeVisible();
-    await expect(page.getByText("Barbell")).toBeVisible();
+    await expect(detailPane(page).getByText("Barbell")).toBeVisible();
     await expect(page.getByText("Use a spotter.")).toBeVisible();
 
     // Creating a second exercise with the same name must surface the 409

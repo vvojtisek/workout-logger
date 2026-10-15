@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openPage } from "./support/navigation.js";
+import { detailPane, openPage } from "./support/navigation.js";
 
 test("logs, views trends for, edits, and deletes a real sleep entry through the GUI", async ({
   page,
@@ -35,7 +35,7 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
     await page.getByLabel("Quality (optional)").selectOption("4");
     await page.getByLabel("Resting heart rate (bpm, optional)").fill("58");
     await page.getByLabel("Notes (optional)").fill(`${tag} slept well`);
-    await page.getByRole("button", { name: "Log sleep", exact: true }).click();
+    await detailPane(page).getByRole("button", { name: "Log sleep", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Sleep", exact: true })).toBeVisible();
 
     const list = await request.get("/api/v1/sleep-entries?limit=100");

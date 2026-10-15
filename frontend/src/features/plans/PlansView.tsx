@@ -87,7 +87,7 @@ export function PlansView() {
 
   return (
     <section id="plans-view">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Start a planned session, or manage the plans you already have.">
           Workout Plans
         </PageHeading>

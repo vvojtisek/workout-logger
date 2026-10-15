@@ -46,7 +46,7 @@ export function FoodsView() {
 
   return (
     <section id="foods-view">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Reusable foods for meal logging. Editing or deleting one never changes logged meal history.">
           Foods
         </PageHeading>

@@ -55,7 +55,7 @@ export function MealLogView() {
 
   return (
     <section id="meal-log-view">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Everything you've logged, most recent first.">Meal Log</PageHeading>
         <Button variant="primary" onClick={() => void navigate("/nutrition/meals/new")}>
           Log meal

@@ -21,9 +21,10 @@ import {
   Utensils,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useMatches, useNavigate } from "react-router-dom";
 
 import { apiFetch } from "@/api/client";
+import { isFullBleed } from "@/app/MasterDetail";
 import type { WorkoutSession } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { Toaster } from "@/ui/Toast";
@@ -337,6 +338,7 @@ function DesktopShell({
 }: ShellProps) {
   const sections = [...DESKTOP_SECTIONS, ...DESKTOP_FOOTER_SECTIONS];
   const current = sectionForPath(sections, pathname);
+  const fullBleed = useMatches().some((match) => isFullBleed(match.handle));
   return (
     <div className="grid h-dvh w-full grid-cols-[220px_1fr] overflow-hidden">
       <aside className="flex min-h-0 flex-col border-r border-line-muted bg-canvas">
@@ -376,21 +378,23 @@ function DesktopShell({
           <div>{status}</div>
         </div>
       </aside>
-      {pathname === WORKOUT_PATH ? (
-        // The live workout lays out its own exercise list and detail panes.
-        <main className="min-h-0 overflow-hidden bg-surface">
-          <Outlet />
-        </main>
-      ) : (
-        <main className="min-h-0 overflow-y-auto bg-surface">
-          <div className="px-8">
-            <SectionPages section={current} pathname={pathname} />
-          </div>
-          <div className="max-w-5xl px-8 pt-6 pb-16">
+      <main className="flex min-h-0 flex-col bg-surface">
+        <div className="px-8">
+          <SectionPages section={current} pathname={pathname} />
+        </div>
+        {fullBleed ? (
+          // The page lays out its own panes (live workout, list and detail).
+          <div className="min-h-0 flex-1 overflow-hidden">
             <Outlet />
           </div>
-        </main>
-      )}
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="max-w-5xl px-8 pt-6 pb-16">
+              <Outlet />
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

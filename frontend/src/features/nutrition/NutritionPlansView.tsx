@@ -43,7 +43,7 @@ export function NutritionPlansView() {
 
   return (
     <section id="nutrition-plans-view">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Dated daily macro targets. Overlapping plans are allowed; the most recently started one applies.">
           Nutrition Plans
         </PageHeading>

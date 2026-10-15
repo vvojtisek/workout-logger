@@ -56,7 +56,7 @@ export function ProgramsView() {
 
   return (
     <section id="programs-view">
-      <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Named date-range blocks. Overlapping programs are allowed.">
           Programs
         </PageHeading>
