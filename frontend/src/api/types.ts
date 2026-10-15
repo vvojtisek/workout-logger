@@ -1,4 +1,5 @@
 import type { ExerciseKind, GridExercise, GridSession } from "@/lib/workout-utils";
+import type { ActivityType } from "@/lib/activity";
 
 export interface Paginated<T> {
   items: T[];
@@ -100,6 +101,9 @@ export interface WorkoutLogSummary {
   calories_burned: number | null;
   overall_feeling: number;
   notes: string | null;
+  activity_type: ActivityType | null;
+  distance_km: number | null;
+  effort_rpe: number | null;
 }
 
 export interface WorkoutLog extends WorkoutLogSummary {

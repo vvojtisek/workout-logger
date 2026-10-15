@@ -721,3 +721,54 @@ def test_exercise_catalogue_seed_adds_shared_templates_and_keeps_existing(
         remaining = connection.execute(text("SELECT id FROM exercises")).all()
     assert remaining == [(existing_id,)]
     sync_engine.dispose()
+
+
+def test_activity_fields_migration_keeps_strength_logs_and_enforces_values(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "a7c3e9d2b4f1")
+    log_id = str(uuid.uuid4())
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    insert_log = (
+        "INSERT INTO workout_logs (id, performed_at, total_time_minutes, overall_feeling, "
+        "source, created_at, updated_at) VALUES (:id, CURRENT_TIMESTAMP, 30, 4, 'manual', "
+        "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+    )
+    with sync_engine.begin() as connection:
+        connection.execute(text(insert_log), {"id": log_id})
+
+    command.upgrade(alembic_config, "c5e1b8f3a6d2")
+
+    with sync_engine.connect() as connection:
+        row = connection.execute(
+            text(
+                "SELECT total_time_minutes, activity_type, distance_km, effort_rpe "
+                "FROM workout_logs WHERE id = :id"
+            ),
+            {"id": log_id},
+        ).one()
+    assert row == (30, None, None, None)
+
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE workout_logs SET activity_type = 'ice_hockey', effort_rpe = 7 "
+                "WHERE id = :id"
+            ),
+            {"id": log_id},
+        )
+    for invalid in ("activity_type = 'quidditch'", "effort_rpe = 11", "distance_km = -1"):
+        with sync_engine.begin() as connection, pytest.raises(IntegrityError):
+            connection.execute(
+                text(f"UPDATE workout_logs SET {invalid} WHERE id = :id"), {"id": log_id}
+            )
+
+    command.downgrade(alembic_config, "a7c3e9d2b4f1")
+    with sync_engine.connect() as connection:
+        columns = {row[1] for row in connection.execute(text("PRAGMA table_info(workout_logs)"))}
+        kept = connection.execute(
+            text("SELECT total_time_minutes FROM workout_logs WHERE id = :id"), {"id": log_id}
+        ).scalar_one()
+    assert "activity_type" not in columns
+    assert kept == 30
+    sync_engine.dispose()

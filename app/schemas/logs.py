@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -47,6 +48,9 @@ class ExerciseLogRead(ExerciseLogCreate):
     sort_order: int
 
 
+ActivityType = Literal["ice_hockey", "swimming", "cycling", "hiking", "running", "other"]
+
+
 class WorkoutLogCreate(BaseModel):
     source_plan_id: UUID | None = None
     performed_at: datetime
@@ -54,6 +58,9 @@ class WorkoutLogCreate(BaseModel):
     calories_burned: int | None = Field(default=None, ge=0)
     overall_feeling: int = Field(ge=1, le=5)
     notes: str | None = Field(default=None, max_length=10000)
+    activity_type: ActivityType | None = None
+    distance_km: float | None = Field(default=None, ge=0, le=1000)
+    effort_rpe: int | None = Field(default=None, ge=1, le=10)
     exercises: list[ExerciseLogCreate] = Field(default_factory=list)
 
     @field_validator("performed_at")
@@ -77,6 +84,9 @@ class WorkoutLogRead(OrmModel):
     notes: str | None
     source: str
     external_id: str | None
+    activity_type: ActivityType | None
+    distance_km: float | None
+    effort_rpe: int | None
     exercises: list[ExerciseLogRead]
     created_at: datetime
     updated_at: datetime

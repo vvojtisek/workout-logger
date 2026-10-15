@@ -73,6 +73,9 @@ async def create_log(session: AsyncSession, data: WorkoutLogCreate) -> WorkoutLo
         calories_burned=data.calories_burned,
         overall_feeling=data.overall_feeling,
         notes=data.notes,
+        activity_type=data.activity_type,
+        distance_km=data.distance_km,
+        effort_rpe=data.effort_rpe,
     )
     for index, exercise in enumerate(data.exercises):
         log.exercises.append(ExerciseLog(sort_order=index, **exercise.model_dump()))
@@ -92,6 +95,9 @@ async def replace_log(session: AsyncSession, log_id: UUID, data: WorkoutLogRepla
     log.calories_burned = data.calories_burned
     log.overall_feeling = data.overall_feeling
     log.notes = data.notes
+    log.activity_type = data.activity_type
+    log.distance_km = data.distance_km
+    log.effort_rpe = data.effort_rpe
     log.exercises.clear()
     await session.flush()
     for index, exercise in enumerate(data.exercises):

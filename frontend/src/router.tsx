@@ -230,6 +230,13 @@ export const router = createBrowserRouter([
               import("@/features/logs/NewLogView").then((m) => ({ Component: m.NewLogView })),
           },
           {
+            path: "activity/new",
+            lazy: () =>
+              import("@/features/logs/LogActivityView").then((m) => ({
+                Component: m.LogActivityView,
+              })),
+          },
+          {
             path: "history",
             lazy: () =>
               import("@/features/history/HistoryView").then((m) => ({
