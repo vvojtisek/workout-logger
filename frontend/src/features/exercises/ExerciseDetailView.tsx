@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, MuscleTag } from "@/api/types";
+import { describeEquipmentOptions } from "@/lib/equipment";
 import { Button, Card, EmptyState, PageHeading } from "@/ui";
 
 const MUSCLE_LABELS: Record<MuscleTag, string> = {
@@ -112,6 +113,8 @@ export function ExerciseDetailView() {
     );
   }
 
+  const equipmentTags = describeEquipmentOptions(exercise.equipment_any_of ?? []);
+
   return (
     <section id="exercise-detail-view">
       <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
@@ -159,12 +162,18 @@ export function ExerciseDetailView() {
         )}
       </Card>
 
-      {exercise.equipment || exercise.safety_notes ? (
+      {exercise.equipment || equipmentTags || exercise.safety_notes ? (
         <Card className="mt-4 flex flex-col gap-3 p-4">
           {exercise.equipment ? (
             <div>
               <h3 className="text-sm font-medium text-muted">Equipment</h3>
               <p>{exercise.equipment}</p>
+            </div>
+          ) : null}
+          {equipmentTags ? (
+            <div>
+              <h3 className="text-sm font-medium text-muted">Needs</h3>
+              <p data-testid="exercise-equipment-tags">{equipmentTags}</p>
             </div>
           ) : null}
           {exercise.safety_notes ? (

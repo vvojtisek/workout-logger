@@ -42,4 +42,9 @@ class Exercise(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     secondary_muscles: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     instructions: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     equipment: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Alternatives: each inner list is one complete set of equipment tags
+    # (see app/services/equipment.py). Empty means "not tagged".
+    equipment_any_of: Mapped[list[list[str]]] = mapped_column(
+        JSON, nullable=False, default=list, server_default="[]"
+    )
     safety_notes: Mapped[str | None] = mapped_column(Text(), nullable=True)

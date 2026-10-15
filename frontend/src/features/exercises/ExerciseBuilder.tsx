@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
-import type { CatalogExercise, MuscleTag } from "@/api/types";
-import { MUSCLE_TAGS } from "@/api/types";
+import type { CatalogExercise, EquipmentTag, MuscleTag } from "@/api/types";
+import { EQUIPMENT_TAGS, MUSCLE_TAGS } from "@/api/types";
+import { EQUIPMENT_LABELS, MAX_EQUIPMENT_OPTIONS, toggleEquipmentTag } from "@/lib/equipment";
 import { exercisePayloadSchema } from "@/lib/exercise-schema";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
@@ -115,6 +116,80 @@ function ListEditor({
   );
 }
 
+function EquipmentTagsEditor({
+  options,
+  error,
+  onChange,
+}: {
+  options: EquipmentTag[][] | null;
+  error: string | undefined;
+  onChange: (options: EquipmentTag[][] | null) => void;
+}) {
+  return (
+    <fieldset className="flex flex-col gap-3" aria-label="Equipment tags">
+      <legend className="field-label">Equipment tags</legend>
+      {options === null ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm text-muted">Read from the equipment text when you save.</p>
+          <Button onClick={() => onChange([[]])}>Choose tags</Button>
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-muted">
+            Any one option will do. An option needs everything picked in it. Locations use these
+            tags to tell what you can do there.
+          </p>
+          {options.map((option, index) => (
+            <div key={index} className="rounded-lg border border-line-muted p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">Option {index + 1}</span>
+                <Button
+                  aria-label={`Remove option ${index + 1}`}
+                  onClick={() => onChange(options.filter((_, i) => i !== index))}
+                >
+                  Remove
+                </Button>
+              </div>
+              <div
+                className="flex flex-wrap gap-2"
+                role="group"
+                aria-label={`Option ${index + 1} equipment`}
+              >
+                {EQUIPMENT_TAGS.map((tag) => {
+                  const active = option.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => onChange(toggleEquipmentTag(options, index, tag))}
+                      className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+                        active
+                          ? "border-accent bg-accent text-on-accent"
+                          : "border-line-muted bg-surface text-muted hover:text-main"
+                      }`}
+                      style={{ minHeight: "var(--touch)" }}
+                    >
+                      {EQUIPMENT_LABELS[tag]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          <div className="flex flex-wrap gap-2">
+            {options.length < MAX_EQUIPMENT_OPTIONS ? (
+              <Button onClick={() => onChange([...options, []])}>+ Add alternative</Button>
+            ) : null}
+            <Button onClick={() => onChange(null)}>Read from text instead</Button>
+          </div>
+        </>
+      )}
+      {error ? <p className="text-sm text-danger">{error}</p> : null}
+    </fieldset>
+  );
+}
+
 function buildPayload(state: {
   name: string;
   aliases: string[];
@@ -123,6 +198,7 @@ function buildPayload(state: {
   secondary_muscles: MuscleTag[];
   instructions: string[];
   equipment: string;
+  equipment_any_of: EquipmentTag[][] | null;
   safety_notes: string;
 }) {
   return {
@@ -133,6 +209,7 @@ function buildPayload(state: {
     secondary_muscles: state.secondary_muscles,
     instructions: state.instructions.map((step) => step.trim()).filter((step) => step.length > 0),
     equipment: state.equipment.trim() || null,
+    equipment_any_of: state.equipment_any_of,
     safety_notes: state.safety_notes.trim() || null,
   };
 }
@@ -150,6 +227,11 @@ export function ExerciseBuilder() {
   const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleTag[]>([]);
   const [instructions, setInstructions] = useState<string[]>([]);
   const [equipment, setEquipment] = useState("");
+  // null: let the server read the tags from the equipment text.
+  const [equipmentAnyOf, setEquipmentAnyOf] = useState<EquipmentTag[][] | null>(null);
+  // Tags picked by hand in this edit survive text changes; otherwise they
+  // follow the text, so editing "barbell" to "dumbbell" retags the exercise.
+  const [tagsTouched, setTagsTouched] = useState(false);
   const [safetyNotes, setSafetyNotes] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const seededExerciseId = useRef<string | null>(null);
@@ -170,6 +252,7 @@ export function ExerciseBuilder() {
     setSecondaryMuscles(existing.secondary_muscles);
     setInstructions(existing.instructions);
     setEquipment(existing.equipment ?? "");
+    setEquipmentAnyOf(existing.equipment_any_of.length > 0 ? existing.equipment_any_of : null);
     setSafetyNotes(existing.safety_notes ?? "");
   }, [existing]);
 
@@ -211,6 +294,7 @@ export function ExerciseBuilder() {
       secondary_muscles: secondaryMuscles,
       instructions,
       equipment,
+      equipment_any_of: equipmentAnyOf,
       safety_notes: safetyNotes,
     });
     const result = exercisePayloadSchema.safeParse(payload);
@@ -314,9 +398,21 @@ export function ExerciseBuilder() {
           <Input
             id="exercise-equipment"
             value={equipment}
-            onChange={(event) => setEquipment(event.target.value)}
+            onChange={(event) => {
+              setEquipment(event.target.value);
+              if (!tagsTouched) setEquipmentAnyOf(null);
+            }}
           />
         </div>
+
+        <EquipmentTagsEditor
+          options={equipmentAnyOf}
+          error={errors.equipment_any_of}
+          onChange={(options) => {
+            setTagsTouched(options !== null);
+            setEquipmentAnyOf(options);
+          }}
+        />
 
         <div>
           <label className="field-label" htmlFor="exercise-safety-notes">

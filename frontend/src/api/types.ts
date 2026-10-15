@@ -137,6 +137,32 @@ export const MUSCLE_TAGS = [
 
 export type MuscleTag = (typeof MUSCLE_TAGS)[number];
 
+// Mirrors `EquipmentTag` in `app/schemas/exercises.py`.
+export const EQUIPMENT_TAGS = [
+  "bodyweight",
+  "dumbbell",
+  "kettlebell",
+  "barbell",
+  "trap_bar",
+  "rack",
+  "bench",
+  "pullup_bar",
+  "cable",
+  "machine",
+  "band",
+  "trx",
+  "dip_bars",
+  "ab_wheel",
+  "box",
+  "medicine_ball",
+  "jump_rope",
+  "bike",
+  "rower",
+  "treadmill",
+] as const;
+
+export type EquipmentTag = (typeof EQUIPMENT_TAGS)[number];
+
 export interface CatalogExercise {
   id: string;
   name: string;
@@ -146,6 +172,9 @@ export interface CatalogExercise {
   secondary_muscles: MuscleTag[];
   instructions: string[];
   equipment: string | null;
+  // Alternatives: any one option will do, and an option needs all its tags.
+  // Empty means the exercise is not tagged.
+  equipment_any_of: EquipmentTag[][];
   safety_notes: string | null;
   created_at: string;
   updated_at: string;

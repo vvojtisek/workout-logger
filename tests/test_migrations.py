@@ -790,3 +790,38 @@ def test_scheduled_workout_notes_migration_round_trips(alembic_config, alembic_d
         }
     assert "notes" not in columns
     sync_engine.dispose()
+
+
+def test_equipment_tags_migration_backfills_from_the_free_text(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "e3a9c1f5b7d2")
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO exercises (id, name, aliases, primary_muscles, secondary_muscles, "
+                "instructions, equipment, created_at, updated_at) VALUES (:id, 'Own lift', '[]', "
+                "'[]', '[]', '[]', 'kettlebell or band', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": str(uuid.uuid4())},
+        )
+    command.upgrade(alembic_config, "head")
+
+    import json
+
+    with sync_engine.connect() as connection:
+        own = connection.scalar(
+            text("SELECT equipment_any_of FROM exercises WHERE name = 'Own lift'")
+        )
+        squat = connection.scalar(
+            text("SELECT equipment_any_of FROM exercises WHERE name = 'Back squat'")
+        )
+        untagged = connection.scalar(
+            text(
+                "SELECT COUNT(*) FROM exercises WHERE equipment IS NOT NULL "
+                "AND equipment_any_of = '[]'"
+            )
+        )
+    assert json.loads(own) == [["kettlebell"], ["band"]]
+    assert json.loads(squat) == [["barbell", "rack"]]
+    assert untagged == 0
+    sync_engine.dispose()
