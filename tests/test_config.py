@@ -145,3 +145,12 @@ def test_mcp_oauth_valid_auth0_config_accepted():
     )
     assert settings.MCP_OAUTH_ENABLED is True
     assert settings.mcp_oauth_base_url_resolved == "https://fitness.example.test"
+
+
+def test_auth0_config_url_accepts_the_tenant_domain_or_the_discovery_url():
+    from app.mcp.oauth import auth0_config_url
+
+    discovery = "https://tenant.eu.auth0.com/.well-known/openid-configuration"
+    assert auth0_config_url("https://tenant.eu.auth0.com") == discovery
+    assert auth0_config_url("https://tenant.eu.auth0.com/") == discovery
+    assert auth0_config_url(discovery) == discovery
