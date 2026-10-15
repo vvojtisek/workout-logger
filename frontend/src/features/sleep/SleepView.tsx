@@ -6,6 +6,7 @@ import type { Paginated, SleepEntry, SleepTrends } from "@/api/types";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { Button, Card, EmptyState, PageHeading } from "@/ui";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -127,14 +128,14 @@ export function SleepView() {
           <li key={entry.id} className="card flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="min-w-0">
               <p className="font-medium tabular-nums">
-                {entry.sleep_date}
+                {formatDate(entry.sleep_date)}
                 <span className="ml-2 text-sm font-normal text-muted">
                   {formatDuration(entry.time_in_bed_seconds)} in bed
                 </span>
               </p>
               <p className="mt-0.5 text-sm text-muted">
-                {new Date(entry.sleep_start).toLocaleString()} →{" "}
-                {new Date(entry.sleep_end).toLocaleString()}
+                {formatDateTime(entry.sleep_start)} →{" "}
+                {formatDateTime(entry.sleep_end)}
                 {entry.quality_score != null ? ` · Quality ${entry.quality_score}/5` : ""}
               </p>
               {entry.notes ? <p className="mt-0.5 text-sm text-muted">{entry.notes}</p> : null}

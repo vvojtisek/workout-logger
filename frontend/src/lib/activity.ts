@@ -1,3 +1,5 @@
+import { formatDateTime } from "./format";
+
 export const ACTIVITY_TYPES = [
   "ice_hockey",
   "swimming",
@@ -34,7 +36,7 @@ interface LogLike {
 
 export function logTitle(log: LogLike): string {
   if (log.activity_type) return activityLabel(log.activity_type);
-  return log.source_plan_name || new Date(log.performed_at).toLocaleString();
+  return log.source_plan_name || formatDateTime(log.performed_at);
 }
 
 /** Session load is RPE (CR-10) times minutes, the usual session-RPE training load. */

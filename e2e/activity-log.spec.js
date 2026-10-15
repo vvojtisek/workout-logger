@@ -71,6 +71,9 @@ test("logs an ice hockey session and a swim through the GUI and shows them in hi
     const history = page.locator("#history-list");
     await expect(history.getByText(/75 min · Effort 7\/10 · Load 525/)).toBeVisible();
     await expect(history.getByText(/40 min · 1\.5 km/)).toBeVisible();
+    // Dates are day first with a 24-hour clock, whatever the browser locale.
+    await expect(history.getByText(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} · 75 min/)).toBeVisible();
+    await expect(history.getByText(/\b(AM|PM)\b/)).toHaveCount(0);
 
     await history.getByText(/75 min · Effort 7\/10 · Load 525/).click();
     await expect(page.getByRole("heading", { name: "Workout Detail" })).toBeVisible();

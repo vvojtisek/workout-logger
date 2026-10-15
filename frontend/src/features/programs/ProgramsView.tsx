@@ -9,6 +9,7 @@ import { toast } from "@/ui/Toast";
 import { Button, EmptyState, PageHeading } from "@/ui";
 
 import { ProgramTemplates } from "./ProgramTemplates";
+import { formatDate } from "@/lib/format";
 
 const STATUS_LABELS: Record<Program["status"], string> = {
   active: "Active",
@@ -82,8 +83,8 @@ export function ProgramsView() {
             <div className="min-w-0">
               <p className="font-medium">{program.name}</p>
               <p className="mt-0.5 text-sm text-muted">
-                {program.kind} &middot; {program.start_date}
-                {program.end_date ? ` – ${program.end_date}` : " – ongoing"}
+                {program.kind} &middot; {formatDate(program.start_date)}
+                {program.end_date ? ` – ${formatDate(program.end_date)}` : " – ongoing"}
               </p>
               <p className="mt-1 text-xs text-muted">{STATUS_LABELS[program.status]}</p>
             </div>

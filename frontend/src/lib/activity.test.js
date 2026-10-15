@@ -34,7 +34,7 @@ describe("logTitle", () => {
   });
 
   it("falls back to the date", () => {
-    expect(logTitle(base)).toBe(new Date(base.performed_at).toLocaleString());
+    expect(logTitle(base)).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/);
   });
 });
 
