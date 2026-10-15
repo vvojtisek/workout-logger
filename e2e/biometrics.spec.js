@@ -97,6 +97,7 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
       .getByRole("button", { name: "Delete" })
       .click();
     await page.getByRole("dialog", { name: "Delete entry" }).getByRole("button", { name: "Delete" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: "79.0 kg" })).toBeHidden();
 
     const afterSecondDelete = await request.get(`/api/v1/body-metrics/${secondId}`);
     expect(afterSecondDelete.status()).toBe(404);
