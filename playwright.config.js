@@ -19,9 +19,12 @@ export default defineConfig({
   timeout: 30_000,
   retries: 0,
   globalSetup: "./e2e/global-setup.js",
+  // On CI the "github" reporter also turns each failure into a check-run
+  // annotation, so the reason is readable on the PR without the artifact.
   reporter: [
     ["list"],
     ["html", { outputFolder: "playwright-report", open: "never" }],
+    ...(process.env.CI ? [/** @type {["github"]} */ (["github"])] : []),
   ],
   use: {
     baseURL: process.env.E2E_BASE_URL || "http://127.0.0.1:8000",
