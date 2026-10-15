@@ -104,6 +104,17 @@ def _build_client_storage(settings: Settings):
     )
 
 
+OIDC_DISCOVERY_SUFFIX = "/.well-known/openid-configuration"
+
+
+def auth0_config_url(issuer: str) -> str:
+    """FastMCP fetches the Auth0 provider's `config_url` as the OIDC discovery
+    document itself, so the bare tenant domain (what Auth0 shows as "Domain"
+    and what the docs ask for) needs the discovery path appended."""
+    base = issuer.rstrip("/")
+    return base if base.endswith(OIDC_DISCOVERY_SUFFIX) else f"{base}{OIDC_DISCOVERY_SUFFIX}"
+
+
 def _build_auth0_provider(settings: Settings) -> AuthProvider:
     assert settings.MCP_OAUTH_ISSUER
     assert settings.MCP_OAUTH_CLIENT_ID
@@ -111,7 +122,7 @@ def _build_auth0_provider(settings: Settings) -> AuthProvider:
     assert settings.MCP_OAUTH_AUDIENCE
     base_url = settings.mcp_oauth_base_url_resolved
     return Auth0Provider(
-        config_url=settings.MCP_OAUTH_ISSUER,
+        config_url=auth0_config_url(settings.MCP_OAUTH_ISSUER),
         client_id=settings.MCP_OAUTH_CLIENT_ID,
         client_secret=settings.MCP_OAUTH_CLIENT_SECRET,
         audience=settings.MCP_OAUTH_AUDIENCE,
