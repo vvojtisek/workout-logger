@@ -678,3 +678,46 @@ def test_user_settings_migration_adds_table_with_defaults_enforced_by_check_cons
                 {"id": str(uuid.uuid4())},
             )
     sync_engine.dispose()
+
+
+def test_exercise_catalogue_seed_adds_shared_templates_and_keeps_existing(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "5c0aa5e4d191")
+    existing_id = str(uuid.uuid4())
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO exercises (id, owner_id, name, aliases, primary_muscles, "
+                "secondary_muscles, instructions, equipment, created_at, updated_at) "
+                "VALUES (:id, NULL, 'goblet SQUAT', '[]', '[]', '[]', '[]', 'my own', "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": existing_id},
+        )
+
+    command.upgrade(alembic_config, "a7c3e9d2b4f1")
+
+    with sync_engine.connect() as connection:
+        shared, owned = connection.execute(
+            text("SELECT sum(owner_id IS NULL), sum(owner_id IS NOT NULL) FROM exercises")
+        ).one()
+        goblet = connection.execute(
+            text("SELECT id, equipment FROM exercises WHERE lower(name) = 'goblet squat'")
+        ).all()
+        rdl = connection.execute(
+            text("SELECT aliases, primary_muscles FROM exercises WHERE name = 'Romanian deadlift'")
+        ).one()
+    assert shared >= 80
+    assert owned is None or owned == 0
+    # The pre-existing shared entry wins over the seed (names compare without case).
+    assert goblet == [(existing_id, "my own")]
+    assert "RDL" in rdl[0]
+    assert "hamstrings" in rdl[1]
+
+    command.downgrade(alembic_config, "5c0aa5e4d191")
+    with sync_engine.connect() as connection:
+        remaining = connection.execute(text("SELECT id FROM exercises")).all()
+    assert remaining == [(existing_id,)]
+    sync_engine.dispose()

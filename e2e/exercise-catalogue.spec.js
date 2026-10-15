@@ -49,7 +49,8 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
 
     // Capture the id immediately so a later assertion failure still lets the
     // finally block find and delete this record.
-    const list = await request.get("/api/v1/exercises?limit=100");
+    // The shared catalogue is seeded, so look the entry up by search, not by page.
+    const list = await request.get(`/api/v1/exercises?q=${encodeURIComponent(tag)}`);
     expect(list.status()).toBe(200);
     /** @type {{items: Array<{id: string, name: string}>}} */
     const listBody = await list.json();
@@ -97,7 +98,10 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect(page.getByRole("heading", { name: "Exercise Catalogue" })).toBeVisible();
 
-    // Edit the exercise through the GUI and confirm the change persists.
+    // Find it with the search box by alias alone, then edit it through the GUI
+    // and confirm the change persists.
+    await page.getByLabel("Search exercises").fill(`${tag} Flat`);
+    await expect(page.locator("#exercises-list").getByRole("listitem")).toHaveCount(1);
     await page
       .getByRole("listitem")
       .filter({ hasText: `${tag} Bench Press` })
@@ -115,6 +119,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
 
     // Delete through the GUI and prove it is gone.
     await page.getByRole("button", { name: "Exercises" }).click();
+    await page.getByLabel("Search exercises").fill(tag);
     await page
       .getByRole("listitem")
       .filter({ hasText: `${tag} Bench Press` })
