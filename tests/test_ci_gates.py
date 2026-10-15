@@ -37,10 +37,22 @@ def test_ci_runs_required_parallel_gates_on_pull_requests_and_main() -> None:
     assert {"e2e", "publish"} <= set(merge["jobs"])
 
 
+def test_end_to_end_suite_gates_pull_requests_before_merge() -> None:
+    triggers = merge_workflow()[True]
+
+    # Every pull request runs the full Playwright suite against the production
+    # Compose file, so a breaking change is caught before it reaches main. No
+    # path filter: a filtered-out run never reports, which would block
+    # documentation-only pull requests if this check is made required.
+    assert triggers["pull_request"] is None or "paths-ignore" not in triggers["pull_request"]
+    assert "if" not in merge_workflow()["jobs"]["e2e"]
+
+
 def test_untrusted_pull_requests_cannot_publish_or_promote() -> None:
     publish = merge_workflow()["jobs"]["publish"]
 
     assert set(publish["needs"]) == {"e2e"}
+    assert "github.event_name == 'push'" in publish["if"]
     assert "!contains(github.event.head_commit.message, '[skip image publish]')" in publish["if"]
 
 

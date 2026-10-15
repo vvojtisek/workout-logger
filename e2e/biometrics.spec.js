@@ -15,7 +15,7 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
   try {
     await page.goto("/");
     await page.getByRole("button", { name: "Biometrics" }).click();
-    await expect(page.getByRole("heading", { name: "Biometrics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Biometrics", exact: true })).toBeVisible();
 
     // First entry, entirely through the GUI.
     await page.getByRole("button", { name: "Log entry" }).click();
@@ -25,7 +25,7 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
     await page.getByLabel("Body fat (%, optional)").fill("20.0");
     await page.getByLabel("Waist (cm)").fill("88");
     await page.getByRole("button", { name: "Log entry" }).click();
-    await expect(page.getByRole("heading", { name: "Biometrics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Biometrics", exact: true })).toBeVisible();
 
     const listAfterFirst = await request.get("/api/v1/body-metrics?limit=100");
     /** @type {{items: Array<{id: string, measured_at: string, weight_kg: number}>}} */
@@ -45,7 +45,7 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
     await page.getByLabel("Date and time").fill("2031-02-08T08:00");
     await page.getByLabel("Weight (kg)").fill("79.0");
     await page.getByRole("button", { name: "Log entry" }).click();
-    await expect(page.getByRole("heading", { name: "Biometrics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Biometrics", exact: true })).toBeVisible();
 
     const listAfterSecond = await request.get("/api/v1/body-metrics?limit=100");
     /** @type {{items: Array<{id: string, measured_at: string, weight_kg: number}>}} */
@@ -73,7 +73,7 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
     await expect(page.getByLabel("Weight (kg)")).toHaveValue("80");
     await page.getByLabel("Weight (kg)").fill("81.5");
     await page.getByRole("button", { name: "Save changes" }).click();
-    await expect(page.getByRole("heading", { name: "Biometrics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Biometrics", exact: true })).toBeVisible();
 
     const afterEdit = await request.get(`/api/v1/body-metrics/${firstId}`);
     expect((await afterEdit.json()).weight_kg).toBe(81.5);

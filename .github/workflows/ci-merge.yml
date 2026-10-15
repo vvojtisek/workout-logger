@@ -1,6 +1,11 @@
 name: Merge checks
 
+# The end-to-end suite runs on every pull request so a breaking change is
+# caught before merge, and again on main; only a push to main publishes an
+# image. Pull requests have no path filter: a filtered-out run never reports,
+# which would block documentation-only pull requests if this check is required.
 on:
+  pull_request:
   push:
     branches:
       - main
@@ -100,6 +105,7 @@ jobs:
   publish:
     name: Publish immutable image
     if: >-
+      github.event_name == 'push' &&
       !contains(github.event.head_commit.message, '[skip image publish]')
     needs:
       - e2e

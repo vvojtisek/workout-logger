@@ -43,7 +43,7 @@ test("ingests weight, sleep, a session, and steps through the real API and verif
     // manually logged entry would.
     await page.goto("/");
     await page.getByRole("button", { name: "Biometrics" }).click();
-    await expect(page.getByRole("heading", { name: "Biometrics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Biometrics", exact: true })).toBeVisible();
     await expect(page.getByText("61.3 kg", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("19.4% BF")).toBeVisible();
 
@@ -64,7 +64,7 @@ test("ingests weight, sleep, a session, and steps through the real API and verif
     sleepId = sleepFirstBody.id;
 
     await page.getByRole("button", { name: "Sleep" }).click();
-    await expect(page.getByRole("heading", { name: "Sleep" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sleep", exact: true })).toBeVisible();
     await expect(page.getByText(`${tag} synced sleep`)).toBeVisible();
     await expect(page.getByText("8h 0m").first()).toBeVisible();
 
