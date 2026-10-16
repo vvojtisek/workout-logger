@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_session
 from app.schemas.common import ErrorResponse
 from app.schemas.workout_sessions import (
+    LocationCheckRead,
     SessionExerciseSwap,
     SetEntryCreate,
     SetEntryUpdate,
@@ -16,6 +17,7 @@ from app.schemas.workout_sessions import (
     WorkoutSessionRestUpdate,
     WorkoutSessionStart,
 )
+from app.services import location_fit
 from app.services import workout_sessions as workout_sessions_service
 
 router = APIRouter(prefix="/workout-sessions", tags=["workout sessions"])
@@ -28,7 +30,7 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
     response_model=WorkoutSessionRead,
     status_code=status.HTTP_201_CREATED,
     responses={
-        404: {"model": ErrorResponse, "description": "Plan not found"},
+        404: {"model": ErrorResponse, "description": "Plan or location not found"},
         409: {"model": ErrorResponse, "description": "Plan has no exercises"},
     },
 )
@@ -38,7 +40,7 @@ async def start_workout_session(
     session: SessionDep,
 ) -> WorkoutSessionRead:
     workout_session, created = await workout_sessions_service.start_session(
-        session, data.source_plan_id
+        session, data.source_plan_id, data.location_id
     )
     if not created:
         response.status_code = status.HTTP_200_OK
@@ -72,6 +74,25 @@ async def get_workout_session(
 ) -> WorkoutSessionRead:
     workout_session = await workout_sessions_service.get_session(session, session_id)
     return WorkoutSessionRead.model_validate(workout_session)
+
+
+@router.get(
+    "/{session_id}/location-check",
+    operation_id="check_workout_session_location",
+    summary="Check a workout against its location",
+    description=(
+        "Lists the session's not-yet-logged exercises that need equipment the session's "
+        "location lacks, each with up to three swap suggestions that train the same muscles "
+        "and fit the location. Empty when the session has no location."
+    ),
+    response_model=LocationCheckRead,
+    responses={404: {"model": ErrorResponse, "description": "Session not found"}},
+)
+async def check_workout_session_location(
+    session_id: UUID,
+    session: SessionDep,
+) -> LocationCheckRead:
+    return await location_fit.check_session(session, session_id)
 
 
 @router.post(

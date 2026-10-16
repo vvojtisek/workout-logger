@@ -697,6 +697,10 @@ async def test_locations_are_private_per_invited_account(migrated_client, auth_h
             f"/api/v1/locations/{location_id}", headers=other_cookies
         )
         assert other_delete.status_code == 404
+        other_filter = await client.get(
+            f"/api/v1/exercises?location_id={location_id}", headers=other_cookies
+        )
+        assert other_filter.status_code == 404
         deleted_own = await client.delete(
             f"/api/v1/locations/{other_created.json()['id']}", headers=other_cookies
         )

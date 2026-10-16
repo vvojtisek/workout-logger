@@ -12,6 +12,7 @@ from app.schemas.exercises import (
     PaginatedExercisesResponse,
 )
 from app.services import exercises as exercises_service
+from app.services import location_fit
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
 
@@ -22,7 +23,8 @@ router = APIRouter(prefix="/exercises", tags=["exercises"])
     summary="List exercise catalogue entries",
     description=(
         "Returns a paginated list of exercise catalogue entries, sorted by name ascending. "
-        "`q` filters by a case-insensitive substring of the name or any alias."
+        "`q` filters by a case-insensitive substring of the name or any alias. "
+        "`location_id` keeps only exercises that location's equipment can host."
     ),
     response_model=PaginatedExercisesResponse,
 )
@@ -30,9 +32,16 @@ async def list_exercises(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     q: str | None = Query(default=None, max_length=150),
+    location_id: UUID | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> PaginatedExercisesResponse:
-    items, total = await exercises_service.list_exercises(session, limit, offset, q)
+    if location_id is None:
+        items, total = await exercises_service.list_exercises(session, limit, offset, q)
+    else:
+        # Equipment lives in JSON, so filter the matches here; the catalogue is small.
+        everything, _ = await exercises_service.list_exercises(session, None, 0, q)
+        available = await location_fit.filter_available(session, everything, location_id)
+        items, total = available[offset : offset + limit], len(available)
     return PaginatedExercisesResponse(
         items=[ExerciseRead.model_validate(item) for item in items],
         total=total,

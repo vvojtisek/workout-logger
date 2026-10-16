@@ -78,3 +78,26 @@ export function draftIsDirty(draft: LocationDraft, saved: Location): boolean {
     payload.equipment.join() !== [...saved.equipment].sort().join()
   );
 }
+
+const TRAINING_LOCATION_KEY = "workout_logger_training_location";
+
+type KeyValueStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+/** The location last picked for starting workouts, if it still exists; "" means anywhere. */
+export function readTrainingLocation(storage: KeyValueStorage, knownIds: string[]): string {
+  try {
+    const id = storage.getItem(TRAINING_LOCATION_KEY) ?? "";
+    return knownIds.includes(id) ? id : "";
+  } catch {
+    return "";
+  }
+}
+
+export function writeTrainingLocation(storage: KeyValueStorage, id: string): void {
+  try {
+    if (id) storage.setItem(TRAINING_LOCATION_KEY, id);
+    else storage.removeItem(TRAINING_LOCATION_KEY);
+  } catch {
+    // A blocked storage only costs the remembered choice.
+  }
+}
