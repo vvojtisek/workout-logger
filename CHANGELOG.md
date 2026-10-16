@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Action log: every write through the app or the REST API and every MCP tool
+  call is recorded with who caused it (the signed-in user, the API token, or
+  the MCP client's registered name, self-reported name and version, and OAuth
+  login), the target record, success or failure, and a parameter summary
+  without health values, passwords or tokens. Entries older than 72 hours are
+  deleted. Admins see it under Settings, Action log
+  (`GET /api/v1/audit-events`).
 - Seed 37 basic foods (per 100 g, with vitamins and minerals) through a data
   migration that never duplicates or overwrites existing foods.
 - Bundle a 1,030-entry fallback food catalogue that stays out of the database:

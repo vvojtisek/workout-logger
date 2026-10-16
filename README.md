@@ -249,6 +249,16 @@ The REST API keeps its own `X-API-Key` authentication, unchanged — see
 [REST API-key authentication](#rest-api-key-authentication-unchanged) below. The MCP endpoint uses
 OAuth 2.1 instead, described here.
 
+#### Action log
+
+Every REST write (the app's UI included) and every MCP tool call writes one row to
+`audit_events`: time, who (`user`, `api_token`, `api_key` or `mcp`), action, target, outcome
+and a parameter summary that keeps only ids, names and dates. Health values, passwords and tokens
+are never stored. For an MCP client the row holds the OAuth subject, the OAuth client id and the
+name the client registered with, and the name and version the client reports in MCP; none of
+these is verified, and MCP carries no model name. Rows older than 72 hours are deleted on each
+write and never listed. Admins read it in Settings or at `GET /api/v1/audit-events`.
+
 #### Connecting ChatGPT (or another MCP client) over OAuth
 
 `/mcp/` authenticates with `Authorization: Bearer <access_token>` via OAuth 2.1 Authorization Code

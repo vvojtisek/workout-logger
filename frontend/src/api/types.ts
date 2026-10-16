@@ -506,3 +506,34 @@ export interface McpStatus {
   tool_count: number;
   tools: McpToolInfo[];
 }
+
+export type AuditActorKind = "user" | "api_token" | "api_key" | "mcp" | "anonymous";
+
+/** One row of the 72-hour action log (GET /audit-events, admin only). */
+export interface AuditEvent {
+  id: string;
+  occurred_at: string;
+  actor_kind: AuditActorKind;
+  actor: string;
+  actor_subject: string | null;
+  oauth_client_id: string | null;
+  oauth_client_name: string | null;
+  mcp_client_name: string | null;
+  mcp_client_version: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  outcome: "success" | "error";
+  status_code: number | null;
+  error: string | null;
+  params: Record<string, unknown>;
+  request_id: string | null;
+}
+
+export interface AuditEventsPage {
+  items: AuditEvent[];
+  total: number;
+  limit: number;
+  offset: number;
+  retention_hours: number;
+}

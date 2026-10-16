@@ -186,7 +186,7 @@ async def _authorize(http: httpx.AsyncClient, fake: FakeAuth0, scope: str | None
     return token.json()["access_token"]
 
 
-async def _tool_names(http: httpx.AsyncClient, access_token: str) -> set[str]:
+async def _open_session(http: httpx.AsyncClient, access_token: str) -> dict[str, str]:
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Accept": "application/json, text/event-stream",
@@ -211,6 +211,11 @@ async def _tool_names(http: httpx.AsyncClient, access_token: str) -> set[str]:
     await http.post(
         "/mcp/", headers=headers, json={"jsonrpc": "2.0", "method": "notifications/initialized"}
     )
+    return headers
+
+
+async def _tool_names(http: httpx.AsyncClient, access_token: str) -> set[str]:
+    headers = await _open_session(http, access_token)
     listed = await http.post(
         "/mcp/", headers=headers, json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"}
     )
@@ -261,3 +266,37 @@ async def test_a_read_only_client_sees_only_read_tools(auth0_app):
 
     assert "get_plan" in names
     assert "log_set" not in names
+
+
+async def test_the_action_log_names_the_registered_client(auth0_app):
+    from sqlalchemy import select
+
+    from app.database import get_session_maker
+    from app.models import AuditEvent
+
+    app, fake = auth0_app
+    async with running(app) as client:
+        token = await _authorize(client, fake, "read log")
+        headers = await _open_session(client, token)
+        called = await client.post(
+            "/mcp/",
+            headers=headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {"name": "get_progression_rules", "arguments": {}},
+            },
+        )
+        assert called.status_code == 200, called.text
+
+    async with get_session_maker()() as session:
+        event = (
+            await session.execute(
+                select(AuditEvent).where(AuditEvent.action == "mcp:get_progression_rules")
+            )
+        ).scalar_one()
+    assert event.actor == "Claude"
+    assert event.oauth_client_name == "Claude"
+    assert event.oauth_client_id and event.oauth_client_id != "upstream-client"
+    assert event.actor_subject == SUBJECT
