@@ -466,6 +466,13 @@ export interface McpToolInfo {
   description: string;
 }
 
+export interface CoachingPrinciples {
+  body: string;
+  updated_at: string | null;
+}
+
+export const MAX_PRINCIPLES_LENGTH = 20_000;
+
 export interface McpStatus {
   enabled: boolean;
   path: string;

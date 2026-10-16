@@ -12,6 +12,7 @@ MCP_URL = "http://testserver/mcp/"
 
 EXPECTED_TOOLS = {
     "create_plan",
+    "get_coaching_principles",
     "get_daily_summary",
     "get_plan",
     "get_progression_rules",
@@ -394,3 +395,16 @@ async def test_get_progression_rules_returns_the_fixed_rules(client, auth_header
     assert result.data["other_increment_kg"] == 1.0
     assert result.data["deload_factor"] == 0.9
     assert result.data["min_rir_to_add_load"] == 1
+
+
+async def test_get_coaching_principles_reads_what_the_admin_saved(client, auth_headers):
+    saved = await client.put(
+        "/api/v1/coaching-principles",
+        json={"body": "No heavy legs before hockey."},
+        headers=auth_headers,
+    )
+    assert saved.status_code == 200
+    async with mcp_client(mint_mcp_oauth_token(scopes=["read"])) as agent:
+        result = await agent.call_tool("get_coaching_principles", {})
+    assert result.data["body"] == "No heavy legs before hockey."
+    assert result.data["updated_at"] is not None

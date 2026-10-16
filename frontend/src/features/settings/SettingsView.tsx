@@ -1,9 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { apiFetch, apiFetchBlob, errorMessage, triggerBlobDownload } from "@/api/client";
-import type { McpStatus, UserSettings, Units } from "@/api/types";
+import {
+  apiFetch,
+  apiFetchBlob,
+  errorMessage,
+  triggerBlobDownload,
+} from "@/api/client";
+import { MAX_PRINCIPLES_LENGTH } from "@/api/types";
+import type {
+  CoachingPrinciples,
+  McpStatus,
+  UserSettings,
+  Units,
+} from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
+import { formatDateTime } from "@/lib/format";
 import { SETTINGS_QUERY_KEY, useSettingsQuery } from "@/lib/settings-query";
 import { THEME_PREFERENCES, useThemePreference } from "@/lib/theme";
 import { Button, Card, Input, PageHeading } from "@/ui";
@@ -58,7 +70,9 @@ function AppearanceSection() {
                 aria-checked={selected}
                 onClick={() => setPreference(option.value)}
                 className={`min-w-20 rounded-[var(--radius-sm)] px-4 py-2 text-sm font-medium transition-colors ${
-                  selected ? "bg-elevated text-main shadow-sm" : "text-muted hover:text-main"
+                  selected
+                    ? "bg-elevated text-main shadow-sm"
+                    : "text-muted hover:text-main"
                 }`}
               >
                 {option.label}
@@ -104,7 +118,8 @@ function PreferencesSection() {
       void queryClient.invalidateQueries({ queryKey: SETTINGS_QUERY_KEY });
       toast.success("Preferences saved");
     },
-    onError: (err: unknown) => toast.error(`Failed to save: ${errorMessage(err)}`),
+    onError: (err: unknown) =>
+      toast.error(`Failed to save: ${errorMessage(err)}`),
   });
 
   return (
@@ -167,8 +182,8 @@ function PreferencesSection() {
               </div>
             </div>
             <p className="text-sm text-muted">
-              Pre-fills the rest field when you add a compound or isolation exercise to a plan.
-              Existing exercises are unaffected.
+              Pre-fills the rest field when you add a compound or isolation
+              exercise to a plan. Existing exercises are unaffected.
             </p>
             <div>
               <Button
@@ -182,6 +197,111 @@ function PreferencesSection() {
             </div>
           </>
         )}
+      </Card>
+    </div>
+  );
+}
+
+const PRINCIPLES_QUERY_KEY = ["coaching-principles"];
+
+/** One text the admin owns. An assistant reads it over MCP when it designs a
+ * training block; the app's own rules never read it. */
+function CoachingPrinciplesSection() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canEdit = user?.role === "admin";
+  const { data, error, isLoading } = useQuery({
+    queryKey: PRINCIPLES_QUERY_KEY,
+    queryFn: () => apiFetch<CoachingPrinciples>("/coaching-principles"),
+  });
+  const [body, setBody] = useState("");
+  const [seeded, setSeeded] = useState(false);
+
+  useEffect(() => {
+    if (!data || seeded) return;
+    setBody(data.body);
+    setSeeded(true);
+  }, [data, seeded]);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      apiFetch<CoachingPrinciples>("/coaching-principles", {
+        method: "PUT",
+        body: JSON.stringify({ body }),
+      }),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(PRINCIPLES_QUERY_KEY, saved);
+      toast.success("Coaching principles saved");
+    },
+    onError: (err: unknown) =>
+      toast.error(`Failed to save: ${errorMessage(err)}`),
+  });
+
+  return (
+    <div className="mb-6">
+      <SectionHeading>Coaching principles</SectionHeading>
+      <Card className="flex flex-col gap-3 p-4">
+        <p className="text-sm text-muted">
+          Your training beliefs and preferences, in your own words. An assistant
+          connected over MCP reads them when it designs or reviews a training
+          block. The app&apos;s own progression and hockey rules do not use
+          them.
+        </p>
+        {isLoading ? <p className="text-sm text-muted">Loading…</p> : null}
+        {error ? (
+          <p className="text-sm text-danger">
+            Failed to load: {errorMessage(error)}
+          </p>
+        ) : null}
+        {data && canEdit ? (
+          <>
+            <label className="field-label" htmlFor="coaching-principles">
+              Principles
+            </label>
+            <textarea
+              id="coaching-principles"
+              className="input font-mono text-sm"
+              rows={10}
+              maxLength={MAX_PRINCIPLES_LENGTH}
+              placeholder={
+                "For example:\n- Evidence-based methods only, no fads.\n- Health and family come before training."
+              }
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+            />
+            <p className="text-xs text-muted">
+              {body.length.toLocaleString()} of{" "}
+              {MAX_PRINCIPLES_LENGTH.toLocaleString()} characters
+              {data.updated_at
+                ? ` · last saved ${formatDateTime(data.updated_at)}`
+                : ""}
+            </p>
+            <div>
+              <Button
+                id="save-principles-btn"
+                variant="primary"
+                disabled={mutation.isPending || body === data.body}
+                onClick={() => mutation.mutate()}
+              >
+                Save principles
+              </Button>
+            </div>
+          </>
+        ) : null}
+        {data && !canEdit ? (
+          data.body ? (
+            <p
+              className="whitespace-pre-wrap text-sm"
+              data-testid="coaching-principles-text"
+            >
+              {data.body}
+            </p>
+          ) : (
+            <p className="text-sm text-muted">
+              No principles written yet. Only an admin can edit them.
+            </p>
+          )
+        ) : null}
       </Card>
     </div>
   );
@@ -206,7 +326,7 @@ function McpSection() {
       },
     },
     null,
-    2
+    2,
   );
 
   return (
@@ -215,28 +335,33 @@ function McpSection() {
       <Card className="flex flex-col gap-3 p-4">
         {isLoading ? <p className="text-sm text-muted">Loading…</p> : null}
         {error ? (
-          <p className="text-sm text-danger">Failed to load status: {errorMessage(error)}</p>
+          <p className="text-sm text-danger">
+            Failed to load status: {errorMessage(error)}
+          </p>
         ) : null}
         {data ? (
           <>
             <p className="text-sm">
               <span
                 className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                  data.enabled ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
+                  data.enabled
+                    ? "bg-success-soft text-success"
+                    : "bg-danger-soft text-danger"
                 }`}
               >
                 {data.enabled ? "enabled" : "disabled"}
               </span>
               <span className="ml-2 text-muted">
-                {data.tool_count} tool{data.tool_count === 1 ? "" : "s"} at {data.path}
+                {data.tool_count} tool{data.tool_count === 1 ? "" : "s"} at{" "}
+                {data.path}
               </span>
             </p>
             <pre className="overflow-x-auto rounded-md bg-elevated p-3 text-xs">
               {configSnippet}
             </pre>
             <p className="text-sm text-muted">
-              Mint the agent a scoped token under API Tokens with the read and log scopes, and
-              swap it in for the placeholder above.
+              Mint the agent a scoped token under API Tokens with the read and
+              log scopes, and swap it in for the placeholder above.
             </p>
           </>
         ) : null}
@@ -252,7 +377,11 @@ function ExportSection() {
     setExporting(format);
     try {
       const { blob, filename } = await apiFetchBlob(`/export?format=${format}`);
-      triggerBlobDownload(blob, filename || `workout-logger-export.${format === "csv" ? "zip" : "json"}`);
+      triggerBlobDownload(
+        blob,
+        filename ||
+          `workout-logger-export.${format === "csv" ? "zip" : "json"}`,
+      );
       toast.success("Export ready");
     } catch (err) {
       toast.error(`Export failed: ${errorMessage(err)}`);
@@ -266,9 +395,9 @@ function ExportSection() {
       <SectionHeading>Export Data</SectionHeading>
       <Card className="flex flex-col gap-3 p-4">
         <p className="text-sm text-muted">
-          Every logged domain — plans, exercises, programs, scheduled workouts, sessions, body
-          metrics, foods, nutrition plans, meal entries, sleep entries, step counts — as one
-          download.
+          Every logged domain — plans, exercises, programs, scheduled workouts,
+          sessions, body metrics, foods, nutrition plans, meal entries, sleep
+          entries, step counts — as one download.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -298,6 +427,7 @@ export function SettingsView() {
       <AccountSection />
       <AppearanceSection />
       <PreferencesSection />
+      <CoachingPrinciplesSection />
       <McpSection />
       <ExportSection />
     </section>

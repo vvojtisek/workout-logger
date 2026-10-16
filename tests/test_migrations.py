@@ -868,3 +868,21 @@ def test_suggestion_note_migration_round_trips(alembic_config, alembic_db_path):
         }
     assert "suggestion_note" not in columns
     sync_engine.dispose()
+
+
+def test_coaching_principles_migration_round_trips(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "c2e4a6b8d0f1")
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.connect() as connection:
+        columns = {
+            row[1] for row in connection.execute(text("PRAGMA table_info(coaching_principles)"))
+        }
+    assert columns == {"id", "body", "created_at", "updated_at"}
+    command.downgrade(alembic_config, "b9d1f3a5c7e2")
+    with sync_engine.connect() as connection:
+        tables = {
+            row[0]
+            for row in connection.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+        }
+    assert "coaching_principles" not in tables
+    sync_engine.dispose()
