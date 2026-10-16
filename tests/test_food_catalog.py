@@ -104,8 +104,18 @@ async def test_add_from_catalogue_keeps_user_edits(client, auth_headers):
     edited = {
         key: food[key]
         for key in (
-            "name", "brand", "serving_quantity", "serving_unit", "energy_kcal", "protein_g",
-            "carbohydrate_g", "fat_g", "fiber_g", "source", "category", "vitamins_mg",
+            "name",
+            "brand",
+            "serving_quantity",
+            "serving_unit",
+            "energy_kcal",
+            "protein_g",
+            "carbohydrate_g",
+            "fat_g",
+            "fiber_g",
+            "source",
+            "category",
+            "vitamins_mg",
             "minerals_mg",
         )
     }

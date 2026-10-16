@@ -966,7 +966,9 @@ def test_food_seed_migration_adds_seed_foods_and_keeps_existing(alembic_config, 
 
     with sync_engine.begin() as connection:
         connection.execute(
-            text("UPDATE foods SET name = 'Můj chleba', energy_kcal = 200 WHERE catalog_id = 'bread-rye'")
+            text(
+                "UPDATE foods SET name = 'Můj chleba', energy_kcal = 200 WHERE catalog_id = 'bread-rye'"
+            )
         )
     # Running the seed again neither duplicates rows nor overwrites the edit.
     migration = _load_food_seed_migration()
