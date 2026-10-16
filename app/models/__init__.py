@@ -5,6 +5,7 @@ from app.models.body_metric import BodyMetric
 from app.models.exercise import Exercise
 from app.models.exercise_log import ExerciseLog
 from app.models.food import Food
+from app.models.location import Location
 from app.models.login_attempt import LoginAttempt
 from app.models.meal_entry import MealEntry
 from app.models.meal_item import MealItem
@@ -31,6 +32,7 @@ __all__ = [
     "Exercise",
     "ExerciseLog",
     "Food",
+    "Location",
     "LoginAttempt",
     "MealEntry",
     "MealItem",

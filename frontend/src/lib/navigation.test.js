@@ -50,6 +50,8 @@ describe("navigation model", () => {
     expect(sectionForPath(DESKTOP, "/exercises/1")?.label).toBe("Exercise Catalogue");
     expect(sectionForPath(MOBILE_SECTIONS, "/exercises/1")?.label).toBe("Plans");
     expect(sectionForPath(MOBILE_SECTIONS, "/tokens/new")?.label).toBe("More");
+    expect(sectionForPath(DESKTOP, "/locations")?.label).toBe("Exercise Catalogue");
+    expect(sectionForPath(MOBILE_SECTIONS, "/locations")?.label).toBe("Plans");
   });
 
   it("returns to a live session from the workout section", () => {
