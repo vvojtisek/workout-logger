@@ -825,3 +825,29 @@ def test_equipment_tags_migration_backfills_from_the_free_text(alembic_config, a
     assert json.loads(squat) == [["barbell", "rack"]]
     assert untagged == 0
     sync_engine.dispose()
+
+
+def test_load_events_migration_adds_table_with_checks(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "a7c3e9b1d5f2")
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    insert = text(
+        "INSERT INTO load_events (id, name, kind, weekday, start_time, duration_minutes, "
+        "season_start, season_end, created_at, updated_at) VALUES (:id, 'Game', :kind, "
+        ":weekday, '19:30:00.000000', :minutes, '2026-09-01', :end, "
+        "'2026-10-16 00:00:00', '2026-10-16 00:00:00')"
+    )
+    valid = {"kind": "game", "weekday": 5, "minutes": 60, "end": "2027-03-31"}
+    with sync_engine.begin() as connection:
+        connection.execute(insert, {"id": str(uuid.uuid4()), **valid})
+    for override in (
+        {"kind": "match"},
+        {"weekday": 7},
+        {"minutes": 5},
+        {"end": "2026-08-31"},
+    ):
+        with pytest.raises(IntegrityError), sync_engine.begin() as connection:
+            connection.execute(insert, {"id": str(uuid.uuid4()), **valid, **override})
+
+    command.downgrade(alembic_config, "d2f6b8a4c1e7")
+    assert "load_events" not in set(inspect(sync_engine).get_table_names())
+    sync_engine.dispose()

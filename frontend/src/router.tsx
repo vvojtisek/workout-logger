@@ -50,6 +50,13 @@ export const router = createBrowserRouter([
               })),
           },
           {
+            path: "schedule",
+            lazy: () =>
+              import("@/features/schedule/SportScheduleView").then((m) => ({
+                Component: m.SportScheduleView,
+              })),
+          },
+          {
             path: "settings",
             lazy: () =>
               import("@/features/settings/SettingsView").then((m) => ({

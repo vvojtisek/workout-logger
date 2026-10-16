@@ -10,6 +10,7 @@ from app.api.v1 import (
     foods,
     ingest,
     invites,
+    load_events,
     locations,
     logs,
     mcp_status,
@@ -33,6 +34,7 @@ api_router.include_router(invites.router)
 api_router.include_router(users.router)
 api_router.include_router(plans.router)
 api_router.include_router(exercises.router)
+api_router.include_router(load_events.router)
 api_router.include_router(locations.router)
 api_router.include_router(logs.router)
 api_router.include_router(exercise_stats.router)
