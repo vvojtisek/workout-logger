@@ -2,6 +2,7 @@ from fastapi import APIRouter, Security
 
 from app.api.v1 import (
     api_tokens,
+    audit_events,
     body_metrics,
     calendar,
     coaching_principles,
@@ -57,3 +58,4 @@ api_router.include_router(settings.router)
 api_router.include_router(coaching_principles.router)
 api_router.include_router(mcp_status.router)
 api_router.include_router(export.router)
+api_router.include_router(audit_events.router)

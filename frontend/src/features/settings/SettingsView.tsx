@@ -9,11 +9,19 @@ import {
 } from "@/api/client";
 import { MAX_PRINCIPLES_LENGTH } from "@/api/types";
 import type {
+  AuditActorKind,
+  AuditEventsPage,
   CoachingPrinciples,
   McpStatus,
   UserSettings,
 } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
+import {
+  ACTOR_KIND_LABELS,
+  describeAction,
+  describeActor,
+  describeParams,
+} from "@/lib/audit-events";
 import { formatDateTime } from "@/lib/format";
 import { SETTINGS_QUERY_KEY, useSettingsQuery } from "@/lib/settings-query";
 import { THEME_PREFERENCES, useThemePreference } from "@/lib/theme";
@@ -336,6 +344,117 @@ function McpSection() {
   );
 }
 
+/** Admin only: what happened in the last 72 hours and who caused it. */
+function ActionLogSection() {
+  const { user } = useAuth();
+  const [kind, setKind] = useState<AuditActorKind | "">("");
+  const isAdmin = user?.role === "admin";
+  const { data, error, isFetching, refetch } = useQuery({
+    queryKey: ["audit-events", kind],
+    queryFn: () =>
+      apiFetch<AuditEventsPage>(
+        `/audit-events?limit=100${kind ? `&actor_kind=${kind}` : ""}`,
+      ),
+    enabled: isAdmin,
+  });
+  if (!isAdmin) return null;
+
+  return (
+    <div className="mb-6">
+      <SectionHeading>Action log</SectionHeading>
+      <Card className="flex flex-col gap-3 p-4">
+        <p className="text-sm text-muted">
+          Every change made in the app or through the API, and every MCP tool
+          call, from the last {data?.retention_hours ?? 72} hours. Weights,
+          measurements, passwords and tokens are never stored here. For an MCP
+          client, the name is what the client reported; the model behind it is
+          not sent, so it is not shown.
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <div>
+            <label className="field-label" htmlFor="action-log-kind">
+              Who
+            </label>
+            <select
+              id="action-log-kind"
+              className="input"
+              value={kind}
+              onChange={(event) =>
+                setKind(event.target.value as AuditActorKind | "")
+              }
+            >
+              <option value="">Everyone</option>
+              {Object.entries(ACTOR_KIND_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button
+            id="action-log-refresh"
+            disabled={isFetching}
+            onClick={() => void refetch()}
+          >
+            Refresh
+          </Button>
+        </div>
+        {error ? (
+          <p className="text-sm text-danger">
+            Failed to load: {errorMessage(error)}
+          </p>
+        ) : null}
+        {data && data.items.length === 0 ? (
+          <p className="text-sm text-muted">Nothing in the last 72 hours.</p>
+        ) : null}
+        {data && data.items.length > 0 ? (
+          <ul id="action-log" className="flex flex-col divide-y divide-line-muted">
+            {data.items.map((event) => (
+              <li key={event.id} className="py-2 text-sm">
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="text-muted">
+                    {formatDateTime(event.occurred_at)}
+                  </span>
+                  <span className="font-medium">{describeAction(event)}</span>
+                  <span
+                    className={
+                      event.outcome === "success"
+                        ? "text-success"
+                        : "text-danger"
+                    }
+                  >
+                    {event.outcome === "success" ? "done" : "failed"}
+                    {event.status_code ? ` (${event.status_code})` : ""}
+                  </span>
+                </div>
+                <div>{describeActor(event)}</div>
+                {event.target_id ? (
+                  <div className="text-xs text-muted">
+                    {event.target_type}: {event.target_id}
+                  </div>
+                ) : null}
+                {Object.keys(event.params).length > 0 ? (
+                  <div className="break-words text-xs text-muted">
+                    {describeParams(event.params)}
+                  </div>
+                ) : null}
+                {event.error ? (
+                  <div className="text-xs text-danger">{event.error}</div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {data && data.total > data.items.length ? (
+          <p className="text-xs text-muted">
+            Showing the newest {data.items.length} of {data.total}.
+          </p>
+        ) : null}
+      </Card>
+    </div>
+  );
+}
+
 function ExportSection() {
   const [exporting, setExporting] = useState<"json" | "csv" | null>(null);
 
@@ -395,6 +514,7 @@ export function SettingsView() {
       <PreferencesSection />
       <CoachingPrinciplesSection />
       <McpSection />
+      <ActionLogSection />
       <ExportSection />
     </section>
   );

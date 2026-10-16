@@ -10,6 +10,7 @@ from sqlalchemy import text
 
 from app.api.v1.auth import router as auth_router
 from app.api.v1.router import api_router
+from app.audit_middleware import AuditMiddleware
 from app.config import get_settings
 from app.database import get_engine
 from app.exceptions import register_exception_handlers
@@ -149,6 +150,9 @@ async def request_id_and_access_log_middleware(request: Request, call_next):
     return response
 
 
+# Added last, so outermost: it sees the request id and identity the inner
+# middleware and dependencies set, and the final status after error handlers.
+app.add_middleware(AuditMiddleware)
 register_exception_handlers(app)
 app.include_router(api_router)
 # Deliberately NOT included via api_router: these routes (invite acceptance,

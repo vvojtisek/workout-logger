@@ -1,5 +1,6 @@
 from app.models.account_token import AccountToken
 from app.models.api_token import ApiToken
+from app.models.audit_event import AuditEvent
 from app.models.base import Base
 from app.models.body_metric import BodyMetric
 from app.models.coaching_principles import CoachingPrinciples
@@ -29,6 +30,7 @@ from app.models.workout_session import WorkoutSession
 __all__ = [
     "AccountToken",
     "ApiToken",
+    "AuditEvent",
     "Base",
     "BodyMetric",
     "CoachingPrinciples",

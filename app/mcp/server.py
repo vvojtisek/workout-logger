@@ -15,6 +15,7 @@ from fastmcp.server.auth import require_scopes
 
 from app.config import get_settings
 from app.database import get_session_maker
+from app.mcp.audit import AuditMiddleware
 from app.mcp.oauth import build_mcp_oauth_provider
 from app.schemas.body_metrics import BodyMetricCreate, BodyMetricRead
 from app.schemas.meal_entries import MealEntryCreate, MealEntryRead, MealItemCreate
@@ -40,6 +41,7 @@ mcp: FastMCP = FastMCP(
         "logging tools need 'log'."
     ),
     auth=build_mcp_oauth_provider(get_settings()),
+    middleware=[AuditMiddleware()],
 )
 
 

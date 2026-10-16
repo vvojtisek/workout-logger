@@ -25,7 +25,7 @@ EXPECTED_TOOLS = {
 
 
 @asynccontextmanager
-async def mcp_client(token: str):
+async def mcp_client(token: str, client_info=None):
     """An MCP client speaking streamable HTTP to the real mounted app, so every
     call goes through the same OAuth verification a deployed agent would hit."""
     from app.main import app
@@ -46,7 +46,7 @@ async def mcp_client(token: str):
         httpx_client_factory=factory,
     )
     async with app.router.lifespan_context(app):
-        async with Client(transport) as client:
+        async with Client(transport, client_info=client_info) as client:
             yield client
 
 
