@@ -2,9 +2,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { apiFetch, errorMessage } from "@/api/client";
-import type { Paginated, Program, ScheduledWorkout, WorkoutPlan, WorkoutSession } from "@/api/types";
+import type {
+  LoadEventOccurrence,
+  Paginated,
+  Program,
+  ScheduledWorkout,
+  WorkoutPlan,
+  WorkoutSession,
+} from "@/api/types";
 import { useAppContext } from "@/AppLayout";
 import { CALENDAR_WEEKDAYS, leadingBlankDays } from "@/lib/calendar";
+import { LOAD_EVENT_KIND_LABELS, clockTime, occurrencesByDate } from "@/lib/load-events";
 import { Button, Card, PageHeading } from "@/ui";
 import { Dialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
@@ -271,7 +279,9 @@ export function CalendarView() {
   const calendarQuery = useQuery({
     queryKey: ["calendar", cursor.year, cursor.month],
     queryFn: () =>
-      apiFetch<{ items: ScheduledWorkout[] }>(`/calendar?from=${fromDate}&to=${toDate}`),
+      apiFetch<{ items: ScheduledWorkout[]; load_events?: LoadEventOccurrence[] }>(
+        `/calendar?from=${fromDate}&to=${toDate}`,
+      ),
   });
 
   const plansQuery = useQuery({
@@ -294,13 +304,15 @@ export function CalendarView() {
     entriesByDate.set(item.scheduled_date, list);
   }
 
+  const loadByDate = occurrencesByDate(calendarQuery.data?.load_events ?? []);
+
   const leadingBlanks = leadingBlankDays(cursor.year, cursor.month);
   const dayCells = Array.from({ length: monthLength }, (_, index) => index + 1);
 
   return (
     <section id="calendar-view">
       <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
-        <PageHeading hint="Tap a day to schedule a workout. Tap a scheduled workout to start, move, skip, or remove it.">
+        <PageHeading hint="Tap a day to schedule a workout. Tap a scheduled workout to start, move, skip, or remove it. Dashed entries are games and practices from your sport schedule.">
           Calendar
         </PageHeading>
       </div>
@@ -354,6 +366,7 @@ export function CalendarView() {
         {dayCells.map((day) => {
           const dateStr = isoDate(cursor.year, cursor.month, day);
           const entries = entriesByDate.get(dateStr) ?? [];
+          const loads = loadByDate.get(dateStr) ?? [];
           return (
             <Card key={dateStr} className="flex min-h-[5.5rem] flex-col gap-1 p-1.5">
               <div className="flex items-center justify-between">
@@ -369,6 +382,18 @@ export function CalendarView() {
                 </button>
               </div>
               <div className="flex flex-col gap-1">
+                {loads.map((load) => (
+                  <div
+                    key={`${load.event_id}:${load.start_time}`}
+                    data-testid="calendar-load-event"
+                    title={`${load.name}, ${clockTime(load.start_time)}, ${load.duration_minutes} min`}
+                    className="overflow-hidden whitespace-nowrap rounded-md border border-dashed border-accent py-0.5 text-center text-[0.6rem] tracking-tighter text-accent sm:truncate sm:px-1.5 sm:text-left sm:text-xs sm:tracking-normal"
+                  >
+                    {/* Phone cells only fit the time; the kind joins it on wider screens. */}
+                    <span className="hidden sm:inline">{LOAD_EVENT_KIND_LABELS[load.kind]} </span>
+                    {clockTime(load.start_time)}
+                  </div>
+                ))}
                 {entries.map((entry) => (
                   <button
                     key={entry.id}

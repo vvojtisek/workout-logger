@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { detailPane, openPage } from "./support/navigation.js";
+import { clickAndAwaitWrite } from "./support/writes.js";
 
 test("logs, views trends for, edits, and deletes a real sleep entry through the GUI", async ({
   page,
@@ -35,7 +36,11 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
     await page.getByLabel("Quality (optional)").selectOption("4");
     await page.getByLabel("Resting heart rate (bpm, optional)").fill("58");
     await page.getByLabel("Notes (optional)").fill(`${tag} slept well`);
-    await detailPane(page).getByRole("button", { name: "Log sleep", exact: true }).click();
+    await clickAndAwaitWrite(
+      page,
+      detailPane(page).getByRole("button", { name: "Log sleep", exact: true }),
+      "POST",
+    );
     await expect(page.getByRole("heading", { name: "Sleep", exact: true })).toBeVisible();
 
     const list = await request.get("/api/v1/sleep-entries?limit=100");
@@ -63,7 +68,7 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
     await expect(page.getByRole("heading", { name: "Edit Sleep Entry" })).toBeVisible();
     await expect(page.getByLabel("Went to bed")).toHaveValue("2032-04-10T23:00");
     await page.getByLabel("Woke up").fill("2032-04-11T08:00");
-    await page.getByRole("button", { name: "Save changes" }).click();
+    await clickAndAwaitWrite(page, page.getByRole("button", { name: "Save changes" }), "PUT");
     await expect(page.getByRole("heading", { name: "Sleep", exact: true })).toBeVisible();
 
     const afterEdit = await request.get(`/api/v1/sleep-entries/${entryId}`);
@@ -75,10 +80,11 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
       .filter({ hasText: `${tag}` })
       .getByRole("button", { name: "Delete" })
       .click();
-    await page
-      .getByRole("dialog", { name: "Delete sleep entry" })
-      .getByRole("button", { name: "Delete" })
-      .click();
+    await clickAndAwaitWrite(
+      page,
+      page.getByRole("dialog", { name: "Delete sleep entry" }).getByRole("button", { name: "Delete" }),
+      "DELETE",
+    );
     await expect(page.locator("#sleep-entries-list").getByText(tag, { exact: false })).toBeHidden();
 
     const afterDelete = await request.get(`/api/v1/sleep-entries/${entryId}`);

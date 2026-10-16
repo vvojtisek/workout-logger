@@ -206,6 +206,33 @@ export interface LocationCheck {
   }>;
 }
 
+export const LOAD_EVENT_KINDS = ["game", "practice"] as const;
+
+export type LoadEventKind = (typeof LOAD_EVENT_KINDS)[number];
+
+/** A weekly game or practice for one season. Monday is weekday 0. */
+export interface LoadEvent {
+  id: string;
+  name: string;
+  kind: LoadEventKind;
+  weekday: number;
+  start_time: string;
+  duration_minutes: number;
+  season_start: string;
+  season_end: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LoadEventOccurrence {
+  event_id: string;
+  date: string;
+  start_time: string;
+  duration_minutes: number;
+  kind: LoadEventKind;
+  name: string;
+}
+
 export type ProgramStatus = "active" | "completed" | "archived";
 
 export interface Program {
