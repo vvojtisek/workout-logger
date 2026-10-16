@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openPage } from "./support/navigation.js";
+import { clickAndAwaitWrite } from "./support/writes.js";
 
 function todayIso() {
   const now = new Date();
@@ -57,7 +58,7 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     await page.getByLabel("Name").fill(`${tag} program`);
     await page.getByLabel("Kind").fill("Hypertrophy");
     await page.getByLabel("Start date").fill(today);
-    await page.getByRole("button", { name: "Create program" }).click();
+    await clickAndAwaitWrite(page, page.getByRole("button", { name: "Create program" }), "POST");
     await expect(page.getByRole("heading", { name: "Programs", exact: true })).toBeVisible();
 
     const programList = await request.get("/api/v1/programs?limit=100");
@@ -156,7 +157,7 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     // Delete through the GUI and prove it is gone.
     await page.goto("/calendar");
     await page.getByRole("button", { name: `${tag} plan` }).click();
-    await page.getByRole("button", { name: "Delete" }).click();
+    await clickAndAwaitWrite(page, page.getByRole("button", { name: "Delete" }), "DELETE");
     await expect(page.getByRole("dialog")).toBeHidden();
     await expect(page.getByRole("button", { name: `${tag} plan` })).toBeHidden();
 

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { openPage } from "./support/navigation.js";
 import { openExercise } from "./support/workout.js";
+import { clickAndAwaitWrite } from "./support/writes.js";
 
 test("builds a plan with bodyweight and cardio exercises and logs kind-specific sets", async ({
   page,
@@ -36,7 +37,7 @@ test("builds a plan with bodyweight and cardio exercises and logs kind-specific 
     await cardioRow.getByLabel("Exercise name").fill(`${tag} Row Erg`);
     await cardioRow.getByLabel("Exercise type").selectOption("cardio");
 
-    await page.getByRole("button", { name: "Create program" }).click();
+    await clickAndAwaitWrite(page, page.getByRole("button", { name: "Create program" }), "POST");
     await expect(page.getByRole("heading", { name: "Workout Plans" })).toBeVisible();
 
     // Read the created plan back through the real API to confirm both kinds saved.
