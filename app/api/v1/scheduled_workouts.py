@@ -55,10 +55,16 @@ async def get_scheduled_workout(
     "/{scheduled_workout_id}",
     operation_id="reschedule_workout",
     summary="Reschedule or update a scheduled workout",
-    description="Moves a scheduled workout to a new date/program, or marks it skipped/scheduled.",
+    description=(
+        "Moves a scheduled workout to a new date or program, swaps its plan, "
+        "or marks it skipped/scheduled."
+    ),
     response_model=ScheduledWorkoutRead,
     responses={
-        404: {"model": ErrorResponse, "description": "Scheduled workout or program not found"},
+        404: {
+            "model": ErrorResponse,
+            "description": "Scheduled workout, program or plan not found",
+        },
         409: {"model": ErrorResponse, "description": "Status cannot be changed this way"},
     },
 )

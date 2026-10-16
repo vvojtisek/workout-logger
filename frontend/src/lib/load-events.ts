@@ -1,4 +1,4 @@
-import type { LoadEvent, LoadEventKind, LoadEventOccurrence } from "@/api/types";
+import type { LoadEvent, LoadEventKind, LoadEventOccurrence, LoadWarning } from "@/api/types";
 
 import { WEEKDAY_LABELS } from "./program-templates";
 
@@ -139,4 +139,13 @@ export function occurrencesByDate(
     byDate.set(occurrence.date, list);
   }
   return byDate;
+}
+
+/** One sentence on why a scheduled workout is flagged, naming the first clash. */
+export function loadWarningMessage(warning: LoadWarning, workoutDate: string): string {
+  const event = warning.events[0];
+  const exercises = warning.heavy_exercises.join(", ");
+  if (!event) return `Heavy leg work (${exercises}) close before hockey.`;
+  const when = event.date === workoutDate ? "on the day of" : "the day before";
+  return `Heavy leg work (${exercises}) ${when} ${event.name} at ${clockTime(event.start_time)}.`;
 }

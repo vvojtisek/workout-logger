@@ -233,6 +233,15 @@ export interface LoadEventOccurrence {
   name: string;
 }
 
+/** A scheduled workout with heavy leg work too close before a game or practice. */
+export interface LoadWarning {
+  scheduled_workout_id: string;
+  heavy_exercises: string[];
+  events: LoadEventOccurrence[];
+  move_to: string | null;
+  swap_plans: Array<{ id: string; name: string }>;
+}
+
 export type ProgramStatus = "active" | "completed" | "archived";
 
 export interface Program {

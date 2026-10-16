@@ -3,6 +3,7 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.load_events import LoadEventOccurrence
+from app.schemas.load_warnings import LoadWarning
 from app.schemas.scheduled_workouts import ScheduledWorkoutRead
 
 # A calendar query must always be a bounded date range; this is the ceiling
@@ -29,3 +30,5 @@ class CalendarResponse(BaseModel):
     items: list[ScheduledWorkoutRead]
     # Recurring games and practices that fall in the range, by date then time.
     load_events: list[LoadEventOccurrence] = Field(default_factory=list)
+    # Scheduled workouts with heavy leg work too close before a game or practice.
+    load_warnings: list[LoadWarning] = Field(default_factory=list)

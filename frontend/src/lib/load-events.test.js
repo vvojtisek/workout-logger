@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   clockTime,
+  loadWarningMessage,
   defaultSeason,
   describeLoadEvent,
   draftFromLoadEvent,
@@ -121,5 +122,31 @@ describe("load events", () => {
     ]);
     expect(grouped.get("2026-10-10")).toHaveLength(1);
     expect(grouped.get("2026-10-04")).toBeUndefined();
+  });
+
+  it("explains a heavy-legs warning in plain words", () => {
+    const game = {
+      event_id: "e1",
+      date: "2026-10-17",
+      start_time: "19:30:00",
+      duration_minutes: 75,
+      kind: /** @type {const} */ ("game"),
+      name: "League game",
+    };
+    /** @param {Partial<import("@/api/types").LoadWarning>} override */
+    const warning = (override) => ({
+      scheduled_workout_id: "w1",
+      heavy_exercises: ["Back squat", "Romanian deadlift"],
+      events: [game],
+      move_to: null,
+      swap_plans: [],
+      ...override,
+    });
+    expect(loadWarningMessage(warning({}), "2026-10-16")).toBe(
+      "Heavy leg work (Back squat, Romanian deadlift) the day before League game at 19:30.",
+    );
+    expect(loadWarningMessage(warning({}), "2026-10-17")).toBe(
+      "Heavy leg work (Back squat, Romanian deadlift) on the day of League game at 19:30.",
+    );
   });
 });

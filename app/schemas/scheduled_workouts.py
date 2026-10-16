@@ -21,6 +21,8 @@ class ScheduledWorkoutCreate(BaseModel):
 
 class ScheduledWorkoutUpdate(BaseModel):
     program_id: UUID | None = Field(default=None)
+    # Swap in another plan, for example an upper-body day before a game.
+    workout_plan_id: UUID | None = Field(default=None)
     scheduled_date: date | None = Field(default=None)
     status: ScheduledWorkoutUserStatus | None = Field(default=None)
 

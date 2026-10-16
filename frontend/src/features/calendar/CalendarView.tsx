@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiFetch, errorMessage } from "@/api/client";
 import type {
   LoadEventOccurrence,
+  LoadWarning,
   Paginated,
   Program,
   ScheduledWorkout,
@@ -12,7 +13,12 @@ import type {
 } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
 import { CALENDAR_WEEKDAYS, leadingBlankDays } from "@/lib/calendar";
-import { LOAD_EVENT_KIND_LABELS, clockTime, occurrencesByDate } from "@/lib/load-events";
+import {
+  LOAD_EVENT_KIND_LABELS,
+  clockTime,
+  loadWarningMessage,
+  occurrencesByDate,
+} from "@/lib/load-events";
 import { Button, Card, PageHeading } from "@/ui";
 import { Dialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
@@ -147,18 +153,22 @@ function ScheduleDialog({
 function EntryDialog({
   entry,
   onClose,
+  warning,
   onChanged,
 }: {
   entry: ScheduledWorkout | null;
+  warning: LoadWarning | null;
   onClose: () => void;
   onChanged: () => void;
 }) {
   const { openSession } = useAppContext();
   const [newDate, setNewDate] = useState(entry?.scheduled_date ?? "");
+  const [swapPlanId, setSwapPlanId] = useState("");
 
   useEffect(() => {
     if (entry) setNewDate(entry.scheduled_date);
-  }, [entry?.id, entry?.scheduled_date]);
+    setSwapPlanId(warning?.swap_plans[0]?.id ?? "");
+  }, [entry?.id, entry?.scheduled_date, warning?.swap_plans]);
 
   const start = useMutation({
     mutationFn: (id: string) =>
@@ -209,6 +219,55 @@ function EntryDialog({
         </p>
         {entry.notes ? (
           <p className="scheduled-notes whitespace-pre-line text-sm">{entry.notes}</p>
+        ) : null}
+
+        {warning && entry.status === "scheduled" ? (
+          <div
+            role="alert"
+            data-testid="load-warning"
+            className="flex flex-col gap-2 rounded-md bg-danger-soft p-3 text-sm text-danger"
+          >
+            <p>{loadWarningMessage(warning, entry.scheduled_date)}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {warning.move_to ? (
+                <Button
+                  disabled={reschedule.isPending}
+                  onClick={() =>
+                    reschedule.mutate({ id: entry.id, patch: { scheduled_date: warning.move_to } })
+                  }
+                >
+                  Move to {formatDate(warning.move_to)}
+                </Button>
+              ) : null}
+              {warning.swap_plans.length > 0 ? (
+                <>
+                  <label className="sr-only" htmlFor="swap-plan">
+                    Plan to swap in
+                  </label>
+                  <select
+                    id="swap-plan"
+                    className="input w-auto"
+                    value={swapPlanId}
+                    onChange={(event) => setSwapPlanId(event.target.value)}
+                  >
+                    {warning.swap_plans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    disabled={!swapPlanId || reschedule.isPending}
+                    onClick={() =>
+                      reschedule.mutate({ id: entry.id, patch: { workout_plan_id: swapPlanId } })
+                    }
+                  >
+                    Swap plan
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          </div>
         ) : null}
 
         {entry.status === "scheduled" ? (
@@ -279,7 +338,11 @@ export function CalendarView() {
   const calendarQuery = useQuery({
     queryKey: ["calendar", cursor.year, cursor.month],
     queryFn: () =>
-      apiFetch<{ items: ScheduledWorkout[]; load_events?: LoadEventOccurrence[] }>(
+      apiFetch<{
+        items: ScheduledWorkout[];
+        load_events?: LoadEventOccurrence[];
+        load_warnings?: LoadWarning[];
+      }>(
         `/calendar?from=${fromDate}&to=${toDate}`,
       ),
   });
@@ -305,6 +368,9 @@ export function CalendarView() {
   }
 
   const loadByDate = occurrencesByDate(calendarQuery.data?.load_events ?? []);
+  const warningById = new Map(
+    (calendarQuery.data?.load_warnings ?? []).map((warning) => [warning.scheduled_workout_id, warning]),
+  );
 
   const leadingBlanks = leadingBlankDays(cursor.year, cursor.month);
   const dayCells = Array.from({ length: monthLength }, (_, index) => index + 1);
@@ -312,7 +378,7 @@ export function CalendarView() {
   return (
     <section id="calendar-view">
       <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
-        <PageHeading hint="Tap a day to schedule a workout. Tap a scheduled workout to start, move, skip, or remove it. Dashed entries are games and practices from your sport schedule.">
+        <PageHeading hint="Tap a day to schedule a workout. Tap a scheduled workout to start, move, skip, or remove it. Dashed entries are games and practices from your sport schedule; a workout marked ! has heavy leg work too close before one.">
           Calendar
         </PageHeading>
       </div>
@@ -394,16 +460,29 @@ export function CalendarView() {
                     {clockTime(load.start_time)}
                   </div>
                 ))}
-                {entries.map((entry) => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => setActiveEntry(entry)}
-                    className={`truncate rounded-md px-1.5 py-0.5 text-left text-xs font-medium ${STATUS_STYLES[entry.status]}`}
-                  >
-                    {entry.workout_plan_name}
-                  </button>
-                ))}
+                {entries.map((entry) => {
+                  const flagged = entry.status === "scheduled" && warningById.has(entry.id);
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      onClick={() => setActiveEntry(entry)}
+                      aria-label={
+                        flagged
+                          ? `${entry.workout_plan_name}, heavy legs before hockey`
+                          : undefined
+                      }
+                      className={`truncate rounded-md px-1.5 py-0.5 text-left text-xs font-medium ${STATUS_STYLES[entry.status]} ${flagged ? "ring-2 ring-danger" : ""}`}
+                    >
+                      {flagged ? (
+                        <span data-testid="calendar-load-warning" className="mr-0.5 font-bold text-danger">
+                          !
+                        </span>
+                      ) : null}
+                      {entry.workout_plan_name}
+                    </button>
+                  );
+                })}
               </div>
             </Card>
           );
@@ -420,6 +499,7 @@ export function CalendarView() {
       />
       <EntryDialog
         entry={activeEntry}
+        warning={activeEntry ? (warningById.get(activeEntry.id) ?? null) : null}
         onClose={() => setActiveEntry(null)}
         onChanged={refresh}
       />
