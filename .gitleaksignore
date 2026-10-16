@@ -2,3 +2,5 @@
 # Dummy test-only API key, never a real credential.
 9e5f7fdf00b6a042001c62bba8e3f06135981de6:tests/conftest.py:generic-api-key:10
 tests/conftest.py:generic-api-key:10
+# Program template slug ("key": "office-gym-12-week"), not a credential.
+app/program_templates/office_gym_12_week.json:generic-api-key:2
