@@ -291,21 +291,7 @@ function McpSection() {
     queryFn: () => apiFetch<McpStatus>("/mcp-status"),
   });
 
-  const apiKey = "wl_...";
   const mcpUrl = `${window.location.origin}/mcp/`;
-  const configSnippet = JSON.stringify(
-    {
-      mcpServers: {
-        "workout-logger": {
-          type: "http",
-          url: mcpUrl,
-          headers: { "X-API-Key": apiKey },
-        },
-      },
-    },
-    null,
-    2,
-  );
 
   return (
     <div className="mb-6">
@@ -335,11 +321,13 @@ function McpSection() {
               </span>
             </p>
             <pre className="overflow-x-auto rounded-md bg-elevated p-3 text-xs">
-              {configSnippet}
+              {mcpUrl}
             </pre>
             <p className="text-sm text-muted">
-              Mint the agent a scoped token under API Tokens with the read and
-              log scopes, and swap it in for the placeholder above.
+              Add this URL as a custom connector or remote MCP server in your
+              assistant (Claude, ChatGPT, Gemini CLI). It signs you in through
+              OAuth and asks for the read and log permissions. API tokens do
+              not work here.
             </p>
           </>
         ) : null}

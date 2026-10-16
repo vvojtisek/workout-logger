@@ -60,6 +60,19 @@ async def test_security_headers_present(client):
     assert "frame-ancestors 'none'" in csp
 
 
+async def test_only_the_mcp_consent_page_may_use_inline_styles(client):
+    """FastMCP renders the OAuth consent page with an inline <style>; the
+    app-wide `style-src 'self'` would leave it unstyled. Only that page gets
+    'unsafe-inline' styles, and still no inline scripts."""
+    consent = (await client.get("/mcp/consent?txn_id=unknown")).headers["Content-Security-Policy"]
+    assert "style-src 'self' 'unsafe-inline'" in consent
+    assert "script-src 'self';" in consent
+    assert "frame-ancestors 'none'" in consent
+    for path in ("/health", "/mcp/", "/api/v1/exercises"):
+        csp = (await client.get(path)).headers["Content-Security-Policy"]
+        assert "unsafe-inline" not in csp, path
+
+
 async def test_hsts_absent_over_plain_http(client):
     response = await client.get("/")
     assert "Strict-Transport-Security" not in response.headers

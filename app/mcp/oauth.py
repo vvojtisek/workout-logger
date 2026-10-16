@@ -41,6 +41,8 @@ logger = get_logger(__name__)
 
 MCP_MOUNT_PATH = "/mcp"
 MCP_OAUTH_STORAGE_SALT = "workout-logger-mcp-oauth-v1"
+# The scopes an MCP client may hold; tools check them in app/mcp/server.py.
+MCP_CLIENT_SCOPES = ["read", "log"]
 
 
 class SubjectAllowlistAuth(AuthProvider):
@@ -115,13 +117,27 @@ def auth0_config_url(issuer: str) -> str:
     return base if base.endswith(OIDC_DISCOVERY_SUFFIX) else f"{base}{OIDC_DISCOVERY_SUFFIX}"
 
 
+class _Auth0Proxy(Auth0Provider):
+    """Auth0Provider that always asks Auth0 for `offline_access`.
+
+    Without it Auth0 issues no refresh token, so once the upstream access
+    token expires (24 h by default) every MCP client has to log in again.
+    """
+
+    def _build_upstream_authorize_url(self, txn_id: str, transaction: dict[str, Any]) -> str:
+        scopes = list(transaction.get("scopes") or MCP_CLIENT_SCOPES)
+        if "offline_access" not in scopes:
+            scopes.append("offline_access")
+        return super()._build_upstream_authorize_url(txn_id, {**transaction, "scopes": scopes})
+
+
 def _build_auth0_provider(settings: Settings) -> AuthProvider:
     assert settings.MCP_OAUTH_ISSUER
     assert settings.MCP_OAUTH_CLIENT_ID
     assert settings.MCP_OAUTH_CLIENT_SECRET
     assert settings.MCP_OAUTH_AUDIENCE
     base_url = settings.mcp_oauth_base_url_resolved
-    return Auth0Provider(
+    provider = _Auth0Proxy(
         config_url=auth0_config_url(settings.MCP_OAUTH_ISSUER),
         client_id=settings.MCP_OAUTH_CLIENT_ID,
         client_secret=settings.MCP_OAUTH_CLIENT_SECRET,
@@ -140,6 +156,12 @@ def _build_auth0_provider(settings: Settings) -> AuthProvider:
         jwt_signing_key=settings.MCP_OAUTH_JWT_SIGNING_KEY,
         client_storage=_build_client_storage(settings),
     )
+    # With required_scopes=[] the proxy would advertise no scopes and refuse a
+    # client registering for `read log`, and a client that asked for nothing
+    # would get a token that sees no tools. Advertise and default to both;
+    # tokens are still not required to carry either (read-only clients work).
+    provider.update_default_scopes(MCP_CLIENT_SCOPES)
+    return provider
 
 
 def _build_jwt_provider(settings: Settings) -> AuthProvider:
@@ -158,7 +180,7 @@ def _build_jwt_provider(settings: Settings) -> AuthProvider:
         authorization_servers=[AnyHttpUrl(settings.MCP_OAUTH_ISSUER)],
         base_url=f"{base_url}{MCP_MOUNT_PATH}",
         resource_base_url=f"{base_url}{MCP_MOUNT_PATH}",
-        scopes_supported=["read", "log"],
+        scopes_supported=MCP_CLIENT_SCOPES,
     )
 
 

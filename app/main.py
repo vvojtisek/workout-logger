@@ -85,6 +85,11 @@ CONTENT_SECURITY_POLICY = (
     "base-uri 'none'; "
     "frame-ancestors 'none'"
 )
+# FastMCP's OAuth consent page carries an inline <style>; nothing else may.
+MCP_CONSENT_PATH = "/mcp/consent"
+MCP_CONSENT_CONTENT_SECURITY_POLICY = CONTENT_SECURITY_POLICY.replace(
+    "style-src 'self';", "style-src 'self' 'unsafe-inline';"
+)
 
 
 @app.middleware("http")
@@ -101,7 +106,11 @@ async def action_path_alias_middleware(request: Request, call_next):
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
     response = await call_next(request)
-    response.headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
+    response.headers["Content-Security-Policy"] = (
+        MCP_CONSENT_CONTENT_SECURITY_POLICY
+        if request.url.path == MCP_CONSENT_PATH
+        else CONTENT_SECURITY_POLICY
+    )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
