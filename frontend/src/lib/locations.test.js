@@ -64,7 +64,6 @@ describe("location drafts", () => {
     });
   });
 });
-<<<<<<< HEAD
 
 describe("training location preference", () => {
   it("remembers the chosen location and forgets one that no longer exists", async () => {
@@ -101,5 +100,3 @@ describe("training location preference", () => {
     expect(() => writeTrainingLocation(broken, "a")).not.toThrow();
   });
 });
-=======
->>>>>>> origin/main

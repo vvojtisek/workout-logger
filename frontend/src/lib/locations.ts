@@ -78,7 +78,6 @@ export function draftIsDirty(draft: LocationDraft, saved: Location): boolean {
     payload.equipment.join() !== [...saved.equipment].sort().join()
   );
 }
-<<<<<<< HEAD
 
 const TRAINING_LOCATION_KEY = "workout_logger_training_location";
 
@@ -102,5 +101,3 @@ export function writeTrainingLocation(storage: KeyValueStorage, id: string): voi
     // A blocked storage only costs the remembered choice.
   }
 }
-=======
->>>>>>> origin/main

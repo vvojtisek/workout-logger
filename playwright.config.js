@@ -13,10 +13,7 @@ const MOBILE_SPECS = [
   "workout-hud.spec.js",
   "master-detail.spec.js",
   "locations.spec.js",
-<<<<<<< HEAD
   "train-at-location.spec.js",
-=======
->>>>>>> origin/main
 ];
 
 export default defineConfig({
