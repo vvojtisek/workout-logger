@@ -142,7 +142,11 @@ export function ProgramBuilder() {
             </label>
             <Input
               id="program-start-date"
-              type="date"
+              type="text"
+              inputMode="numeric"
+              placeholder="YYYY-MM-DD"
+              maxLength={10}
+              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
               value={startDate}
               onChange={(event) => setStartDate(event.target.value)}
             />
@@ -156,7 +160,11 @@ export function ProgramBuilder() {
             </label>
             <Input
               id="program-end-date"
-              type="date"
+              type="text"
+              inputMode="numeric"
+              placeholder="YYYY-MM-DD"
+              maxLength={10}
+              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
               value={endDate}
               onChange={(event) => setEndDate(event.target.value)}
             />

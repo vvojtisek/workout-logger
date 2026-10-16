@@ -448,9 +448,8 @@ export interface ApiTokenCreated extends ApiToken {
   token: string;
 }
 
-export const UNITS = ["metric", "imperial"] as const;
-
-export type Units = (typeof UNITS)[number];
+/** Legacy API values remain typed for compatibility; the UI always displays metric. */
+export type Units = "metric" | "imperial";
 
 export interface UserSettings {
   id: string;

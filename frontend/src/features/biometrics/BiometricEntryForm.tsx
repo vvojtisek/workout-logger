@@ -5,6 +5,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { BodyMetric } from "@/api/types";
 import { bodyMetricPayloadSchema } from "@/lib/body-metric-schema";
+import {
+  localDateTimeInputToIso,
+  nowAsLocalDateTimeInput,
+  toLocalDateTimeInput,
+} from "@/lib/date-time-inputs";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
 
@@ -21,23 +26,9 @@ const CIRCUMFERENCE_FIELDS = [
 
 type FieldState = Record<string, string>;
 
-function pad(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-function nowAsDatetimeLocal(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function toDatetimeLocal(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 function emptyFields(): FieldState {
   return {
-    measured_at: nowAsDatetimeLocal(),
+    measured_at: nowAsLocalDateTimeInput(),
     weight_kg: "",
     body_fat_percent: "",
     neck_cm: "",
@@ -53,7 +44,7 @@ function emptyFields(): FieldState {
 
 function fieldsFromMetric(metric: BodyMetric): FieldState {
   return {
-    measured_at: toDatetimeLocal(metric.measured_at),
+    measured_at: toLocalDateTimeInput(metric.measured_at),
     weight_kg: String(metric.weight_kg),
     body_fat_percent: metric.body_fat_percent != null ? String(metric.body_fat_percent) : "",
     neck_cm: metric.neck_cm != null ? String(metric.neck_cm) : "",
@@ -70,7 +61,7 @@ function fieldsFromMetric(metric: BodyMetric): FieldState {
 function buildPayload(fields: FieldState) {
   const num = (key: string) => (fields[key].trim() ? Number.parseFloat(fields[key]) : null);
   return {
-    measured_at: fields.measured_at ? new Date(fields.measured_at).toISOString() : "",
+    measured_at: localDateTimeInputToIso(fields.measured_at),
     weight_kg: num("weight_kg") ?? Number.NaN,
     body_fat_percent: num("body_fat_percent"),
     neck_cm: num("neck_cm"),
@@ -166,7 +157,11 @@ export function BiometricEntryForm() {
           </label>
           <Input
             id="metric-measured-at"
-            type="datetime-local"
+            type="text"
+            inputMode="text"
+            placeholder="YYYY-MM-DD HH:mm"
+            maxLength={16}
+            pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}"
             value={fields.measured_at}
             onChange={(event) => update("measured_at", event.target.value)}
           />

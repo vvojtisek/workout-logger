@@ -5,19 +5,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { SleepEntry } from "@/api/types";
 import { sleepEntryPayloadSchema } from "@/lib/sleep-entry-schema";
+import { localDateTimeInputToIso, toLocalDateTimeInput } from "@/lib/date-time-inputs";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
 import { SLEEP_QUALITY_SCALE } from "@/lib/scales";
 import { ScaleSelect } from "@/ui/ScaleSelect";
-
-function pad(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-function toDatetimeLocal(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 function defaultTimezone(): string {
   try {
@@ -53,8 +45,8 @@ function emptyFields(): FieldState {
 
 function fieldsFromEntry(entry: SleepEntry): FieldState {
   return {
-    sleep_start: toDatetimeLocal(entry.sleep_start),
-    sleep_end: toDatetimeLocal(entry.sleep_end),
+    sleep_start: toLocalDateTimeInput(entry.sleep_start),
+    sleep_end: toLocalDateTimeInput(entry.sleep_end),
     timezone: entry.timezone,
     estimated_sleep_minutes:
       entry.estimated_sleep_seconds != null ? String(Math.round(entry.estimated_sleep_seconds / 60)) : "",
@@ -67,8 +59,8 @@ function fieldsFromEntry(entry: SleepEntry): FieldState {
 
 function buildPayload(fields: FieldState) {
   return {
-    sleep_start: fields.sleep_start ? new Date(fields.sleep_start).toISOString() : "",
-    sleep_end: fields.sleep_end ? new Date(fields.sleep_end).toISOString() : "",
+    sleep_start: localDateTimeInputToIso(fields.sleep_start),
+    sleep_end: localDateTimeInputToIso(fields.sleep_end),
     timezone: fields.timezone.trim(),
     estimated_sleep_seconds: fields.estimated_sleep_minutes.trim()
       ? Number.parseInt(fields.estimated_sleep_minutes, 10) * 60
@@ -167,7 +159,11 @@ export function SleepEntryForm() {
             </label>
             <Input
               id="sleep-start"
-              type="datetime-local"
+              type="text"
+              inputMode="text"
+              placeholder="YYYY-MM-DD HH:mm"
+              maxLength={16}
+              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}"
               value={fields.sleep_start}
               onChange={(e) => update("sleep_start", e.target.value)}
             />
@@ -181,7 +177,11 @@ export function SleepEntryForm() {
             </label>
             <Input
               id="sleep-end"
-              type="datetime-local"
+              type="text"
+              inputMode="text"
+              placeholder="YYYY-MM-DD HH:mm"
+              maxLength={16}
+              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}"
               value={fields.sleep_end}
               onChange={(e) => update("sleep_end", e.target.value)}
             />

@@ -8,7 +8,7 @@ function todayDatetimeLocal(hour) {
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}T${String(hour).padStart(2, "0")}:00`;
+  return `${yyyy}-${mm}-${dd} ${String(hour).padStart(2, "0")}:00`;
 }
 
 test("builds a food and nutrition plan, logs a meal, and verifies the daily dashboard through the GUI", async ({
@@ -79,7 +79,10 @@ test("builds a food and nutrition plan, logs a meal, and verifies the daily dash
     await page.goto("/nutrition/meals");
     await page.getByRole("button", { name: "Log meal" }).click();
     await expect(page.getByRole("heading", { name: "Log Meal" })).toBeVisible();
-    await page.getByLabel("Date and time").fill(todayDatetimeLocal(8));
+    const consumedAt = page.getByLabel("Date and time");
+    await expect(consumedAt).toHaveAttribute("type", "text");
+    await expect(consumedAt).toHaveAttribute("placeholder", "YYYY-MM-DD HH:mm");
+    await consumedAt.fill(todayDatetimeLocal(8));
     await page.getByLabel("Meal type").selectOption("breakfast");
 
     await page
@@ -103,6 +106,7 @@ test("builds a food and nutrition plan, logs a meal, and verifies the daily dash
       "POST",
     );
     await expect(page.getByRole("heading", { name: "Meal Log" })).toBeVisible();
+    await expect(page.locator("#meal-entries-list").getByText(`${today} 08:00`)).toBeVisible();
 
     const entriesList = await request.get("/api/v1/meal-entries?limit=100");
     /** @type {{items: Array<{id: string, items: Array<{food_name_snapshot: string, energy_kcal_snapshot: number}>}>}} */

@@ -5,22 +5,16 @@ import { useNavigate } from "react-router-dom";
 import { apiFetch, errorMessage } from "@/api/client";
 import { ACTIVITY_TYPES, activityLabel } from "@/lib/activity";
 import type { ActivityType } from "@/lib/activity";
+import { localDateTimeInputToIso, nowAsLocalDateTimeInput } from "@/lib/date-time-inputs";
 import { toast } from "@/ui/Toast";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { EFFORT_SCALE, FEELING_SCALE } from "@/lib/scales";
 import { ScaleSelect } from "@/ui/ScaleSelect";
 
-// Borg CR-10 anchors, so the number means the same thing session to session.
-function localNow(): string {
-  const now = new Date();
-  now.setSeconds(0, 0);
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-}
-
 export function LogActivityView() {
   const navigate = useNavigate();
   const [activityType, setActivityType] = useState<ActivityType>("ice_hockey");
-  const [performedAt, setPerformedAt] = useState(localNow);
+  const [performedAt, setPerformedAt] = useState(nowAsLocalDateTimeInput);
   const [duration, setDuration] = useState("");
   const [distance, setDistance] = useState("");
   const [effort, setEffort] = useState("");
@@ -32,9 +26,15 @@ export function LogActivityView() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
+    const performedAtIso = localDateTimeInputToIso(performedAt);
+    if (!performedAtIso) {
+      setSaving(false);
+      toast.error("Enter a valid date and time as YYYY-MM-DD HH:mm.");
+      return;
+    }
     const payload = {
       activity_type: activityType,
-      performed_at: new Date(performedAt).toISOString(),
+      performed_at: performedAtIso,
       total_time_minutes: Number.parseInt(duration, 10),
       distance_km: showDistance && distance ? Number.parseFloat(distance) : null,
       effort_rpe: effort ? Number.parseInt(effort, 10) : null,
@@ -85,7 +85,11 @@ export function LogActivityView() {
               </label>
               <Input
                 id="activity-performed-at"
-                type="datetime-local"
+                type="text"
+                inputMode="text"
+                placeholder="YYYY-MM-DD HH:mm"
+                maxLength={16}
+                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}"
                 required
                 value={performedAt}
                 onChange={(event) => setPerformedAt(event.target.value)}

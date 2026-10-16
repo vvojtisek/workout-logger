@@ -24,8 +24,11 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
     // Log a sleep entry entirely through the GUI.
     await page.getByRole("button", { name: "Log sleep" }).click();
     await expect(page.getByRole("heading", { name: "Log Sleep" })).toBeVisible();
-    await page.getByLabel("Went to bed").fill("2032-04-10T23:00");
-    await page.getByLabel("Woke up").fill("2032-04-11T07:00");
+    const wentToBed = page.getByLabel("Went to bed");
+    await expect(wentToBed).toHaveAttribute("type", "text");
+    await expect(wentToBed).toHaveAttribute("placeholder", "YYYY-MM-DD HH:mm");
+    await wentToBed.fill("2032-04-10 23:00");
+    await page.getByLabel("Woke up").fill("2032-04-11 07:00");
     await page.getByLabel("Timezone").fill("America/New_York");
     await page.getByLabel("Estimated sleep (minutes, optional)").fill("440");
     await page.getByLabel("Time awake (minutes, optional)").fill("20");
@@ -54,6 +57,8 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
     // The trend card and history list reflect the logged entry.
     await expect(page.getByText("8h 0m").first()).toBeVisible();
     await expect(page.getByText(/Quality 4\/5 \(Good\)/)).toBeVisible();
+    await expect(page.getByText(/2032-04-10/).first()).toBeVisible();
+    await expect(page.getByText(/2032-04-10 23:00/)).toBeVisible();
 
     const trends = await request.get("/api/v1/sleep-entries/trends");
     expect(trends.status()).toBe(200);
@@ -66,8 +71,8 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
       .getByRole("button", { name: "Edit" })
       .click();
     await expect(page.getByRole("heading", { name: "Edit Sleep Entry" })).toBeVisible();
-    await expect(page.getByLabel("Went to bed")).toHaveValue("2032-04-10T23:00");
-    await page.getByLabel("Woke up").fill("2032-04-11T08:00");
+    await expect(page.getByLabel("Went to bed")).toHaveValue("2032-04-10 23:00");
+    await page.getByLabel("Woke up").fill("2032-04-11 08:00");
     await clickAndAwaitWrite(page, page.getByRole("button", { name: "Save changes" }), "PUT");
     await expect(page.getByRole("heading", { name: "Sleep", exact: true })).toBeVisible();
 

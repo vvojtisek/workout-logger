@@ -153,7 +153,11 @@ export function NutritionPlanBuilder() {
             </label>
             <Input
               id="nutrition-plan-start"
-              type="date"
+              type="text"
+              inputMode="numeric"
+              placeholder="YYYY-MM-DD"
+              maxLength={10}
+              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
               value={fields.valid_from}
               onChange={(e) => update("valid_from", e.target.value)}
             />
@@ -167,7 +171,11 @@ export function NutritionPlanBuilder() {
             </label>
             <Input
               id="nutrition-plan-end"
-              type="date"
+              type="text"
+              inputMode="numeric"
+              placeholder="YYYY-MM-DD"
+              maxLength={10}
+              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
               value={fields.valid_to}
               onChange={(e) => update("valid_to", e.target.value)}
             />

@@ -6,6 +6,7 @@ import { apiFetch, errorMessage } from "@/api/client";
 import type { Paginated, WorkoutPlan } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
 import { parseRepsPerSet } from "@/lib/workout-utils";
+import { localDateTimeInputToIso } from "@/lib/date-time-inputs";
 import { toast } from "@/ui/Toast";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { FEELING_SCALE } from "@/lib/scales";
@@ -71,7 +72,11 @@ export function NewLogView() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!performedAt) return;
+    const performedAtIso = localDateTimeInputToIso(performedAt);
+    if (!performedAtIso) {
+      toast.error("Enter a valid date and time as YYYY-MM-DD HH:mm.");
+      return;
+    }
 
     const exercises = rows.map((row) => ({
       exercise_name: row.exercise_name,
@@ -83,7 +88,7 @@ export function NewLogView() {
 
     const payload = {
       source_plan_id: planId || null,
-      performed_at: new Date(performedAt).toISOString(),
+      performed_at: performedAtIso,
       total_time_minutes: Number.parseInt(totalTime, 10),
       calories_burned: calories ? Number.parseInt(calories, 10) : null,
       overall_feeling: Number.parseInt(feeling, 10),
@@ -131,7 +136,11 @@ export function NewLogView() {
               </label>
               <Input
                 id="log-performed-at"
-                type="datetime-local"
+                type="text"
+                inputMode="text"
+                placeholder="YYYY-MM-DD HH:mm"
+                maxLength={16}
+                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}"
                 required
                 value={performedAt}
                 onChange={(event) => setPerformedAt(event.target.value)}

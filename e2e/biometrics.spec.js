@@ -22,7 +22,10 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
     // First entry, entirely through the GUI.
     await page.getByRole("button", { name: "Log entry" }).click();
     await expect(page.getByRole("heading", { name: "Log Biometrics" })).toBeVisible();
-    await page.getByLabel("Date and time").fill("2031-02-01T08:00");
+    const measuredAt = page.getByLabel("Date and time");
+    await expect(measuredAt).toHaveAttribute("type", "text");
+    await expect(measuredAt).toHaveAttribute("placeholder", "YYYY-MM-DD HH:mm");
+    await measuredAt.fill("2031-02-01 08:00");
     await page.getByLabel("Weight (kg)").fill("80.0");
     await page.getByLabel("Body fat (%, optional)").fill("20.0");
     await page.getByLabel("Waist (cm)").fill("88");
@@ -33,18 +36,19 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
     /** @type {{items: Array<{id: string, measured_at: string, weight_kg: number}>}} */
     const listAfterFirstBody = await listAfterFirst.json();
     const first = listAfterFirstBody.items.find(
-      (item) => item.measured_at === "2031-02-01T08:00:00Z",
+      (item) => new Date(item.measured_at).getTime() === new Date(2031, 1, 1, 8, 0).getTime(),
     );
     expect(first).toMatchObject({ weight_kg: 80 });
     firstId = first?.id;
 
     // Verify it renders in the trend card and history list.
     await expect(page.getByText("80.0 kg", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/2031-02-01 08:00/)).toBeVisible();
     await expect(page.getByText("20.0% BF")).toBeVisible();
 
     // Second entry, exactly 7 days later with a lower weight.
     await page.getByRole("button", { name: "Log entry" }).click();
-    await page.getByLabel("Date and time").fill("2031-02-08T08:00");
+    await page.getByLabel("Date and time").fill("2031-02-08 08:00");
     await page.getByLabel("Weight (kg)").fill("79.0");
     await clickAndAwaitWrite(page, detailPane(page).getByRole("button", { name: "Log entry" }), "POST");
     await expect(page.getByRole("heading", { name: "Biometrics", exact: true })).toBeVisible();
@@ -53,7 +57,7 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
     /** @type {{items: Array<{id: string, measured_at: string, weight_kg: number}>}} */
     const listAfterSecondBody = await listAfterSecond.json();
     const second = listAfterSecondBody.items.find(
-      (item) => item.measured_at === "2031-02-08T08:00:00Z",
+      (item) => new Date(item.measured_at).getTime() === new Date(2031, 1, 8, 8, 0).getTime(),
     );
     expect(second).toMatchObject({ weight_kg: 79 });
     secondId = second?.id;

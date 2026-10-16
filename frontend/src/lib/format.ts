@@ -1,4 +1,4 @@
-// Fixed product conventions: day-first dates (dd/MM/yyyy) and a 24-hour clock,
+// Fixed product conventions: ISO calendar dates and a 24-hour clock,
 // whatever the device locale.
 
 function pad(value: number): string {
@@ -12,14 +12,14 @@ function parseTimestamp(value: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-/** A calendar date (YYYY-MM-DD) as-is, or a timestamp's local date, as dd/MM/yyyy. */
+/** A calendar date (YYYY-MM-DD) as-is, or a timestamp's local date in ISO form. */
 export function formatDate(value: string | null | undefined): string {
   if (!value) return "";
   const calendar = CALENDAR_DATE.exec(value);
-  if (calendar) return `${calendar[3]}/${calendar[2]}/${calendar[1]}`;
+  if (calendar) return value;
   const date = parseTimestamp(value);
   if (!date) return value;
-  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 /** A timestamp's local time as HH:mm. */
@@ -30,7 +30,7 @@ export function formatTime(value: string | null | undefined): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** A timestamp as dd/MM/yyyy HH:mm in local time. */
+/** A timestamp as YYYY-MM-DD HH:mm in local time. */
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return "";
   const date = parseTimestamp(value);

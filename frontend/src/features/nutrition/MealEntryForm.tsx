@@ -5,6 +5,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { Food, MealEntry, MealType, Paginated } from "@/api/types";
 import { mealEntryPayloadSchema } from "@/lib/meal-entry-schema";
+import {
+  localDateTimeInputToIso,
+  nowAsLocalDateTimeInput,
+  toLocalDateTimeInput,
+} from "@/lib/date-time-inputs";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
 
@@ -43,20 +48,6 @@ function emptyRow(): ItemRowState {
     fat_g: "",
     fiber_g: "",
   };
-}
-
-function pad(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-function nowAsDatetimeLocal(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function toDatetimeLocal(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function rowFromItem(item: MealEntry["items"][number]): ItemRowState {
@@ -106,7 +97,7 @@ function buildItemPayload(row: ItemRowState) {
 
 function buildPayload(consumedAtLocal: string, mealType: MealType, notes: string, rows: ItemRowState[]) {
   return {
-    consumed_at: consumedAtLocal ? new Date(consumedAtLocal).toISOString() : "",
+    consumed_at: localDateTimeInputToIso(consumedAtLocal),
     meal_type: mealType,
     notes: notes.trim() || null,
     items: rows.map(buildItemPayload),
@@ -119,7 +110,7 @@ export function MealEntryForm() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [consumedAt, setConsumedAt] = useState(nowAsDatetimeLocal);
+  const [consumedAt, setConsumedAt] = useState(nowAsLocalDateTimeInput);
   const [mealType, setMealType] = useState<MealType>("breakfast");
   const [notes, setNotes] = useState("");
   const [rows, setRows] = useState<ItemRowState[]>([emptyRow()]);
@@ -141,7 +132,7 @@ export function MealEntryForm() {
   useEffect(() => {
     if (!existing || seededEntryId.current === existing.id) return;
     seededEntryId.current = existing.id;
-    setConsumedAt(toDatetimeLocal(existing.consumed_at));
+    setConsumedAt(toLocalDateTimeInput(existing.consumed_at));
     setMealType(existing.meal_type);
     setNotes(existing.notes ?? "");
     setRows(existing.items.length > 0 ? existing.items.map(rowFromItem) : [emptyRow()]);
@@ -214,7 +205,11 @@ export function MealEntryForm() {
             </label>
             <Input
               id="meal-consumed-at"
-              type="datetime-local"
+              type="text"
+              inputMode="text"
+              placeholder="YYYY-MM-DD HH:mm"
+              maxLength={16}
+              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}"
               value={consumedAt}
               onChange={(e) => setConsumedAt(e.target.value)}
             />

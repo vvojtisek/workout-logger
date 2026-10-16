@@ -31,7 +31,10 @@ test("logs an ice hockey session and a swim through the GUI and shows them in hi
     await expect(page.getByRole("heading", { name: "Log Activity", exact: true })).toBeVisible();
     await expect(page.getByLabel("Activity")).toHaveValue("ice_hockey");
     await expect(page.getByLabel("Distance (km, optional)")).toBeHidden();
-    await page.getByLabel("Started at").fill("2032-05-04T19:30");
+    const startedAt = page.getByLabel("Started at");
+    await expect(startedAt).toHaveAttribute("type", "text");
+    await expect(startedAt).toHaveAttribute("placeholder", "YYYY-MM-DD HH:mm");
+    await startedAt.fill("2032-05-04 19:30");
     await page.getByLabel("Duration (minutes)").fill("75");
     await page.getByLabel("Effort (optional)").selectOption("7");
     await page.getByLabel("How you felt", { exact: true }).selectOption("4");
@@ -55,7 +58,7 @@ test("logs an ice hockey session and a swim through the GUI and shows them in hi
     // Swim: distance appears once the activity is not hockey.
     await openPage(page, "Log Activity");
     await page.getByLabel("Activity").selectOption("swimming");
-    await page.getByLabel("Started at").fill("2032-05-05T07:00");
+    await page.getByLabel("Started at").fill("2032-05-05 07:00");
     await page.getByLabel("Duration (minutes)").fill("40");
     await page.getByLabel("Distance (km, optional)").fill("1.5");
     await page.getByLabel("Notes (optional)").fill(`${tag} swim`);
@@ -72,8 +75,8 @@ test("logs an ice hockey session and a swim through the GUI and shows them in hi
     const history = page.locator("#history-list");
     await expect(history.getByText(/75 min · Effort 7\/10 \(Very hard\) · Load 525/)).toBeVisible();
     await expect(history.getByText(/40 min · 1\.5 km/)).toBeVisible();
-    // Dates are day first with a 24-hour clock, whatever the browser locale.
-    await expect(history.getByText(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} · 75 min/)).toBeVisible();
+    // Dates use ISO order with a 24-hour clock, whatever the browser locale.
+    await expect(history.getByText(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} · 75 min/)).toBeVisible();
     await expect(history.getByText(/\b(AM|PM)\b/)).toHaveCount(0);
 
     await history.getByText(/75 min · Effort 7\/10 \(Very hard\) · Load 525/).click();
