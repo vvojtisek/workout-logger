@@ -48,7 +48,19 @@ function fieldsFromFood(food: Food): FieldState {
   };
 }
 
-function buildPayload(fields: FieldState) {
+/** Values the form does not edit but a replace (PUT) must carry over, so
+ * editing a seeded or catalogue food keeps its origin and micronutrients. */
+type Carried = Pick<Food, "source" | "category" | "vitamins_mg" | "minerals_mg">;
+
+const NEW_FOOD: Carried = { source: "manual", category: null, vitamins_mg: null, minerals_mg: null };
+
+function carriedFrom(food: Food | undefined): Carried {
+  if (!food) return NEW_FOOD;
+  const { source, category, vitamins_mg, minerals_mg } = food;
+  return { source, category, vitamins_mg, minerals_mg };
+}
+
+function buildPayload(fields: FieldState, carried: Carried) {
   const num = (value: string) => (value.trim() ? Number.parseFloat(value) : Number.NaN);
   return {
     name: fields.name.trim(),
@@ -60,7 +72,7 @@ function buildPayload(fields: FieldState) {
     carbohydrate_g: num(fields.carbohydrate_g),
     fat_g: num(fields.fat_g),
     fiber_g: fields.fiber_g.trim() ? Number.parseFloat(fields.fiber_g) : null,
-    source: "manual",
+    ...carried,
   };
 }
 
@@ -104,7 +116,7 @@ export function FoodBuilder() {
   }
 
   function submit() {
-    const payload = buildPayload(fields);
+    const payload = buildPayload(fields, carriedFrom(existing));
     const result = foodPayloadSchema.safeParse(payload);
     if (!result.success) {
       const nextErrors: Record<string, string> = {};

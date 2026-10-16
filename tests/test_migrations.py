@@ -913,3 +913,87 @@ def test_coaching_principles_migration_round_trips(alembic_config, alembic_db_pa
         }
     assert "coaching_principles" not in tables
     sync_engine.dispose()
+
+
+def _load_food_seed_migration():
+    import importlib.util
+
+    path = os.path.join(REPO_ROOT, "alembic", "versions", "e7b2c4d6f8a1_seed_basic_foods.py")
+    spec = importlib.util.spec_from_file_location("food_seed_migration", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_food_seed_migration_adds_seed_foods_and_keeps_existing(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "d9e3a7b1c5f4")
+    own_id = str(uuid.uuid4())
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO foods "
+                "(id, owner_id, name, brand, serving_quantity, serving_unit, energy_kcal, "
+                "protein_g, carbohydrate_g, fat_g, fiber_g, source, created_at, updated_at) "
+                "VALUES (:id, NULL, 'Chléb žitný', NULL, 1, 'slice', 80, 2, 15, 1, 2, "
+                "'manual', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": own_id},
+        )
+
+    command.upgrade(alembic_config, "e7b2c4d6f8a1")
+
+    with sync_engine.connect() as connection:
+        seeded = connection.execute(
+            text("SELECT count(*), count(DISTINCT catalog_id) FROM foods WHERE source = 'seed'")
+        ).one()
+        rye = connection.execute(
+            text(
+                "SELECT name, serving_quantity, serving_unit, energy_kcal, protein_g, "
+                "carbohydrate_g, fat_g, fiber_g, category, vitamins_mg, minerals_mg "
+                "FROM foods WHERE catalog_id = 'bread-rye'"
+            )
+        ).one()
+        own = connection.execute(
+            text("SELECT name, serving_unit, catalog_id FROM foods WHERE id = :id"), {"id": own_id}
+        ).one()
+    assert seeded == (37, 37)
+    assert rye[:9] == ("Chléb žitný", 100, "g", 215, 6.8, 43.5, 1.2, 6.5, "pečivo")
+    assert '"B1": 0.18' in rye[9]
+    assert '"Na": 520' in rye[10]
+    # A food the user typed in before the seed is left alone, even with the same name.
+    assert own == ("Chléb žitný", "slice", None)
+
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE foods SET name = 'Můj chleba', energy_kcal = 200 WHERE catalog_id = 'bread-rye'"
+            )
+        )
+    # Running the seed again neither duplicates rows nor overwrites the edit.
+    migration = _load_food_seed_migration()
+    with sync_engine.begin() as connection:
+        assert migration.insert_missing_seed_foods(connection) == 0
+    with sync_engine.connect() as connection:
+        assert connection.execute(text("SELECT count(*) FROM foods")).scalar_one() == 38
+        assert connection.execute(
+            text("SELECT name, energy_kcal FROM foods WHERE catalog_id = 'bread-rye'")
+        ).one() == ("Můj chleba", 200)
+        with pytest.raises(IntegrityError):
+            connection.execute(
+                text(
+                    "INSERT INTO foods (id, name, serving_quantity, serving_unit, energy_kcal, "
+                    "protein_g, carbohydrate_g, fat_g, source, catalog_id, created_at, updated_at) "
+                    "VALUES (:id, 'dup', 100, 'g', 1, 0, 0, 0, 'catalog', 'bread-rye', "
+                    "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                ),
+                {"id": str(uuid.uuid4())},
+            )
+
+    command.downgrade(alembic_config, "d9e3a7b1c5f4")
+    with sync_engine.connect() as connection:
+        remaining = connection.execute(text("SELECT id FROM foods")).all()
+        columns = {row[1] for row in connection.execute(text("PRAGMA table_info(foods)"))}
+    assert remaining == [(own_id,)]
+    assert not {"catalog_id", "category", "vitamins_mg", "minerals_mg"} & columns
+    sync_engine.dispose()

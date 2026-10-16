@@ -11,6 +11,7 @@ import {
   toLocalDateTimeInput,
 } from "@/lib/date-time-inputs";
 import { Button, Card, Input, PageHeading } from "@/ui";
+import { CatalogQuickAdd } from "./CatalogQuickAdd";
 import { toast } from "@/ui/Toast";
 
 const MEAL_TYPE_OPTIONS: { value: MealType; label: string }[] = [
@@ -116,6 +117,7 @@ export function MealEntryForm() {
   const [rows, setRows] = useState<ItemRowState[]>([emptyRow()]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const seededEntryId = useRef<string | null>(null);
+  const [catalogRowKey, setCatalogRowKey] = useState<string | null>(null);
 
   const { data: foodsData } = useQuery({
     queryKey: ["foods"],
@@ -305,6 +307,14 @@ export function MealEntryForm() {
                     {errors[`items.${index}`] ? (
                       <p className="mt-1 text-sm text-danger">{errors[`items.${index}`]}</p>
                     ) : null}
+                    <button
+                      type="button"
+                      className="mt-1 text-sm text-accent underline"
+                      aria-expanded={catalogRowKey === row.key}
+                      onClick={() => setCatalogRowKey(catalogRowKey === row.key ? null : row.key)}
+                    >
+                      {catalogRowKey === row.key ? "Close catalogue" : "Not in the list? Search the catalogue"}
+                    </button>
                   </div>
                   <div>
                     <label className="field-label" htmlFor={`item-quantity-${row.key}`}>
@@ -318,6 +328,20 @@ export function MealEntryForm() {
                       onChange={(e) => updateRow(row.key, { quantity: e.target.value })}
                     />
                   </div>
+                  {catalogRowKey === row.key ? (
+                    <div className="sm:col-span-2">
+                      <CatalogQuickAdd
+                        idSuffix={row.key}
+                        onPicked={(food) => {
+                          updateRow(row.key, {
+                            food_id: food.id,
+                            quantity: row.quantity || String(food.serving_quantity),
+                          });
+                          setCatalogRowKey(null);
+                        }}
+                      />
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
