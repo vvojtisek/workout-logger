@@ -48,6 +48,23 @@ def test_end_to_end_suite_gates_pull_requests_before_merge() -> None:
     assert "if" not in merge_workflow()["jobs"]["e2e"]
 
 
+def test_pull_requests_review_dependency_changes() -> None:
+    review = fast_workflow()["jobs"]["dependency-review"]
+
+    assert "actions/dependency-review-action" in yaml.safe_dump(review)
+    assert review["permissions"] == {"contents": "read", "pull-requests": "read"}
+
+
+def test_release_requires_green_merge_checks_on_main_for_the_tagged_code() -> None:
+    validate = yaml.safe_load(AWS_RELEASE.read_text())["jobs"]["validate"]
+    validate_text = yaml.safe_dump(validate)
+
+    assert validate["permissions"]["actions"] == "read"
+    assert "actions/workflows/ci-merge.yml/runs" in validate_text
+    assert "event=push&branch=main" in validate_text
+    assert "status=success" in validate_text
+
+
 def test_untrusted_pull_requests_cannot_publish_or_promote() -> None:
     publish = merge_workflow()["jobs"]["publish"]
 
@@ -60,6 +77,7 @@ def test_main_builds_publish_an_image_without_promotion_pull_requests() -> None:
     publish_text = yaml.safe_dump(merge_workflow()["jobs"]["publish"])
 
     assert "docker/build-push-action" in publish_text
+    assert "sbom: true" in publish_text
     assert "promote_image.py" not in publish_text
     assert "gh pr create" not in publish_text
     assert "gh pr merge" not in publish_text
@@ -99,7 +117,9 @@ def test_e2e_runs_the_production_compose_file_with_real_image_and_database() -> 
     e2e_job = merge_workflow()["jobs"]["e2e"]
     step_text = yaml.safe_dump(e2e_job)
 
-    assert "docker build" in step_text
+    assert "docker/build-push-action" in step_text
+    assert "load: true" in step_text
+    assert "type=gha" in step_text
     assert "-f deploy/aws/compose.yaml -f e2e/compose.e2e.yaml" in step_text
     assert "--wait" in step_text
     assert "alembic_version" in text
@@ -129,7 +149,9 @@ def test_aws_release_is_downloadable_and_deploys_through_ssm_only() -> None:
     release = yaml.safe_load(release_text)
     assert release[True]["push"]["tags"] == ["v*"]
     assert "git merge-base --is-ancestor" in release_text
-    assert "--platform linux/amd64,linux/arm64" in release_text
+    assert "platforms: linux/amd64,linux/arm64" in release_text
+    assert "sbom: true" in release_text
+    assert "provenance: true" in release_text
     assert "for architecture in amd64 arm64" in release_text
     assert "linux-${architecture}-image.tar.gz" in release_text
     assert 'gh release create "$RELEASE_TAG"' in release_text
