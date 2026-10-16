@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- MCP over Auth0: clients that log in now get the `read` and `log` scopes and
+  see all tools. Before, the Auth0 proxy advertised no scopes, refused a client
+  registering for `read log`, and handed out tokens that saw no tools. Auth0 is
+  also asked for `offline_access`, so clients refresh instead of logging in
+  again every day. The OAuth consent page keeps its styling.
+
 ### Added
 
 - Seed 37 basic foods (per 100 g, with vitamins and minerals) through a data

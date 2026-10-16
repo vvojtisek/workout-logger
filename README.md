@@ -279,7 +279,7 @@ REST / Health ingest / scripts  --  X-API-Key  -->  app/security.py  --\
 ChatGPT / MCP clients  --  OAuth 2.1 Code+PKCE, Bearer token  -->  /mcp/ --/
 ```
 
-FastMCP (`fastmcp>=2.14`, currently running `fastmcp` 3.x) supplies the OAuth 2.1 authorization
+FastMCP (`fastmcp>=4.1,<5`) supplies the OAuth 2.1 authorization
 server proxy, RFC 9728 protected-resource metadata, and the `401 WWW-Authenticate` challenge
 natively — none of that protocol plumbing is hand-rolled here. `app/mcp/oauth.py` adds only what's
 specific to this deployment:
@@ -296,7 +296,9 @@ specific to this deployment:
 * **Scopes**: each tool declares its own required scope natively —
   `@mcp.tool(auth=require_scopes("read"))` / `require_scopes("log")` in `app/mcp/server.py` — rather
   than a hand-rolled per-call check. `admin` is a REST-only scope and is never requested from or
-  granted to MCP clients.
+  granted to MCP clients. The Auth0 proxy advertises `read` and `log`, grants both to a client that
+  asks for none, and always asks Auth0 for `offline_access` so clients get a refresh token.
+  `tests/test_mcp_auth0_flow.py` runs the whole registration and login flow against a fake Auth0.
 * **Persistent storage**: FastMCP's OAuth proxy state (client registrations, encrypted
   upstream/refresh tokens) is written to `MCP_OAUTH_STORAGE_DIR` (default `/data/mcp-oauth`), a
   subdirectory of the same persistent volume as the SQLite database, encrypted at rest with Fernet
