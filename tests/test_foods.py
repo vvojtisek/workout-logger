@@ -124,3 +124,33 @@ async def test_delete_nonexistent_food_returns_404(client, auth_headers):
 async def test_invalid_uuid_path_param_returns_422(client, auth_headers):
     response = await client.get(f"{BASE}/not-a-uuid", headers=auth_headers)
     assert response.status_code == 422
+
+
+async def test_create_food_without_micronutrients_keeps_them_null(client, auth_headers):
+    body = (await client.post(BASE, json=make_food_payload(), headers=auth_headers)).json()
+    assert body["catalog_id"] is None
+    assert body["category"] is None
+    assert body["vitamins_mg"] is None
+    assert body["minerals_mg"] is None
+
+
+async def test_create_food_with_micronutrients_round_trips(client, auth_headers):
+    payload = make_food_payload(
+        category="maso", vitamins_mg={"B3": 11.2, "B12": 0.0003}, minerals_mg={"K": 330}
+    )
+    body = (await client.post(BASE, json=payload, headers=auth_headers)).json()
+    assert body["category"] == "maso"
+    assert body["vitamins_mg"] == {"B3": 11.2, "B12": 0.0003}
+    assert body["minerals_mg"] == {"K": 330}
+
+
+async def test_create_food_with_negative_mineral_returns_422(client, auth_headers):
+    payload = make_food_payload(minerals_mg={"Na": -1})
+    response = await client.post(BASE, json=payload, headers=auth_headers)
+    assert response.status_code == 422
+
+
+async def test_client_cannot_set_catalog_id(client, auth_headers):
+    payload = make_food_payload(catalog_id="ndb-0062")
+    body = (await client.post(BASE, json=payload, headers=auth_headers)).json()
+    assert body["catalog_id"] is None

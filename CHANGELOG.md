@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Seed 37 basic foods (per 100 g, with vitamins and minerals) through a data
+  migration that never duplicates or overwrites existing foods.
+- Bundle a 1,030-entry fallback food catalogue that stays out of the database:
+  the meal form can search it and add a missing food in one step
+  (`GET /api/v1/food-catalog`, `POST /api/v1/food-catalog/{id}/add`).
+
 ### Changed
 
 - Standardize displayed and entered dates as `YYYY-MM-DD` and local date-times

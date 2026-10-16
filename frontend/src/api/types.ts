@@ -328,8 +328,36 @@ export interface Food {
   fat_g: number;
   fiber_g: number | null;
   source: string;
+  catalog_id: string | null;
+  category: string | null;
+  vitamins_mg: Record<string, number> | null;
+  minerals_mg: Record<string, number> | null;
   created_at: string;
   updated_at: string;
+}
+
+/** An entry of the bundled fallback catalogue, per 100 g. `food_id` is set
+ * once it has been added to the foods. */
+export interface CatalogFood {
+  catalog_id: string;
+  name: string;
+  category: string;
+  serving_quantity: number;
+  serving_unit: string;
+  energy_kcal: number;
+  protein_g: number;
+  carbohydrate_g: number;
+  fat_g: number;
+  fiber_g: number;
+  vitamins_mg: Record<string, number>;
+  minerals_mg: Record<string, number>;
+  food_id: string | null;
+}
+
+export interface CatalogSearchResponse {
+  items: CatalogFood[];
+  total: number;
+  limit: number;
 }
 
 export interface NutritionPlan {

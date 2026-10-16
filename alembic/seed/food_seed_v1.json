@@ -1,0 +1,335 @@
+[
+  {
+    "id": "bread-rye",
+    "name": "Chléb žitný",
+    "category": "pečivo",
+    "kcal": 215,
+    "macros": { "proteins": 6.8, "carbs": 43.5, "fats": 1.2, "fiber": 6.5 },
+    "vitamins_mg": { "B1": 0.18, "B2": 0.09, "B3": 1.2, "B6": 0.15, "E": 0.8 },
+    "minerals_mg": { "Na": 520, "K": 210, "Mg": 45, "Ca": 25, "Fe": 2.4, "Zn": 1.3 }
+  },
+  {
+    "id": "bread-caraway",
+    "name": "Chléb kmínový (pšenično-žitný)",
+    "category": "pečivo",
+    "kcal": 244,
+    "macros": { "proteins": 7.6, "carbs": 48.2, "fats": 1.4, "fiber": 4.2 },
+    "vitamins_mg": { "B1": 0.14, "B2": 0.07, "B3": 1.4, "B6": 0.11, "E": 0.4 },
+    "minerals_mg": { "Na": 550, "K": 160, "Mg": 32, "Ca": 22, "Fe": 1.6, "Zn": 0.9 }
+  },
+  {
+    "id": "flakes-oat",
+    "name": "Ovesné vločky",
+    "category": "obiloviny",
+    "kcal": 366,
+    "macros": { "proteins": 13.2, "carbs": 58.7, "fats": 6.5, "fiber": 10.1 },
+    "vitamins_mg": { "B1": 0.55, "B2": 0.14, "B3": 1.0, "B6": 0.12, "E": 0.7 },
+    "minerals_mg": { "Na": 4, "K": 395, "Mg": 135, "Ca": 54, "Fe": 4.4, "Zn": 3.6 }
+  },
+  {
+    "id": "flakes-rice",
+    "name": "Rýžové vločky",
+    "category": "obiloviny",
+    "kcal": 355,
+    "macros": { "proteins": 7.4, "carbs": 77.5, "fats": 1.1, "fiber": 2.2 },
+    "vitamins_mg": { "B1": 0.08, "B2": 0.03, "B3": 1.5, "B6": 0.14 },
+    "minerals_mg": { "Na": 5, "K": 110, "Mg": 35, "Ca": 10, "Fe": 0.9, "Zn": 1.1 }
+  },
+  {
+    "id": "psyllium",
+    "name": "Psyllium (rozpustná vláknina)",
+    "category": "ostatní",
+    "kcal": 188,
+    "macros": { "proteins": 1.5, "carbs": 2.0, "fats": 0.6, "fiber": 85.0 },
+    "vitamins_mg": {},
+    "minerals_mg": { "Na": 11, "K": 160, "Ca": 30, "Fe": 1.7 }
+  },
+  {
+    "id": "egg-whole",
+    "name": "Vejce slepičí (celé, syrové)",
+    "category": "vejce a mléčné",
+    "kcal": 143,
+    "macros": { "proteins": 12.6, "carbs": 0.7, "fats": 9.5, "fiber": 0.0 },
+    "vitamins_mg": { "A": 0.16, "D": 0.002, "E": 1.05, "B2": 0.45, "B12": 0.0011 },
+    "minerals_mg": { "Na": 142, "K": 138, "Ca": 56, "Mg": 12, "Fe": 1.75, "Zn": 1.29, "P": 198 }
+  },
+  {
+    "id": "butter-82",
+    "name": "Máslo (82 % tuku)",
+    "category": "tuky",
+    "kcal": 742,
+    "macros": { "proteins": 0.7, "carbs": 0.6, "fats": 82.5, "fiber": 0.0 },
+    "vitamins_mg": { "A": 0.68, "D": 0.0015, "E": 2.3, "K": 0.007 },
+    "minerals_mg": { "Na": 11, "K": 24, "Ca": 24, "Mg": 2, "P": 24 }
+  },
+  {
+    "id": "oil-olive",
+    "name": "Olivový olej Extra Virgin",
+    "category": "tuky",
+    "kcal": 884,
+    "macros": { "proteins": 0.0, "carbs": 0.0, "fats": 100.0, "fiber": 0.0 },
+    "vitamins_mg": { "E": 14.3, "K": 0.06 },
+    "minerals_mg": { "Na": 2, "K": 1, "Ca": 1, "Fe": 0.56 }
+  },
+  {
+    "id": "milk-semi",
+    "name": "Mléko polotučné (1,5 % tuku)",
+    "category": "vejce a mléčné",
+    "kcal": 47,
+    "macros": { "proteins": 3.4, "carbs": 4.8, "fats": 1.5, "fiber": 0.0 },
+    "vitamins_mg": { "A": 0.02, "B2": 0.18, "B12": 0.0004, "C": 1.0 },
+    "minerals_mg": { "Na": 44, "K": 150, "Ca": 120, "Mg": 11, "P": 95, "Zn": 0.4 }
+  },
+  {
+    "id": "cheese-emmental",
+    "name": "Ementál (45 % t. v s.)",
+    "category": "sýry",
+    "kcal": 380,
+    "macros": { "proteins": 28.5, "carbs": 0.5, "fats": 29.5, "fiber": 0.0 },
+    "vitamins_mg": { "A": 0.27, "B2": 0.3, "B12": 0.003, "E": 0.5 },
+    "minerals_mg": { "Na": 350, "K": 90, "Ca": 970, "Mg": 35, "P": 580, "Zn": 4.4 }
+  },
+  {
+    "id": "cheese-gouda",
+    "name": "Gouda (48 % t. v s.)",
+    "category": "sýry",
+    "kcal": 356,
+    "macros": { "proteins": 24.9, "carbs": 2.2, "fats": 27.4, "fiber": 0.0 },
+    "vitamins_mg": { "A": 0.25, "B2": 0.33, "B12": 0.0015 },
+    "minerals_mg": { "Na": 819, "K": 121, "Ca": 700, "Mg": 29, "P": 546, "Zn": 3.9 }
+  },
+  {
+    "id": "cheese-parmesan",
+    "name": "Parmezán (Parmigiano Reggiano)",
+    "category": "sýry",
+    "kcal": 392,
+    "macros": { "proteins": 35.8, "carbs": 0.0, "fats": 28.4, "fiber": 0.0 },
+    "vitamins_mg": { "A": 0.26, "B2": 0.33, "B12": 0.0012 },
+    "minerals_mg": { "Na": 650, "K": 110, "Ca": 1160, "Mg": 43, "P": 680, "Zn": 4.2 }
+  },
+  {
+    "id": "cheese-pecorino",
+    "name": "Pecorino Romano",
+    "category": "sýry",
+    "kcal": 409,
+    "macros": { "proteins": 26.0, "carbs": 0.5, "fats": 34.0, "fiber": 0.0 },
+    "vitamins_mg": { "A": 0.29, "B2": 0.42, "B12": 0.0015 },
+    "minerals_mg": { "Na": 1800, "K": 95, "Ca": 900, "Mg": 38, "P": 600, "Zn": 3.5 }
+  },
+  {
+    "id": "cheese-mozzarella",
+    "name": "Mozzarella (klasická v nálevu)",
+    "category": "sýry",
+    "kcal": 247,
+    "macros": { "proteins": 18.5, "carbs": 1.0, "fats": 19.0, "fiber": 0.0 },
+    "vitamins_mg": { "A": 0.18, "B2": 0.28, "B12": 0.002 },
+    "minerals_mg": { "Na": 230, "K": 76, "Ca": 505, "Mg": 20, "P": 354, "Zn": 2.9 }
+  },
+  {
+    "id": "cheese-ricotta",
+    "name": "Ricotta",
+    "category": "sýry",
+    "kcal": 146,
+    "macros": { "proteins": 8.8, "carbs": 3.5, "fats": 10.9, "fiber": 0.0 },
+    "vitamins_mg": { "A": 0.12, "B2": 0.19, "B12": 0.0003 },
+    "minerals_mg": { "Na": 84, "K": 105, "Ca": 207, "Mg": 11, "P": 158, "Zn": 1.16 }
+  },
+  {
+    "id": "meat-chicken-breast",
+    "name": "Kuřecí prsa (syrová, bez kůže)",
+    "category": "maso",
+    "kcal": 110,
+    "macros": { "proteins": 23.1, "carbs": 0.0, "fats": 1.2, "fiber": 0.0 },
+    "vitamins_mg": { "B3": 11.2, "B6": 0.6, "B12": 0.0003 },
+    "minerals_mg": { "Na": 65, "K": 330, "Mg": 28, "Ca": 11, "Fe": 0.7, "Zn": 0.8, "P": 210 }
+  },
+  {
+    "id": "meat-chicken-thigh",
+    "name": "Kuřecí stehenní řízek (syrový, bez kůže)",
+    "category": "maso",
+    "kcal": 125,
+    "macros": { "proteins": 19.8, "carbs": 0.0, "fats": 4.9, "fiber": 0.0 },
+    "vitamins_mg": { "B2": 0.18, "B3": 6.2, "B6": 0.35, "B12": 0.0005 },
+    "minerals_mg": { "Na": 82, "K": 260, "Mg": 24, "Ca": 10, "Fe": 1.0, "Zn": 1.8, "P": 185 }
+  },
+  {
+    "id": "meat-turkey-breast",
+    "name": "Krůtí prsa (syrová)",
+    "category": "maso",
+    "kcal": 107,
+    "macros": { "proteins": 24.1, "carbs": 0.0, "fats": 1.0, "fiber": 0.0 },
+    "vitamins_mg": { "B3": 10.5, "B6": 0.8, "B12": 0.001 },
+    "minerals_mg": { "Na": 55, "K": 310, "Mg": 30, "Ca": 12, "Fe": 0.8, "Zn": 1.3, "P": 220 }
+  },
+  {
+    "id": "meat-pork-neck",
+    "name": "Vepřová krkovice (syrová)",
+    "category": "maso",
+    "kcal": 248,
+    "macros": { "proteins": 17.5, "carbs": 0.0, "fats": 19.8, "fiber": 0.0 },
+    "vitamins_mg": { "B1": 0.65, "B2": 0.22, "B3": 4.5, "B6": 0.4, "B12": 0.0015 },
+    "minerals_mg": { "Na": 68, "K": 310, "Mg": 20, "Ca": 12, "Fe": 1.4, "Zn": 2.8, "P": 190 }
+  },
+  {
+    "id": "meat-pork-loin",
+    "name": "Vepřová pečeně / kotleta (syrová)",
+    "category": "maso",
+    "kcal": 143,
+    "macros": { "proteins": 21.8, "carbs": 0.0, "fats": 5.9, "fiber": 0.0 },
+    "vitamins_mg": { "B1": 0.85, "B2": 0.19, "B3": 5.4, "B6": 0.52, "B12": 0.0007 },
+    "minerals_mg": { "Na": 55, "K": 370, "Mg": 26, "Ca": 7, "Fe": 0.9, "Zn": 1.9, "P": 215 }
+  },
+  {
+    "id": "meat-pork-leg",
+    "name": "Vepřová kýta (syrová, na šunku)",
+    "category": "maso",
+    "kcal": 136,
+    "macros": { "proteins": 21.4, "carbs": 0.0, "fats": 5.4, "fiber": 0.0 },
+    "vitamins_mg": { "B1": 0.9, "B2": 0.21, "B3": 5.2, "B6": 0.5, "B12": 0.0008 },
+    "minerals_mg": { "Na": 60, "K": 365, "Mg": 25, "Ca": 8, "Fe": 1.1, "Zn": 2.2, "P": 210 }
+  },
+  {
+    "id": "meat-beef-round",
+    "name": "Hovězí zadní (kýta, syrová)",
+    "category": "maso",
+    "kcal": 135,
+    "macros": { "proteins": 21.5, "carbs": 0.0, "fats": 5.2, "fiber": 0.0 },
+    "vitamins_mg": { "B2": 0.18, "B3": 5.8, "B6": 0.55, "B12": 0.0024 },
+    "minerals_mg": { "Na": 58, "K": 350, "Mg": 24, "Ca": 6, "Fe": 2.6, "Zn": 4.5, "P": 205 }
+  },
+  {
+    "id": "meat-beef-chuck",
+    "name": "Hovězí přední / krk (syrové)",
+    "category": "maso",
+    "kcal": 182,
+    "macros": { "proteins": 19.6, "carbs": 0.0, "fats": 11.4, "fiber": 0.0 },
+    "vitamins_mg": { "B2": 0.2, "B3": 4.9, "B6": 0.45, "B12": 0.0028 },
+    "minerals_mg": { "Na": 65, "K": 325, "Mg": 21, "Ca": 8, "Fe": 2.5, "Zn": 5.1, "P": 190 }
+  },
+  {
+    "id": "veg-potato",
+    "name": "Brambory (syrové)",
+    "category": "zelenina",
+    "kcal": 77,
+    "macros": { "proteins": 2.0, "carbs": 16.0, "fats": 0.1, "fiber": 1.8 },
+    "vitamins_mg": { "C": 17.0, "B1": 0.08, "B3": 1.1, "B6": 0.29 },
+    "minerals_mg": { "Na": 6, "K": 421, "Mg": 23, "Ca": 12, "Fe": 0.78, "P": 57 }
+  },
+  {
+    "id": "veg-tomato",
+    "name": "Rajčata",
+    "category": "zelenina",
+    "kcal": 18,
+    "macros": { "proteins": 0.9, "carbs": 2.7, "fats": 0.2, "fiber": 1.2 },
+    "vitamins_mg": { "A": 0.042, "C": 14.0, "E": 0.54, "K": 0.008 },
+    "minerals_mg": { "Na": 5, "K": 237, "Mg": 11, "Ca": 10, "Fe": 0.27 }
+  },
+  {
+    "id": "veg-pepper-bell",
+    "name": "Paprika červená / zelená",
+    "category": "zelenina",
+    "kcal": 31,
+    "macros": { "proteins": 1.0, "carbs": 4.8, "fats": 0.3, "fiber": 2.1 },
+    "vitamins_mg": { "A": 0.157, "C": 127.7, "E": 1.58, "B6": 0.29 },
+    "minerals_mg": { "Na": 4, "K": 211, "Mg": 12, "Ca": 7, "Fe": 0.43 }
+  },
+  {
+    "id": "veg-chili",
+    "name": "Chilli papričky (Jalapeño / Habanero / Feferonky)",
+    "category": "zelenina",
+    "kcal": 40,
+    "macros": { "proteins": 1.9, "carbs": 7.3, "fats": 0.4, "fiber": 1.5 },
+    "vitamins_mg": { "A": 0.048, "C": 143.7, "E": 0.69, "B6": 0.51 },
+    "minerals_mg": { "Na": 9, "K": 322, "Mg": 23, "Ca": 14, "Fe": 1.03 }
+  },
+  {
+    "id": "veg-onion",
+    "name": "Cibule kuchyňská",
+    "category": "zelenina",
+    "kcal": 40,
+    "macros": { "proteins": 1.1, "carbs": 7.6, "fats": 0.1, "fiber": 1.7 },
+    "vitamins_mg": { "C": 7.4, "B6": 0.12 },
+    "minerals_mg": { "Na": 4, "K": 146, "Mg": 10, "Ca": 23, "Fe": 0.21 }
+  },
+  {
+    "id": "veg-garlic",
+    "name": "Česnek",
+    "category": "zelenina",
+    "kcal": 149,
+    "macros": { "proteins": 6.4, "carbs": 31.0, "fats": 0.5, "fiber": 2.1 },
+    "vitamins_mg": { "C": 31.2, "B1": 0.2, "B6": 1.24 },
+    "minerals_mg": { "Na": 17, "K": 401, "Mg": 25, "Ca": 181, "Fe": 1.7, "Zn": 1.16, "P": 153 }
+  },
+  {
+    "id": "veg-beetroot",
+    "name": "Červená řepa (syrová)",
+    "category": "zelenina",
+    "kcal": 43,
+    "macros": { "proteins": 1.6, "carbs": 6.8, "fats": 0.2, "fiber": 2.8 },
+    "vitamins_mg": { "C": 4.9, "B6": 0.07 },
+    "minerals_mg": { "Na": 78, "K": 325, "Mg": 23, "Ca": 16, "Fe": 0.8 }
+  },
+  {
+    "id": "veg-carrot",
+    "name": "Mrkev",
+    "category": "zelenina",
+    "kcal": 41,
+    "macros": { "proteins": 0.9, "carbs": 6.8, "fats": 0.2, "fiber": 2.8 },
+    "vitamins_mg": { "A": 0.835, "C": 5.9, "E": 0.66, "K": 0.013 },
+    "minerals_mg": { "Na": 69, "K": 320, "Mg": 12, "Ca": 33, "Fe": 0.3 }
+  },
+  {
+    "id": "veg-cucumber",
+    "name": "Okurka salátová",
+    "category": "zelenina",
+    "kcal": 15,
+    "macros": { "proteins": 0.7, "carbs": 3.1, "fats": 0.1, "fiber": 0.5 },
+    "vitamins_mg": { "C": 2.8, "K": 0.016 },
+    "minerals_mg": { "Na": 2, "K": 147, "Mg": 13, "Ca": 16, "Fe": 0.28 }
+  },
+  {
+    "id": "fruit-apple",
+    "name": "Jablko",
+    "category": "ovoce",
+    "kcal": 52,
+    "macros": { "proteins": 0.3, "carbs": 11.4, "fats": 0.2, "fiber": 2.4 },
+    "vitamins_mg": { "C": 4.6, "E": 0.18 },
+    "minerals_mg": { "Na": 1, "K": 107, "Mg": 5, "Ca": 6, "Fe": 0.12 }
+  },
+  {
+    "id": "fruit-banana",
+    "name": "Banán",
+    "category": "ovoce",
+    "kcal": 89,
+    "macros": { "proteins": 1.1, "carbs": 20.2, "fats": 0.3, "fiber": 2.6 },
+    "vitamins_mg": { "C": 8.7, "B6": 0.37 },
+    "minerals_mg": { "Na": 1, "K": 358, "Mg": 27, "Ca": 5, "Fe": 0.26 }
+  },
+  {
+    "id": "fruit-blackberry",
+    "name": "Ostružiny",
+    "category": "ovoce",
+    "kcal": 43,
+    "macros": { "proteins": 1.4, "carbs": 4.3, "fats": 0.5, "fiber": 5.3 },
+    "vitamins_mg": { "A": 0.011, "C": 21.0, "E": 1.17, "K": 0.02 },
+    "minerals_mg": { "Na": 1, "K": 162, "Mg": 20, "Ca": 29, "Fe": 0.62 }
+  },
+  {
+    "id": "nuts-walnut",
+    "name": "Vlašské ořechy",
+    "category": "ořechy a semínka",
+    "kcal": 654,
+    "macros": { "proteins": 15.2, "carbs": 7.0, "fats": 65.2, "fiber": 6.7 },
+    "vitamins_mg": { "B1": 0.34, "B6": 0.54, "E": 0.7 },
+    "minerals_mg": { "Na": 2, "K": 441, "Mg": 158, "Ca": 98, "Fe": 2.9, "Zn": 3.1, "P": 346 }
+  },
+  {
+    "id": "nuts-almond",
+    "name": "Mandle (natural)",
+    "category": "ořechy a semínka",
+    "kcal": 579,
+    "macros": { "proteins": 21.2, "carbs": 9.1, "fats": 49.9, "fiber": 12.5 },
+    "vitamins_mg": { "B2": 1.14, "B3": 3.6, "E": 25.6 },
+    "minerals_mg": { "Na": 1, "K": 733, "Mg": 270, "Ca": 269, "Fe": 3.7, "Zn": 3.1, "P": 481 }
+  }
+]

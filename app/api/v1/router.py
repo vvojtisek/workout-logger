@@ -8,6 +8,7 @@ from app.api.v1 import (
     exercise_stats,
     exercises,
     export,
+    food_catalog,
     foods,
     ingest,
     invites,
@@ -46,6 +47,7 @@ api_router.include_router(scheduled_workouts.router)
 api_router.include_router(calendar.router)
 api_router.include_router(body_metrics.router)
 api_router.include_router(foods.router)
+api_router.include_router(food_catalog.router)
 api_router.include_router(nutrition_plans.router)
 api_router.include_router(meal_entries.router)
 api_router.include_router(nutrition_dashboard.router)
