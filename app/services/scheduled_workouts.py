@@ -63,6 +63,16 @@ async def reschedule_workout(
         scheduled_workout.program_id = data.program_id
     if "scheduled_date" in fields and data.scheduled_date is not None:
         scheduled_workout.scheduled_date = data.scheduled_date
+    if "workout_plan_id" in fields and data.workout_plan_id is not None:
+        if scheduled_workout.status not in ("scheduled", "skipped"):
+            raise ConflictError(
+                "Only a scheduled or skipped workout can change its plan",
+                code="SCHEDULED_WORKOUT_NOT_EDITABLE",
+            )
+        await get_plan(session, data.workout_plan_id)
+        scheduled_workout.workout_plan_id = data.workout_plan_id
+        # The loaded plan would otherwise still answer with the old name.
+        session.expire(scheduled_workout, ["workout_plan"])
 
     await session.commit()
     return await get_scheduled_workout(session, scheduled_workout_id)

@@ -757,3 +757,79 @@ async def test_load_events_are_private_per_invited_account(migrated_client, auth
         if event_id and owner_cookies:
             await client.delete(f"/api/v1/load-events/{event_id}", headers=owner_cookies)
         await _delete_test_users(app_engine, test_run_id)
+
+
+async def test_load_warnings_only_use_the_account_s_own_plans(migrated_client, auth_headers):
+    client, app_engine = migrated_client
+    test_run_id = uuid4().hex
+    try:
+        owner = await _create_logged_in_user(
+            client, auth_headers, f"owner-{test_run_id}@example.test"
+        )
+        other = await _create_logged_in_user(
+            client, auth_headers, f"other-{test_run_id}@example.test"
+        )
+        game = {
+            "name": "Game",
+            "kind": "game",
+            "weekday": 5,
+            "start_time": "19:30",
+            "season_start": "2026-09-01",
+            "season_end": "2027-03-31",
+        }
+
+        async def plan(headers, name, exercise, reps):
+            created = await client.post(
+                "/api/v1/plans",
+                json={
+                    "name": name,
+                    "exercises": [
+                        {
+                            "exercise_name": exercise,
+                            "target_sets": 3,
+                            "target_reps_min": reps,
+                            "target_reps_max": reps + 2,
+                        }
+                    ],
+                },
+                headers=headers,
+            )
+            assert created.status_code == 201
+            return created.json()["id"]
+
+        for headers in (owner, other):
+            assert (
+                await client.post("/api/v1/load-events", json=game, headers=headers)
+            ).status_code == 201
+        owner_heavy = await plan(owner, f"Owner legs {test_run_id}", "Front squat", 5)
+        await plan(owner, f"Owner upper {test_run_id}", "Bench press", 5)
+        other_heavy = await plan(other, f"Other legs {test_run_id}", "Front squat", 5)
+        for headers, plan_id in ((owner, owner_heavy), (other, other_heavy)):
+            scheduled = await client.post(
+                "/api/v1/scheduled-workouts",
+                json={"workout_plan_id": plan_id, "scheduled_date": "2026-10-16"},
+                headers=headers,
+            )
+            assert scheduled.status_code == 201
+
+        other_calendar = await client.get(
+            "/api/v1/calendar?from=2026-10-01&to=2026-10-31", headers=other
+        )
+        [warning] = other_calendar.json()["load_warnings"]
+        # The other account has no light plan of its own to offer.
+        assert warning["swap_plans"] == []
+        owner_calendar = await client.get(
+            "/api/v1/calendar?from=2026-10-01&to=2026-10-31", headers=owner
+        )
+        [owner_warning] = owner_calendar.json()["load_warnings"]
+        assert [plan["name"] for plan in owner_warning["swap_plans"]] == [
+            f"Owner upper {test_run_id}"
+        ]
+        swap_to_foreign = await client.patch(
+            f"/api/v1/scheduled-workouts/{warning['scheduled_workout_id']}",
+            json={"workout_plan_id": owner_heavy},
+            headers=other,
+        )
+        assert swap_to_foreign.status_code == 404
+    finally:
+        await _delete_test_users(app_engine, test_run_id)
