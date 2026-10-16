@@ -114,6 +114,7 @@ class SessionExerciseRead(OrmModel):
     suggested_weight_kg: float | None
     suggested_reps: int
     suggestion_source: str
+    suggestion_note: str | None
     status: str
     set_entries: list[SetEntryRead]
 

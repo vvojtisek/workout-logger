@@ -15,6 +15,7 @@ import type {
   SynchronizationState,
 } from "@/lib/active-workout-state";
 import { FEELING_SCALE, RIR_HINT } from "@/lib/scales";
+import { suggestionLabel } from "@/lib/workout-utils";
 import {
   RIR_PILLS,
   exercisePosition,
@@ -314,7 +315,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
             <p className="text-xs text-warn">
               {previousLogged
                 ? `Repeating set ${previousLogged.setNumber} · not saved`
-                : `Suggested from ${row.exercise.suggestion_source} · not saved`}
+                : suggestionLabel(row.exercise.suggestion_source, row.exercise.suggestion_note)}
             </p>
           )}
         </div>

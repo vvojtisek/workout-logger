@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -27,6 +27,7 @@ from app.schemas.workout_sessions import (
     WorkoutSessionRestUpdate,
 )
 from app.services.locations import get_location
+from app.services.next_session import suggest_next
 from app.services.plans import get_plan
 
 # Most sets an exercise can grow to during a session with "Add set".
@@ -117,22 +118,6 @@ async def get_active_session(session: AsyncSession) -> WorkoutSession:
     return workout_session
 
 
-async def _latest_history(
-    session: AsyncSession, plan_id: UUID, exercise_name: str
-) -> ExerciseLog | None:
-    result = await session.execute(
-        select(ExerciseLog)
-        .join(WorkoutLog, ExerciseLog.workout_log_id == WorkoutLog.id)
-        .where(
-            WorkoutLog.source_plan_id == plan_id,
-            ExerciseLog.exercise_name == exercise_name,
-        )
-        .order_by(WorkoutLog.performed_at.desc())
-        .limit(1)
-    )
-    return result.scalar_one_or_none()
-
-
 async def start_session(
     session: AsyncSession, source_plan_id: UUID, location_id: UUID | None = None
 ) -> tuple[WorkoutSession, bool]:
@@ -165,14 +150,15 @@ async def start_session(
         focused_set_number=1,
     )
     for exercise in plan.exercises:
-        history = await _latest_history(session, plan.id, exercise.exercise_name)
-        suggested_weight = exercise.target_weight_kg
-        suggested_reps = exercise.target_reps_min
-        suggestion_source = "plan"
-        if history is not None:
-            suggested_weight = history.weight_kg
-            suggested_reps = history.reps_per_set[0]
-            suggestion_source = "history"
+        suggestion = await suggest_next(
+            session,
+            exercise_name=exercise.exercise_name,
+            plan_id=plan.id,
+            rep_min=exercise.target_reps_min,
+            rep_max=exercise.target_reps_max,
+            plan_weight_kg=exercise.target_weight_kg,
+            catalog_exercise_id=exercise.catalog_exercise_id,
+        )
         workout_session.exercises.append(
             SessionExercise(
                 sort_order=exercise.sort_order,
@@ -186,9 +172,10 @@ async def start_session(
                 notes=exercise.notes,
                 group_key=exercise.group_key,
                 group_order=exercise.group_order,
-                suggested_weight_kg=suggested_weight,
-                suggested_reps=suggested_reps,
-                suggestion_source=suggestion_source,
+                suggested_weight_kg=suggestion.weight_kg,
+                suggested_reps=suggestion.reps,
+                suggestion_source=suggestion.source,
+                suggestion_note=suggestion.note,
                 status="planned",
             )
         )
@@ -449,17 +436,6 @@ async def add_set(session: AsyncSession, session_id: UUID, exercise_id: UUID) ->
     return await get_session(session, workout_session.id)
 
 
-async def _latest_by_name(session: AsyncSession, exercise_name: str) -> ExerciseLog | None:
-    result = await session.execute(
-        select(ExerciseLog)
-        .join(WorkoutLog, ExerciseLog.workout_log_id == WorkoutLog.id)
-        .where(func.lower(func.trim(ExerciseLog.exercise_name)) == exercise_name.strip().lower())
-        .order_by(WorkoutLog.performed_at.desc())
-        .limit(1)
-    )
-    return result.scalar_one_or_none()
-
-
 async def swap_exercise(
     session: AsyncSession, session_id: UUID, exercise_id: UUID, data: SessionExerciseSwap
 ) -> WorkoutSession:
@@ -474,17 +450,21 @@ async def swap_exercise(
             "Undo this exercise's logged sets before swapping it",
             code="EXERCISE_HAS_SETS",
         )
-    history = await _latest_by_name(session, data.exercise_name)
+    suggestion = await suggest_next(
+        session,
+        exercise_name=data.exercise_name,
+        plan_id=None,
+        rep_min=exercise.target_reps_min,
+        rep_max=exercise.target_reps_max,
+        # The plan's load was for the old exercise.
+        plan_weight_kg=None,
+    )
     exercise.exercise_name = data.exercise_name
     exercise.exercise_kind = data.exercise_kind
-    if history is not None and history.reps_per_set:
-        exercise.suggested_weight_kg = history.weight_kg
-        exercise.suggested_reps = history.reps_per_set[0]
-        exercise.suggestion_source = "history"
-    else:
-        exercise.suggested_weight_kg = None
-        exercise.suggested_reps = exercise.target_reps_min
-        exercise.suggestion_source = "plan"
+    exercise.suggested_weight_kg = suggestion.weight_kg
+    exercise.suggested_reps = suggestion.reps
+    exercise.suggestion_source = suggestion.source
+    exercise.suggestion_note = suggestion.note
     workout_session.version += 1
     await session.commit()
     return await get_session(session, workout_session.id)

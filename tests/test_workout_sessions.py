@@ -74,8 +74,10 @@ async def test_start_session_snapshots_plan_and_prefers_latest_history(client, a
     exercise = session["exercises"][0]
     assert exercise["exercise_name"] == "Bench Press"
     assert exercise["target_sets"] == 3
+    # Double progression: 7 reps is under the 8-10 range, so keep 47.5 kg
+    # and aim for the bottom of the range.
     assert exercise["suggested_weight_kg"] == 47.5
-    assert exercise["suggested_reps"] == 7
+    assert exercise["suggested_reps"] == 8
     assert exercise["suggestion_source"] == "history"
     assert exercise["set_entries"] == []
     assert session["focused_exercise_id"] == exercise["id"]

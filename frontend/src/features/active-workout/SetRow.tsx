@@ -208,6 +208,7 @@ export function SetRow({
     suggestedWeightKg: row.exercise.suggested_weight_kg,
     suggestedReps: row.exercise.suggested_reps,
     suggestionSource: row.exercise.suggestion_source,
+    suggestionNote: row.exercise.suggestion_note,
   });
 
   const ref1 = useRef<HTMLInputElement>(null);

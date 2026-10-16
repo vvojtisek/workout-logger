@@ -272,7 +272,9 @@ async def test_swap_replaces_an_unlogged_exercise_with_its_own_history(client, a
     assert swapped.status_code == 200
     first = swapped.json()["exercises"][0]
     assert first["exercise_name"] == "goblet squat"
-    assert (first["suggested_weight_kg"], first["suggested_reps"]) == (24, 12)
+    # Every set passed the slot's 5-8 range: +1 kg (not a barbell lift),
+    # back to the bottom of the range.
+    assert (first["suggested_weight_kg"], first["suggested_reps"]) == (25, 5)
     assert first["suggestion_source"] == "history"
 
     unknown = await client.patch(

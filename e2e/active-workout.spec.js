@@ -66,12 +66,13 @@ test("starts, saves, resumes, completes, and cleans up a real active workout", a
     await planItem.getByRole("button", { name: "Start workout" }).click();
 
     await expect(page.getByRole("heading", { name: `${tag} Bench Press` })).toBeVisible();
-    await expect(page.getByText("Suggested from history · not saved")).toBeVisible();
+    // Double progression: 7 reps in an 8-10 range keeps the load and aims one rep higher.
+    await expect(page.getByText("Same load, aim for 8 reps · not saved")).toBeVisible();
     // Exercise stats are computed by the real API from the prior history fixture.
     await expect(page.locator(".exercise-stats")).toContainText("Best 47.5 kg × 7");
     await expect(page.locator(".exercise-stats")).toContainText("e1RM 58.5 kg");
     await expect(page.getByLabel("Weight (kg)")).toHaveValue("47.5");
-    await expect(page.getByLabel("Repetitions")).toHaveValue("7");
+    await expect(page.getByLabel("Repetitions")).toHaveValue("8");
 
     const activeResponse = await request.get("/api/v1/workout-sessions/active");
     expect(activeResponse.status()).toBe(200);
@@ -88,7 +89,7 @@ test("starts, saves, resumes, completes, and cleans up a real active workout", a
     await expect(page.getByRole("heading", { name: `${tag} Bench Press` })).toBeVisible();
     await expect(page.getByText("Saved", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Weight (kg)")).toHaveValue("47.5");
-    await expect(page.getByLabel("Repetitions")).toHaveValue("7");
+    await expect(page.getByLabel("Repetitions")).toHaveValue("8");
     await expectRir(page, "2");
     await expect(page.getByRole("timer")).toContainText(REST_RUNNING);
 
@@ -108,7 +109,7 @@ test("starts, saves, resumes, completes, and cleans up a real active workout", a
     expect(completedHistory.status()).toBe(200);
     const completedHistoryBody = await completedHistory.json();
     expect(completedHistoryBody.source_plan_name).toBe(`${tag} active plan`);
-    expect(completedHistoryBody.exercises[0].reps_per_set).toEqual([7]);
+    expect(completedHistoryBody.exercises[0].reps_per_set).toEqual([8]);
     expect(completedHistoryBody.exercises[0].weight_kg).toBe(47.5);
   } finally {
     if (!sessionId && planId) {
