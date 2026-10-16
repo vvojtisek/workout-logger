@@ -87,20 +87,27 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Capture build time
+        id: build-time
+        run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - name: Build and publish multi-architecture image for EC2
-        env:
-          IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-        run: |
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            --provenance=true \
-            --build-arg "APP_VERSION=${GITHUB_REF_NAME}" \
-            --build-arg "GIT_COMMIT=${GITHUB_SHA}" \
-            --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --label "org.opencontainers.image.version=${GITHUB_REF_NAME}" \
-            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
-            --tag "$IMAGE" \
-            --push .
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          provenance: true
+          sbom: true
+          build-args: |
+            APP_VERSION=${{ github.ref_name }}
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_TIME=${{ steps.build-time.outputs.value }}
+          labels: |
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          push: true
+          cache-from: type=gha,scope=workout-logger-release
+          cache-to: type=gha,scope=workout-logger-release,mode=max
       - name: Export the release image and deployment assets
         env:
           IMAGE: ghcr.io/${{ github.repository }}:${{ github.ref_name }}

@@ -8,10 +8,21 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: fast-${{ github.ref }}
+  group: fast-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  dependency-review:
+    name: Review dependency changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+
   backend:
     name: Backend quality and tests
     runs-on: ubuntu-latest
