@@ -25,9 +25,6 @@ concurrency:
 jobs:
   e2e:
     name: Production Compose end-to-end test
-    # Full Compose/browser E2E runs after merge. Fast checks and dependency
-    # review still run on pull requests.
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -140,7 +137,7 @@ jobs:
         id: build-info
         run: python scripts/generate_build_info.py --format github >> "$GITHUB_OUTPUT"
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:

@@ -108,16 +108,25 @@ files must pass the full rules, and issue #28's known baseline must not get wors
 
 ### Continuous-integration gates
 
-Every pull request runs three required jobs: backend (format, Ruff, mypy, pytest), frontend
-(lint, typecheck, Vitest, build) and deployment configuration validation (renders
-`deploy/aws/compose.yaml` with `docker compose config` and syntax-checks the deploy scripts).
+Every pull request runs **Fast checks**: backend (format, Ruff, mypy, pytest), frontend (lint,
+typecheck, Vitest, build), deployment configuration validation (renders `deploy/aws/compose.yaml`
+with `docker compose config` and syntax-checks the deploy scripts), and a dependency review that
+fails when the pull request adds a dependency with a known vulnerability. Branch protection on
+`main` requires the backend and frontend jobs.
 
 Every pull request, and every push to `main`, also runs the end-to-end job against the **same
-Compose file production uses**, so a breaking change is caught before it is merged: it builds the exact image, starts it with `deploy/aws/compose.yaml` plus the CI-only
-`e2e/compose.e2e.yaml` overlay (which only publishes a loopback port), checks the Alembic
-revision, bootstraps an admin, runs every Playwright journey, verifies through direct SQLite
-counts that run-tagged records were deleted, uploads diagnostics even on failure, and removes
-the stack. Only after that passes does `main` publish an image tagged with the full commit SHA.
+Compose file production uses**, so a breaking change is caught before it is merged: it builds the
+exact image (with a shared GitHub Actions layer cache), starts it with `deploy/aws/compose.yaml`
+plus the CI-only `e2e/compose.e2e.yaml` overlay (which only publishes a loopback port), checks the
+Alembic revision, bootstraps an admin, runs every Playwright journey, verifies through direct
+SQLite counts that run-tagged records were deleted, uploads diagnostics even on failure, and
+removes the stack. Only after that passes on `main` does CI publish an image tagged with the full
+commit SHA, with an SBOM attestation attached.
+
+A `vX.Y.Z` tag on `main` publishes the release only if a Merge checks run on `main` has passed for
+the tagged code (documentation-only commits are traced back to the last tested commit), then
+reruns the unit tests and dependency audits and builds the amd64 and arm64 images with SBOM and
+provenance attestations.
 
 Security gates reject any Python advisory reported by `pip-audit`, npm vulnerabilities at
 high or critical severity, repository secrets reported by gitleaks, and fixed high or critical
