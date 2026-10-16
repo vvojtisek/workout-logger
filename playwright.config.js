@@ -16,6 +16,7 @@ const MOBILE_SPECS = [
   "train-at-location.spec.js",
   "sport-schedule.spec.js",
   "heavy-legs-warning.spec.js",
+  "coaching-principles.spec.js",
 ];
 
 export default defineConfig({

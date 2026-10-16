@@ -23,6 +23,7 @@ from app.schemas.programs import ProgramRead
 from app.schemas.scheduled_workouts import ScheduledWorkoutCreate, ScheduledWorkoutRead
 from app.schemas.workout_sessions import SetEntryCreate, WorkoutSessionRead
 from app.services import body_metrics as body_metrics_service
+from app.services import coaching_principles as principles_service
 from app.services import meal_entries as meal_entries_service
 from app.services import nutrition_dashboard as nutrition_dashboard_service
 from app.services import plans as plans_service
@@ -56,6 +57,21 @@ async def list_programs(limit: int = 50, offset: int = 0) -> dict[str, Any]:
             "limit": limit,
             "offset": offset,
         }
+
+
+@mcp.tool(
+    name="get_coaching_principles",
+    description=(
+        "Read the admin's coaching principles: the training beliefs and "
+        "preferences to follow when designing or reviewing a training block. "
+        "Empty until the admin writes them in Settings."
+    ),
+    auth=require_scopes("read"),
+)
+async def get_coaching_principles() -> dict[str, Any]:
+    async with get_session_maker()() as session:
+        principles = await principles_service.get_principles(session)
+        return principles.model_dump(mode="json")
 
 
 @mcp.tool(

@@ -4,6 +4,7 @@ from app.api.v1 import (
     api_tokens,
     body_metrics,
     calendar,
+    coaching_principles,
     exercise_stats,
     exercises,
     export,
@@ -51,5 +52,6 @@ api_router.include_router(nutrition_dashboard.router)
 api_router.include_router(sleep_entries.router)
 api_router.include_router(ingest.router)
 api_router.include_router(settings.router)
+api_router.include_router(coaching_principles.router)
 api_router.include_router(mcp_status.router)
 api_router.include_router(export.router)
