@@ -196,6 +196,7 @@ export interface Location {
   updated_at: string;
 }
 
+<<<<<<< HEAD
 export interface LocationCheck {
   location: { id: string; name: string } | null;
   items: Array<{
@@ -206,6 +207,8 @@ export interface LocationCheck {
   }>;
 }
 
+=======
+>>>>>>> origin/main
 export type ProgramStatus = "active" | "completed" | "archived";
 
 export interface Program {
