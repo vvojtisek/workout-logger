@@ -12,7 +12,6 @@ import type {
   CoachingPrinciples,
   McpStatus,
   UserSettings,
-  Units,
 } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { formatDateTime } from "@/lib/format";
@@ -91,14 +90,12 @@ function AppearanceSection() {
 function PreferencesSection() {
   const queryClient = useQueryClient();
   const { data: settings, isLoading } = useSettingsQuery();
-  const [units, setUnits] = useState<Units>("metric");
   const [compound, setCompound] = useState("90");
   const [isolation, setIsolation] = useState("60");
   const [seeded, setSeeded] = useState(false);
 
   useEffect(() => {
     if (!settings || seeded) return;
-    setUnits(settings.units);
     setCompound(String(settings.default_rest_compound_seconds));
     setIsolation(String(settings.default_rest_isolation_seconds));
     setSeeded(true);
@@ -109,7 +106,7 @@ function PreferencesSection() {
       apiFetch<UserSettings>("/settings", {
         method: "PUT",
         body: JSON.stringify({
-          units,
+          units: "metric",
           default_rest_compound_seconds: Number.parseInt(compound, 10),
           default_rest_isolation_seconds: Number.parseInt(isolation, 10),
         }),
@@ -132,26 +129,7 @@ function PreferencesSection() {
           <>
             <div>
               <p className="field-label">Units</p>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="units"
-                    checked={units === "metric"}
-                    onChange={() => setUnits("metric")}
-                  />
-                  Metric (kg, cm)
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="units"
-                    checked={units === "imperial"}
-                    onChange={() => setUnits("imperial")}
-                  />
-                  Imperial (lb, in)
-                </label>
-              </div>
+              <p className="text-sm">Metric (kg, cm)</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>

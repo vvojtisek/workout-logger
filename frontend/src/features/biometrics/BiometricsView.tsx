@@ -3,15 +3,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
-import type { BodyMetric, BodyMetricTrends, Paginated, Units } from "@/api/types";
-import { useSettingsQuery } from "@/lib/settings-query";
+import type { BodyMetric, BodyMetricTrends, Paginated } from "@/api/types";
 import { formatWeightDeltaKg, formatWeightKg } from "@/lib/units";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { Button, Card, EmptyState, PageHeading } from "@/ui";
 import { formatDateTime } from "@/lib/format";
 
-function TrendCard({ trends, units }: { trends: BodyMetricTrends; units: Units }) {
+function TrendCard({ trends }: { trends: BodyMetricTrends }) {
   if (!trends.latest) {
     return (
       <EmptyState
@@ -25,7 +24,7 @@ function TrendCard({ trends, units }: { trends: BodyMetricTrends; units: Units }
       <div>
         <p className="text-xs text-muted">Latest weight</p>
         <p className="mt-1 text-lg font-semibold tabular-nums">
-          {formatWeightKg(trends.latest.weight_kg, units)}
+          {formatWeightKg(trends.latest.weight_kg)}
         </p>
       </div>
       <div>
@@ -33,7 +32,7 @@ function TrendCard({ trends, units }: { trends: BodyMetricTrends; units: Units }
         <p className="mt-1 text-lg font-semibold tabular-nums">
           {trends.weight_kg_delta_7d === null
             ? "—"
-            : formatWeightDeltaKg(trends.weight_kg_delta_7d, units)}
+            : formatWeightDeltaKg(trends.weight_kg_delta_7d)}
         </p>
       </div>
       <div>
@@ -41,7 +40,7 @@ function TrendCard({ trends, units }: { trends: BodyMetricTrends; units: Units }
         <p className="mt-1 text-lg font-semibold tabular-nums">
           {trends.weight_kg_delta_14d === null
             ? "—"
-            : formatWeightDeltaKg(trends.weight_kg_delta_14d, units)}
+            : formatWeightDeltaKg(trends.weight_kg_delta_14d)}
         </p>
       </div>
       <div>
@@ -60,8 +59,6 @@ export function BiometricsView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [deleteTarget, setDeleteTarget] = useState<BodyMetric | null>(null);
-  const { data: settings } = useSettingsQuery();
-  const units: Units = settings?.units ?? "metric";
 
   const trendsQuery = useQuery({
     queryKey: ["body-metrics-trends"],
@@ -106,7 +103,7 @@ export function BiometricsView() {
             Failed to load trends: {errorMessage(trendsQuery.error)}
           </p>
         ) : trendsQuery.data ? (
-          <TrendCard trends={trendsQuery.data} units={units} />
+          <TrendCard trends={trendsQuery.data} />
         ) : null}
       </div>
 
@@ -119,7 +116,7 @@ export function BiometricsView() {
         {entries.map((metric) => (
           <li key={metric.id} className="card flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="min-w-0">
-              <p className="font-medium tabular-nums">{formatWeightKg(metric.weight_kg, units)}</p>
+              <p className="font-medium tabular-nums">{formatWeightKg(metric.weight_kg)}</p>
               <p className="mt-0.5 text-sm text-muted">
                 {formatDateTime(metric.measured_at)}
                 {metric.body_fat_percent != null ? ` · ${metric.body_fat_percent.toFixed(1)}% BF` : ""}

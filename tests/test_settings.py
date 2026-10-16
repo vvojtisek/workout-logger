@@ -27,7 +27,7 @@ async def test_update_settings_persists_and_is_returned_by_get(client, auth_head
         headers=auth_headers,
     )
     assert update.status_code == 200
-    assert update.json()["units"] == "imperial"
+    assert update.json()["units"] == "metric"
 
     refetched = await client.get(BASE, headers=auth_headers)
     assert refetched.json() == update.json()

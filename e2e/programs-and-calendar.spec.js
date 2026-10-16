@@ -105,6 +105,8 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
 
     await page.getByRole("button", { name: `${tag} plan` }).click();
     await expect(page.getByRole("heading", { name: `${tag} plan` })).toBeVisible();
+    await expect(page.locator("#reschedule-date")).toHaveAttribute("type", "text");
+    await expect(page.locator("#reschedule-date")).toHaveAttribute("placeholder", "YYYY-MM-DD");
     await page.locator("#reschedule-date").fill(tomorrowIso);
     await page.getByRole("button", { name: "Move" }).click();
     await expect(page.getByRole("dialog")).toBeHidden();

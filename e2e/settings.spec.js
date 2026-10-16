@@ -15,23 +15,23 @@ test("saves preferences, shows MCP status, and exports data through the real GUI
     await openPage(page, "Settings");
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 
-    // Preferences: change units and rest defaults, save, and confirm the
-    // real API now returns what was saved.
-    await page.getByLabel("Imperial (lb, in)").check();
+    // Units are fixed to metric; rest defaults remain user-editable.
+    await expect(page.getByText("Metric (kg, cm)")).toBeVisible();
+    await expect(page.getByText(/Imperial|lb|inches/i)).toHaveCount(0);
     await page.getByLabel("Default rest — compound (s)").fill("100");
     await page.getByLabel("Default rest — isolation (s)").fill("40");
     await page.getByRole("button", { name: "Save preferences" }).click();
 
     await expect
       .poll(async () => (await (await request.get("/api/v1/settings")).json()).units)
-      .toBe("imperial");
+      .toBe("metric");
     const saved = await (await request.get("/api/v1/settings")).json();
     expect(saved.default_rest_compound_seconds).toBe(100);
     expect(saved.default_rest_isolation_seconds).toBe(40);
 
     // Reloading re-fetches from the server, proving it isn't just local state.
     await page.reload();
-    await expect(page.getByLabel("Imperial (lb, in)")).toBeChecked();
+    await expect(page.getByText("Metric (kg, cm)")).toBeVisible();
     await expect(page.getByLabel("Default rest — compound (s)")).toHaveValue("100");
     await expect(page.getByLabel("Default rest — isolation (s)")).toHaveValue("40");
 

@@ -86,10 +86,9 @@ test("flags heavy legs the day before a game and fixes it by moving or swapping"
     await expect(dialog.getByTestId("load-warning")).toContainText(
       `Heavy leg work (Front squat) the day before ${tag} game at 19:30.`,
     );
-    const day = ninth.split("-");
     await clickAndAwaitWrite(
       page,
-      dialog.getByRole("button", { name: `Move to ${day[2]}/${day[1]}/${day[0]}` }),
+      dialog.getByRole("button", { name: `Move to ${ninth}` }),
       "PATCH",
     );
     await expect(flagged).toHaveCount(1);

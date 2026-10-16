@@ -111,7 +111,11 @@ function LoadEventFields({
         </label>
         <Input
           id={`${idPrefix}-season-start`}
-          type="date"
+          type="text"
+          inputMode="numeric"
+          placeholder="YYYY-MM-DD"
+          maxLength={10}
+          pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
           value={draft.seasonStart}
           onChange={(event) => onChange({ ...draft, seasonStart: event.target.value })}
         />
@@ -122,7 +126,11 @@ function LoadEventFields({
         </label>
         <Input
           id={`${idPrefix}-season-end`}
-          type="date"
+          type="text"
+          inputMode="numeric"
+          placeholder="YYYY-MM-DD"
+          maxLength={10}
+          pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
           value={draft.seasonEnd}
           onChange={(event) => onChange({ ...draft, seasonEnd: event.target.value })}
         />

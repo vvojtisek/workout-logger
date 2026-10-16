@@ -20,7 +20,9 @@ async def get_settings(session: AsyncSession) -> UserSettings:
 
 async def update_settings(session: AsyncSession, data: UserSettingsUpdate) -> UserSettings:
     settings = await get_settings(session)
-    settings.units = data.units
+    # Keep the existing API field for client compatibility, but the product
+    # now has one fixed display and input convention: metric units.
+    settings.units = "metric"
     settings.default_rest_compound_seconds = data.default_rest_compound_seconds
     settings.default_rest_isolation_seconds = data.default_rest_isolation_seconds
     await session.commit()

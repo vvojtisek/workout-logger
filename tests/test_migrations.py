@@ -680,6 +680,33 @@ def test_user_settings_migration_adds_table_with_defaults_enforced_by_check_cons
     sync_engine.dispose()
 
 
+def test_metric_standardization_migration_normalizes_only_saved_unit_preferences(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "c2e4a6b8d0f1")
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    settings_id = str(uuid.uuid4())
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO user_settings "
+                "(id, owner_id, units, default_rest_compound_seconds, "
+                "default_rest_isolation_seconds, created_at, updated_at) "
+                "VALUES (:id, NULL, 'imperial', 90, 60, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": settings_id},
+        )
+
+    command.upgrade(alembic_config, "head")
+    with sync_engine.begin() as connection:
+        row = connection.execute(
+            text("SELECT units, default_rest_compound_seconds FROM user_settings WHERE id = :id"),
+            {"id": settings_id},
+        ).one()
+    assert row == ("metric", 90)
+    sync_engine.dispose()
+
+
 def test_exercise_catalogue_seed_adds_shared_templates_and_keeps_existing(
     alembic_config, alembic_db_path
 ):

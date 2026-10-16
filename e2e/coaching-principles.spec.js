@@ -24,7 +24,7 @@ test("the admin writes coaching principles in Settings and they persist", async 
 
     const saved = await (await request.get("/api/v1/coaching-principles")).json();
     expect(saved.body).toBe(text);
-    await expect(page.getByText(/last saved \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/)).toBeVisible();
+    await expect(page.getByText(/last saved \d{4}-\d{2}-\d{2} \d{2}:\d{2}/)).toBeVisible();
 
     await page.reload();
     await expect(page.getByLabel("Principles")).toHaveValue(text);
