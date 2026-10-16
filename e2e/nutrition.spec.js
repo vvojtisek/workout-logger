@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { detailPane, openPage } from "./support/navigation.js";
+import { clickAndAwaitWrite } from "./support/writes.js";
 
 /** @param {number} hour */
 function todayDatetimeLocal(hour) {
@@ -43,7 +44,7 @@ test("builds a food and nutrition plan, logs a meal, and verifies the daily dash
     await page.getByLabel("Protein (g)").fill("31");
     await page.getByLabel("Carbohydrate (g)").fill("0");
     await page.getByLabel("Fat (g)").fill("3.6");
-    await page.getByRole("button", { name: "Create food" }).click();
+    await clickAndAwaitWrite(page, page.getByRole("button", { name: "Create food" }), "POST");
     await expect(page.getByRole("heading", { name: "Foods" })).toBeVisible();
 
     const foodsList = await request.get("/api/v1/foods?limit=100");
@@ -64,7 +65,7 @@ test("builds a food and nutrition plan, logs a meal, and verifies the daily dash
     await page.getByLabel("Protein target (g)").fill("150");
     await page.getByLabel("Carbohydrate target (g)").fill("200");
     await page.getByLabel("Fat target (g)").fill("60");
-    await page.getByRole("button", { name: "Create plan" }).click();
+    await clickAndAwaitWrite(page, page.getByRole("button", { name: "Create plan" }), "POST");
     await expect(page.getByRole("heading", { name: "Nutrition Plans" })).toBeVisible();
 
     const plansList = await request.get("/api/v1/nutrition-plans?limit=100");
@@ -96,7 +97,11 @@ test("builds a food and nutrition plan, logs a meal, and verifies the daily dash
     await page.getByLabel("Carbohydrate (g)").fill("27");
     await page.getByLabel("Fat (g)").fill("3");
 
-    await detailPane(page).getByRole("button", { name: "Log meal", exact: true }).click();
+    await clickAndAwaitWrite(
+      page,
+      detailPane(page).getByRole("button", { name: "Log meal", exact: true }),
+      "POST",
+    );
     await expect(page.getByRole("heading", { name: "Meal Log" })).toBeVisible();
 
     const entriesList = await request.get("/api/v1/meal-entries?limit=100");

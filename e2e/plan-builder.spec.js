@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openPage } from "./support/navigation.js";
+import { clickAndAwaitWrite } from "./support/writes.js";
 
 test("builds, edits, and deletes a real superset plan through the GUI", async ({
   page,
@@ -50,7 +51,7 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
     await rowTwo.getByLabel("Rest seconds").fill("45");
     await rowTwo.getByLabel("Superset group").fill(`${tag} superset`);
 
-    await page.getByRole("button", { name: "Create program" }).click();
+    await clickAndAwaitWrite(page, page.getByRole("button", { name: "Create program" }), "POST");
     await expect(page.getByRole("heading", { name: "Workout Plans" })).toBeVisible();
 
     // Capture the id immediately so a later assertion failure still lets the
@@ -128,7 +129,7 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
     await expect(page.getByLabel("Plan name")).toHaveValue(`${tag} plan`);
     const editRows = page.locator("#plan-exercises-list > div");
     await editRows.nth(0).getByLabel("Target weight (kg)").fill("105");
-    await page.getByRole("button", { name: "Save changes" }).click();
+    await clickAndAwaitWrite(page, page.getByRole("button", { name: "Save changes" }), "PUT");
     await expect(page.getByRole("heading", { name: "Workout Plans" })).toBeVisible();
 
     const updated = await request.get(`/api/v1/plans/${planId}`);
@@ -140,7 +141,11 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
 
     // Delete through the GUI and prove it is gone.
     await page.getByRole("listitem").filter({ hasText: `${tag} plan` }).getByRole("button", { name: "Delete" }).click();
-    await page.getByRole("dialog", { name: "Delete plan" }).getByRole("button", { name: "Delete" }).click();
+    await clickAndAwaitWrite(
+      page,
+      page.getByRole("dialog", { name: "Delete plan" }).getByRole("button", { name: "Delete" }),
+      "DELETE",
+    );
     await expect(
       page.locator("#plans-list").getByText(`${tag} plan`, { exact: true })
     ).toBeHidden();
