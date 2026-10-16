@@ -709,3 +709,51 @@ async def test_locations_are_private_per_invited_account(migrated_client, auth_h
         if location_id and owner_cookies:
             await client.delete(f"/api/v1/locations/{location_id}", headers=owner_cookies)
         await _delete_test_users(app_engine, test_run_id)
+
+
+async def test_load_events_are_private_per_invited_account(migrated_client, auth_headers):
+    client, app_engine = migrated_client
+    test_run_id = uuid4().hex
+    owner_cookies = None
+    event_id = None
+    payload = {
+        "name": "League game",
+        "kind": "game",
+        "weekday": 5,
+        "start_time": "19:30",
+        "season_start": "2026-09-01",
+        "season_end": "2027-03-31",
+    }
+    try:
+        owner_cookies = await _create_logged_in_user(
+            client, auth_headers, f"owner-{test_run_id}@example.test"
+        )
+        other_cookies = await _create_logged_in_user(
+            client, auth_headers, f"other-{test_run_id}@example.test"
+        )
+        created = await client.post("/api/v1/load-events", json=payload, headers=owner_cookies)
+        assert created.status_code == 201
+        event_id = created.json()["id"]
+
+        other_list = await client.get("/api/v1/load-events", headers=other_cookies)
+        assert other_list.json()["items"] == []
+        other_detail = await client.get(f"/api/v1/load-events/{event_id}", headers=other_cookies)
+        assert other_detail.status_code == 404
+        other_replace = await client.put(
+            f"/api/v1/load-events/{event_id}", json=payload, headers=other_cookies
+        )
+        assert other_replace.status_code == 404
+        other_delete = await client.delete(f"/api/v1/load-events/{event_id}", headers=other_cookies)
+        assert other_delete.status_code == 404
+        other_calendar = await client.get(
+            "/api/v1/calendar?from=2026-10-01&to=2026-10-31", headers=other_cookies
+        )
+        assert other_calendar.json()["load_events"] == []
+        owner_calendar = await client.get(
+            "/api/v1/calendar?from=2026-10-01&to=2026-10-31", headers=owner_cookies
+        )
+        assert len(owner_calendar.json()["load_events"]) == 5
+    finally:
+        if event_id and owner_cookies:
+            await client.delete(f"/api/v1/load-events/{event_id}", headers=owner_cookies)
+        await _delete_test_users(app_engine, test_run_id)

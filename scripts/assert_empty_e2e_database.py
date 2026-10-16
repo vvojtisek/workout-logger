@@ -6,6 +6,7 @@ from pathlib import Path
 
 APPLICATION_TABLES = (
     "exercise_logs",
+    "load_events",
     "locations",
     "plan_exercises",
     "session_exercises",

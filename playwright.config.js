@@ -14,6 +14,7 @@ const MOBILE_SPECS = [
   "master-detail.spec.js",
   "locations.spec.js",
   "train-at-location.spec.js",
+  "sport-schedule.spec.js",
 ];
 
 export default defineConfig({

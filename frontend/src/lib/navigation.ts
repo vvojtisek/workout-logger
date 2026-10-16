@@ -35,6 +35,7 @@ const PAGES = {
   plans: { path: "/plans", label: "Plans" },
   programs: { path: "/programs", label: "Programs" },
   calendar: { path: "/calendar", label: "Calendar" },
+  schedule: { path: "/schedule", label: "Sport schedule" },
   history: { path: "/history", label: "History" },
   exercises: { path: "/exercises", label: "Exercises" },
   locations: { path: "/locations", label: "Locations" },
@@ -62,7 +63,7 @@ export const DESKTOP_SECTIONS: NavSection[] = [
     id: "calendar",
     label: "Calendar",
     icon: "calendar",
-    pages: [PAGES.calendar],
+    pages: [PAGES.calendar, PAGES.schedule],
   },
   {
     id: "history",
@@ -110,7 +111,13 @@ export const MOBILE_SECTIONS: NavSection[] = [
     id: "train",
     label: "Train",
     icon: "workout",
-    pages: [PAGES.newWorkout, PAGES.logActivity, PAGES.calendar, PAGES.history],
+    pages: [
+      PAGES.newWorkout,
+      PAGES.logActivity,
+      PAGES.calendar,
+      PAGES.schedule,
+      PAGES.history,
+    ],
   },
   {
     id: "plans",
