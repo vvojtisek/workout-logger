@@ -34,6 +34,18 @@ describe("resolveSetDisplayState", () => {
     });
   });
 
+  it("names the progression rule behind a suggestion when there is one", () => {
+    expect(
+      resolveSetDisplayState({
+        savedEntry: null,
+        suggestedWeightKg: 82.5,
+        suggestedReps: 5,
+        suggestionSource: "history",
+        suggestionNote: "+2.5 kg: every set reached 8 reps",
+      }).label,
+    ).toBe("+2.5 kg: every set reached 8 reps · not saved");
+  });
+
   it("prefers persisted values and marks them saved", () => {
     expect(
       resolveSetDisplayState({

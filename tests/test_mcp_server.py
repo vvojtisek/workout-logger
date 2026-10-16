@@ -14,6 +14,7 @@ EXPECTED_TOOLS = {
     "create_plan",
     "get_daily_summary",
     "get_plan",
+    "get_progression_rules",
     "list_programs",
     "log_biometrics",
     "log_meal",
@@ -383,3 +384,13 @@ async def test_x_api_key_no_longer_authenticates_mcp_requests(client, auth_heade
                 headers={**auth_headers, "Accept": "application/json, text/event-stream"},
             )
     assert response.status_code == 401
+
+
+async def test_get_progression_rules_returns_the_fixed_rules(client, auth_headers):
+    async with mcp_client(mint_mcp_oauth_token(scopes=["read"])) as agent:
+        result = await agent.call_tool("get_progression_rules", {})
+    assert "Double progression" in result.data["rules"]
+    assert result.data["lower_body_barbell_increment_kg"] == 2.5
+    assert result.data["other_increment_kg"] == 1.0
+    assert result.data["deload_factor"] == 0.9
+    assert result.data["min_rir_to_add_load"] == 1

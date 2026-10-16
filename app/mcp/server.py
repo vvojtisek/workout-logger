@@ -27,6 +27,7 @@ from app.services import meal_entries as meal_entries_service
 from app.services import nutrition_dashboard as nutrition_dashboard_service
 from app.services import plans as plans_service
 from app.services import programs as programs_service
+from app.services import progression as progression_service
 from app.services import scheduled_workouts as scheduled_workouts_service
 from app.services import workout_sessions as workout_sessions_service
 
@@ -55,6 +56,24 @@ async def list_programs(limit: int = 50, offset: int = 0) -> dict[str, Any]:
             "limit": limit,
             "offset": offset,
         }
+
+
+@mcp.tool(
+    name="get_progression_rules",
+    description=(
+        "Read the fixed double-progression rules the app uses to suggest the "
+        "next session's load and reps. Read-only: the rules live in code."
+    ),
+    auth=require_scopes("read"),
+)
+async def get_progression_rules() -> dict[str, Any]:
+    return {
+        "rules": progression_service.__doc__,
+        "lower_body_barbell_increment_kg": progression_service.LOWER_BARBELL_INCREMENT_KG,
+        "other_increment_kg": progression_service.OTHER_INCREMENT_KG,
+        "deload_factor": progression_service.DELOAD_FACTOR,
+        "min_rir_to_add_load": progression_service.MIN_RIR_TO_ADD_LOAD,
+    }
 
 
 @mcp.tool(

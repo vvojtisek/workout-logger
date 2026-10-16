@@ -33,7 +33,7 @@ NEXT_DAY_PRACTICE_CUTOFF = time(12, 0)
 MOVE_SEARCH_DAYS = 3
 MAX_SWAP_PLANS = 5
 
-_LEG_NAME = re.compile(
+LEG_NAME = re.compile(
     r"squat|deadlift|\brdl\b|lunge|leg press|hip thrust|step[- ]?up|good morning",
     re.IGNORECASE,
 )
@@ -55,7 +55,7 @@ def _is_leg_exercise(
     )
     if match is not None:
         return bool(LEG_MUSCLES & set(match.primary_muscles))
-    return bool(_LEG_NAME.search(item.exercise_name))
+    return bool(LEG_NAME.search(item.exercise_name))
 
 
 def heavy_leg_exercises(

@@ -56,6 +56,8 @@ class SessionExercise(UUIDPrimaryKeyMixin, Base):
     suggested_weight_kg: Mapped[float | None] = mapped_column(REAL, nullable=True)
     suggested_reps: Mapped[int] = mapped_column(Integer, nullable=False)
     suggestion_source: Mapped[str] = mapped_column(String(20), nullable=False, default="plan")
+    # Why the suggestion is what it is, from the progression rules.
+    suggestion_note: Mapped[str | None] = mapped_column(String(120), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="planned")
 
     workout_session: Mapped["WorkoutSession"] = relationship(back_populates="exercises")

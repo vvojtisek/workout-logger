@@ -26,6 +26,8 @@ export interface GridExercise {
   suggested_weight_kg: number | null;
   suggested_reps: number;
   suggestion_source: string;
+  // Why: the double progression rule that produced the suggestion.
+  suggestion_note?: string | null;
   group_key: string | null;
   group_order: number | null;
   set_entries: SetEntry[];
@@ -65,6 +67,7 @@ export function resolveSetDisplayState(values: {
   suggestedWeightKg: number | null;
   suggestedReps: number;
   suggestionSource: string;
+  suggestionNote?: string | null;
 }): SetDisplayState {
   if (values.savedEntry) {
     return {
@@ -80,8 +83,13 @@ export function resolveSetDisplayState(values: {
     reps: values.suggestedReps,
     rir: null,
     isSaved: false,
-    label: `Suggested from ${values.suggestionSource} · not saved`,
+    label: suggestionLabel(values.suggestionSource, values.suggestionNote),
   };
+}
+
+/** What an unsaved suggestion is based on, for the set row and the HUD. */
+export function suggestionLabel(source: string, note?: string | null): string {
+  return note ? `${note} · not saved` : `Suggested from ${source} · not saved`;
 }
 
 export function remainingTimeSeconds(restEndsAt: string | null, now: Date = new Date()): number {

@@ -851,3 +851,20 @@ def test_load_events_migration_adds_table_with_checks(alembic_config, alembic_db
     command.downgrade(alembic_config, "d2f6b8a4c1e7")
     assert "load_events" not in set(inspect(sync_engine).get_table_names())
     sync_engine.dispose()
+
+
+def test_suggestion_note_migration_round_trips(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "b9d1f3a5c7e2")
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.connect() as connection:
+        columns = {
+            row[1] for row in connection.execute(text("PRAGMA table_info(session_exercises)"))
+        }
+    assert "suggestion_note" in columns
+    command.downgrade(alembic_config, "a7c3e9b1d5f2")
+    with sync_engine.connect() as connection:
+        columns = {
+            row[1] for row in connection.execute(text("PRAGMA table_info(session_exercises)"))
+        }
+    assert "suggestion_note" not in columns
+    sync_engine.dispose()
