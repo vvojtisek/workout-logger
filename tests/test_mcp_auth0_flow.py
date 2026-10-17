@@ -26,13 +26,13 @@ from app.config import Settings
 from app.main import register_mcp_routes
 from app.mcp import mcp
 from app.mcp.oauth import build_mcp_oauth_provider
+from tests.test_mcp_server import EXPECTED_TOOLS
 
 BASE = "https://fitness.example.test"
 AUTH0_ISSUER = "https://tenant.eu.auth0.example/"
 AUDIENCE = f"{BASE}/mcp/"
 SUBJECT = "google-oauth2|allowed-user"
 CLIENT_REDIRECT = "https://claude.ai/api/mcp/auth_callback"
-ALL_TOOLS = 10
 
 
 class FakeAuth0:
@@ -255,7 +255,7 @@ async def test_a_client_that_logs_in_through_auth0_sees_every_tool(auth0_app, re
 
     assert set(fake.authorize_query["scope"].split()) >= {"read", "log", "offline_access"}
     assert fake.authorize_query["audience"] == AUDIENCE
-    assert len(names) == ALL_TOOLS
+    assert names == EXPECTED_TOOLS
 
 
 async def test_a_read_only_client_sees_only_read_tools(auth0_app):

@@ -48,11 +48,12 @@ class MealItemCreate(BaseModel):
         return self
 
 
-class MealEntryCreate(BaseModel):
+class MealEntryDetails(BaseModel):
+    """A meal's header: everything except its items."""
+
     consumed_at: datetime
     meal_type: MealType
     notes: str | None = Field(default=None, max_length=2000)
-    items: list[MealItemCreate] = Field(min_length=1)
 
     @field_validator("consumed_at")
     @classmethod
@@ -63,6 +64,10 @@ class MealEntryCreate(BaseModel):
     @classmethod
     def notes_not_blank(cls, value: str | None) -> str | None:
         return require_non_empty(value, "notes") if value is not None else None
+
+
+class MealEntryCreate(MealEntryDetails):
+    items: list[MealItemCreate] = Field(min_length=1)
 
 
 class MealEntryReplace(MealEntryCreate):

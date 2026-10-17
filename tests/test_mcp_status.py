@@ -1,3 +1,5 @@
+from tests.test_mcp_server import EXPECTED_TOOLS
+
 BASE = "/api/v1/mcp-status"
 
 
@@ -20,21 +22,9 @@ async def test_mcp_status_reports_enabled_and_the_full_tool_set(client, auth_hea
     body = response.json()
     assert body["enabled"] is True
     assert body["path"] == "/mcp"
-    assert body["tool_count"] == 10
-    assert len(body["tools"]) == 10
-    names = {tool["name"] for tool in body["tools"]}
-    assert names == {
-        "list_programs",
-        "get_plan",
-        "get_progression_rules",
-        "get_coaching_principles",
-        "create_plan",
-        "schedule_workout",
-        "log_set",
-        "log_meal",
-        "log_biometrics",
-        "get_daily_summary",
-    }
+    assert body["tool_count"] == len(EXPECTED_TOOLS)
+    assert len(body["tools"]) == len(EXPECTED_TOOLS)
+    assert {tool["name"] for tool in body["tools"]} == EXPECTED_TOOLS
     assert all(tool["description"] for tool in body["tools"])
 
 

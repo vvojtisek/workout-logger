@@ -6,7 +6,12 @@ from sqlalchemy.orm import selectinload
 
 from app.exceptions import NotFoundError
 from app.models import MealEntry, MealItem
-from app.schemas.meal_entries import MealEntryCreate, MealEntryReplace, MealItemCreate
+from app.schemas.meal_entries import (
+    MealEntryCreate,
+    MealEntryDetails,
+    MealEntryReplace,
+    MealItemCreate,
+)
 from app.services.foods import get_food
 
 _LOAD_ITEMS = selectinload(MealEntry.items)
@@ -93,6 +98,20 @@ async def replace_meal_entry(
     await session.flush()
     for item in data.items:
         meal_entry.items.append(await _build_meal_item(session, item))
+    await session.commit()
+    return await get_meal_entry(session, meal_entry_id)
+
+
+async def update_meal_entry_details(
+    session: AsyncSession, meal_entry_id: UUID, data: MealEntryDetails
+) -> MealEntry:
+    """Changes the time, type and notes but keeps the existing items and
+    their nutrition snapshots, so editing a meal's header never re-reads the
+    catalogue."""
+    meal_entry = await get_meal_entry(session, meal_entry_id)
+    meal_entry.consumed_at = data.consumed_at
+    meal_entry.meal_type = data.meal_type
+    meal_entry.notes = data.notes
     await session.commit()
     return await get_meal_entry(session, meal_entry_id)
 

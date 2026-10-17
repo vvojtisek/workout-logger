@@ -36,7 +36,7 @@ test("saves preferences, shows MCP status, and exports data through the real GUI
     await expect(page.getByLabel("Default rest — isolation (s)")).toHaveValue("40");
 
     // MCP status: the real server reports its real tool set.
-    await expect(page.getByText(/10 tools? at \/mcp/)).toBeVisible();
+    await expect(page.getByText(/34 tools? at \/mcp/)).toBeVisible();
     await expect(page.getByText("enabled", { exact: true })).toBeVisible();
 
     // Export: both formats trigger a real browser download from the real API.
