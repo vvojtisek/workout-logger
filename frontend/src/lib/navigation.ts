@@ -1,7 +1,8 @@
 /** The app's navigation model. Desktop and mobile group the same pages
  * differently: desktop has a rail of named destinations, mobile has five
- * thumb-sized tabs. Every page appears in exactly one section of each layout,
- * and a section with more than one page shows them as sub-tabs. */
+ * thumb-sized tabs around a central Log button. Every page appears in exactly
+ * one section of each layout, and a section with more than one page shows
+ * them as sub-tabs. */
 
 export interface NavPage {
   path: string;
@@ -9,6 +10,8 @@ export interface NavPage {
 }
 
 export type NavIcon =
+  | "today"
+  | "log"
   | "workout"
   | "plans"
   | "calendar"
@@ -28,8 +31,13 @@ export interface NavSection {
 }
 
 export const WORKOUT_PATH = "/workout";
+export const TODAY_PATH = "/today";
+/** The mobile section drawn as the central Log button, which opens a sheet
+ * of quick entries instead of leading to one page. */
+export const LOG_SECTION_ID = "log";
 
 const PAGES = {
+  today: { path: TODAY_PATH, label: "Today" },
   newWorkout: { path: "/log/new", label: "New Workout" },
   logActivity: { path: "/activity/new", label: "Log Activity" },
   plans: { path: "/plans", label: "Plans" },
@@ -47,6 +55,12 @@ const PAGES = {
 } satisfies Record<string, NavPage>;
 
 export const DESKTOP_SECTIONS: NavSection[] = [
+  {
+    id: "today",
+    label: "Today",
+    icon: "today",
+    pages: [PAGES.today],
+  },
   {
     id: "workout",
     label: "Active Workout",
@@ -108,40 +122,46 @@ export const DESKTOP_FOOTER_SECTIONS: NavSection[] = [
 
 export const MOBILE_SECTIONS: NavSection[] = [
   {
-    id: "train",
-    label: "Train",
-    icon: "workout",
-    pages: [
-      PAGES.newWorkout,
-      PAGES.logActivity,
-      PAGES.calendar,
-      PAGES.schedule,
-      PAGES.history,
-    ],
+    id: "today",
+    label: "Today",
+    icon: "today",
+    pages: [PAGES.today],
   },
   {
-    id: "plans",
-    label: "Plans",
+    id: "history",
+    label: "History",
+    icon: "history",
+    pages: [PAGES.history, PAGES.calendar],
+  },
+  {
+    id: LOG_SECTION_ID,
+    label: "Log",
+    icon: "log",
+    pages: [PAGES.newWorkout, PAGES.logActivity],
+  },
+  {
+    id: "coach",
+    label: "Coach",
     icon: "plans",
-    pages: [PAGES.plans, PAGES.programs, PAGES.exercises, PAGES.locations],
-  },
-  {
-    id: "nutrition",
-    label: "Nutrition",
-    icon: "nutrition",
-    pages: [PAGES.nutrition],
-  },
-  {
-    id: "body",
-    label: "Body",
-    icon: "body",
-    pages: [PAGES.biometrics, PAGES.sleep],
+    pages: [
+      PAGES.plans,
+      PAGES.programs,
+      PAGES.exercises,
+      PAGES.locations,
+      PAGES.schedule,
+    ],
   },
   {
     id: "more",
     label: "More",
     icon: "more",
-    pages: [PAGES.settings, PAGES.tokens],
+    pages: [
+      PAGES.nutrition,
+      PAGES.biometrics,
+      PAGES.sleep,
+      PAGES.settings,
+      PAGES.tokens,
+    ],
   },
 ];
 

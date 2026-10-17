@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phone Today screen, now the phone's home page. It shows today's date
+  (dd/MM/yyyy) and week, last night's sleep, latest weight and the next game or
+  practice, then one card each for the coach's session (start or resume it,
+  with the heavy-legs warning), today's hockey (one tap on how it felt logs
+  it), last night's sleep (usual times prefilled, one tap on how rested saves
+  it) and food (energy and protein against the plan, and meals you ate before
+  as one-tap chips that log them again now).
+- Phone navigation is Today, History, a central Log button, Coach and More.
+  Log opens a sheet with Food, Sleep, Activity, Weight, Start a workout and
+  Past workout. Minimizing a live workout returns to Today on the phone.
 - Action log: every write through the app or the REST API and every MCP tool
   call is recorded with who caused it (the signed-in user, the API token, or
   the MCP client's registered name, self-reported name and version, and OAuth

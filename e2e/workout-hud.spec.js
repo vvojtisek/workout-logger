@@ -229,14 +229,11 @@ test("logs a superset workout one-handed on the phone HUD", async ({
       page.getByRole("heading", { name: `${tag} Press` }),
     ).toBeVisible();
 
-    // Minimizing keeps the session; the Train tab returns to it.
+    // Minimizing keeps the session; Today offers the way back to it.
     await page.getByRole("button", { name: "Minimize workout" }).click();
-    await expect(page).toHaveURL(/\/plans$/);
+    await expect(page).toHaveURL(/\/today$/);
     await expect(page.getByTestId("live-workout-badge")).toBeVisible();
-    await page
-      .getByRole("navigation", { name: "Main navigation" })
-      .getByRole("link", { name: "Train" })
-      .click();
+    await page.getByRole("button", { name: "Resume workout" }).click();
     await expect(
       page.getByRole("heading", { name: `${tag} Press` }),
     ).toBeVisible();

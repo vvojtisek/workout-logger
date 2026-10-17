@@ -5,6 +5,7 @@ import { AppLayout } from "@/AppLayout";
 import { FULL_BLEED, MasterDetail } from "@/app/MasterDetail";
 import { RouteErrorBoundary } from "@/app/RouteErrorBoundary";
 import { RequireAuth } from "@/auth/RequireAuth";
+import { useIsDesktop } from "@/lib/use-media-query";
 
 /** Lazily loads a list page and wraps it in the list-and-detail layout. */
 function masterDetail(
@@ -20,6 +21,11 @@ function masterDetail(
       },
     };
   };
+}
+
+/** The phone opens on Today; the desktop keeps opening on the plans. */
+function HomeRedirect() {
+  return <Navigate to={useIsDesktop() ? "/plans" : "/today"} replace />;
 }
 
 export const router = createBrowserRouter([
@@ -41,7 +47,11 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         errorElement: <RouteErrorBoundary />,
         children: [
-          { index: true, element: <Navigate to="/plans" replace /> },
+          { index: true, element: <HomeRedirect /> },
+          {
+            path: "today",
+            lazy: () => import("@/features/today/TodayView").then((m) => ({ Component: m.TodayView })),
+          },
           {
             path: "locations",
             lazy: () =>

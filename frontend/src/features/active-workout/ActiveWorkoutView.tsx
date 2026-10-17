@@ -341,7 +341,7 @@ function ActiveWorkoutSession({
           onSkipRest={() => void updateRest({ skip: true })}
           onRetrySync={() => void flushSetQueue()}
           onFinish={finishWorkout}
-          onMinimize={() => void navigate("/plans")}
+          onMinimize={() => void navigate("/")}
         />
         {confirmDialog}
       </>
