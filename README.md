@@ -242,8 +242,23 @@ An MCP server is mounted at `/mcp` (streamable HTTP) inside this same FastAPI ap
 deployable, per the modular-monolith decision. Its tools call `app/services/*` directly rather
 than looping back through HTTP, so they share the REST layer's validation and conflict handling.
 
-Tools: `list_programs`, `get_plan`, `create_plan`, `schedule_workout`, `log_set`, `log_meal`,
-`log_biometrics`, `get_daily_summary`.
+Tools (read scope for `list_*`/`get_*`, log scope for the rest):
+
+- Plans and programs: `list_programs`, `get_plan`, `create_plan`, `schedule_workout`,
+  `get_coaching_principles`, `get_progression_rules`.
+- Weight and measurements: `log_biometrics`, `list_biometrics`, `update_biometrics`,
+  `delete_biometrics`.
+- Sleep: `log_sleep`, `list_sleep`, `update_sleep`, `delete_sleep`.
+- Food catalogue: `create_food`, `list_foods`, `update_food`, `delete_food`.
+- Meals: `log_meal`, `list_meals`, `update_meal`, `delete_meal`, `get_daily_summary`.
+- Finished workouts and activities (hockey, swim, ride, hike): `log_workout`, `list_workouts`,
+  `update_workout`, `delete_workout`.
+- Live workout: `start_workout_session`, `get_active_workout_session`, `log_set`, `update_set`,
+  `delete_set`, `complete_workout_session`, `delete_workout_session`.
+
+`update_*` tools change only the fields passed and check the result with the same schema as the
+app's edit forms. `tests/test_mcp_crud.py` adds, edits and removes each kind of record over MCP
+and reads it back through the REST API.
 
 The REST API keeps its own `X-API-Key` authentication, unchanged — see
 [REST API-key authentication](#rest-api-key-authentication-unchanged) below. The MCP endpoint uses
