@@ -18,6 +18,7 @@ const MOBILE_SPECS = [
   "heavy-legs-warning.spec.js",
   "coaching-principles.spec.js",
   "food-catalog.spec.js",
+  "today.spec.js",
 ];
 
 export default defineConfig({

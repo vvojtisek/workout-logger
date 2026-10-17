@@ -14,8 +14,10 @@ import {
   Ellipsis,
   HeartPulse,
   History,
+  House,
   KeyRound,
   Moon,
+  Plus,
   Settings,
   Sun,
   Utensils,
@@ -25,6 +27,7 @@ import { Link, Outlet, useLocation, useMatches, useNavigate } from "react-router
 
 import { apiFetch } from "@/api/client";
 import { isFullBleed } from "@/app/MasterDetail";
+import { LogSheet } from "@/features/today/LogSheet";
 import type { WorkoutSession } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { Toaster } from "@/ui/Toast";
@@ -33,6 +36,7 @@ import type { BuildLabel, BuildMetadata } from "@/lib/build-label";
 import {
   DESKTOP_FOOTER_SECTIONS,
   DESKTOP_SECTIONS,
+  LOG_SECTION_ID,
   MOBILE_SECTIONS,
   WORKOUT_PATH,
   pageForPath,
@@ -209,6 +213,8 @@ function ConnectionStatus({
 }
 
 const NAV_ICONS: Record<NavIcon, LucideIcon> = {
+  today: House,
+  log: Plus,
   workout: Activity,
   plans: ClipboardList,
   calendar: CalendarDays,
@@ -399,8 +405,9 @@ function DesktopShell({
   );
 }
 
-/** < 1024px: 48px top bar, scrolling content, 60px five-tab bottom bar. The
- * live workout hides the tabs so the session has the whole screen. */
+/** < 1024px: 48px top bar, scrolling content, 60px five-tab bottom bar whose
+ * middle tab is the Log button. The live workout hides the tabs so the
+ * session has the whole screen. */
 function MobileShell({
   pathname,
   sessionActive,
@@ -409,6 +416,7 @@ function MobileShell({
 }: ShellProps) {
   const current = sectionForPath(MOBILE_SECTIONS, pathname);
   const inWorkout = pathname === WORKOUT_PATH;
+  const [logOpen, setLogOpen] = useState(false);
   // The live workout is a full-screen HUD: no top bar, no tabs.
   if (inWorkout) {
     return (
@@ -444,8 +452,24 @@ function MobileShell({
           className="grid h-[60px] shrink-0 grid-cols-5 border-t border-line-muted bg-surface pb-[env(safe-area-inset-bottom)]"
         >
           {MOBILE_SECTIONS.map((section) => {
+            if (section.id === LOG_SECTION_ID) {
+              return (
+                <div key={section.id} className="flex items-center justify-center">
+                  <button
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-expanded={logOpen}
+                    onClick={() => setLogOpen(true)}
+                    className="-mt-5 flex h-14 w-14 flex-col items-center justify-center rounded-full bg-accent text-on-accent shadow-elevated"
+                  >
+                    <SectionIcon section={section} size={24} />
+                    <span className="sr-only">{section.label}</span>
+                  </button>
+                </div>
+              );
+            }
             const active = current?.id === section.id;
-            const live = sessionActive && section.id === "train";
+            const live = sessionActive && section.id === "today";
             return (
               <Link
                 key={section.id}
@@ -467,6 +491,11 @@ function MobileShell({
           })}
         </nav>
       )}
+      <LogSheet
+        open={logOpen}
+        onClose={() => setLogOpen(false)}
+        sessionActive={sessionActive}
+      />
     </div>
   );
 }

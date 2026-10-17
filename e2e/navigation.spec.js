@@ -7,12 +7,14 @@ test("the app shell fits the viewport and reaches every page", async ({
 }) => {
   page.setDefaultTimeout(5_000);
   await page.goto("/");
-  await expect(page).toHaveURL(/\/plans$/);
+  // The phone opens on Today; the desktop keeps opening on the plans.
+  await expect(page).toHaveURL(isDesktop(page) ? /\/plans$/ : /\/today$/);
   const nav = page.getByRole("navigation", { name: "Main navigation" });
 
   if (isDesktop(page)) {
     // Rail of named destinations, full-width workspace beside it.
     for (const label of [
+      "Today",
       "Active Workout",
       "Programs & Plans",
       "Calendar",
@@ -36,18 +38,20 @@ test("the app shell fits the viewport and reaches every page", async ({
     expect(main?.x).toBe(220);
     expect(main?.width).toBe(1280 - 220);
   } else {
-    // Five thumb-sized tabs at the bottom, a compact bar at the top.
+    // Four thumb-sized tabs around a central Log button at the bottom, a
+    // compact bar at the top.
     const tabs = nav.getByRole("link");
     await expect(tabs).toHaveText(
-      ["Train", "Plans", "Nutrition", "Body", "More"].map((t) => new RegExp(t)),
+      ["Today", "History", "Coach", "More"].map((t) => new RegExp(t)),
     );
+    await expect(nav.getByRole("button", { name: "Log", exact: true })).toBeVisible();
     const bar = await nav.boundingBox();
     const viewport = page.viewportSize();
     expect(bar?.height).toBe(60);
     expect((bar?.y ?? 0) + (bar?.height ?? 0)).toBe(viewport?.height);
     const header = await page.locator("header").boundingBox();
     expect(header?.height).toBe(48);
-    await expect(nav.getByRole("link", { name: "Plans" })).toHaveAttribute(
+    await expect(nav.getByRole("link", { name: "Today" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -64,6 +68,7 @@ test("the app shell fits the viewport and reaches every page", async ({
   // Every page is reachable through the navigation.
   /** @type {[string, RegExp][]} */
   const destinations = [
+    ["Today", /\/today$/],
     ["New Workout", /\/log\/new$/],
     ["Log Activity", /\/activity\/new$/],
     ["Plans", /\/plans$/],

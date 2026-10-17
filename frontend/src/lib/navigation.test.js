@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DESKTOP_FOOTER_SECTIONS,
   DESKTOP_SECTIONS,
+  LOG_SECTION_ID,
   MOBILE_SECTIONS,
   pageForPath,
   sectionForPath,
@@ -24,14 +25,15 @@ describe("navigation model", () => {
     expect(new Set(desktop).size).toBe(desktop.length);
   });
 
-  it("has exactly five mobile tabs", () => {
+  it("has five mobile tabs with Log in the middle", () => {
     expect(MOBILE_SECTIONS.map((section) => section.label)).toEqual([
-      "Train",
-      "Plans",
-      "Nutrition",
-      "Body",
+      "Today",
+      "History",
+      "Log",
+      "Coach",
       "More",
     ]);
+    expect(MOBILE_SECTIONS[2].id).toBe(LOG_SECTION_ID);
   });
 
   it("matches nested routes to their page by the longest prefix", () => {
@@ -42,24 +44,28 @@ describe("navigation model", () => {
   });
 
   it("puts the live workout in the section that starts workouts", () => {
-    expect(sectionForPath(MOBILE_SECTIONS, "/workout")?.label).toBe("Train");
+    expect(sectionForPath(MOBILE_SECTIONS, "/workout")?.label).toBe("Log");
     expect(sectionForPath(DESKTOP, "/workout")?.label).toBe("Active Workout");
   });
 
   it("groups pages differently on desktop and mobile", () => {
     expect(sectionForPath(DESKTOP, "/exercises/1")?.label).toBe("Exercise Catalogue");
-    expect(sectionForPath(MOBILE_SECTIONS, "/exercises/1")?.label).toBe("Plans");
+    expect(sectionForPath(MOBILE_SECTIONS, "/exercises/1")?.label).toBe("Coach");
     expect(sectionForPath(MOBILE_SECTIONS, "/tokens/new")?.label).toBe("More");
     expect(sectionForPath(DESKTOP, "/locations")?.label).toBe("Exercise Catalogue");
-    expect(sectionForPath(MOBILE_SECTIONS, "/locations")?.label).toBe("Plans");
+    expect(sectionForPath(MOBILE_SECTIONS, "/locations")?.label).toBe("Coach");
     expect(sectionForPath(DESKTOP, "/schedule")?.label).toBe("Calendar");
-    expect(sectionForPath(MOBILE_SECTIONS, "/schedule")?.label).toBe("Train");
+    expect(sectionForPath(MOBILE_SECTIONS, "/schedule")?.label).toBe("Coach");
+    expect(sectionForPath(MOBILE_SECTIONS, "/sleep/new")?.label).toBe("More");
+    expect(sectionForPath(MOBILE_SECTIONS, "/today")?.label).toBe("Today");
   });
 
   it("returns to a live session from the workout section", () => {
-    const train = MOBILE_SECTIONS[0];
-    expect(sectionTarget(train, false)).toBe("/log/new");
-    expect(sectionTarget(train, true)).toBe("/workout");
-    expect(sectionTarget(MOBILE_SECTIONS[1], true)).toBe("/plans");
+    const workout = DESKTOP_SECTIONS.find((section) => section.id === "workout");
+    if (!workout) throw new Error("no workout section");
+    expect(sectionTarget(workout, false)).toBe("/log/new");
+    expect(sectionTarget(workout, true)).toBe("/workout");
+    expect(sectionTarget(MOBILE_SECTIONS[3], true)).toBe("/plans");
+    expect(sectionTarget(MOBILE_SECTIONS[0], true)).toBe("/today");
   });
 });

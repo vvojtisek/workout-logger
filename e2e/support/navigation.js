@@ -1,9 +1,11 @@
 // Reaches an app page through the real navigation, whichever shell the
 // viewport gets: the desktop rail (>= 1024px) or the mobile bottom tabs. A
-// section that groups several pages shows them as sub-tabs.
+// section that groups several pages shows them as sub-tabs. On a phone the
+// middle tab is the Log button, which opens a sheet of entries instead.
 
 /** @type {Record<string, string[]>} */
 const DESKTOP_SECTIONS = {
+  Today: ["Today"],
   "Active Workout": ["New Workout", "Log Activity"],
   "Programs & Plans": ["Plans", "Programs"],
   Calendar: ["Calendar", "Sport schedule"],
@@ -17,11 +19,16 @@ const DESKTOP_SECTIONS = {
 
 /** @type {Record<string, string[]>} */
 const MOBILE_SECTIONS = {
-  Train: ["New Workout", "Log Activity", "Calendar", "Sport schedule", "History"],
-  Plans: ["Plans", "Programs", "Exercises", "Locations"],
-  Nutrition: ["Nutrition"],
-  Body: ["Biometrics", "Sleep"],
-  More: ["Settings", "Tokens"],
+  Today: ["Today"],
+  History: ["History", "Calendar"],
+  Coach: ["Plans", "Programs", "Exercises", "Locations", "Sport schedule"],
+  More: ["Nutrition", "Biometrics", "Sleep", "Settings", "Tokens"],
+};
+
+/** Pages behind the phone's Log button, by the sheet entry that opens them. */
+const MOBILE_LOG_ENTRIES = {
+  "New Workout": "Past workout",
+  "Log Activity": "Activity",
 };
 
 /** @param {import("@playwright/test").Page} page */
@@ -34,6 +41,17 @@ export function isDesktop(page) {
  * @param {string} label the page's own name, such as "Sleep" or "Programs"
  */
 export async function openPage(page, label) {
+  const logEntry = isDesktop(page)
+    ? undefined
+    : MOBILE_LOG_ENTRIES[/** @type {keyof typeof MOBILE_LOG_ENTRIES} */ (label)];
+  if (logEntry) {
+    await openLogSheet(page);
+    await page
+      .getByRole("dialog", { name: "Log" })
+      .getByRole("link", { name: logEntry, exact: true })
+      .click();
+    return;
+  }
   const sections = isDesktop(page) ? DESKTOP_SECTIONS : MOBILE_SECTIONS;
   const entry = Object.entries(sections).find(([, pages]) =>
     pages.includes(label),
@@ -59,4 +77,15 @@ export async function openPage(page, label) {
  */
 export function detailPane(page) {
   return isDesktop(page) ? page.getByTestId("detail-pane") : page.locator("body");
+}
+
+/**
+ * Opens the phone's quick-entry sheet from the middle tab.
+ * @param {import("@playwright/test").Page} page
+ */
+export async function openLogSheet(page) {
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("button", { name: "Log", exact: true })
+    .click();
 }
