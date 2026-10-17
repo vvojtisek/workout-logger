@@ -1,9 +1,13 @@
-from fastapi import APIRouter, Depends, Response, status
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
 from app.schemas.body_metrics import BodyMetricRead
 from app.schemas.ingest import (
+    HealthConnectIngestResult,
+    HealthConnectPayload,
     SessionIngestCreate,
     SessionIngestResult,
     SleepIngestCreate,
@@ -16,6 +20,7 @@ from app.schemas.ingest import (
 )
 from app.schemas.logs import WorkoutLogRead
 from app.schemas.sleep_entries import SleepEntryRead
+from app.services import health_connect as health_connect_service
 from app.services import ingest as ingest_service
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
@@ -99,3 +104,31 @@ async def ingest_steps(
     return StepsIngestResult(
         **StepCountRead.model_validate(step_count).model_dump(), created=created
     )
+
+
+@router.post(
+    "/health-connect",
+    operation_id="ingest_health_connect",
+    summary="Ingest a Health Connect batch from the HC Webhook app",
+    description=(
+        "Accepts the JSON body the HC Webhook Android app posts and stores its `steps` "
+        "(one total per local day), `sleep` and `exercise` records; every other key is "
+        "ignored. Re-sending a record changes nothing, a revised record updates the row it "
+        "created, and a record overlapping an entry logged by hand merges into that entry "
+        "instead of duplicating it. `timezone` is the IANA zone used to assign records to "
+        "local days. See docs/health-ingest.md."
+    ),
+    response_model=HealthConnectIngestResult,
+)
+async def ingest_health_connect(
+    payload: HealthConnectPayload,
+    timezone: str = Query(min_length=1, max_length=50, examples=["Europe/Prague"]),
+    session: AsyncSession = Depends(get_session),
+) -> HealthConnectIngestResult:
+    try:
+        ZoneInfo(timezone)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422, detail=f"'{timezone}' is not a recognized IANA timezone name"
+        ) from exc
+    return await health_connect_service.ingest(session, payload, timezone)

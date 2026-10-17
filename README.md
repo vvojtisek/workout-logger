@@ -418,8 +418,10 @@ User Management → Users → (user) → `user_id`. Put that value in `MCP_OAUTH
 
 ### Health Ingest
 
-`POST /api/v1/ingest/{weight|steps|sleep|sessions}` accepts pushes from Android sync apps
-(Health Sync, Tasker, HTTP Shortcuts) reading Health Connect — no companion app required. Every
-request carries `source` and `external_id`, unique together, so a re-sync never creates a
-duplicate. See [`docs/health-ingest.md`](docs/health-ingest.md) for the endpoint reference and
+`POST /api/v1/ingest/health-connect` accepts the HC Webhook Android app's Health Connect
+batches (steps, sleep, exercise sessions; e.g. a Galaxy Watch via Samsung Health). A re-sent
+record changes nothing, a revised one updates its row, and one overlapping an entry logged by
+hand merges into it. `POST /api/v1/ingest/{weight|steps|sleep|sessions}` accept single records
+from Tasker or HTTP Shortcuts; each carries `source` and `external_id`, unique together, so a
+re-sync never creates a duplicate. See [`docs/health-ingest.md`](docs/health-ingest.md) for the endpoint reference and
 setup recipes for each app.

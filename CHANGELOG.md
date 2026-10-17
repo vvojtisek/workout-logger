@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Health Connect import: `POST /api/v1/ingest/health-connect?timezone=...`
+  takes the HC Webhook Android app's JSON and stores daily steps, sleep (with
+  asleep and awake time from the stages) and exercise sessions (hockey, swims,
+  rides, hikes, runs, strength). Re-sent records change nothing; a sleep or
+  workout already logged by hand absorbs the watch's record instead of
+  getting a duplicate, and keeps its rating and notes. Setup for a Galaxy
+  Watch through Samsung Health is in docs/health-ingest.md.
 - Phone Today screen, now the phone's home page. It shows today's date
   (dd/MM/yyyy) and week, last night's sleep, latest weight and the next game or
   practice, then one card each for the coach's session (start or resume it,
