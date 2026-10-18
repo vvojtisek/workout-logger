@@ -1,9 +1,10 @@
-# Health ingest recipe: Health Sync, Tasker, HTTP Shortcuts
+# Health ingest recipe: HC Webhook, Tasker, HTTP Shortcuts
 
-`POST /api/v1/ingest/{weight|steps|sleep|sessions}` lets an Android automation app push data
-from Health Connect (or any other tracker) into this server without a companion app. This is
-that recipe. A dedicated Kotlin companion app stays deferred — these three apps cover the same
-ground with no extra code to maintain.
+`POST /api/v1/ingest/health-connect` takes a whole Health Connect batch from the HC Webhook
+app, and `POST /api/v1/ingest/{weight|steps|sleep|sessions}` take one record each. Together
+they let an Android automation app push data from Health Connect (or any other tracker) into
+this server without a companion app. A dedicated Kotlin companion app stays deferred: these
+apps cover the same ground with no extra code to maintain.
 
 ## How ingest works
 
@@ -52,32 +53,54 @@ curl -X POST https://your-host/api/v1/ingest/weight \
   }'
 ```
 
-## Recipe: Health Sync
+## Recipe: Galaxy Watch / Samsung Health via HC Webhook (recommended)
 
-[Health Sync](https://www.healthsyncapp.com/) reads Health Connect and can push each record to a
-custom REST endpoint via its "3rd Party App Sync" → "Custom API" option.
+This is the supported path for sleep, steps and exercise sessions. Samsung Health writes the
+watch's data into Health Connect on the phone; the
+[HC Webhook](https://github.com/mcnaveen/health-connect-webhook) app reads Health Connect and
+POSTs it here. `POST /api/v1/ingest/health-connect` takes that app's JSON body as-is.
 
-1. In Health Sync, add a Custom API target and set the base URL to
-   `https://your-host/api/v1/ingest/weight` (repeat per data type you sync — Health Sync fires a
-   separate request per record type, so weight, sleep, and step syncs each need their own
-   target with the matching path).
-2. Add a static header `X-API-Key: wl_...` (the `log`-scoped token minted above).
-3. Set the request body template. Health Sync exposes the source record's own id as a
-   placeholder — use it for `external_id` so a re-sync (Health Sync re-syncs its whole recent
-   window on every run) stays idempotent:
-   ```json
-   {
-     "measured_at": "{{startTime}}",
-     "weight_kg": "{{weight}}",
-     "source": "health_sync",
-     "external_id": "{{uuid}}"
-   }
-   ```
-   Field names in `{{...}}` come from Health Sync's own template variable list, which differs per
-   data type (weight vs. sleep vs. steps) — check its Custom API documentation for the exact set
-   available for that sync.
-4. Enable the sync schedule. Health Sync retries failed pushes, which is exactly the case
-   `external_id` idempotency exists for.
+On the phone:
+
+1. Samsung Health → Settings → Health Connect: allow Samsung Health to **write** steps, sleep
+   and exercise to Health Connect.
+2. In this app, Settings → Tokens: create a token with the **`log`** scope only.
+3. Install HC Webhook (Google Play, "Health Connect Webhook" by Naveen MC). Grant it Health
+   Connect **read** access to Steps, Sleep and Exercise only. Leave every other type off: the
+   endpoint ignores them and they only make each request larger.
+4. Add a webhook:
+   - URL: `https://your-host/api/v1/ingest/health-connect?timezone=Europe/Prague`
+     (your IANA zone; it decides which local day steps and workouts land on).
+   - Delivery format: JSON.
+   - Custom header: `X-API-Key: wl_...` (the token from step 2).
+5. Set the steps **sample resolution to daily**. Raw and N-minute buckets are sent
+   incrementally, so this endpoint cannot rebuild a day's total from them.
+6. Turn on interval or scheduled sync and tap **Test**. The response body counts what was
+   created, updated, unchanged, merged into a hand-logged entry, or skipped, per type.
+
+What the endpoint does with each record:
+
+| Payload key | Stored as | Matching |
+|---|---|---|
+| `steps` | one `step_counts` row per local day | A record starting at local midnight sets the day's total; a later partial-day record only raises it. |
+| `sleep` | a sleep entry (time in bed, asleep and awake seconds from the stages) | Same start time: no-op or update. Otherwise an entry overlapping the session absorbs it: the watch's times and stage totals replace the entry's, and its quality rating and notes stay. |
+| `exercise` | a finished workout or activity | Same start time: no-op or update. Otherwise a log of the same kind on the same local day (hockey, swim, ride, strength...) is treated as the same session and keeps everything a person entered; only a missing distance is filled in. A new log gets feeling 3 ("OK"), the in-app form's default, because the watch has no rating. |
+
+Exercise types map ice hockey → `ice_hockey`, pool and open-water swimming → `swimming`,
+biking → `cycling`, hiking → `hiking`, running → `running`, strength training, weightlifting
+and calisthenics → a strength workout, and anything else → `other`. Walks (auto-detected all
+day, already in the step total), guided breathing and sessions under a minute are skipped.
+
+The whole request is one transaction: a record that fails validation rejects the batch with
+`422` and nothing is written, so the app retries it on its next sync.
+
+## Health Sync
+
+[Health Sync](https://healthsync.app/about/) copies data between health apps (Samsung Health,
+Health Connect, Google Fit, Strava, ...) and can export Health Connect data to CSV files on
+Google Drive. Its published destination list has no custom HTTP or webhook target, so it
+cannot post to this server by itself. It is useful only upstream, for example to copy data into
+Health Connect from an app that does not write there itself.
 
 ## Recipe: Tasker
 
