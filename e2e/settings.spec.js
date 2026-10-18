@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openPage } from "./support/navigation.js";
+import { clickAndAwaitWrite } from "./support/writes.js";
 
 test("saves preferences, shows MCP status, and exports data through the real GUI", async ({
   page,
@@ -20,12 +21,11 @@ test("saves preferences, shows MCP status, and exports data through the real GUI
     await expect(page.getByText(/Imperial|lb|inches/i)).toHaveCount(0);
     await page.getByLabel("Default rest — compound (s)").fill("100");
     await page.getByLabel("Default rest — isolation (s)").fill("40");
-    await page.getByRole("button", { name: "Save preferences" }).click();
-
-    await expect
-      .poll(async () => (await (await request.get("/api/v1/settings")).json()).units)
-      .toBe("metric");
+    // Units are already metric before the save, so polling them proves nothing;
+    // wait for the save itself before reading the API.
+    await clickAndAwaitWrite(page, page.getByRole("button", { name: "Save preferences" }), "PUT");
     const saved = await (await request.get("/api/v1/settings")).json();
+    expect(saved.units).toBe("metric");
     expect(saved.default_rest_compound_seconds).toBe(100);
     expect(saved.default_rest_isolation_seconds).toBe(40);
 
