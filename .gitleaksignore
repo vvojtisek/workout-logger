@@ -4,3 +4,9 @@
 tests/conftest.py:generic-api-key:10
 # Program template slug ("key": "office-gym-12-week"), not a credential.
 app/program_templates/office_gym_12_week.json:generic-api-key:2
+# The comment above quotes that slug, so gitleaks flags this file's own line 5.
+3ec8c3abe91af4b58787e29c81a8356669042465:.gitleaksignore:generic-api-key:5
+.gitleaksignore:generic-api-key:5
+# JWTVerifier(public_key=key.public_key, ...) in a test: a generated test key, not a credential.
+9fff7595be9965266327e642eefb56c55314033d:tests/test_mcp_auth0_flow.py:generic-api-key:106
+tests/test_mcp_auth0_flow.py:generic-api-key:106
