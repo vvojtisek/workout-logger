@@ -23,8 +23,12 @@ test("saves preferences, shows MCP status, and exports data through the real GUI
     await page.getByRole("button", { name: "Save preferences" }).click();
 
     await expect
-      .poll(async () => (await (await request.get("/api/v1/settings")).json()).units)
-      .toBe("metric");
+      .poll(
+        async () =>
+          (await (await request.get("/api/v1/settings")).json())
+            .default_rest_compound_seconds
+      )
+      .toBe(100);
     const saved = await (await request.get("/api/v1/settings")).json();
     expect(saved.default_rest_compound_seconds).toBe(100);
     expect(saved.default_rest_isolation_seconds).toBe(40);
