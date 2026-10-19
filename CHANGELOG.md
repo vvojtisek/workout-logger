@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ("Input: 1x DB (Vol: 2x)", "per side"), and the shared catalogue is marked
   (Bulgarian split squat, lunges, DB presses, curls and others).
   "Dumbbell Romanian deadlift" is now its own exercise instead of an alias.
+- Quick-add drinks: one-tap Cappuccino (150 ml, 90 kcal) and Tea (250 ml,
+  0 kcal) buttons at the top of Log Meal and on the phone's Today screen. A tap
+  logs the drink now as an ordinary meal entry, with an Undo toast. The drinks
+  and their values are editable under Nutrition > Quick-add drinks
+  (`/api/v1/quick-add-presets`).
 - Health Connect import: `POST /api/v1/ingest/health-connect?timezone=...`
   takes the HC Webhook Android app's JSON and stores daily steps, sleep (with
   asleep and awake time from the stages) and exercise sessions (hockey, swims,

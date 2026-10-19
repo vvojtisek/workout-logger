@@ -21,6 +21,8 @@ import type {
 } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
 import { LocationCheckDialog } from "@/features/locations/LocationCheckDialog";
+import { DrinkQuickAdd, useQuickAddPresets } from "@/features/nutrition/DrinkQuickAdd";
+import { isPresetEntry } from "@/lib/quick-add";
 import { LOAD_EVENT_KIND_LABELS, clockTime, loadWarningMessage } from "@/lib/load-events";
 import { readTrainingLocation, writeTrainingLocation } from "@/lib/locations";
 import { FEELING_SCALE, SLEEP_QUALITY_SCALE, scaleLabel, scaleText, scaleValues } from "@/lib/scales";
@@ -486,7 +488,8 @@ function FoodCard({ now, onChange }: { now: Date; onChange: () => void }) {
 
   const totals = daily.data?.totals;
   const target = daily.data?.target;
-  const options = repeatableMeals(meals.data?.items ?? []);
+  const presets = useQuickAddPresets().data?.items ?? [];
+  const options = repeatableMeals((meals.data?.items ?? []).filter((entry) => !isPresetEntry(entry, presets)));
 
   return (
     <TodayCard title="Food today" testId="today-food">
@@ -496,6 +499,7 @@ function FoodCard({ now, onChange }: { now: Date; onChange: () => void }) {
           <Meter label="Protein" value={totals.protein_g} target={target?.protein_target_g} unit="g" />
         </div>
       ) : null}
+      <DrinkQuickAdd onChange={onChange} />
       {options.length > 0 ? (
         <div className="flex flex-col gap-1.5">
           <p className="text-sm text-muted">Eat one of these again? One tap logs it now.</p>

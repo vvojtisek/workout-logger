@@ -2,10 +2,20 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 
 type ToastVariant = "info" | "success" | "error";
 
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
+interface ToastOptions {
+  action?: ToastAction;
+}
+
 interface Toast {
   id: number;
   message: string;
   variant: ToastVariant;
+  action?: ToastAction;
 }
 
 let nextId = 1;
@@ -16,13 +26,13 @@ function emit() {
   for (const fn of listeners) fn();
 }
 
-export function toast(message: string, variant: ToastVariant = "info") {
-  toasts = [...toasts, { id: nextId++, message, variant }];
+export function toast(message: string, variant: ToastVariant = "info", options: ToastOptions = {}) {
+  toasts = [...toasts, { id: nextId++, message, variant, action: options.action }];
   emit();
 }
 
-toast.success = (message: string) => toast(message, "success");
-toast.error = (message: string) => toast(message, "error");
+toast.success = (message: string, options?: ToastOptions) => toast(message, "success", options);
+toast.error = (message: string, options?: ToastOptions) => toast(message, "error", options);
 
 function dismiss(id: number) {
   toasts = toasts.filter((t) => t.id !== id);
@@ -51,9 +61,10 @@ function ToastItem({ item }: { item: Toast }) {
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
-    timerRef.current = window.setTimeout(() => dismiss(item.id), 4000);
+    // A toast with an action (Undo) stays longer so there is time to tap it.
+    timerRef.current = window.setTimeout(() => dismiss(item.id), item.action ? 8000 : 4000);
     return () => window.clearTimeout(timerRef.current);
-  }, [item.id]);
+  }, [item.id, item.action]);
 
   const handleDismiss = useCallback(() => {
     setVisible(false);
@@ -68,6 +79,18 @@ function ToastItem({ item }: { item: Toast }) {
     >
       <div className="flex items-center justify-between gap-3">
         <span>{item.message}</span>
+        {item.action ? (
+          <button
+            type="button"
+            onClick={() => {
+              dismiss(item.id);
+              item.action?.onClick();
+            }}
+            className="shrink-0 rounded-[var(--radius-sm)] px-2 py-1 font-semibold underline underline-offset-2"
+          >
+            {item.action.label}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={handleDismiss}

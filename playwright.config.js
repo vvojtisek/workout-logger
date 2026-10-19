@@ -20,6 +20,7 @@ const MOBILE_SPECS = [
   "food-catalog.spec.js",
   "today.spec.js",
   "volume-rules.spec.js",
+  "drink-quick-add.spec.js",
 ];
 
 export default defineConfig({
