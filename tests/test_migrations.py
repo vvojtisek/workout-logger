@@ -997,3 +997,24 @@ def test_food_seed_migration_adds_seed_foods_and_keeps_existing(alembic_config, 
     assert remaining == [(own_id,)]
     assert not {"catalog_id", "category", "vitamins_mg", "minerals_mg"} & columns
     sync_engine.dispose()
+
+
+def test_quick_add_presets_migration_seeds_cappuccino_and_tea(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "b5d8f2a4c6e1")
+
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.connect() as connection:
+        rows = connection.execute(
+            text(
+                "SELECT name, quantity, unit, energy_kcal, position FROM quick_add_presets "
+                "ORDER BY position"
+            )
+        ).all()
+    assert [tuple(row) for row in rows] == [
+        ("Cappuccino", 150, "ml", 90, 0),
+        ("Tea", 250, "ml", 0, 1),
+    ]
+
+    command.downgrade(alembic_config, "a7c3e9f1b2d4")
+    assert "quick_add_presets" not in inspect(sync_engine).get_table_names()
+    sync_engine.dispose()

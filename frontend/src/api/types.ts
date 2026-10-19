@@ -376,6 +376,22 @@ export interface NutritionPlan {
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
+/** A one-tap drink; values are for the whole serving, not per 100 g. */
+export interface QuickAddPreset {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  energy_kcal: number;
+  protein_g: number;
+  carbohydrate_g: number;
+  fat_g: number;
+  fiber_g: number | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface MealItem {
   id: string;
   food_id: string | null;
