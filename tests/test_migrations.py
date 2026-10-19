@@ -1017,6 +1017,8 @@ def test_quick_add_presets_migration_seeds_cappuccino_and_tea(alembic_config, al
 
     command.downgrade(alembic_config, "a7c3e9f1b2d4")
     assert "quick_add_presets" not in inspect(sync_engine).get_table_names()
+
+
 def test_per_set_detail_migration_backfills_from_the_finished_session(
     alembic_config, alembic_db_path
 ):
