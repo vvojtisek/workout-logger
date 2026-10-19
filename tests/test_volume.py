@@ -202,3 +202,14 @@ async def test_session_reports_volume_and_hints_for_completed_sets(client, auth_
     log = (await client.get(f"{LOGS}/{log_id}", headers=auth_headers)).json()
     assert log["exercises"][0]["weight_kg"] == 20
     assert log["total_volume_kg"] == 640
+
+
+def test_log_volume_uses_per_set_weights_when_the_log_has_them():
+    from app.models import ExerciseLog
+
+    entry = ExerciseLog(exercise_name="Test press", reps_per_set=[10, 8], weight_kg=22)
+    entry.volume_rule = PAIR
+    assert entry.volume_kg == 2 * 22 * 18
+    # The history editor (PR #176) stores one weight per set.
+    entry.weight_per_set = [20, 22]
+    assert entry.volume_kg == 2 * (20 * 10 + 22 * 8)

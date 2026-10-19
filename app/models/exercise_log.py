@@ -50,6 +50,8 @@ class ExerciseLog(UUIDPrimaryKeyMixin, Base):
 
     @property
     def volume_kg(self) -> float:
-        return sets_volume_kg(
-            ((self.weight_kg, reps) for reps in self.reps_per_set), self.volume_rule
-        )
+        # A log may keep one weight per set (`weight_per_set`, from the history
+        # editor); otherwise every set used the exercise's single weight_kg.
+        per_set = getattr(self, "weight_per_set", None)
+        weights = per_set if per_set else [self.weight_kg] * len(self.reps_per_set)
+        return sets_volume_kg(zip(weights, self.reps_per_set, strict=False), self.volume_rule)
