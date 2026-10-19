@@ -7,6 +7,7 @@ import { activityLabel, logSummaryFacts } from "@/lib/activity";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { Button, Card, PageHeading } from "@/ui";
 import { formatDateTime } from "@/lib/format";
+import { formatVolumeKg, repsText } from "@/lib/load-rules";
 import { TRAINING_LOAD_HINT } from "@/lib/scales";
 
 export function LogDetailView() {
@@ -71,9 +72,18 @@ export function LogDetailView() {
                 <li key={exercise.id} className="card p-3 text-sm">
                   {exercise.exercise_name}:{" "}
                   <span data-numeric>
-                    {exercise.reps_per_set.join(", ")} reps
+                    {repsText(exercise.reps_per_set.join(", "), exercise)}
                     {exercise.weight_kg ? ` @ ${exercise.weight_kg}kg` : ""}
+                    {exercise.equipment_load_mode === "pair_db" && exercise.weight_kg
+                      ? " each dumbbell"
+                      : ""}
                   </span>
+                  {exercise.volume_kg ? (
+                    <span className="text-muted" data-numeric data-testid="exercise-volume">
+                      {" "}
+                      · Volume {formatVolumeKg(exercise.volume_kg)}
+                    </span>
+                  ) : null}
                 </li>
               ))}
             </ul>

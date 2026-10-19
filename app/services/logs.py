@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.exceptions import NotFoundError
 from app.models import ExerciseLog, WorkoutLog, WorkoutPlan
 from app.schemas.logs import WorkoutLogCreate, WorkoutLogReplace
+from app.services.volume_rules import apply_to_logs
 
 _LOAD_EXERCISES = selectinload(WorkoutLog.exercises)
 
@@ -38,7 +39,9 @@ async def list_logs(
     result = await session.execute(
         list_stmt.order_by(WorkoutLog.performed_at.desc()).limit(limit).offset(offset)
     )
-    return list(result.scalars().all()), total or 0
+    logs = list(result.scalars().all())
+    await apply_to_logs(session, logs)
+    return logs, total or 0
 
 
 async def get_log(session: AsyncSession, log_id: UUID) -> WorkoutLog:
@@ -48,6 +51,7 @@ async def get_log(session: AsyncSession, log_id: UUID) -> WorkoutLog:
     log = result.scalar_one_or_none()
     if log is None:
         raise NotFoundError("Workout log not found", code="LOG_NOT_FOUND")
+    await apply_to_logs(session, [log])
     return log
 
 

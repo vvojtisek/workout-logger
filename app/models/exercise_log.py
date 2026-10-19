@@ -5,6 +5,7 @@ from sqlalchemy import JSON, REAL, ForeignKey, Index, Integer, String, Text, Uni
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import GUID, Base, UUIDPrimaryKeyMixin
+from app.services.volume import DEFAULT_RULE, sets_volume_kg, total_reps
 
 if TYPE_CHECKING:
     from app.models.workout_log import WorkoutLog
@@ -29,3 +30,26 @@ class ExerciseLog(UUIDPrimaryKeyMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     workout_log: Mapped["WorkoutLog"] = relationship(back_populates="exercises")
+
+    # How volume is counted for this exercise. Not stored: the log keeps only the
+    # name, and app.services.volume_rules fills this from the exercise
+    # catalogue when the log is loaded.
+    volume_rule = DEFAULT_RULE
+
+    @property
+    def is_unilateral(self) -> bool:
+        return self.volume_rule.is_unilateral
+
+    @property
+    def equipment_load_mode(self) -> str:
+        return self.volume_rule.equipment_load_mode
+
+    @property
+    def total_reps(self) -> int:
+        return sum(total_reps(reps, self.volume_rule) for reps in self.reps_per_set)
+
+    @property
+    def volume_kg(self) -> float:
+        return sets_volume_kg(
+            ((self.weight_kg, reps) for reps in self.reps_per_set), self.volume_rule
+        )

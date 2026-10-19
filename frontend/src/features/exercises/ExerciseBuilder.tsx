@@ -7,6 +7,8 @@ import type { CatalogExercise, EquipmentTag, MuscleTag } from "@/api/types";
 import { MUSCLE_TAGS } from "@/api/types";
 import { MAX_EQUIPMENT_OPTIONS, toggleEquipmentTag } from "@/lib/equipment";
 import { exercisePayloadSchema } from "@/lib/exercise-schema";
+import { EQUIPMENT_LOAD_MODES, LOAD_MODE_LABELS } from "@/lib/load-rules";
+import type { EquipmentLoadMode } from "@/lib/load-rules";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { EquipmentChips } from "@/ui/EquipmentChips";
 import { toast } from "@/ui/Toast";
@@ -181,6 +183,8 @@ function buildPayload(state: {
   equipment: string;
   equipment_any_of: EquipmentTag[][] | null;
   safety_notes: string;
+  equipment_load_mode: EquipmentLoadMode;
+  is_unilateral: boolean;
 }) {
   return {
     name: state.name.trim(),
@@ -192,6 +196,8 @@ function buildPayload(state: {
     equipment: state.equipment.trim() || null,
     equipment_any_of: state.equipment_any_of,
     safety_notes: state.safety_notes.trim() || null,
+    equipment_load_mode: state.equipment_load_mode,
+    is_unilateral: state.is_unilateral,
   };
 }
 
@@ -214,6 +220,8 @@ export function ExerciseBuilder() {
   // follow the text, so editing "barbell" to "dumbbell" retags the exercise.
   const [tagsTouched, setTagsTouched] = useState(false);
   const [safetyNotes, setSafetyNotes] = useState("");
+  const [loadMode, setLoadMode] = useState<EquipmentLoadMode>("standard");
+  const [unilateral, setUnilateral] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const seededExerciseId = useRef<string | null>(null);
 
@@ -235,6 +243,8 @@ export function ExerciseBuilder() {
     setEquipment(existing.equipment ?? "");
     setEquipmentAnyOf(existing.equipment_any_of.length > 0 ? existing.equipment_any_of : null);
     setSafetyNotes(existing.safety_notes ?? "");
+    setLoadMode(existing.equipment_load_mode);
+    setUnilateral(existing.is_unilateral);
   }, [existing]);
 
   const mutation = useMutation({
@@ -277,6 +287,8 @@ export function ExerciseBuilder() {
       equipment,
       equipment_any_of: equipmentAnyOf,
       safety_notes: safetyNotes,
+      equipment_load_mode: loadMode,
+      is_unilateral: unilateral,
     });
     const result = exercisePayloadSchema.safeParse(payload);
     if (!result.success) {
@@ -394,6 +406,37 @@ export function ExerciseBuilder() {
             setEquipmentAnyOf(options);
           }}
         />
+
+        <div>
+          <label className="field-label" htmlFor="exercise-load-mode">
+            Weight you type
+          </label>
+          <select
+            id="exercise-load-mode"
+            className="input"
+            value={loadMode}
+            onChange={(event) => setLoadMode(event.target.value as EquipmentLoadMode)}
+          >
+            {EQUIPMENT_LOAD_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {LOAD_MODE_LABELS[mode]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <label className="flex items-center gap-3 text-sm">
+          <input
+            id="exercise-unilateral"
+            type="checkbox"
+            className="h-5 w-5"
+            checked={unilateral}
+            onChange={(event) => setUnilateral(event.target.checked)}
+          />
+          <span>
+            One side at a time: a set's reps are per leg or arm, and volume counts both sides
+          </span>
+        </label>
 
         <div>
           <label className="field-label" htmlFor="exercise-safety-notes">

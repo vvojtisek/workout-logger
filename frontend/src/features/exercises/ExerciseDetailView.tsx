@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, MuscleTag } from "@/api/types";
 import { describeEquipmentOptions } from "@/lib/equipment";
+import { loadRuleText } from "@/lib/load-rules";
 import { Button, Card, EmptyState, PageHeading } from "@/ui";
 
 const MUSCLE_LABELS: Record<MuscleTag, string> = {
@@ -114,6 +115,7 @@ export function ExerciseDetailView() {
   }
 
   const equipmentTags = describeEquipmentOptions(exercise.equipment_any_of ?? []);
+  const loadRule = loadRuleText(exercise);
 
   return (
     <section id="exercise-detail-view">
@@ -162,7 +164,7 @@ export function ExerciseDetailView() {
         )}
       </Card>
 
-      {exercise.equipment || equipmentTags || exercise.safety_notes ? (
+      {exercise.equipment || equipmentTags || loadRule || exercise.safety_notes ? (
         <Card className="mt-4 flex flex-col gap-3 p-4">
           {exercise.equipment ? (
             <div>
@@ -174,6 +176,12 @@ export function ExerciseDetailView() {
             <div>
               <h3 className="text-sm font-medium text-muted">Needs</h3>
               <p data-testid="exercise-equipment-tags">{equipmentTags}</p>
+            </div>
+          ) : null}
+          {loadRule ? (
+            <div>
+              <h3 className="text-sm font-medium text-muted">Logging</h3>
+              <p data-testid="exercise-load-rule">{loadRule}</p>
             </div>
           ) : null}
           {exercise.safety_notes ? (

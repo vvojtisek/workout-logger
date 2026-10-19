@@ -10,6 +10,7 @@ from app.schemas.common import (
     require_non_empty,
     require_timezone_aware_utc,
 )
+from app.services.volume import LoadMode as EquipmentLoadMode
 
 
 class ExerciseLogCreate(BaseModel):
@@ -46,6 +47,12 @@ class ExerciseLogRead(ExerciseLogCreate):
 
     id: UUID
     sort_order: int
+    # Derived from the exercise catalogue when read (app/services/volume.py):
+    # weight_kg is one dumbbell and reps_per_set are per side.
+    equipment_load_mode: EquipmentLoadMode = "standard"
+    is_unilateral: bool = False
+    total_reps: int = 0
+    volume_kg: float = 0.0
 
 
 ActivityType = Literal["ice_hockey", "swimming", "cycling", "hiking", "running", "other"]
@@ -88,6 +95,7 @@ class WorkoutLogRead(OrmModel):
     distance_km: float | None
     effort_rpe: int | None
     exercises: list[ExerciseLogRead]
+    total_volume_kg: float = 0.0
     created_at: datetime
     updated_at: datetime
 

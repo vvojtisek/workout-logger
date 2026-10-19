@@ -28,6 +28,7 @@ from app.schemas.workout_sessions import (
 )
 from app.services.locations import get_location
 from app.services.next_session import suggest_next
+from app.services.volume_rules import apply_to_session
 from app.services.plans import get_plan
 
 # Most sets an exercise can grow to during a session with "Add set".
@@ -101,6 +102,7 @@ async def get_session(session: AsyncSession, session_id: UUID) -> WorkoutSession
     workout_session = result.scalar_one_or_none()
     if workout_session is None:
         raise NotFoundError("Workout session not found", code="SESSION_NOT_FOUND")
+    await apply_to_session(session, workout_session)
     return workout_session
 
 
@@ -115,6 +117,7 @@ async def get_active_session(session: AsyncSession) -> WorkoutSession:
     workout_session = result.scalar_one_or_none()
     if workout_session is None:
         raise NotFoundError("No active workout session", code="ACTIVE_SESSION_NOT_FOUND")
+    await apply_to_session(session, workout_session)
     return workout_session
 
 
@@ -131,6 +134,7 @@ async def start_session(
     )
     existing = existing_result.scalar_one_or_none()
     if existing is not None:
+        await apply_to_session(session, existing)
         return existing, False
 
     plan = await get_plan(session, source_plan_id)

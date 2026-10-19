@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.common import OrmModel
+from app.services.volume import LoadMode as EquipmentLoadMode
 
 
 class WorkoutSessionStart(BaseModel):
@@ -117,6 +118,12 @@ class SessionExerciseRead(OrmModel):
     suggestion_note: str | None
     status: str
     set_entries: list[SetEntryRead]
+    # From the exercise catalogue (app/services/volume.py); volume and reps
+    # count completed sets only.
+    equipment_load_mode: EquipmentLoadMode = "standard"
+    is_unilateral: bool = False
+    total_reps: int = 0
+    volume_kg: float = 0.0
 
 
 class WorkoutSessionRead(OrmModel):
@@ -133,6 +140,7 @@ class WorkoutSessionRead(OrmModel):
     rest_ends_at: datetime | None
     version: int
     exercises: list[SessionExerciseRead]
+    total_volume_kg: float = 0.0
 
 
 class LocationRef(BaseModel):

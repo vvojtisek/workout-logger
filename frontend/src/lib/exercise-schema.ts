@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { EQUIPMENT_TAGS, MUSCLE_TAGS } from "@/api/types";
 import { equipmentOptionsError } from "@/lib/equipment";
+import { EQUIPMENT_LOAD_MODES } from "@/lib/load-rules";
 
 // Mirrors the server-side validation in `app/schemas/exercises.py` so an
 // exercise can be rejected in the browser instead of round-tripping a raw 422.
@@ -37,6 +38,8 @@ export const exercisePayloadSchema = z.object({
       if (message) ctx.addIssue({ code: "custom", message });
     }),
   safety_notes: z.string().max(4000, "Max 4000 characters").nullable(),
+  equipment_load_mode: z.enum(EQUIPMENT_LOAD_MODES),
+  is_unilateral: z.boolean(),
 });
 
 export type ExercisePayload = z.infer<typeof exercisePayloadSchema>;

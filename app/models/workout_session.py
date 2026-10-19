@@ -62,3 +62,8 @@ class WorkoutSession(UUIDPrimaryKeyMixin, Base):
         cascade="all, delete-orphan",
         order_by="SessionExercise.sort_order",
     )
+
+    @property
+    def total_volume_kg(self) -> float:
+        """Sum of each exercise's volume (see app.services.volume)."""
+        return round(sum(exercise.volume_kg for exercise in self.exercises), 1)
