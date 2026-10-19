@@ -203,3 +203,134 @@ async def test_log_survives_deletion_of_source_plan(client, auth_headers):
     body = get_resp.json()
     assert body["source_plan_id"] is None
     assert body["source_plan_name"] == "Temporary Plan"
+
+
+def per_set_exercise(name: str = "Bench Press") -> dict:
+    return {
+        "exercise_name": name,
+        "sets_count": 3,
+        "reps_per_set": [10, 9, 8],
+        "weight_per_set": [60, 62.5, 65],
+        "rir_per_set": [3, 2, None],
+        "rest_time_seconds": 90,
+    }
+
+
+async def test_replace_log_keeps_per_set_weight_and_rir(client, auth_headers):
+    created = await client.post(
+        LOGS, json=make_log_payload(exercises=[make_exercise_log()]), headers=auth_headers
+    )
+    log_id = created.json()["id"]
+
+    response = await client.put(
+        f"{LOGS}/{log_id}",
+        json=make_log_payload(exercises=[per_set_exercise()]),
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200, response.text
+    exercise = response.json()["exercises"][0]
+    assert exercise["weight_per_set"] == [60, 62.5, 65]
+    assert exercise["rir_per_set"] == [3, 2, None]
+    # The working weight that progression and stats read is the last set's.
+    assert exercise["weight_kg"] == 65
+
+
+async def test_log_without_per_set_values_reads_them_as_null(client, auth_headers):
+    created = await client.post(
+        LOGS, json=make_log_payload(exercises=[make_exercise_log()]), headers=auth_headers
+    )
+    exercise = created.json()["exercises"][0]
+    assert exercise["weight_per_set"] is None
+    assert exercise["rir_per_set"] is None
+    assert exercise["weight_kg"] == 80
+
+
+async def test_per_set_lists_must_match_sets_count(client, auth_headers):
+    exercise = per_set_exercise()
+    exercise["weight_per_set"] = [60, 62.5]
+    response = await client.post(
+        LOGS, json=make_log_payload(exercises=[exercise]), headers=auth_headers
+    )
+    assert response.status_code == 422
+
+    exercise = per_set_exercise()
+    exercise["rir_per_set"] = [1, 2, 3, 4]
+    response = await client.post(
+        LOGS, json=make_log_payload(exercises=[exercise]), headers=auth_headers
+    )
+    assert response.status_code == 422
+
+
+async def test_per_set_values_are_range_checked(client, auth_headers):
+    exercise = per_set_exercise()
+    exercise["weight_per_set"] = [60, -1, 65]
+    response = await client.post(
+        LOGS, json=make_log_payload(exercises=[exercise]), headers=auth_headers
+    )
+    assert response.status_code == 422
+
+    exercise = per_set_exercise()
+    exercise["rir_per_set"] = [1, 11, 2]
+    response = await client.post(
+        LOGS, json=make_log_payload(exercises=[exercise]), headers=auth_headers
+    )
+    assert response.status_code == 422
+
+
+async def test_patch_log_changes_only_the_fields_sent(client, auth_headers):
+    created = await client.post(
+        LOGS,
+        json=make_log_payload(notes="before", exercises=[per_set_exercise()]),
+        headers=auth_headers,
+    )
+    log_id = created.json()["id"]
+
+    response = await client.patch(
+        f"{LOGS}/{log_id}",
+        json={"notes": "after", "performed_at": "2026-06-02T07:30:00Z"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["notes"] == "after"
+    assert body["performed_at"].startswith("2026-06-02T07:30:00")
+    assert body["total_time_minutes"] == 45
+    assert body["exercises"][0]["weight_per_set"] == [60, 62.5, 65]
+
+
+async def test_patch_log_can_clear_notes_and_replace_exercises(client, auth_headers):
+    created = await client.post(
+        LOGS,
+        json=make_log_payload(notes="before", exercises=[per_set_exercise()]),
+        headers=auth_headers,
+    )
+    log_id = created.json()["id"]
+
+    response = await client.patch(
+        f"{LOGS}/{log_id}",
+        json={"notes": None, "exercises": [make_exercise_log("Row")]},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["notes"] is None
+    assert [item["exercise_name"] for item in body["exercises"]] == ["Row"]
+
+
+async def test_patch_log_validates_the_merged_record(client, auth_headers):
+    created = await client.post(LOGS, json=make_log_payload(), headers=auth_headers)
+    response = await client.patch(
+        f"{LOGS}/{created.json()['id']}", json={"overall_feeling": 9}, headers=auth_headers
+    )
+    assert response.status_code == 422
+
+
+async def test_patch_missing_log_returns_404(client, auth_headers):
+    response = await client.patch(
+        f"{LOGS}/{uuid.uuid4()}", json={"notes": "x"}, headers=auth_headers
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "LOG_NOT_FOUND"

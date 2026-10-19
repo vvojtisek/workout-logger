@@ -170,3 +170,28 @@ async def test_swap_progresses_from_the_new_exercise_s_history(client, auth_head
     front = swapped.json()["exercises"][0]
     assert (front["suggested_weight_kg"], front["suggested_reps"]) == (60, 6)
     assert front["suggestion_note"] == "Same load, aim for 6 reps"
+
+
+async def test_completed_session_keeps_each_set_s_weight_and_rir(client, auth_headers):
+    plan = await make_plan(client, auth_headers, [("Back squat", 5, 8, 80)])
+    await log_live_session(client, auth_headers, plan["id"], 80, [8, 8, 8], [2, 1, 0])
+    logs = (await client.get(LOGS, headers=auth_headers)).json()["items"]
+    exercise = logs[0]["exercises"][0]
+    assert exercise["weight_per_set"] == [80, 80, 80]
+    assert exercise["rir_per_set"] == [2, 1, 0]
+
+
+async def test_editing_a_finished_session_s_rir_changes_the_next_suggestion(client, auth_headers):
+    plan = await make_plan(client, auth_headers, [("Back squat", 5, 8, 80)])
+    await log_live_session(client, auth_headers, plan["id"], 80, [8, 8, 8], [2, 1, 0])
+    logged = (await client.get(LOGS, headers=auth_headers)).json()["items"][0]
+    exercise = logged["exercises"][0]
+    exercise["rir_per_set"] = [2, 2, 1]
+
+    edited = await client.patch(
+        f"{LOGS}/{logged['id']}", json={"exercises": [exercise]}, headers=auth_headers
+    )
+    assert edited.status_code == 200, edited.text
+
+    squat = (await start(client, auth_headers, plan["id"]))["exercises"][0]
+    assert squat["suggested_weight_kg"] == 82.5

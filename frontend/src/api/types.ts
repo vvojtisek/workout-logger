@@ -99,6 +99,9 @@ export interface ExerciseLog {
   sets_count: number;
   reps_per_set: number[];
   weight_kg: number | null;
+  /** One entry per set; null on logs saved with a single weight (weight_kg). */
+  weight_per_set?: (number | null)[] | null;
+  rir_per_set?: (number | null)[] | null;
   rest_time_seconds: number;
   notes: string | null;
 }

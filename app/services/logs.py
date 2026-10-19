@@ -1,13 +1,15 @@
 from datetime import datetime
 from uuid import UUID
 
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.exceptions import NotFoundError
 from app.models import ExerciseLog, WorkoutLog, WorkoutPlan
-from app.schemas.logs import WorkoutLogCreate, WorkoutLogReplace
+from app.schemas.logs import WorkoutLogCreate, WorkoutLogPatch, WorkoutLogRead, WorkoutLogReplace
 
 _LOAD_EXERCISES = selectinload(WorkoutLog.exercises)
 
@@ -104,6 +106,19 @@ async def replace_log(session: AsyncSession, log_id: UUID, data: WorkoutLogRepla
         log.exercises.append(ExerciseLog(sort_order=index, **exercise.model_dump()))
     await session.commit()
     return await get_log(session, log_id)
+
+
+async def patch_log(session: AsyncSession, log_id: UUID, changes: WorkoutLogPatch) -> WorkoutLog:
+    """Overlays the fields the client sent on the stored log and saves the
+    result through the same validation and replace path as PUT."""
+    current = WorkoutLogRead.model_validate(await get_log(session, log_id))
+    data = current.model_dump(include=set(WorkoutLogReplace.model_fields))
+    data.update(changes.model_dump(exclude_unset=True))
+    try:
+        replacement = WorkoutLogReplace.model_validate(data)
+    except ValidationError as exc:
+        raise RequestValidationError(exc.errors(include_url=False)) from exc
+    return await replace_log(session, log_id, replacement)
 
 
 async def delete_log(session: AsyncSession, log_id: UUID) -> None:

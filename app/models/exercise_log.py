@@ -25,6 +25,11 @@ class ExerciseLog(UUIDPrimaryKeyMixin, Base):
     sets_count: Mapped[int] = mapped_column(Integer, nullable=False)
     reps_per_set: Mapped[list[int]] = mapped_column(JSON, nullable=False)
     weight_kg: Mapped[float | None] = mapped_column(REAL, nullable=True)
+    # Per-set detail, one entry per set like reps_per_set. NULL for logs saved
+    # before it existed or by clients that only send one weight; weight_kg is
+    # then every set's weight. When present, weight_kg is its last value.
+    weight_per_set: Mapped[list[float | None] | None] = mapped_column(JSON, nullable=True)
+    rir_per_set: Mapped[list[int | None] | None] = mapped_column(JSON, nullable=True)
     rest_time_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
 

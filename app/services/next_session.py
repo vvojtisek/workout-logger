@@ -52,6 +52,9 @@ async def increment_for(
 
 
 async def _rir_for(session: AsyncSession, log: ExerciseLog) -> list[int | None] | None:
+    # The log's own copy wins: it is what the history editor changes.
+    if log.rir_per_set is not None:
+        return list(log.rir_per_set)
     live = await session.scalar(
         select(WorkoutSession)
         .options(selectinload(WorkoutSession.exercises).selectinload(SessionExercise.set_entries))
