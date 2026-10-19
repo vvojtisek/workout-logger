@@ -15,6 +15,7 @@ from app.models.meal_item import MealItem
 from app.models.nutrition_plan import NutritionPlan
 from app.models.plan_exercise import PlanExercise
 from app.models.program import Program
+from app.models.quick_add_preset import QuickAddPreset
 from app.models.scheduled_workout import ScheduledWorkout
 from app.models.session_exercise import SessionExercise
 from app.models.set_entry import SetEntry
@@ -45,6 +46,7 @@ __all__ = [
     "NutritionPlan",
     "PlanExercise",
     "Program",
+    "QuickAddPreset",
     "ScheduledWorkout",
     "SessionExercise",
     "SetEntry",

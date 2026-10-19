@@ -12,6 +12,7 @@ import {
 } from "@/lib/date-time-inputs";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { CatalogQuickAdd } from "./CatalogQuickAdd";
+import { DrinkQuickAdd } from "./DrinkQuickAdd";
 import { toast } from "@/ui/Toast";
 
 const MEAL_TYPE_OPTIONS: { value: MealType; label: string }[] = [
@@ -198,6 +199,12 @@ export function MealEntryForm() {
   return (
     <section id="meal-entry-form-view">
       <PageHeading>{isEditing ? "Edit Meal" : "Log Meal"}</PageHeading>
+
+      {isEditing ? null : (
+        <Card className="mb-4 p-4">
+          <DrinkQuickAdd />
+        </Card>
+      )}
 
       <Card className="flex flex-col gap-4 p-4">
         <div className="grid gap-3 sm:grid-cols-2">

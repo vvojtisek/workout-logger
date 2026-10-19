@@ -200,6 +200,13 @@ export const router = createBrowserRouter([
             ],
           },
           {
+            path: "nutrition/quick-add",
+            lazy: () =>
+              import("@/features/nutrition/QuickAddPresetsView").then((m) => ({
+                Component: m.QuickAddPresetsView,
+              })),
+          },
+          {
             path: "nutrition/meals",
             handle: FULL_BLEED,
             lazy: masterDetail("/nutrition/meals", "Pick a meal to edit, or log a new one.", () =>
