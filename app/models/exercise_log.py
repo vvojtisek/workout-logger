@@ -26,6 +26,11 @@ class ExerciseLog(UUIDPrimaryKeyMixin, Base):
     sets_count: Mapped[int] = mapped_column(Integer, nullable=False)
     reps_per_set: Mapped[list[int]] = mapped_column(JSON, nullable=False)
     weight_kg: Mapped[float | None] = mapped_column(REAL, nullable=True)
+    # Per-set detail, one entry per set like reps_per_set. NULL for logs saved
+    # before it existed or by clients that only send one weight; weight_kg is
+    # then every set's weight. When present, weight_kg is its last value.
+    weight_per_set: Mapped[list[float | None] | None] = mapped_column(JSON, nullable=True)
+    rir_per_set: Mapped[list[int | None] | None] = mapped_column(JSON, nullable=True)
     rest_time_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
@@ -50,8 +55,8 @@ class ExerciseLog(UUIDPrimaryKeyMixin, Base):
 
     @property
     def volume_kg(self) -> float:
-        # A log may keep one weight per set (`weight_per_set`, from the history
-        # editor); otherwise every set used the exercise's single weight_kg.
-        per_set = getattr(self, "weight_per_set", None)
+        # Older logs keep only one weight for the exercise; edited and newly
+        # completed ones keep one per set.
+        per_set = self.weight_per_set
         weights = per_set if per_set else [self.weight_kg] * len(self.reps_per_set)
         return sets_volume_kg(zip(weights, self.reps_per_set, strict=False), self.volume_rule)

@@ -49,3 +49,11 @@ export function loadRuleText(rule: LoadRule): string | null {
   if (rule.is_unilateral) parts.push("Reps are per side; volume counts both sides.");
   return parts.length > 0 ? parts.join(" ") : null;
 }
+
+/** " (per side, per dumbbell)" after a logged exercise's sets; empty for a plain lift. */
+export function loadNotes(rule: LoadRule): string {
+  const notes: string[] = [];
+  if (rule.is_unilateral) notes.push("per side");
+  if (rule.equipment_load_mode === "pair_db") notes.push("per dumbbell");
+  return notes.length > 0 ? ` (${notes.join(", ")})` : "";
+}

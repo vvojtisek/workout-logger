@@ -31,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logs the drink now as an ordinary meal entry, with an Undo toast. The drinks
   and their values are editable under Nutrition > Quick-add drinks
   (`/api/v1/quick-add-presets`).
+- Edit a past workout from its history page (`/history/<id>`): change the date
+  and time, duration, how it felt and notes; add or remove exercises; and add,
+  change or remove single sets (weight, reps, RIR). Each set now keeps its own
+  weight and RIR (`exercise_logs.weight_per_set`, `rir_per_set`); `weight_kg`
+  stays the last set's weight, as before. Workouts finished from a live session
+  get their per-set values copied from that session by the migration. The next
+  session's suggestion and the exercise stats use the edited values.
+  New `PATCH /api/v1/logs/{id}` changes only the fields sent.
+
 - Health Connect import: `POST /api/v1/ingest/health-connect?timezone=...`
   takes the HC Webhook Android app's JSON and stores daily steps, sleep (with
   asleep and awake time from the stages) and exercise sessions (hockey, swims,

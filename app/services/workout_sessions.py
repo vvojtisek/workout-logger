@@ -394,6 +394,8 @@ async def complete_session(
                 sets_count=len(entries),
                 reps_per_set=[entry.reps for entry in entries],
                 weight_kg=entries[-1].weight_kg,
+                weight_per_set=[entry.weight_kg for entry in entries],
+                rir_per_set=[entry.rir for entry in entries],
                 rest_time_seconds=exercise.rest_time_seconds,
                 notes=exercise.notes,
             )

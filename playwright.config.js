@@ -21,6 +21,7 @@ const MOBILE_SPECS = [
   "today.spec.js",
   "volume-rules.spec.js",
   "drink-quick-add.spec.js",
+  "history-edit.spec.js",
 ];
 
 export default defineConfig({

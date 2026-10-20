@@ -210,6 +210,6 @@ def test_log_volume_uses_per_set_weights_when_the_log_has_them():
     entry = ExerciseLog(exercise_name="Test press", reps_per_set=[10, 8], weight_kg=22)
     entry.volume_rule = PAIR
     assert entry.volume_kg == 2 * 22 * 18
-    # The history editor (PR #176) stores one weight per set.
+    # Edited and newly completed logs store one weight per set.
     entry.weight_per_set = [20, 22]
     assert entry.volume_kg == 2 * (20 * 10 + 22 * 8)

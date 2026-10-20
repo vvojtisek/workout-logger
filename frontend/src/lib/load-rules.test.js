@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatVolumeKg, loadRuleText, repsHint, repsText, weightHint } from "./load-rules";
+import { formatVolumeKg, loadNotes, loadRuleText, repsHint, repsText, weightHint } from "./load-rules";
 
 describe("load rule labels", () => {
   it("says the typed weight is one dumbbell and how volume counts it", () => {
@@ -29,5 +29,15 @@ describe("loadRuleText", () => {
       "Type one dumbbell; volume counts both. Reps are per side; volume counts both sides.",
     );
     expect(loadRuleText({ equipment_load_mode: "standard", is_unilateral: false })).toBeNull();
+  });
+});
+
+describe("loadNotes", () => {
+  it("marks per-side reps and per-dumbbell weight after a logged exercise", () => {
+    expect(loadNotes({ equipment_load_mode: "pair_db", is_unilateral: true })).toBe(
+      " (per side, per dumbbell)",
+    );
+    expect(loadNotes({ equipment_load_mode: "single_db", is_unilateral: true })).toBe(" (per side)");
+    expect(loadNotes({})).toBe("");
   });
 });

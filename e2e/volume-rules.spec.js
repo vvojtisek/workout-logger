@@ -83,7 +83,7 @@ test("labels a two-dumbbell, per-side exercise and counts its volume", async ({
 
     await page.goto(`/history/${logId}`);
     await expect(page.locator("#detail-content")).toContainText(
-      "8 reps per side @ 20kg each dumbbell",
+      "8 reps @ 20kg (per side, per dumbbell)",
     );
     await expect(page.getByTestId("exercise-volume")).toContainText("Volume 640 kg");
   } finally {

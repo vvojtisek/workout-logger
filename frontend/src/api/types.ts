@@ -105,6 +105,9 @@ export interface ExerciseLog {
   reps_per_set: number[];
   /** One dumbbell for dumbbell lifts; reps_per_set are per side when is_unilateral. */
   weight_kg: number | null;
+  /** One entry per set; null on logs saved with a single weight (weight_kg). */
+  weight_per_set?: (number | null)[] | null;
+  rir_per_set?: (number | null)[] | null;
   rest_time_seconds: number;
   notes: string | null;
   equipment_load_mode?: EquipmentLoadMode;

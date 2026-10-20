@@ -1,7 +1,7 @@
 """Add per-side and dumbbell volume rules to exercises.
 
 Revision ID: f2b4d6a8c0e1
-Revises: b5d8f2a4c6e1
+Revises: c4e8a2f6d1b3
 Create Date: 2026-10-19 18:30:00
 
 Adds `equipment_load_mode` ("standard", "single_db", "pair_db") and
@@ -28,7 +28,7 @@ import app.models.base
 from alembic import op
 
 revision: str = "f2b4d6a8c0e1"
-down_revision: str | None = "b5d8f2a4c6e1"
+down_revision: str | None = "c4e8a2f6d1b3"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
