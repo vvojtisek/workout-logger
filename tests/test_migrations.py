@@ -1017,4 +1017,95 @@ def test_quick_add_presets_migration_seeds_cappuccino_and_tea(alembic_config, al
 
     command.downgrade(alembic_config, "a7c3e9f1b2d4")
     assert "quick_add_presets" not in inspect(sync_engine).get_table_names()
+
+
+def test_per_set_detail_migration_backfills_from_the_finished_session(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "b5d8f2a4c6e1")
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    now = "2026-10-01 08:00:00.000000"
+    with sync_engine.begin() as connection:
+        for log_id in ("log-live", "log-manual"):
+            connection.execute(
+                text(
+                    "INSERT INTO workout_logs (id, performed_at, total_time_minutes, "
+                    "overall_feeling, source, created_at, updated_at) "
+                    "VALUES (:id, :now, 30, 4, 'manual', :now, :now)"
+                ),
+                {"id": log_id, "now": now},
+            )
+        # Squat matches its session (2 completed sets); press has one set
+        # skipped in the session but logged as two, so it is left alone.
+        for exercise_id, log_id, order, name, sets in (
+            ("el-squat", "log-live", 0, "Squat", 2),
+            ("el-press", "log-live", 1, "Press", 2),
+            ("el-manual", "log-manual", 0, "Squat", 2),
+        ):
+            connection.execute(
+                text(
+                    "INSERT INTO exercise_logs (id, workout_log_id, sort_order, exercise_name, "
+                    "sets_count, reps_per_set, weight_kg, rest_time_seconds) "
+                    "VALUES (:id, :log, :order, :name, :sets, '[5, 5]', 90, 90)"
+                ),
+                {"id": exercise_id, "log": log_id, "order": order, "name": name, "sets": sets},
+            )
+        connection.execute(
+            text(
+                "INSERT INTO workout_sessions (id, source_plan_name, status, started_at, "
+                "focused_set_number, version, workout_log_id) "
+                "VALUES ('ws', 'Plan', 'completed', :now, 1, 1, 'log-live')"
+            ),
+            {"now": now},
+        )
+        for exercise_id, order, name in (("se-squat", 0, "Squat"), ("se-press", 1, "Press")):
+            connection.execute(
+                text(
+                    "INSERT INTO session_exercises (id, session_id, sort_order, exercise_name, "
+                    "exercise_kind, target_sets, target_reps_min, target_reps_max, "
+                    "rest_time_seconds, suggested_reps, suggestion_source, status) "
+                    "VALUES (:id, 'ws', :order, :name, 'strength', 2, 5, 8, 90, 5, 'plan', "
+                    "'completed')"
+                ),
+                {"id": exercise_id, "order": order, "name": name},
+            )
+        for entry_id, exercise_id, number, weight, rir, state in (
+            ("s1", "se-squat", 1, 85, 2, "completed"),
+            ("s2", "se-squat", 2, 90, 1, "completed"),
+            ("s3", "se-press", 1, 40, None, "completed"),
+            ("s4", "se-press", 2, 40, None, "skipped"),
+        ):
+            connection.execute(
+                text(
+                    "INSERT INTO set_entries (id, session_exercise_id, set_number, weight_kg, "
+                    "reps, rir, state, completed_at, client_operation_id) "
+                    "VALUES (:id, :exercise, :number, :weight, 5, :rir, :state, :now, :id)"
+                ),
+                {
+                    "id": entry_id,
+                    "exercise": exercise_id,
+                    "number": number,
+                    "weight": weight,
+                    "rir": rir,
+                    "state": state,
+                    "now": now,
+                },
+            )
+
+    command.upgrade(alembic_config, "c4e8a2f6d1b3")
+    with sync_engine.connect() as connection:
+        rows = {
+            row[0]: (row[1], row[2])
+            for row in connection.execute(
+                text("SELECT id, weight_per_set, rir_per_set FROM exercise_logs")
+            )
+        }
+    assert rows["el-squat"] == ("[85.0, 90.0]", "[2, 1]")
+    assert rows["el-press"] == (None, None)
+    assert rows["el-manual"] == (None, None)
+
+    command.downgrade(alembic_config, "b5d8f2a4c6e1")
+    with sync_engine.connect() as connection:
+        columns = {row[1] for row in connection.execute(text("PRAGMA table_info(exercise_logs)"))}
+    assert "weight_per_set" not in columns
     sync_engine.dispose()
