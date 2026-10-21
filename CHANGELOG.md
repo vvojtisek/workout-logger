@@ -72,6 +72,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Releases are automatic. After Merge checks passes on `main`, the next
+  version is worked out from the Conventional Commits since the last tag, and
+  the existing tagged-release pipeline builds the image, creates the tag and a
+  GitHub Release with a grouped changelog, moves `:latest`, deploys through
+  SSM and waits for the site to report the new version. Set the repository
+  variable `AUTO_RELEASE=false` to pause it.
 - Standardize displayed and entered dates as `YYYY-MM-DD` and local date-times
   as `YYYY-MM-DD HH:mm`, independent of browser locale.
 - Use metric units throughout; normalize saved unit preferences without changing

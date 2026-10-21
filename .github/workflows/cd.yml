@@ -1,0 +1,85 @@
+name: Continuous delivery
+
+# After Merge checks passes on main, cut the next semantic version from the
+# Conventional Commits since the last release, then run the tagged-release
+# pipeline (quality gates, image, GitHub Release, AWS deploy) for that commit.
+# Set the repository variable AUTO_RELEASE to "false" to pause it; manual tags
+# keep working either way.
+on:
+  workflow_run:
+    workflows:
+      - Merge checks
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions: {}
+
+# One release decision at a time. A newer pending run replaces an older
+# pending one, which is fine: the newer commit contains the older one.
+concurrency:
+  group: continuous-delivery
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Decide the next release
+    if: >-
+      vars.AUTO_RELEASE != 'false' &&
+      (
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+        (
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_repository.full_name == github.repository &&
+          github.event.workflow_run.head_commit.author.name != 'github-actions[bot]' &&
+          !startsWith(github.event.workflow_run.head_commit.message, 'chore(release):')
+        )
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      release: ${{ steps.next.outputs.release }}
+      tag: ${{ steps.next.outputs.tag }}
+      sha: ${{ steps.target.outputs.sha }}
+    steps:
+      - name: Resolve the tested commit
+        id: target
+        env:
+          RUN_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          [[ "$RUN_SHA" =~ ^[0-9a-f]{40}$ ]]
+          echo "sha=$RUN_SHA" >> "$GITHUB_OUTPUT"
+      - name: Check out the tested commit with full history and tags
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target.outputs.sha }}
+          fetch-depth: 0
+      - name: Analyse Conventional Commits since the last release
+        id: next
+        env:
+          RELEASE_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          python3 scripts/release_version.py next --sha "$RELEASE_SHA" > "$RUNNER_TEMP/next.txt"
+          cat "$RUNNER_TEMP/next.txt" | tee -a "$GITHUB_OUTPUT"
+          {
+            echo "### Release decision for ${RELEASE_SHA:0:12}"
+            sed 's/^/- /' "$RUNNER_TEMP/next.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Release and deploy
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
+    permissions:
+      contents: write
+      packages: write
+      actions: write
+      id-token: write
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.plan.outputs.tag }}
+      sha: ${{ needs.plan.outputs.sha }}

@@ -1,7 +1,15 @@
 name: Deploy release to AWS EC2 through SSM
 
+# Called by Tagged release once the image and GitHub Release exist, or run by
+# hand with an earlier tag to roll back or redeploy.
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing GitHub release tag to deploy
+        required: true
+        type: string
+  workflow_call:
     inputs:
       release_tag:
         description: Existing GitHub release tag to deploy
@@ -105,5 +113,24 @@ jobs:
             --instance-id "$AWS_INSTANCE_ID" \
             --query '{Status:Status,Stdout:StandardOutputContent}' \
             --output yaml
-      - name: Verify the public HTTPS health endpoint
-        run: curl --fail --retry 8 --retry-delay 10 --retry-all-errors https://fitness.vvojtisek.eu/health/ready
+      - name: Verify the new version is live on the public HTTPS endpoint
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          HEALTH_URL: https://fitness.vvojtisek.eu/health/ready
+          TIMEOUT_SECONDS: "300"
+        run: |
+          deadline=$((SECONDS + TIMEOUT_SECONDS))
+          while (( SECONDS < deadline )); do
+            if body=$(curl --fail --silent --show-error --max-time 10 "$HEALTH_URL"); then
+              status=$(jq -r '.status' <<< "$body")
+              version=$(jq -r '.version' <<< "$body")
+              if [[ "$status" == "ok" && "$version" == "$RELEASE_TAG" ]]; then
+                echo "fitness.vvojtisek.eu is ready on $version"
+                exit 0
+              fi
+              echo "Waiting: status=$status version=$version, want $RELEASE_TAG"
+            fi
+            sleep 10
+          done
+          echo "fitness.vvojtisek.eu did not report $RELEASE_TAG as ready within ${TIMEOUT_SECONDS}s" >&2
+          exit 1
