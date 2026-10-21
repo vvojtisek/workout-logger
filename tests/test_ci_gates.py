@@ -15,6 +15,7 @@ E2E = ROOT / "e2e" / "workout.spec.js"
 AWS_RELEASE = WORKFLOWS / "release.yml"
 AWS_DEPLOY = WORKFLOWS / "deploy-aws.yml"
 AWS_COMPOSE = ROOT / "deploy" / "aws" / "compose.yaml"
+CD_WORKFLOW = WORKFLOWS / "cd.yml"
 
 
 def fast_workflow() -> dict:
@@ -156,6 +157,12 @@ def test_aws_release_is_downloadable_and_deploys_through_ssm_only() -> None:
     assert "linux-${architecture}-image.tar.gz" in release_text
     assert 'gh release create "$RELEASE_TAG"' in release_text
     assert "sha256sum ./*" in release_text
+    deploy_job = release["jobs"]["deploy"]
+    assert deploy_job["uses"] == "./.github/workflows/deploy-aws.yml"
+    assert deploy_job["needs"] == "publish"
+    assert deploy_job["if"] == "inputs.tag != ''"
+    dispatch = release["jobs"]["dispatch-deploy"]
+    assert dispatch["if"] == "inputs.tag == ''"
     assert "gh workflow run deploy-aws.yml" in release_text
 
     deploy_text = AWS_DEPLOY.read_text()
@@ -180,3 +187,72 @@ def test_aws_release_is_downloadable_and_deploys_through_ssm_only() -> None:
     service = compose["services"]["workout-logger"]
     assert service["expose"] == ["8000"]
     assert "ports" not in service
+
+
+def test_merges_to_main_release_only_after_green_merge_checks() -> None:
+    cd = yaml.safe_load(CD_WORKFLOW.read_text())
+    trigger = cd[True]["workflow_run"]
+    plan = cd["jobs"]["plan"]
+
+    assert trigger == {"workflows": ["Merge checks"], "types": ["completed"], "branches": ["main"]}
+    assert "github.event.workflow_run.conclusion == 'success'" in plan["if"]
+    assert "github.event.workflow_run.event == 'push'" in plan["if"]
+    assert "head_repository.full_name == github.repository" in plan["if"]
+    # Loop guards: bot commits and release commits never start a release.
+    assert "author.name != 'github-actions[bot]'" in plan["if"]
+    assert (
+        "!startsWith(github.event.workflow_run.head_commit.message, 'chore(release):')"
+        in (plan["if"])
+    )
+    assert "vars.AUTO_RELEASE != 'false'" in plan["if"]
+    assert cd["permissions"] == {}
+    assert cd["concurrency"] == {"group": "continuous-delivery", "cancel-in-progress": False}
+
+    plan_text = yaml.safe_dump(plan)
+    assert "fetch-depth: 0" in plan_text
+    assert "github.event.workflow_run.head_sha" in plan_text
+    assert "scripts/release_version.py next" in plan_text
+
+    release = cd["jobs"]["release"]
+    assert release["needs"] == "plan"
+    assert release["if"] == "needs.plan.outputs.release == 'true'"
+    assert release["uses"] == "./.github/workflows/release.yml"
+    assert release["with"] == {
+        "tag": "${{ needs.plan.outputs.tag }}",
+        "sha": "${{ needs.plan.outputs.sha }}",
+    }
+
+
+def test_release_builds_the_tested_commit_tags_it_and_moves_latest_last() -> None:
+    release_text = AWS_RELEASE.read_text()
+    release = yaml.safe_load(release_text)
+
+    assert set(release[True]["workflow_call"]["inputs"]) == {"tag", "sha"}
+    assert release["env"]["RELEASE_SHA"] == "${{ inputs.sha || github.sha }}"
+    assert release["concurrency"]["cancel-in-progress"] is False
+
+    steps = [step["name"] for step in release["jobs"]["publish"]["steps"]]
+    build = steps.index("Build and publish multi-architecture image for EC2")
+    tag = steps.index("Create the tag and the versioned GitHub release")
+    latest = steps.index("Point the latest image tag at the highest release")
+    assert build < tag < latest
+    assert '--target "$RELEASE_SHA"' in release_text
+    assert "--verify-tag" in release_text
+    assert "release_version.py notes" in release_text
+    assert 'imagetools create --tag "$IMAGE:latest"' in release_text
+    assert "APP_VERSION=${{ env.RELEASE_TAG }}" in release_text
+    for job in ("validate", "publish"):
+        assert "ref: ${{ env.RELEASE_SHA }}" in yaml.safe_dump(release["jobs"][job], width=1000)
+
+
+def test_deploy_is_serialised_and_waits_for_the_new_version() -> None:
+    deploy_text = AWS_DEPLOY.read_text()
+    deploy = yaml.safe_load(deploy_text)
+
+    assert "release_tag" in deploy[True]["workflow_call"]["inputs"]
+    assert deploy["concurrency"] == {"group": "aws-production-deploy", "cancel-in-progress": False}
+    assert deploy["jobs"]["deploy"]["if"] == "vars.AWS_DEPLOY_ROLE_ARN != ''"
+    assert 'TIMEOUT_SECONDS: "300"' in deploy_text
+    assert '"$version" == "$RELEASE_TAG"' in deploy_text
+    assert "--max-time 10" in deploy_text
+    assert "exit 1" in deploy_text
