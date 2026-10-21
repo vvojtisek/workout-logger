@@ -19,6 +19,7 @@ const MOBILE_SPECS = [
   "coaching-principles.spec.js",
   "food-catalog.spec.js",
   "today.spec.js",
+  "volume-rules.spec.js",
   "drink-quick-add.spec.js",
   "history-edit.spec.js",
 ];

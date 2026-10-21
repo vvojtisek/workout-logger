@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import JSON, ForeignKey, Index, String, Text, text
+from sqlalchemy import JSON, Boolean, CheckConstraint, ForeignKey, Index, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import GUID, Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -14,6 +14,10 @@ class Exercise(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __tablename__ = "exercises"
     __table_args__ = (
+        CheckConstraint(
+            "equipment_load_mode IN ('standard', 'single_db', 'pair_db')",
+            name="ck_exercises_equipment_load_mode",
+        ),
         Index(
             "uq_exercises_owner_name",
             "owner_id",
@@ -48,3 +52,12 @@ class Exercise(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         JSON, nullable=False, default=list, server_default="[]"
     )
     safety_notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    # How logged weight and reps become volume (see app/services/volume.py).
+    # The typed weight is always one dumbbell; "pair_db" counts two of them.
+    equipment_load_mode: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="standard", server_default="standard"
+    )
+    # One logged set is the same reps on each side; reps and volume count twice.
+    is_unilateral: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, default=False, server_default="0"
+    )

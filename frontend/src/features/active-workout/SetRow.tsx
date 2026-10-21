@@ -9,6 +9,8 @@ import {
   saveSetDraft,
 } from "@/lib/active-workout-state";
 import type { SetDraft } from "@/lib/active-workout-state";
+import { repsHint, weightHint } from "@/lib/load-rules";
+import type { LoadRule } from "@/lib/load-rules";
 import { resolveSetDisplayState } from "@/lib/workout-utils";
 import type { ExerciseKind, GridRow } from "@/lib/workout-utils";
 
@@ -108,6 +110,14 @@ export const FIELD_SPECS_BY_KIND: Record<ExerciseKind, FieldSpec[]> = {
   ],
 };
 
+/** What the weight or reps input means for this exercise ("Input: 1x DB",
+ *  "per side"), or null when it is the plain number. */
+export function fieldHint(draftKey: keyof SetDraft, rule: LoadRule): string | null {
+  if (draftKey === "weight") return weightHint(rule);
+  if (draftKey === "reps") return repsHint(rule);
+  return null;
+}
+
 function numericValue(raw: string): number | null {
   return raw ? Number.parseFloat(raw) : null;
 }
@@ -149,30 +159,48 @@ function FieldCell({
   defaultValue,
   onInput,
   disabled,
+  hint,
+  hintId,
 }: {
   spec: FieldSpec;
   inputRef: RefObject<HTMLInputElement | null>;
   defaultValue: string;
   onInput: () => void;
   disabled: boolean;
+  hint: string | null;
+  hintId: string;
 }) {
+  // The hint sits outside the label so the input's accessible name stays the
+  // field label; it is linked as the description instead.
   return (
-    <label className="text-xs font-medium text-muted">
-      <span className="sr-only">{spec.label}</span>
-      <input
-        ref={inputRef}
-        type={spec.type === "number" ? "number" : "text"}
-        inputMode={spec.type === "number" ? spec.inputMode : undefined}
-        min={spec.type === "number" ? spec.min : undefined}
-        max={spec.type === "number" ? spec.max : undefined}
-        step={spec.type === "number" ? (spec.step ?? "1") : undefined}
-        maxLength={spec.type === "text" ? 20 : undefined}
-        defaultValue={defaultValue}
-        disabled={disabled}
-        onInput={onInput}
-        className="input block w-20 min-h-touch min-w-touch px-2"
-      />
-    </label>
+    <div>
+      <label className="text-xs font-medium text-muted">
+        <span className="sr-only">{spec.label}</span>
+        <input
+          ref={inputRef}
+          aria-describedby={hint ? hintId : undefined}
+          type={spec.type === "number" ? "number" : "text"}
+          inputMode={spec.type === "number" ? spec.inputMode : undefined}
+          min={spec.type === "number" ? spec.min : undefined}
+          max={spec.type === "number" ? spec.max : undefined}
+          step={spec.type === "number" ? (spec.step ?? "1") : undefined}
+          maxLength={spec.type === "text" ? 20 : undefined}
+          defaultValue={defaultValue}
+          disabled={disabled}
+          onInput={onInput}
+          className="input block w-20 min-h-touch min-w-touch px-2"
+        />
+      </label>
+      {hint ? (
+        <span
+          id={hintId}
+          className="mt-0.5 block text-[10px] leading-tight text-muted"
+          data-load-hint=""
+        >
+          {hint}
+        </span>
+      ) : null}
+    </div>
   );
 }
 
@@ -364,6 +392,8 @@ export function SetRow({
               defaultValue={seedFor(spec)}
               onInput={saveDraft}
               disabled={disabled}
+              hint={fieldHint(spec.draftKey, row.exercise)}
+              hintId={`${spec.draftKey}-hint-${row.exercise.id}-${row.setNumber}`}
             />
           ))
         : fieldSpecs.map((spec) => (

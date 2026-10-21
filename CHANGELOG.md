@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Per-side and dumbbell volume rules. Exercises carry `equipment_load_mode`
+  (`standard`, `single_db`, `pair_db`) and `is_unilateral`. The weight you type
+  is always one dumbbell; `pair_db` counts it twice, and a per-side exercise
+  counts reps and volume for both sides. Logs and sessions report `volume_kg`,
+  `total_reps` and `total_volume_kg`, computed when read, so past workouts
+  follow an exercise's current rule. The live workout labels the inputs
+  ("Input: 1x DB (Vol: 2x)", "per side"), and the shared catalogue is marked
+  (Bulgarian split squat, lunges, DB presses, curls and others).
+  "Dumbbell Romanian deadlift" is now its own exercise instead of an alias.
 - Quick-add drinks: one-tap Cappuccino (150 ml, 90 kcal) and Tea (250 ml,
   0 kcal) buttons at the top of Log Meal and on the phone's Today screen. A tap
   logs the drink now as an ordinary meal entry, with an Undo toast. The drinks

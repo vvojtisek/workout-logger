@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.common import OrmModel, PaginatedResponse, require_non_empty
 from app.services.equipment import normalize_any_of, parse_equipment_text
+from app.services.volume import LoadMode
 
 MuscleTag = Literal[
     "chest",
@@ -65,6 +66,11 @@ class ExerciseCreate(BaseModel):
     # free-text `equipment`; an empty list means "not tagged".
     equipment_any_of: list[EquipmentOption] | None = Field(default=None, max_length=8)
     safety_notes: str | None = Field(default=None, max_length=4000)
+    # The typed weight is always one dumbbell: "pair_db" counts it twice in
+    # volume (both hands), "single_db" and "standard" once.
+    equipment_load_mode: LoadMode = "standard"
+    # One logged set is the same reps on each side; reps and volume count twice.
+    is_unilateral: bool = False
 
     @field_validator("name")
     @classmethod
@@ -118,6 +124,8 @@ class ExerciseRead(OrmModel):
     equipment: str | None
     equipment_any_of: list[list[str]]
     safety_notes: str | None
+    equipment_load_mode: LoadMode
+    is_unilateral: bool
     created_at: datetime
     updated_at: datetime
 

@@ -1,4 +1,5 @@
 import { formatDateTime } from "./format";
+import { formatVolumeKg } from "./load-rules";
 import { EFFORT_SCALE, FEELING_SCALE, scaleText } from "./scales";
 
 export const ACTIVITY_TYPES = [
@@ -33,6 +34,7 @@ interface LogLike {
   activity_type: ActivityType | null;
   distance_km: number | null;
   effort_rpe: number | null;
+  total_volume_kg?: number;
 }
 
 export function logTitle(log: LogLike): string {
@@ -49,5 +51,6 @@ export function logSummaryFacts(log: LogLike): string[] {
     facts.push(`Load ${log.effort_rpe * log.total_time_minutes}`);
   }
   facts.push(`Feeling ${scaleText(FEELING_SCALE, log.overall_feeling)}`);
+  if (log.total_volume_kg) facts.push(`Volume ${formatVolumeKg(log.total_volume_kg)}`);
   return facts;
 }

@@ -1,3 +1,5 @@
+import type { EquipmentLoadMode } from "./load-rules";
+
 export type ExerciseKind = "strength" | "bodyweight" | "cardio";
 
 export interface SetEntry {
@@ -31,6 +33,10 @@ export interface GridExercise {
   group_key: string | null;
   group_order: number | null;
   set_entries: SetEntry[];
+  // From the exercise catalogue: what the weight input means, and whether a
+  // set's reps are per side. Absent counts as a plain barbell/machine lift.
+  equipment_load_mode?: EquipmentLoadMode;
+  is_unilateral?: boolean;
 }
 
 export interface GridSession {

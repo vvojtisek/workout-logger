@@ -48,4 +48,12 @@ describe("logSummaryFacts", () => {
   it("keeps a strength workout to duration and feeling", () => {
     expect(logSummaryFacts(base)).toEqual(["75 min", "Feeling 4/5 (Good)"]);
   });
+
+  it("adds the volume of a strength workout when it has one", () => {
+    expect(logSummaryFacts({ ...base, total_volume_kg: 2480 })).toEqual([
+      "75 min",
+      "Feeling 4/5 (Good)",
+      "Volume 2 480 kg",
+    ]);
+  });
 });

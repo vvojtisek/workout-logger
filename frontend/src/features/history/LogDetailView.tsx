@@ -8,6 +8,7 @@ import { exerciseSetsText } from "@/lib/log-edit";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { Button, Card, PageHeading } from "@/ui";
 import { formatDateTime } from "@/lib/format";
+import { formatVolumeKg, loadNotes } from "@/lib/load-rules";
 import { TRAINING_LOAD_HINT } from "@/lib/scales";
 import { LogEditor } from "./LogEditor";
 
@@ -85,7 +86,16 @@ export function LogDetailView() {
               {log.exercises.map((exercise) => (
                 <li key={exercise.id} className="card p-3 text-sm">
                   {exercise.exercise_name}:{" "}
-                  <span data-numeric>{exerciseSetsText(exercise)}</span>
+                  <span data-numeric>
+                    {exerciseSetsText(exercise)}
+                    {loadNotes(exercise)}
+                  </span>
+                  {exercise.volume_kg ? (
+                    <span className="text-muted" data-numeric data-testid="exercise-volume">
+                      {" "}
+                      · Volume {formatVolumeKg(exercise.volume_kg)}
+                    </span>
+                  ) : null}
                 </li>
               ))}
             </ul>

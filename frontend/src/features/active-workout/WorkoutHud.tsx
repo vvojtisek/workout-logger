@@ -30,7 +30,7 @@ import {
 import type { HudRow } from "@/lib/workout-hud";
 import { ScaleSelect } from "@/ui/ScaleSelect";
 import { useRestCountdown } from "./RestOverlay";
-import { EMPTY_DRAFT, FIELD_SPECS_BY_KIND, draftToValues } from "./SetRow";
+import { EMPTY_DRAFT, FIELD_SPECS_BY_KIND, draftToValues, fieldHint } from "./SetRow";
 import type { FieldSpec, SetValues } from "./SetRow";
 
 const UNDO_WINDOW_MS = 5_000;
@@ -355,15 +355,19 @@ function Dial({
   spec,
   value,
   disabled,
+  hint,
   onChange,
 }: {
   spec: FieldSpec;
   value: string;
   disabled: boolean;
+  /** What the number means for this exercise, e.g. "Input: 1x DB", "per side". */
+  hint: string | null;
   onChange: (value: string) => void;
 }) {
   const step = STEPS[spec.draftKey];
   const id = `hud-${spec.draftKey}`;
+  const hintId = `${id}-hint`;
   return (
     <div className="card flex flex-col gap-2 p-3">
       <label
@@ -373,8 +377,14 @@ function Dial({
         <span className="sr-only">{spec.label}</span>
         <span aria-hidden="true">{CAPTIONS[spec.draftKey] ?? spec.label}</span>
       </label>
+      {hint ? (
+        <p id={hintId} className="-mt-1 text-center text-xs text-muted" data-load-hint="">
+          {hint}
+        </p>
+      ) : null}
       <input
         id={id}
+        aria-describedby={hint ? hintId : undefined}
         type={spec.type === "number" ? "number" : "text"}
         inputMode={spec.type === "number" ? spec.inputMode : undefined}
         min={spec.type === "number" ? spec.min : undefined}
@@ -662,6 +672,7 @@ function SetPanel({
               spec={spec}
               value={draft[spec.draftKey]}
               disabled={locked}
+              hint={fieldHint(spec.draftKey, row.exercise)}
               onChange={(value) => update(spec.draftKey, value)}
             />
           </div>

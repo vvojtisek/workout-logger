@@ -1,5 +1,6 @@
 import type { ExerciseKind, GridExercise, GridSession } from "@/lib/workout-utils";
 import type { ActivityType } from "@/lib/activity";
+import type { EquipmentLoadMode } from "@/lib/load-rules";
 
 export interface Paginated<T> {
   items: T[];
@@ -51,6 +52,9 @@ export interface SessionExercise extends GridExercise {
   rest_time_seconds: number;
   notes: string | null;
   status: string;
+  /** Completed sets only, both dumbbells and both sides counted. */
+  total_reps?: number;
+  volume_kg?: number;
 }
 
 export interface WorkoutSession extends GridSession {
@@ -65,6 +69,7 @@ export interface WorkoutSession extends GridSession {
   rest_ends_at: string | null;
   version: number;
   exercises: SessionExercise[];
+  total_volume_kg?: number;
 }
 
 /** One past session of an exercise, for the progression chart. */
@@ -98,12 +103,17 @@ export interface ExerciseLog {
   exercise_name: string;
   sets_count: number;
   reps_per_set: number[];
+  /** One dumbbell for dumbbell lifts; reps_per_set are per side when is_unilateral. */
   weight_kg: number | null;
   /** One entry per set; null on logs saved with a single weight (weight_kg). */
   weight_per_set?: (number | null)[] | null;
   rir_per_set?: (number | null)[] | null;
   rest_time_seconds: number;
   notes: string | null;
+  equipment_load_mode?: EquipmentLoadMode;
+  is_unilateral?: boolean;
+  total_reps?: number;
+  volume_kg?: number;
 }
 
 export interface WorkoutLogSummary {
@@ -118,6 +128,7 @@ export interface WorkoutLogSummary {
   activity_type: ActivityType | null;
   distance_km: number | null;
   effort_rpe: number | null;
+  total_volume_kg?: number;
 }
 
 export interface WorkoutLog extends WorkoutLogSummary {
@@ -180,6 +191,8 @@ export interface CatalogExercise {
   // Empty means the exercise is not tagged.
   equipment_any_of: EquipmentTag[][];
   safety_notes: string | null;
+  equipment_load_mode: EquipmentLoadMode;
+  is_unilateral: boolean;
   created_at: string;
   updated_at: string;
 }

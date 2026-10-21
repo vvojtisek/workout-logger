@@ -999,6 +999,53 @@ def test_food_seed_migration_adds_seed_foods_and_keeps_existing(alembic_config, 
     sync_engine.dispose()
 
 
+def test_volume_rules_migration_marks_catalogue_and_round_trips(alembic_config, alembic_db_path):
+    import json
+
+    command.upgrade(alembic_config, "head")
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    rule = text(
+        "SELECT equipment_load_mode, is_unilateral FROM exercises "
+        "WHERE owner_id IS NULL AND name = :name"
+    )
+    aliases = text("SELECT aliases FROM exercises WHERE owner_id IS NULL AND name = :name")
+    with sync_engine.connect() as connection:
+        assert connection.execute(rule, {"name": "Bulgarian split squat"}).one() == ("pair_db", 1)
+        assert connection.execute(rule, {"name": "Walking lunge"}).one() == ("pair_db", 0)
+        assert connection.execute(rule, {"name": "Dumbbell biceps curl"}).one() == (
+            "single_db",
+            1,
+        )
+        assert connection.execute(rule, {"name": "Dumbbell Romanian deadlift"}).one() == (
+            "pair_db",
+            0,
+        )
+        assert connection.execute(rule, {"name": "Romanian deadlift"}).one() == ("standard", 0)
+        assert connection.execute(rule, {"name": "Back squat"}).one() == ("standard", 0)
+        rdl_aliases = json.loads(connection.scalar(aliases, {"name": "Romanian deadlift"}))
+        split_aliases = json.loads(connection.scalar(aliases, {"name": "Bulgarian split squat"}))
+    assert "Dumbbell Romanian deadlift" not in rdl_aliases
+    assert "Dumbbell Bulgarian split squat" in split_aliases
+    with pytest.raises(IntegrityError), sync_engine.begin() as connection:
+        connection.execute(
+            text("UPDATE exercises SET equipment_load_mode = 'triple' WHERE name = 'Back squat'")
+        )
+
+    command.downgrade(alembic_config, "c4e8a2f6d1b3")
+    with sync_engine.connect() as connection:
+        columns = {row[1] for row in connection.execute(text("PRAGMA table_info(exercises)"))}
+        db_rdl = connection.scalar(
+            text("SELECT COUNT(*) FROM exercises WHERE name = 'Dumbbell Romanian deadlift'")
+        )
+        rdl_aliases = json.loads(connection.scalar(aliases, {"name": "Romanian deadlift"}))
+        split_aliases = json.loads(connection.scalar(aliases, {"name": "Bulgarian split squat"}))
+    assert "is_unilateral" not in columns and "equipment_load_mode" not in columns
+    assert db_rdl == 0
+    assert "Dumbbell Romanian deadlift" in rdl_aliases
+    assert "Dumbbell Bulgarian split squat" not in split_aliases
+    sync_engine.dispose()
+
+
 def test_quick_add_presets_migration_seeds_cappuccino_and_tea(alembic_config, alembic_db_path):
     command.upgrade(alembic_config, "b5d8f2a4c6e1")
 

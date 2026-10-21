@@ -14,6 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import GUID, Base, UUIDPrimaryKeyMixin
+from app.services.volume import DEFAULT_RULE, sets_volume_kg, total_reps
 
 if TYPE_CHECKING:
     from app.models.set_entry import SetEntry
@@ -66,3 +67,29 @@ class SessionExercise(UUIDPrimaryKeyMixin, Base):
         cascade="all, delete-orphan",
         order_by="SetEntry.set_number",
     )
+
+    # Filled from the exercise catalogue by app.services.volume_rules on load.
+    volume_rule = DEFAULT_RULE
+
+    @property
+    def is_unilateral(self) -> bool:
+        return self.volume_rule.is_unilateral
+
+    @property
+    def equipment_load_mode(self) -> str:
+        return self.volume_rule.equipment_load_mode
+
+    def _completed(self) -> list["SetEntry"]:
+        return [entry for entry in self.set_entries if entry.state == "completed"]
+
+    @property
+    def total_reps(self) -> int:
+        if self.exercise_kind == "cardio":
+            return 0
+        return sum(total_reps(entry.reps, self.volume_rule) for entry in self._completed())
+
+    @property
+    def volume_kg(self) -> float:
+        return sets_volume_kg(
+            ((entry.weight_kg, entry.reps) for entry in self._completed()), self.volume_rule
+        )
