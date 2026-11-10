@@ -98,6 +98,8 @@ export interface ExerciseStatsResponse {
   items: ExerciseStats[];
 }
 
+export type OneRepMaxFormula = "epley" | "brzycki" | "lombardi" | "wathen";
+
 export interface ExerciseLog {
   id: string;
   exercise_name: string;

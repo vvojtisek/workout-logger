@@ -55,8 +55,7 @@ class ExerciseLogCreate(BaseModel):
 
     @model_validator(mode="after")
     def working_weight_is_the_last_set_s(self) -> "ExerciseLogCreate":
-        # Progression and stats read weight_kg; a finished live session stores
-        # its last set's weight there, so an edited log does the same.
+        # Preserve the working weight for progression and legacy readers.
         if self.weight_per_set is not None:
             loaded = [weight for weight in self.weight_per_set if weight is not None]
             self.weight_kg = loaded[-1] if loaded else None

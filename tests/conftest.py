@@ -1,6 +1,10 @@
+import asyncio
 import os
+import subprocess
+import sys
 import tempfile
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -35,7 +39,7 @@ os.environ.setdefault("MCP_OAUTH_AUDIENCE", TEST_MCP_OAUTH_AUDIENCE)
 os.environ.setdefault("MCP_OAUTH_JWT_PUBLIC_KEY", _MCP_OAUTH_KEY_PAIR.public_key)
 os.environ.setdefault("MCP_OAUTH_ALLOWED_SUBJECTS", TEST_MCP_OAUTH_ALLOWED_SUBJECT)
 
-from app.database import create_engine  # noqa: E402
+from app.database import create_engine, get_session, get_session_maker  # noqa: E402
 from app.models import Base  # noqa: E402
 
 TEST_API_KEY = os.environ["API_KEY"]
@@ -101,6 +105,40 @@ async def client(app_engine) -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
+
+
+@pytest_asyncio.fixture
+async def migrated_client(tmp_path):
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'migrated.db'}"
+    await asyncio.to_thread(
+        subprocess.run,
+        [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"],
+        check=True,
+        cwd=Path(__file__).resolve().parents[1],
+        env={**os.environ, "DATABASE_URL": database_url},
+        capture_output=True,
+        text=True,
+    )
+
+    engine = create_engine(database_url)
+    session_maker = get_session_maker(engine)
+
+    async def override_get_session():
+        async with session_maker() as session:
+            yield session
+
+    from app.main import app
+
+    app.dependency_overrides[get_session] = override_get_session
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://testserver",
+        ) as client:
+            yield client, engine
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+        await engine.dispose()
 
 
 @pytest.fixture

@@ -232,6 +232,14 @@ Active-workout Slice 1 adds authenticated `/api/v1/workout-sessions` operations 
 resume a plan snapshot, idempotently save a set with an absolute rest deadline, read the session,
 complete it into the existing workout-log history, and remove E2E records during verified cleanup.
 
+Exercise progression at `GET /api/v1/exercise-stats` uses each set's recorded weight and reps
+to find the heaviest set and the highest estimated one-rep max. Choose Epley, Brzycki, Lombardi,
+or Wathen in the desktop progression card or with the optional `formula` query parameter
+(`epley`, `brzycki`, `lombardi`, or `wathen`). The default Epley model retains all rep counts.
+The other options use sets of 1–10 reps. The estimates use logged reps as input to equations
+that assume reps to failure, and each chart point shows the set behind its estimate. Older
+logs with a single weight use that weight for every set. [Reference for the equations, Table 1](https://doi.org/10.1007/s11332-024-01264-y).
+
 Invite-only accounts have server-enforced per-account record ownership. See
 [`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,
 shared exercise templates, and administrative access rules.

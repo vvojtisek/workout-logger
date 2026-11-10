@@ -1,14 +1,8 @@
-import asyncio
-import os
-import subprocess
-import sys
 from uuid import uuid4
 
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, func, select
 
-from app.database import create_engine, get_session, get_session_maker
+from app.database import get_session_maker
 from app.models import (
     AccountToken,
     BodyMetric,
@@ -26,43 +20,6 @@ from app.models import (
     WorkoutLog,
     WorkoutPlan,
 )
-
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-@pytest_asyncio.fixture
-async def migrated_client(tmp_path):
-    database_path = tmp_path / "account-isolation.db"
-    database_url = f"sqlite+aiosqlite:///{database_path}"
-    environment = os.environ.copy()
-    environment["DATABASE_URL"] = database_url
-    await asyncio.to_thread(
-        subprocess.run,
-        [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"],
-        check=True,
-        cwd=REPO_ROOT,
-        env=environment,
-        capture_output=True,
-        text=True,
-    )
-
-    engine = create_engine(database_url)
-    session_maker = get_session_maker(engine)
-
-    async def override_get_session():
-        async with session_maker() as session:
-            yield session
-
-    from app.main import app
-
-    app.dependency_overrides[get_session] = override_get_session
-    async with AsyncClient(
-        transport=ASGITransport(app=app, raise_app_exceptions=False),
-        base_url="http://testserver",
-    ) as client:
-        yield client, engine
-    app.dependency_overrides.pop(get_session, None)
-    await engine.dispose()
 
 
 async def _create_logged_in_user(client, admin_headers, email: str) -> dict[str, str]:

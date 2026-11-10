@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 STATS = "/api/v1/exercise-stats"
 LOGS = "/api/v1/logs"
 
@@ -9,19 +11,24 @@ async def log_exercise(
     name: str,
     weight_kg: float | None,
     reps_per_set: list[int],
-) -> None:
+    *,
+    weight_per_set: list[float | None] | None = None,
+    notes: str | None = None,
+) -> str:
     response = await client.post(
         LOGS,
         json={
             "performed_at": performed_at,
             "total_time_minutes": 30,
             "overall_feeling": 4,
+            "notes": notes,
             "exercises": [
                 {
                     "exercise_name": name,
                     "sets_count": len(reps_per_set),
                     "reps_per_set": reps_per_set,
                     "weight_kg": weight_kg,
+                    "weight_per_set": weight_per_set,
                     "rest_time_seconds": 60,
                 }
             ],
@@ -29,6 +36,7 @@ async def log_exercise(
         headers=auth_headers,
     )
     assert response.status_code == 201
+    return response.json()["id"]
 
 
 async def test_stats_for_unlogged_exercise_are_empty(client, auth_headers):
@@ -161,3 +169,147 @@ async def test_stats_recent_keeps_the_last_twelve_sessions(client, auth_headers)
     assert len(recent) == 12
     assert recent[0]["performed_at"] == "2026-09-04T08:00:00Z"
     assert recent[-1]["weight_kg"] == 55
+
+
+async def test_stats_pair_each_sets_weight_and_reps_on_migrated_database(
+    migrated_client, app_engine, auth_headers
+):
+    client, _ = migrated_client
+    notes = f"[TEST_RUN_ID:{uuid4()}]"
+    exercises = [
+        ("Squat", 50, [3, 12], [100, 50]),
+        ("Bench", 90, [1, 10], [100, 90]),
+        ("Pull-up", 80, [20, 5, 15], [None, 80, None]),
+        ("Row", 50, [8, 10], None),
+        ("Push-up", None, [12, 10], [None, None]),
+    ]
+    log_ids = []
+    try:
+        for name, working_weight, reps, weights in exercises:
+            log_ids.append(
+                await log_exercise(
+                    client,
+                    auth_headers,
+                    "2026-10-08T08:00:00Z",
+                    name,
+                    working_weight,
+                    reps,
+                    weight_per_set=weights,
+                    notes=notes,
+                )
+            )
+
+        response = await client.get(
+            STATS, params=[("name", name) for name, *_ in exercises], headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        items = {item["exercise_name"]: item for item in response.json()["items"]}
+        assert items["Squat"]["last_weight_kg"] == 50
+        assert items["Squat"]["last_reps_per_set"] == [3, 12]
+        expected = {
+            # (heaviest load, reps at heaviest load, best e1RM, its load and reps)
+            "Squat": (100, 3, 110, 100, 3),
+            "Bench": (100, 1, 120, 90, 10),
+            "Pull-up": (80, 5, 93.5, 80, 5),
+            "Row": (50, 10, 66.5, 50, 10),
+            "Push-up": (None, None, None, None, 12),
+        }
+        for name, (
+            best_weight,
+            best_weight_reps,
+            estimate,
+            point_weight,
+            point_reps,
+        ) in expected.items():
+            item = items[name]
+            assert item["best_weight_kg"] == best_weight, name
+            assert item["best_weight_reps"] == best_weight_reps, name
+            assert item["estimated_one_rep_max_kg"] == estimate, name
+            assert item["recent"] == [
+                {
+                    "performed_at": "2026-10-08T08:00:00Z",
+                    "weight_kg": point_weight,
+                    "top_reps": point_reps,
+                    "estimated_one_rep_max_kg": estimate,
+                }
+            ], name
+    finally:
+        for log_id in log_ids:
+            url = f"{LOGS}/{log_id}"
+            assert (await client.delete(url, headers=auth_headers)).status_code == 204
+            assert (await client.get(url, headers=auth_headers)).status_code == 404
+
+
+async def test_stats_use_selected_formula_and_bound_alternate_models(
+    migrated_client, app_engine, auth_headers
+):
+    client, _ = migrated_client
+    notes = f"[TEST_RUN_ID:{uuid4()}]"
+    names = [("name", name) for name in ("Bench", "Press", "Row")]
+    log_ids = []
+    try:
+        for name, weight, reps, per_set in [
+            ("Bench", 150, [8, 11], [100, 150]),
+            ("Press", 100, [10], None),
+            ("Row", 50, [40], None),
+        ]:
+            log_ids.append(
+                await log_exercise(
+                    client,
+                    auth_headers,
+                    "2026-10-08T08:00:00Z",
+                    name,
+                    weight,
+                    reps,
+                    weight_per_set=per_set,
+                    notes=notes,
+                )
+            )
+
+        default = await client.get(STATS, params=names, headers=auth_headers)
+        assert default.status_code == 200
+        explicit = await client.get(
+            STATS, params=[*names, ("formula", "epley")], headers=auth_headers
+        )
+        assert explicit.status_code == 200
+        assert explicit.json() == default.json()
+        assert [item["estimated_one_rep_max_kg"] for item in default.json()["items"]] == [
+            205,
+            133.5,
+            116.5,
+        ]
+
+        for formula, bench_estimate, press_estimate in [
+            ("brzycki", 124, 133.5),
+            ("lombardi", 123, 126),
+            ("wathen", 127.5, 134.5),
+        ]:
+            response = await client.get(
+                STATS, params=[*names, ("formula", formula)], headers=auth_headers
+            )
+            assert response.status_code == 200
+            bench, press, row = response.json()["items"]
+            assert bench["best_weight_kg"] == 150
+            assert bench["best_weight_reps"] == 11
+            assert bench["estimated_one_rep_max_kg"] == bench_estimate, formula
+            assert bench["recent"][0] == {
+                "performed_at": "2026-10-08T08:00:00Z",
+                "weight_kg": 100,
+                "top_reps": 8,
+                "estimated_one_rep_max_kg": bench_estimate,
+            }
+            assert press["estimated_one_rep_max_kg"] == press_estimate
+            assert row["best_weight_kg"] == 50
+            assert row["estimated_one_rep_max_kg"] is None
+            assert row["recent"][0]["estimated_one_rep_max_kg"] is None
+
+        invalid = await client.get(
+            STATS, params=[*names, ("formula", "unknown")], headers=auth_headers
+        )
+        assert invalid.status_code == 422
+    finally:
+        for log_id in log_ids:
+            url = f"{LOGS}/{log_id}"
+            assert (await client.delete(url, headers=auth_headers)).status_code == 204
+            assert (await client.get(url, headers=auth_headers)).status_code == 404
