@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { clickAndAwaitWrite } from "./support/writes.js";
 
@@ -140,6 +141,47 @@ test("workload ratio reports the selected week and its preceding baseline", asyn
     await expect(comparison).not.toContainText("1.80×");
   } finally {
     for (const url of cleanup) {
+      expect((await request.delete(url)).status()).toBe(204);
+      expect((await request.get(url)).status()).toBe(404);
+    }
+  }
+});
+
+test("training load downloads a CSV for only the visible weeks", async ({ page, request }) => {
+  const tag = `[TEST_RUN_ID:${process.env.TEST_RUN_ID || "local"}:${randomUUID()}]`;
+  const ids = [];
+  try {
+    for (const day of ["2026-09-21", "2026-10-20"]) {
+      const log = await request.post("/api/v1/logs", {
+        data: {
+          performed_at: `${day}T12:00:00Z`,
+          total_time_minutes: 40,
+          overall_feeling: 3,
+          effort_rpe: 7,
+          notes: tag,
+          exercises: [{ exercise_name: `${tag} Press`, sets_count: 1, weight_kg: 60, reps_per_set: [8] }],
+        },
+      });
+      expect(log.status()).toBe(201);
+      ids.push((await log.json()).id);
+    }
+    await page.goto("/training-load");
+    await page.getByLabel("Week containing").fill("2026-10-25");
+    await page.getByLabel("Weeks to show").selectOption("4");
+    const button = page.getByRole("button", { name: "Download training CSV" });
+    await expect(button).toBeVisible();
+    const waiting = page.waitForEvent("download");
+    await button.click();
+    const download = await waiting;
+    expect(download.suggestedFilename()).toBe("training-load-2026-09-28-through-2026-10-25.csv");
+    const content = await readFile(await download.path(), "utf8");
+    expect(content).toContain("record_type");
+    expect(content).toContain(ids[1]);
+    expect(content).toContain(`${tag} Press`);
+    expect(content).not.toContain(ids[0]);
+  } finally {
+    for (const id of ids) {
+      const url = `/api/v1/logs/${id}`;
       expect((await request.delete(url)).status()).toBe(204);
       expect((await request.get(url)).status()).toBe(404);
     }

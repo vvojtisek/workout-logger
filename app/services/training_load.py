@@ -1,5 +1,8 @@
+import csv
 from collections import defaultdict
 from datetime import UTC, date, datetime, time, timedelta
+from io import StringIO
+from unicodedata import category
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -18,6 +21,95 @@ from app.schemas.training_load import (
 from app.services.volume_rules import apply_to_logs, profile_for
 
 BASELINE_WEEKS = 4
+CSV_COLUMNS = (
+    "record_type",
+    "workout_id",
+    "performed_at_utc",
+    "local_date",
+    "week_start",
+    "timezone",
+    "activity_type",
+    "duration_minutes",
+    "session_rpe",
+    "exercise_number",
+    "exercise_name",
+    "set_number",
+    "weight_kg",
+    "reps",
+    "rir",
+)
+
+
+async def _workout_logs_in_range(
+    session: AsyncSession, date_from: datetime, date_to: datetime
+) -> list[WorkoutLog]:
+    result = await session.scalars(
+        select(WorkoutLog)
+        .options(selectinload(WorkoutLog.exercises))
+        .where(WorkoutLog.performed_at >= date_from, WorkoutLog.performed_at < date_to)
+        .order_by(WorkoutLog.performed_at, WorkoutLog.id)
+    )
+    return list(result)
+
+
+def _spreadsheet_text(value: str) -> str:
+    first = next(
+        (char for char in value if not char.isspace() and category(char) not in {"Cc", "Cf"}), ""
+    )
+    if value.startswith(("\t", "\r", "\n")) or first in (
+        "=",
+        "+",
+        "-",
+        "@",
+        "＝",
+        "＋",
+        "－",
+        "＠",
+    ):
+        return "'" + value
+    return value
+
+
+async def export_training_load_csv(session: AsyncSession, query: TrainingLoadQuery) -> bytes:
+    logs = await _workout_logs_in_range(session, *query.utc_bounds())
+    zone = ZoneInfo(query.timezone)
+    csv_buffer = StringIO(newline="")
+    writer = csv.DictWriter(csv_buffer, fieldnames=CSV_COLUMNS, quoting=csv.QUOTE_ALL)
+    writer.writeheader()
+    for log in logs:
+        local_date = log.performed_at.astimezone(zone).date()
+        common = {
+            "workout_id": log.id,
+            "performed_at_utc": log.performed_at.isoformat().replace("+00:00", "Z"),
+            "local_date": local_date,
+            "week_start": local_date - timedelta(days=local_date.weekday()),
+            "timezone": query.timezone,
+        }
+        writer.writerow(
+            {
+                **common,
+                "record_type": "session",
+                "activity_type": log.activity_type,
+                "duration_minutes": log.total_time_minutes,
+                "session_rpe": log.effort_rpe,
+            }
+        )
+        for exercise in log.exercises:
+            rirs = exercise.rir_per_set or []
+            for index, (weight, reps) in enumerate(exercise.sets_with_weights):
+                writer.writerow(
+                    {
+                        **common,
+                        "record_type": "set",
+                        "exercise_number": exercise.sort_order + 1,
+                        "exercise_name": _spreadsheet_text(exercise.exercise_name),
+                        "set_number": index + 1,
+                        "weight_kg": weight,
+                        "reps": reps,
+                        "rir": rirs[index] if index < len(rirs) else None,
+                    }
+                )
+    return csv_buffer.getvalue().encode("utf-8-sig")
 
 
 def _workload_ratio(
@@ -79,15 +171,7 @@ async def weekly_training_load(
         for index in range(lookback + query.weeks)
     ]
     muscle_volumes: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
-    result = await session.scalars(
-        select(WorkoutLog)
-        .options(selectinload(WorkoutLog.exercises))
-        .where(
-            WorkoutLog.performed_at >= date_from,
-            WorkoutLog.performed_at < date_to,
-        )
-    )
-    logs = list(result)
+    logs = await _workout_logs_in_range(session, date_from, date_to)
     profiles = await apply_to_logs(
         session,
         (log for log in logs if log.performed_at >= visible_from and log.activity_type is None),

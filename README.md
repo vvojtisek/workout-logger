@@ -271,6 +271,12 @@ recorded loads. Each chart plots reps at the set numbers in workout history. The
 reps, RIR when available, and reps as a percentage of the first set at that load. Explicitly
 missing loads are excluded. Older single-weight records use that weight for each set.
 
+**Download training CSV** exports the visible Training load window using the same local-week
+boundaries. The UTF-8 file has one `session` row per workout or activity with duration and
+session RPE, and `set` rows linked by `workout_id` with exercise, weight, reps, and RIR. Blank
+cells represent missing values. Exercise names that look like spreadsheet formulas get a
+leading apostrophe. The API uses the same filters at `GET /api/v1/training-load/export`.
+
 Invite-only accounts have server-enforced per-account record ownership. See
 [`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,
 shared exercise templates, and administrative access rules.

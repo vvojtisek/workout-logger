@@ -224,3 +224,25 @@ saved set numbers when other loads intervene.
 - Browser verification recipe. Log 60 kg for 8 and 6 reps at saved sets 1 and 3, and
   50 kg for 10 and 12 reps at sets 2 and 4. Playwright verified the 75% and 120% values,
   the actual set indices, and the absence of a single-load comparison for a 70 kg set.
+
+## Cycle 10 — Export the selected training weeks as session and set data
+
+The Training load view downloads UTF-8 CSV for its selected local weeks. Session rows hold
+duration and effort once per workout. Set rows join through `workout_id` and keep saved weight,
+reps, and RIR, including zero and missing values. The export uses the same account-scoped
+range query as Training load and a timestamp and workout ID tie-breaker. Formula-like names
+are quoted and prefixed with an apostrophe. [Spreadsheet formula text handling](https://owasp.org/www-community/attacks/CSV_Injection).
+
+- The migrated API test first received HTTP 404, and the baseline browser lacked the CSV
+  control. Tagged browser cleanup passed.
+- The focused export, training-load, and account-isolation run passed seven tests. It verified
+  Prague boundaries, hidden baseline exclusion, exact timestamp ordering, accented and quoted
+  exercise names, blanks versus zero, and owner-only rows.
+- Full Python coverage run passed 705 tests at 82%. Required Ruff rules, Ruff format, mypy,
+  and `git diff --check` passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm run test` (192 tests), and Vite build passed.
+- Full localhost Playwright on fresh migrated SQLite passed 65 tests with three existing
+  viewport skips. The cleanup check found zero rows in all nine checked tables.
+- Browser verification recipe. Choose a four-week range and download the CSV from Training
+  load. Playwright read the actual bytes and verified the range filename, one included workout,
+  and exclusion of an earlier workout in the ratio lookback on both desktop and phone.

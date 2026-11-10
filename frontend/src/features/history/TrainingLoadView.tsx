@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { apiFetch, errorMessage } from "@/api/client";
+import { apiFetch, apiFetchBlob, errorMessage, triggerBlobDownload } from "@/api/client";
 import type { TrainingLoadResponse, TrainingLoadWeek } from "@/api/types";
 import { isIsoCalendarDate } from "@/lib/date-time-inputs";
 import { MUSCLE_LABELS } from "@/lib/exercise-catalogue";
 import { formatDate } from "@/lib/format";
-import { PageHeading } from "@/ui";
+import { Button, PageHeading } from "@/ui";
+import { toast } from "@/ui/Toast";
 
 const WEEK_COUNTS = [4, 8, 12, 26];
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
@@ -171,16 +172,27 @@ function WorkloadRatioCard({ weeks }: { weeks: TrainingLoadWeek[] }) {
 export function TrainingLoadView() {
   const [weekOf, setWeekOf] = useState(() => formatDate(new Date().toISOString()));
   const [weeks, setWeeks] = useState(8);
+  const [exporting, setExporting] = useState(false);
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const validDate = isIsoCalendarDate(weekOf);
+  const params = new URLSearchParams({ week_of: weekOf, weeks: String(weeks), timezone });
   const { data, error, isPending } = useQuery({
     queryKey: ["training-load", weekOf, weeks, timezone],
-    queryFn: () => {
-      const params = new URLSearchParams({ week_of: weekOf, weeks: String(weeks), timezone });
-      return apiFetch<TrainingLoadResponse>(`/training-load?${params.toString()}`);
-    },
+    queryFn: () => apiFetch<TrainingLoadResponse>(`/training-load?${params.toString()}`),
     enabled: validDate,
   });
+
+  async function downloadCsv() {
+    setExporting(true);
+    try {
+      const { blob, filename } = await apiFetchBlob(`/training-load/export?${params.toString()}`);
+      triggerBlobDownload(blob, filename ?? "training-load.csv");
+    } catch (error) {
+      toast.error(`Training export failed: ${errorMessage(error)}`);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <section>
@@ -209,6 +221,9 @@ export function TrainingLoadView() {
             ))}
           </select>
         </label>
+        <Button className="self-end" disabled={!validDate || exporting} onClick={() => void downloadCsv()}>
+          {exporting ? "Preparing CSV…" : "Download training CSV"}
+        </Button>
       </div>
       <p className="mb-3 text-sm text-muted">
         Weeks use {timezone}. Gym sessions are workout records with logged exercise sets.

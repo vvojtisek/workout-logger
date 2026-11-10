@@ -210,6 +210,14 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
             assert training_load.json()["weeks"][0]["volume_kg"] == volume
             assert training_load.json()["weeks"][0]["session_effort"]["load_au"] == effort
 
+            training_csv = await client.get(
+                "/api/v1/training-load/export",
+                params={"week_of": "2026-10-13", "weeks": 1},
+                headers=cookies,
+            )
+            assert training_csv.status_code == 200
+            assert (log_id in training_csv.text) == bool(sessions)
+
         other_logs = await client.get("/api/v1/logs", headers=other_cookies)
         assert other_logs.status_code == 200
         assert other_logs.json()["total"] == 0

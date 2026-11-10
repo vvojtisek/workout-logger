@@ -1,11 +1,12 @@
+from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
 from app.schemas.training_load import TrainingLoadQuery, TrainingLoadResponse
-from app.services.training_load import weekly_training_load
+from app.services.training_load import export_training_load_csv, weekly_training_load
 
 router = APIRouter(prefix="/training-load", tags=["training load"])
 
@@ -33,3 +34,29 @@ async def get_training_load(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> TrainingLoadResponse:
     return await weekly_training_load(session, query)
+
+
+@router.get(
+    "/export",
+    operation_id="export_training_load",
+    summary="Download sessions and sets for the selected training weeks as CSV",
+    description=(
+        "Uses only the requested weeks. Session rows hold duration and whole-session RPE. "
+        "Set rows hold saved weight, reps and RIR and share the session's workout_id."
+    ),
+    response_class=Response,
+    responses={200: {"content": {"text/csv": {"schema": {"type": "string"}}}}},
+)
+async def export_training_load(
+    query: Annotated[TrainingLoadQuery, Query()],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    content = await export_training_load_csv(session, query)
+    first = query.first_week()
+    last = first + timedelta(days=query.weeks * 7 - 1)
+    filename = f"training-load-{first}-through-{last}.csv"
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
