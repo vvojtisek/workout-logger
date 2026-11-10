@@ -9,7 +9,7 @@ import { formatDate } from "@/lib/format";
 import { PageHeading } from "@/ui";
 
 const WEEK_COUNTS = [4, 8, 12, 26];
-const VOLUME_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+const NUMBER_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
 
 function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
@@ -51,7 +51,7 @@ function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
                 <th scope="row" className="py-2 font-medium">
                   {muscle === null ? "Unclassified" : MUSCLE_LABELS[muscle] ?? muscle}
                 </th>
-                <td className="py-2 text-right" data-numeric>{VOLUME_FORMAT.format(volume_kg)} kg</td>
+                <td className="py-2 text-right" data-numeric>{NUMBER_FORMAT.format(volume_kg)} kg</td>
               </tr>
             ))}
           </tbody>
@@ -59,6 +59,45 @@ function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
       ) : (
         <p role="status" className="text-sm text-muted">No external volume recorded for this week.</p>
       )}
+    </section>
+  );
+}
+
+function effortLoadLabel(effort: TrainingLoadWeek["session_effort"]): string {
+  if (effort.load_au !== null) return `${NUMBER_FORMAT.format(effort.load_au)} AU`;
+  return effort.logged_sessions ? "No ratings" : "No sessions";
+}
+
+function SessionEffortTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
+  return (
+    <section className="card mt-4 p-4">
+      <h3 className="font-semibold">Session effort</h3>
+      <p className="my-2 text-sm text-muted">
+        Each rated workout or activity contributes its duration in minutes × its whole-session RPE.
+        The load is shown in arbitrary units (AU) with the number of sessions that had ratings.
+      </p>
+      <div className="overflow-x-auto">
+        <table aria-label="Weekly session effort" className="w-full text-left text-sm">
+          <thead className="text-muted">
+            <tr>
+              <th scope="col" className="py-2">Week of</th>
+              <th scope="col" className="px-2 py-2 text-right">Rated / logged</th>
+              <th scope="col" className="px-2 py-2 text-right">Rated minutes</th>
+              <th scope="col" className="py-2 text-right">Load</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...weeks].reverse().map(({ week_start, session_effort: effort }) => (
+              <tr key={week_start} className="border-t border-line-muted" data-numeric>
+                <th scope="row" className="py-2 font-medium">{week_start}</th>
+                <td className="px-2 py-2 text-right">{effort.rated_sessions} / {effort.logged_sessions}</td>
+                <td className="px-2 py-2 text-right">{effort.rated_minutes}</td>
+                <td className="py-2 text-right">{effortLoadLabel(effort)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
@@ -132,7 +171,7 @@ export function TrainingLoadView() {
                   <th scope="row" className="p-3 font-medium">{week.week_start}</th>
                   <td className="p-3 text-right">{week.gym_sessions}</td>
                   <td className="p-3 text-right">{week.logged_sets}</td>
-                  <td className="p-3 text-right whitespace-nowrap">{VOLUME_FORMAT.format(week.volume_kg)} kg</td>
+                  <td className="p-3 text-right whitespace-nowrap">{NUMBER_FORMAT.format(week.volume_kg)} kg</td>
                 </tr>
               ))}
             </tbody>
@@ -140,6 +179,7 @@ export function TrainingLoadView() {
         </div>
       ) : null}
       {data ? <MuscleVolumeTable weeks={data.weeks} /> : null}
+      {data ? <SessionEffortTable weeks={data.weeks} /> : null}
     </section>
   );
 }

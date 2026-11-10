@@ -106,6 +106,12 @@ export interface TrainingLoadWeek {
   logged_sets: number;
   volume_kg: number;
   muscle_volume: { muscle: MuscleTag | null; volume_kg: number }[];
+  session_effort: {
+    logged_sessions: number;
+    rated_sessions: number;
+    rated_minutes: number;
+    load_au: number | null;
+  };
 }
 
 export interface TrainingLoadResponse {

@@ -160,3 +160,24 @@ tenth goes to the first tags in alphabetical order, and untagged volume is Uncla
 - Browser verification recipe. Review a week containing a press with Chest and Triceps
   primary tags, then switch the breakdown to a week with an unclassified lift. Playwright
   verified the split, the unclassified amount, and the viewport width on desktop and phone.
+
+## Cycle 7 — Track whole-session effort with rating coverage
+
+Training load sums duration in minutes × session RPE in arbitrary units for rated gym workouts
+and activities. Rated and logged counts and rated minutes reveal partial coverage. Weeks with
+no entries and weeks with unrated entries have distinct labels. The existing history editor
+can add, change, or clear a whole-session effort rating. [Session-RPE method validation](https://pubmed.ncbi.nlm.nih.gov/11708692/).
+
+- The migrated API regression first found no session-effort metrics, two frontend tests
+  failed on the missing draft field, and the baseline browser failed on the absent effort
+  table. Tagged browser cleanup passed.
+- Focused API and account isolation passed five tests, including 225 AU for the owner and
+  a null score for the other account in the same week.
+- Full Python coverage run passed 703 tests at 82%. Required Ruff rules, format, mypy,
+  and `git diff --check` passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm run test` (190 tests), and Vite build passed.
+- Full localhost Playwright against fresh migrated SQLite passed 59 tests with three
+  existing viewport skips. All nine checked SQLite tables were empty after cleanup.
+- Browser verification recipe. Review a week with a rated 40-minute activity and an unrated
+  30-minute workout. Rate the workout at 6 in History, then revisit Training load. Playwright
+  verified the saved rating and the change from 160 AU at 1 / 2 rated to 340 AU at 2 / 2.

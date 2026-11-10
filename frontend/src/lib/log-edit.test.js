@@ -94,6 +94,7 @@ function patchOf(draft) {
 const BAD_DRAFTS = [
   ["date", (d) => (d.performedAt = "18/10/2026 07:30"), /date and time/],
   ["minutes", (d) => (d.totalTime = "0"), /Duration/],
+  ["session effort", (d) => (d.effort = "0"), /Session effort/],
   ["name", (d) => (d.exercises[0].exercise_name = " "), /name/],
   ["reps", (d) => (d.exercises[0].sets[0].reps = "0"), /Bench press set 1: reps/],
   ["weight", (d) => (d.exercises[0].sets[0].weight = "-5"), /Bench press set 1: weight/],
@@ -102,6 +103,14 @@ const BAD_DRAFTS = [
 ];
 
 describe("draftToPatch", () => {
+  it("preserves an existing whole-session effort and allows rating or clearing it", () => {
+    const draft = logToDraft(makeLog({ effort_rpe: 7 }));
+    expect(draft.effort).toBe("7");
+    expect(patchOf(draft).effort_rpe).toBe(7);
+    expect(patchOf({ ...draft, effort: "4" }).effort_rpe).toBe(4);
+    expect(patchOf({ ...draft, effort: "" }).effort_rpe).toBeNull();
+  });
+
   it("sends edited sets and keeps fields it does not edit", () => {
     const draft = logToDraft(makeLog());
     draft.notes = "";

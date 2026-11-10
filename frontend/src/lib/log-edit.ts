@@ -23,6 +23,7 @@ export interface LogDraft {
   performedAt: string;
   totalTime: string;
   feeling: string;
+  effort: string;
   notes: string;
   exercises: ExerciseDraft[];
 }
@@ -44,6 +45,7 @@ export function logToDraft(log: WorkoutLog): LogDraft {
     performedAt: toLocalDateTimeInput(log.performed_at),
     totalTime: String(log.total_time_minutes),
     feeling: String(log.overall_feeling),
+    effort: text(log.effort_rpe),
     notes: log.notes ?? "",
     exercises: log.exercises.map((exercise) => ({
       key: exercise.id,
@@ -130,6 +132,10 @@ export function draftToPatch(
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
     return { patch: null, error: "Duration must be 1 to 1440 minutes." };
   }
+  const effort = optionalNumber(draft.effort, (value) => Number.isInteger(value) && value >= 1 && value <= 10);
+  if (effort === undefined) {
+    return { patch: null, error: "Session effort must be a whole number from 1 to 10." };
+  }
   const exercises = [];
   for (const exercise of draft.exercises) {
     const payload = exercisePayload(exercise);
@@ -141,6 +147,7 @@ export function draftToPatch(
       performed_at: performedAt,
       total_time_minutes: minutes,
       overall_feeling: Number(draft.feeling),
+      effort_rpe: effort,
       notes: draft.notes.trim() || null,
       exercises,
     },

@@ -44,18 +44,24 @@ async def weekly_training_load(
         .where(
             WorkoutLog.performed_at >= date_from,
             WorkoutLog.performed_at < date_to,
-            WorkoutLog.activity_type.is_(None),
         )
     )
     logs = list(result)
-    profiles = await apply_to_logs(session, logs)
+    profiles = await apply_to_logs(session, (log for log in logs if log.activity_type is None))
 
     for log in logs:
-        if not log.exercises:
-            continue
         local_date = log.performed_at.astimezone(zone).date()
         index = (local_date - first).days // 7
         week = weeks[index]
+        effort = week.session_effort
+        effort.logged_sessions += 1
+        if log.effort_rpe is not None and log.total_time_minutes > 0:
+            effort.rated_sessions += 1
+            effort.rated_minutes += log.total_time_minutes
+            effort.load_au = (effort.load_au or 0) + log.effort_rpe * log.total_time_minutes
+
+        if log.activity_type is not None or not log.exercises:
+            continue
         week.gym_sessions += 1
         week.logged_sets += sum(exercise.sets_count for exercise in log.exercises)
         for exercise in log.exercises:

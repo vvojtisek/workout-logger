@@ -6,7 +6,7 @@ import type { WorkoutLog } from "@/api/types";
 import { FIELD_SPECS_BY_KIND } from "@/features/active-workout/SetRow";
 import { addSet, draftToPatch, logToDraft, newExercise, removeSet } from "@/lib/log-edit";
 import type { ExerciseDraft, SetDraft } from "@/lib/log-edit";
-import { FEELING_SCALE, RIR_HINT, rirMeaning } from "@/lib/scales";
+import { EFFORT_SCALE, FEELING_SCALE, RIR_HINT, rirMeaning } from "@/lib/scales";
 import { toast } from "@/ui/Toast";
 import { Button, Card, Input } from "@/ui";
 import { ScaleSelect } from "@/ui/ScaleSelect";
@@ -219,6 +219,18 @@ export function LogEditor({
             scale={FEELING_SCALE}
             value={draft.feeling}
             onChange={(feeling) => setDraft({ ...draft, feeling })}
+          />
+        </div>
+        <div>
+          <label className="field-label" htmlFor="edit-effort">
+            Session effort (optional)
+          </label>
+          <ScaleSelect
+            id="edit-effort"
+            scale={EFFORT_SCALE}
+            value={draft.effort}
+            onChange={(effort) => setDraft({ ...draft, effort })}
+            optional
           />
         </div>
         <div>

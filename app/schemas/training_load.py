@@ -43,12 +43,20 @@ class MuscleVolume(BaseModel):
     volume_kg: float
 
 
+class TrainingSessionEffort(BaseModel):
+    logged_sessions: int = 0
+    rated_sessions: int = 0
+    rated_minutes: int = 0
+    load_au: int | None = None
+
+
 class TrainingLoadWeek(BaseModel):
     week_start: date
     gym_sessions: int = 0
     logged_sets: int = 0
     volume_kg: float = 0
     muscle_volume: list[MuscleVolume] = Field(default_factory=list)
+    session_effort: TrainingSessionEffort = Field(default_factory=TrainingSessionEffort)
 
 
 class TrainingLoadResponse(BaseModel):

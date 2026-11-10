@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
+import { clickAndAwaitWrite } from "./support/writes.js";
 
 test.use({ timezoneId: "Europe/Prague" });
 
 test("training load reviews recorded gym work by week", async ({ page, request }) => {
   const tag = `[TEST_RUN_ID:${process.env.TEST_RUN_ID || "local"}:${randomUUID()}]`;
   const cleanup = [];
+  let latestGymLog = "";
 
   try {
     const exercise = await request.post("/api/v1/exercises", {
@@ -36,8 +38,22 @@ test("training load reviews recorded gym work by week", async ({ page, request }
         },
       });
       expect(log.status()).toBe(201);
-      cleanup.push(`/api/v1/logs/${(await log.json()).id}`);
+      const { id } = await log.json();
+      cleanup.push(`/api/v1/logs/${id}`);
+      latestGymLog = id;
     }
+    const activity = await request.post("/api/v1/logs", {
+      data: {
+        performed_at: "2026-10-21T12:00:00Z",
+        total_time_minutes: 40,
+        overall_feeling: 3,
+        effort_rpe: 4,
+        activity_type: "running",
+        notes: tag,
+      },
+    });
+    expect(activity.status()).toBe(201);
+    cleanup.push(`/api/v1/logs/${(await activity.json()).id}`);
 
     await page.goto("/history");
     const trainingLoad = page.getByRole("link", { name: "Training load", exact: true });
@@ -60,6 +76,22 @@ test("training load reviews recorded gym work by week", async ({ page, request }
     await expect(breakdown.getByRole("row", { name: /^Shoulders/ })).toHaveCount(0);
     await page.getByLabel("Muscle breakdown week").selectOption("2026-10-12");
     await expect(breakdown.getByRole("row", { name: /^Unclassified/ })).toContainText("350 kg");
+
+    const effort = page.getByRole("table", { name: "Weekly session effort" });
+    const latestEffort = effort.getByRole("row", { name: /^2026-10-19/ });
+    await expect(latestEffort.getByRole("cell")).toHaveText(["1 / 2", "40", "160 AU"]);
+    await expect(effort.getByRole("row", { name: /^2026-10-12/ })).toContainText("No ratings");
+    await expect(effort.getByRole("row", { name: /^2026-10-05/ })).toContainText("No sessions");
+
+    await page.goto(`/history/${latestGymLog}`);
+    await page.getByRole("button", { name: "Edit workout" }).click();
+    await page.getByLabel("Session effort (optional)").selectOption("6");
+    await clickAndAwaitWrite(page, page.getByRole("button", { name: "Save changes" }), "PATCH");
+    const rated = await request.get(`/api/v1/logs/${latestGymLog}`);
+    expect((await rated.json()).effort_rpe).toBe(6);
+    await page.getByRole("link", { name: "Training load", exact: true }).click();
+    await page.getByLabel("Week containing").fill("2026-10-25");
+    await expect(latestEffort.getByRole("cell")).toHaveText(["2 / 2", "70", "340 AU"]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
       page.viewportSize()?.width,
     );

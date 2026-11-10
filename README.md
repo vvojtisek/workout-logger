@@ -256,6 +256,11 @@ current primary muscle tags. Each lift's volume is split evenly and leftover ten
 in alphabetical order, so the breakdown sums to the weekly total. Unmatched and untagged lifts
 appear as Unclassified.
 
+The weekly session effort panel sums duration in minutes × whole-session RPE for rated gym
+workouts and activities. It shows rated and logged session counts and rated minutes, with
+separate labels for weeks without sessions and weeks without ratings. Add or clear a rating
+from the workout history editor. [Session-RPE method validation](https://pubmed.ncbi.nlm.nih.gov/11708692/).
+
 Invite-only accounts have server-enforced per-account record ownership. See
 [`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,
 shared exercise templates, and administrative access rules.

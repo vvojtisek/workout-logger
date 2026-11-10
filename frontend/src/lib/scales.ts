@@ -73,4 +73,4 @@ export const RIR_HINT =
   "RIR = reps in reserve: how many more reps you could have done. 0 means failure; 2–3 is the usual target.";
 
 /** Session-RPE training load: effort (1-10) times minutes. */
-export const TRAINING_LOAD_HINT = "Training load = effort × minutes. Higher means more total stress.";
+export const TRAINING_LOAD_HINT = "Session load equals whole-session effort × duration in minutes (AU).";

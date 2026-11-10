@@ -13,13 +13,15 @@ router = APIRouter(prefix="/training-load", tags=["training load"])
 @router.get(
     "",
     operation_id="get_training_load",
-    summary="Review logged sets and external-load volume by week",
+    summary="Review logged sets, external volume, and session effort by week",
     description=(
         "Returns Monday-start weeks in the requested timezone, oldest first. Counts workout "
-        "records with exercise sets and uses their logged weights and volume rules. Separate "
-        "activity records are excluded. Weeks without recorded work have zero counts. "
+        "records with exercise sets and uses their logged weights and volume rules for gym "
+        "totals. Weeks without recorded work have zero counts. "
         "External volume is split equally among distinct primary muscle tags, with any "
-        "rounding tenths assigned in tag order. Null muscle denotes unclassified volume."
+        "rounding tenths assigned in tag order. Null muscle denotes unclassified volume. "
+        "Session effort includes workouts and activities. Load in arbitrary units is the "
+        "sum of rated session minutes multiplied by their RPE. Null load means no rated minutes."
     ),
     response_model=TrainingLoadResponse,
 )

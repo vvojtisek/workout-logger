@@ -53,6 +53,7 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                     "overall_feeling": 3,
                     "notes": tag,
                     "activity_type": activity,
+                    "effort_rpe": 4 if activity else None,
                     "exercises": exercises,
                 },
             )
@@ -71,6 +72,12 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                     "logged_sets": 0,
                     "volume_kg": 0,
                     "muscle_volume": [],
+                    "session_effort": {
+                        "logged_sessions": 0,
+                        "rated_sessions": 0,
+                        "rated_minutes": 0,
+                        "load_au": None,
+                    },
                 },
                 {
                     "week_start": "2026-10-12",
@@ -78,6 +85,12 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                     "logged_sets": 1,
                     "volume_kg": 120,
                     "muscle_volume": [{"muscle": None, "volume_kg": 120}],
+                    "session_effort": {
+                        "logged_sessions": 1,
+                        "rated_sessions": 0,
+                        "rated_minutes": 0,
+                        "load_au": None,
+                    },
                 },
                 {
                     "week_start": "2026-10-19",
@@ -88,6 +101,12 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                         {"muscle": "glutes", "volume_kg": 170.2},
                         {"muscle": "quads", "volume_kg": 170.1},
                     ],
+                    "session_effort": {
+                        "logged_sessions": 2,
+                        "rated_sessions": 1,
+                        "rated_minutes": 30,
+                        "load_au": 120,
+                    },
                 },
             ],
         }
