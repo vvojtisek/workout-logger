@@ -21,6 +21,31 @@ def _estimated_one_rep_max(weight_kg: float, reps: int) -> float:
     return round(weight_kg * (1 + reps / 30) * 2) / 2
 
 
+def _recent_point(performed_at: datetime, entry: ExerciseLog) -> ExerciseSessionPoint:
+    best = max(
+        (
+            (_estimated_one_rep_max(weight, reps), weight, reps)
+            for weight, reps in entry.sets_with_weights
+            if weight
+        ),
+        default=None,
+    )
+    if best is None:
+        return ExerciseSessionPoint(
+            performed_at=performed_at,
+            weight_kg=entry.weight_kg,
+            top_reps=max(entry.reps_per_set, default=None),
+            estimated_one_rep_max_kg=None,
+        )
+    estimate, weight, reps = best
+    return ExerciseSessionPoint(
+        performed_at=performed_at,
+        weight_kg=weight,
+        top_reps=reps,
+        estimated_one_rep_max_kg=estimate,
+    )
+
+
 def _summarize(name: str, history: list[tuple[datetime, ExerciseLog]]) -> ExerciseStatsRead:
     if not history:
         return ExerciseStatsRead(
@@ -37,11 +62,9 @@ def _summarize(name: str, history: list[tuple[datetime, ExerciseLog]]) -> Exerci
 
     # `history` is newest first.
     last_performed_at, last = history[0]
-    # (load, top reps) per loaded session; bodyweight-only entries carry no load.
+    # A historical working weight can differ from the weight of any given set.
     loaded = [
-        (entry.weight_kg, max(entry.reps_per_set))
-        for _, entry in history
-        if entry.weight_kg and entry.reps_per_set
+        (weight, reps) for _, entry in history for weight, reps in entry.sets_with_weights if weight
     ]
 
     best_weight_kg = None
@@ -65,16 +88,7 @@ def _summarize(name: str, history: list[tuple[datetime, ExerciseLog]]) -> Exerci
             trend = "flat"
 
     recent = [
-        ExerciseSessionPoint(
-            performed_at=performed_at,
-            weight_kg=entry.weight_kg,
-            top_reps=max(entry.reps_per_set) if entry.reps_per_set else None,
-            estimated_one_rep_max_kg=(
-                _estimated_one_rep_max(entry.weight_kg, max(entry.reps_per_set))
-                if entry.weight_kg and entry.reps_per_set
-                else None
-            ),
-        )
+        _recent_point(performed_at, entry)
         for performed_at, entry in reversed(history[:RECENT_SESSIONS])
     ]
 

@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, REAL, ForeignKey, Index, Integer, String, Text, UniqueConstraint
@@ -54,9 +55,13 @@ class ExerciseLog(UUIDPrimaryKeyMixin, Base):
         return sum(total_reps(reps, self.volume_rule) for reps in self.reps_per_set)
 
     @property
-    def volume_kg(self) -> float:
+    def sets_with_weights(self) -> Iterator[tuple[float | None, int]]:
         # Older logs keep only one weight for the exercise; edited and newly
         # completed ones keep one per set.
         per_set = self.weight_per_set
         weights = per_set if per_set else [self.weight_kg] * len(self.reps_per_set)
-        return sets_volume_kg(zip(weights, self.reps_per_set, strict=False), self.volume_rule)
+        return zip(weights, self.reps_per_set, strict=False)
+
+    @property
+    def volume_kg(self) -> float:
+        return sets_volume_kg(self.sets_with_weights, self.volume_rule)

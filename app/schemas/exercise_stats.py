@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class ExerciseSessionPoint(BaseModel):
-    """One logged session of an exercise, for progression charts."""
+    """One logged session of an exercise, with the set behind its best estimate."""
 
     performed_at: datetime
     weight_kg: float | None

@@ -15,8 +15,9 @@ router = APIRouter(prefix="/exercise-stats", tags=["exercise stats"])
     operation_id="get_exercise_stats",
     summary="Get per-exercise progress statistics",
     description="Summarizes logged workout history for each requested exercise name "
-    "(case-insensitive): last session, heaviest set, Epley estimated one-rep max, "
-    "and the load trend between the two most recent sessions. Items are returned "
+    "(case-insensitive): last session, heaviest set, Epley estimated one-rep max "
+    "from recorded weight and reps in the same set, and the working-weight trend "
+    "between the two most recent sessions. Items are returned "
     "in the order the names were requested.",
     response_model=ExerciseStatsResponse,
 )
