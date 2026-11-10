@@ -181,3 +181,24 @@ can add, change, or clear a whole-session effort rating. [Session-RPE method val
 - Browser verification recipe. Review a week with a rated 40-minute activity and an unrated
   30-minute workout. Rate the workout at 6 in History, then revisit Training load. Playwright
   verified the saved rating and the change from 160 AU at 1 / 2 rated to 340 AU at 2 / 2.
+
+## Cycle 8 — Compare a closed week's workload with its four-week baseline
+
+The calendar workload ratio divides the selected closed local week's session-RPE load by
+the mean of the four immediately preceding weeks. The API reads the baseline even if it
+falls outside the visible rows. The card shows both loads and the baseline dates. It explains
+missing sessions, missing ratings, an open week, or a zero baseline when a ratio is unavailable.
+[Methodological analysis](https://pubmed.ncbi.nlm.nih.gov/32502973/).
+
+- The migrated API regression first failed because the ratio field was absent. The baseline
+  browser reached Training load but lacked the comparison card. Tagged cleanup passed.
+- The focused API and account tests passed six tests. They include a one-visible-week request
+  with a four-week lookback, an unscored log, an empty week, and an open week.
+- Full Python coverage run passed 704 tests at 82%. Required Ruff rules, format, mypy, and
+  `git diff --check` passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm run test` (190 tests), and Vite build passed.
+- Full localhost Playwright on fresh migrated SQLite passed 61 tests with three existing
+  viewport skips. The cleanup check found zero rows in all nine checked tables.
+- Browser verification recipe. Give four preceding weeks rated loads of 40, 80, 120 and
+  160 AU, followed by a 180 AU week. Playwright verified the 100 AU baseline and 1.80×
+  ratio, then selected an earlier week with insufficient logs and verified the explanation.

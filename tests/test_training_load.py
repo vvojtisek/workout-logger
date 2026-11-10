@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import uuid4
 
 API = "/api/v1"
@@ -63,7 +64,7 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
         params = {"week_of": "2026-10-25", "weeks": 3, "timezone": "Europe/Prague"}
         summary = await client.get(f"{API}/training-load", params=params, headers=auth_headers)
         assert summary.status_code == 200
-        assert summary.json() == {
+        expected = {
             "timezone": "Europe/Prague",
             "weeks": [
                 {
@@ -110,12 +111,81 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                 },
             ],
         }
+        result = summary.json()
+        assert result["timezone"] == expected["timezone"]
+        for actual, expected_week in zip(result["weeks"], expected["weeks"], strict=True):
+            assert {key: actual[key] for key in expected_week} == expected_week
 
         for invalid in [{"weeks": 27}, {"timezone": "Nowhere"}, {"week_of": "9999-12-31"}]:
             response = await client.get(
                 f"{API}/training-load", params={**params, **invalid}, headers=auth_headers
             )
             assert response.status_code == 422, invalid
+    finally:
+        for url in reversed(cleanup):
+            assert (await client.delete(url, headers=auth_headers)).status_code == 204
+            assert (await client.get(url, headers=auth_headers)).status_code == 404
+
+
+async def test_calendar_workload_ratio_uses_prior_weeks_and_requires_coverage(
+    migrated_client, app_engine, auth_headers
+):
+    client, _ = migrated_client
+    tag = f"[TEST_RUN_ID:{uuid4()}]"
+    cleanup = []
+    params = {"week_of": "2024-02-05", "weeks": 1}
+    try:
+        for day, minutes, rating in [
+            ("2024-01-08", 20, 2),
+            ("2024-01-15", 20, 4),
+            ("2024-01-22", 20, 6),
+            ("2024-01-29", 20, 8),
+            ("2024-02-05", 30, 6),
+        ]:
+            response = await client.post(
+                f"{API}/logs",
+                headers=auth_headers,
+                json={
+                    "performed_at": f"{day}T12:00:00Z",
+                    "total_time_minutes": minutes,
+                    "overall_feeling": 3,
+                    "effort_rpe": rating,
+                    "activity_type": "running",
+                    "notes": tag,
+                },
+            )
+            assert response.status_code == 201
+            cleanup.append(f"{API}/logs/{response.json()['id']}")
+
+        async def read_ratio(query):
+            response = await client.get(f"{API}/training-load", params=query, headers=auth_headers)
+            assert response.status_code == 200
+            [week] = response.json()["weeks"]
+            return week["workload_ratio"]
+
+        assert await read_ratio(params) == {
+            "status": "ready",
+            "baseline_start": "2024-01-08",
+            "baseline_mean_au": 100,
+            "ratio": 1.8,
+        }
+        updated = await client.patch(cleanup[1], headers=auth_headers, json={"effort_rpe": None})
+        assert updated.status_code == 200
+        unrated = await read_ratio(params)
+        assert unrated["status"] == "missing_ratings"
+        assert unrated["ratio"] is None
+        removed = cleanup.pop(1)
+        assert (await client.delete(removed, headers=auth_headers)).status_code == 204
+        assert (await client.get(removed, headers=auth_headers)).status_code == 404
+        missing = await read_ratio(params)
+        assert missing["status"] == "missing_sessions"
+        assert missing["ratio"] is None
+        current = await read_ratio({**params, "week_of": datetime.now(UTC).date().isoformat()})
+        assert current["status"] == "week_incomplete"
+        assert current["ratio"] is None
+        early = await read_ratio({**params, "week_of": "0001-01-29", "timezone": "Europe/Prague"})
+        assert early["status"] == "missing_sessions"
+        assert early["ratio"] is None
     finally:
         for url in reversed(cleanup):
             assert (await client.delete(url, headers=auth_headers)).status_code == 204

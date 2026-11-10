@@ -102,3 +102,46 @@ test("training load reviews recorded gym work by week", async ({ page, request }
     }
   }
 });
+
+test("workload ratio reports the selected week and its preceding baseline", async ({ page, request }) => {
+  const tag = `[TEST_RUN_ID:${process.env.TEST_RUN_ID || "local"}:${randomUUID()}]`;
+  const cleanup = [];
+  try {
+    for (const [day, minutes, rating] of [
+      ["2024-01-08", 20, 2],
+      ["2024-01-15", 20, 4],
+      ["2024-01-22", 20, 6],
+      ["2024-01-29", 20, 8],
+      ["2024-02-05", 30, 6],
+    ]) {
+      const log = await request.post("/api/v1/logs", {
+        data: {
+          performed_at: `${day}T12:00:00Z`,
+          total_time_minutes: minutes,
+          overall_feeling: 3,
+          effort_rpe: rating,
+          activity_type: "running",
+          notes: tag,
+        },
+      });
+      expect(log.status()).toBe(201);
+      cleanup.push(`/api/v1/logs/${(await log.json()).id}`);
+    }
+    await page.goto("/training-load");
+    await page.getByLabel("Week containing").fill("2024-02-05");
+    await page.getByLabel("Weeks to show").selectOption("4");
+    const comparison = page.getByRole("region", { name: "Calendar workload ratio (ACWR)" });
+    await expect(comparison).toContainText("1.80×");
+    await expect(comparison).toContainText("180 AU");
+    await expect(comparison).toContainText("100 AU");
+    await expect(comparison).toContainText("2024-01-08");
+    await comparison.getByLabel("Comparison week").selectOption("2024-01-29");
+    await expect(comparison).toContainText("At least one of the five weeks has no logged sessions.");
+    await expect(comparison).not.toContainText("1.80×");
+  } finally {
+    for (const url of cleanup) {
+      expect((await request.delete(url)).status()).toBe(204);
+      expect((await request.get(url)).status()).toBe(404);
+    }
+  }
+});

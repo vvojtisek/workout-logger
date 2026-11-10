@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, time, timedelta
+from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -50,6 +51,15 @@ class TrainingSessionEffort(BaseModel):
     load_au: int | None = None
 
 
+class WeeklyWorkloadRatio(BaseModel):
+    status: Literal[
+        "ready", "week_incomplete", "missing_sessions", "missing_ratings", "zero_baseline"
+    ] = "missing_sessions"
+    baseline_start: date | None = None
+    baseline_mean_au: float | None = None
+    ratio: float | None = None
+
+
 class TrainingLoadWeek(BaseModel):
     week_start: date
     gym_sessions: int = 0
@@ -57,6 +67,7 @@ class TrainingLoadWeek(BaseModel):
     volume_kg: float = 0
     muscle_volume: list[MuscleVolume] = Field(default_factory=list)
     session_effort: TrainingSessionEffort = Field(default_factory=TrainingSessionEffort)
+    workload_ratio: WeeklyWorkloadRatio = Field(default_factory=WeeklyWorkloadRatio)
 
 
 class TrainingLoadResponse(BaseModel):

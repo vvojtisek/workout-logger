@@ -21,7 +21,10 @@ router = APIRouter(prefix="/training-load", tags=["training load"])
         "External volume is split equally among distinct primary muscle tags, with any "
         "rounding tenths assigned in tag order. Null muscle denotes unclassified volume. "
         "Session effort includes workouts and activities. Load in arbitrary units is the "
-        "sum of rated session minutes multiplied by their RPE. Null load means no rated minutes."
+        "sum of rated session minutes multiplied by their RPE. Null load means no rated minutes. "
+        "The workload ratio divides a closed local week's load by the mean of the four "
+        "preceding weeks. The ratio requires at least one log and complete effort ratings "
+        "in each contributing week. The baseline is independent of the visible week count."
     ),
     response_model=TrainingLoadResponse,
 )

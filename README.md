@@ -261,6 +261,11 @@ workouts and activities. It shows rated and logged session counts and rated minu
 separate labels for weeks without sessions and weeks without ratings. Add or clear a rating
 from the workout history editor. [Session-RPE method validation](https://pubmed.ncbi.nlm.nih.gov/11708692/).
 
+The calendar workload ratio divides a closed local week's session-RPE load by the mean load
+of its preceding four local weeks. The comparison shows its dates, numerator, and denominator.
+Each week needs logged sessions with complete ratings, including preceding weeks outside the
+visible table. Use this ratio to compare recorded workloads. [Methodological analysis](https://pubmed.ncbi.nlm.nih.gov/32502973/).
+
 Invite-only accounts have server-enforced per-account record ownership. See
 [`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,
 shared exercise templates, and administrative access rules.

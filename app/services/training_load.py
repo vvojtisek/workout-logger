@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -7,13 +7,47 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import WorkoutLog
+from app.models.base import utcnow
 from app.schemas.training_load import (
     MuscleVolume,
     TrainingLoadQuery,
     TrainingLoadResponse,
     TrainingLoadWeek,
+    WeeklyWorkloadRatio,
 )
 from app.services.volume_rules import apply_to_logs, profile_for
+
+BASELINE_WEEKS = 4
+
+
+def _workload_ratio(
+    week: TrainingLoadWeek, baseline: list[TrainingLoadWeek], today: date
+) -> WeeklyWorkloadRatio:
+    comparison = WeeklyWorkloadRatio(
+        baseline_start=baseline[0].week_start if len(baseline) == BASELINE_WEEKS else None
+    )
+    if week.week_start + timedelta(weeks=1) > today:
+        comparison.status = "week_incomplete"
+        return comparison
+
+    efforts = [entry.session_effort for entry in [*baseline, week]]
+    if len(baseline) < BASELINE_WEEKS or any(effort.logged_sessions == 0 for effort in efforts):
+        return comparison
+    if any(
+        effort.rated_sessions != effort.logged_sessions or effort.load_au is None
+        for effort in efforts
+    ):
+        comparison.status = "missing_ratings"
+        return comparison
+
+    mean = sum((entry.session_effort.load_au or 0) for entry in baseline) / BASELINE_WEEKS
+    comparison.baseline_mean_au = mean
+    if mean <= 0:
+        comparison.status = "zero_baseline"
+        return comparison
+    comparison.status = "ready"
+    comparison.ratio = (week.session_effort.load_au or 0) / mean
+    return comparison
 
 
 def _add_muscle_volume(
@@ -31,11 +65,18 @@ def _add_muscle_volume(
 async def weekly_training_load(
     session: AsyncSession, query: TrainingLoadQuery
 ) -> TrainingLoadResponse:
-    date_from, date_to = query.utc_bounds()
+    visible_from, date_to = query.utc_bounds()
     zone = ZoneInfo(query.timezone)
-    first = query.first_week()
+    visible_first = query.first_week()
+    lookback = min(BASELINE_WEEKS, (visible_first - date.min).days // 7)
+    first = visible_first - timedelta(weeks=lookback)
+    try:
+        date_from = datetime.combine(first, time.min, zone).astimezone(UTC)
+    except OverflowError:
+        date_from = datetime.min.replace(tzinfo=UTC)
     weeks = [
-        TrainingLoadWeek(week_start=first + timedelta(weeks=index)) for index in range(query.weeks)
+        TrainingLoadWeek(week_start=first + timedelta(weeks=index))
+        for index in range(lookback + query.weeks)
     ]
     muscle_volumes: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
     result = await session.scalars(
@@ -47,7 +88,10 @@ async def weekly_training_load(
         )
     )
     logs = list(result)
-    profiles = await apply_to_logs(session, (log for log in logs if log.activity_type is None))
+    profiles = await apply_to_logs(
+        session,
+        (log for log in logs if log.performed_at >= visible_from and log.activity_type is None),
+    )
 
     for log in logs:
         local_date = log.performed_at.astimezone(zone).date()
@@ -60,7 +104,7 @@ async def weekly_training_load(
             effort.rated_minutes += log.total_time_minutes
             effort.load_au = (effort.load_au or 0) + log.effort_rpe * log.total_time_minutes
 
-        if log.activity_type is not None or not log.exercises:
+        if index < lookback or log.activity_type is not None or not log.exercises:
             continue
         week.gym_sessions += 1
         week.logged_sets += sum(exercise.sets_count for exercise in log.exercises)
@@ -68,7 +112,9 @@ async def weekly_training_load(
             profile = profile_for(profiles, exercise.exercise_name)
             _add_muscle_volume(muscle_volumes[index], exercise.volume_kg, profile.primary_muscles)
 
-    for week, muscle_volume in zip(weeks, muscle_volumes, strict=True):
+    today = utcnow().astimezone(zone).date()
+    for index in range(lookback, len(weeks)):
+        week, muscle_volume = weeks[index], muscle_volumes[index]
         week.volume_kg = sum(muscle_volume.values()) / 10
         week.muscle_volume = [
             MuscleVolume(muscle=muscle, volume_kg=tenths / 10)
@@ -77,4 +123,7 @@ async def weekly_training_load(
             )
             if tenths
         ]
-    return TrainingLoadResponse(timezone=query.timezone, weeks=weeks)
+        week.workload_ratio = _workload_ratio(
+            week, weeks[max(0, index - BASELINE_WEEKS) : index], today
+        )
+    return TrainingLoadResponse(timezone=query.timezone, weeks=weeks[lookback:])

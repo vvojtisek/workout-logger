@@ -112,6 +112,12 @@ export interface TrainingLoadWeek {
     rated_minutes: number;
     load_au: number | null;
   };
+  workload_ratio: {
+    status: "ready" | "week_incomplete" | "missing_sessions" | "missing_ratings" | "zero_baseline";
+    baseline_start: string | null;
+    baseline_mean_au: number | null;
+    ratio: number | null;
+  };
 }
 
 export interface TrainingLoadResponse {

@@ -10,6 +10,14 @@ import { PageHeading } from "@/ui";
 
 const WEEK_COUNTS = [4, 8, 12, 26];
 const NUMBER_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+const BASELINE_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+const RATIO_MESSAGES = {
+  ready: "Comparison unavailable.",
+  week_incomplete: "The selected week is still open or in the future.",
+  missing_sessions: "At least one of the five weeks has no logged sessions.",
+  missing_ratings: "At least one session in these weeks lacks a rating.",
+  zero_baseline: "The four-week baseline has zero load.",
+};
 
 function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
@@ -102,6 +110,64 @@ function SessionEffortTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
   );
 }
 
+function WorkloadRatioCard({ weeks }: { weeks: TrainingLoadWeek[] }) {
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  const latestFirst = [...weeks].reverse();
+  const week = weeks.find((entry) => entry.week_start === selectedWeek)
+    ?? latestFirst.find((entry) => entry.workload_ratio.status !== "week_incomplete")
+    ?? latestFirst[0];
+  if (!week) return null;
+  const comparison = week.workload_ratio;
+
+  return (
+    <section className="card mt-4 p-4" aria-labelledby="workload-ratio-heading">
+      <h3 className="font-semibold" id="workload-ratio-heading">Calendar workload ratio (ACWR)</h3>
+      <p className="my-2 text-sm text-muted">
+        The selected closed week's session-RPE load divided by the average of its four preceding
+        Monday-start weeks. This compares recorded workload. Each of the five weeks needs logged
+        sessions with complete ratings, even when the weekly table shows fewer weeks.
+      </p>
+      <label className="mb-3 flex flex-col gap-1">
+        <span className="field-label">Comparison week</span>
+        <select
+          className="input w-fit"
+          value={week.week_start}
+          onChange={(event) => setSelectedWeek(event.target.value)}
+        >
+          {latestFirst.map((entry) => (
+            <option key={entry.week_start} value={entry.week_start}>
+              {entry.week_start}
+            </option>
+          ))}
+        </select>
+      </label>
+      {comparison.baseline_start ? (
+        <p className="mb-3 text-xs text-muted">
+          Baseline starts {comparison.baseline_start} and ends before the week of {week.week_start}.
+        </p>
+      ) : null}
+      {comparison.ratio !== null && comparison.baseline_mean_au !== null ? (
+        <dl className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <dt className="text-xs text-muted">Selected week</dt>
+            <dd className="font-semibold" data-numeric>{effortLoadLabel(week.session_effort)}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted">Prior four-week average</dt>
+            <dd className="font-semibold" data-numeric>{BASELINE_FORMAT.format(comparison.baseline_mean_au)} AU</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted">Ratio</dt>
+            <dd className="font-semibold" data-numeric>{comparison.ratio.toFixed(2)}×</dd>
+          </div>
+        </dl>
+      ) : (
+        <p role="status" className="text-sm text-muted">{RATIO_MESSAGES[comparison.status]}</p>
+      )}
+    </section>
+  );
+}
+
 export function TrainingLoadView() {
   const [weekOf, setWeekOf] = useState(() => formatDate(new Date().toISOString()));
   const [weeks, setWeeks] = useState(8);
@@ -180,6 +246,7 @@ export function TrainingLoadView() {
       ) : null}
       {data ? <MuscleVolumeTable weeks={data.weeks} /> : null}
       {data ? <SessionEffortTable weeks={data.weeks} /> : null}
+      {data ? <WorkloadRatioCard weeks={data.weeks} /> : null}
     </section>
   );
 }
