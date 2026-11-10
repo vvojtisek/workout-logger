@@ -241,6 +241,69 @@ async def test_stats_pair_each_sets_weight_and_reps_on_migrated_database(
             assert (await client.get(url, headers=auth_headers)).status_code == 404
 
 
+async def test_stats_date_window_limits_all_metrics_on_migrated_database(
+    migrated_client, app_engine, auth_headers
+):
+    client, _ = migrated_client
+    notes = f"[TEST_RUN_ID:{uuid4()}]"
+    log_ids = []
+    try:
+        for performed_at, weight in [
+            ("2026-10-01T07:59:59Z", 110),
+            ("2026-10-01T08:00:00Z", 100),
+            ("2026-10-05T08:00:00Z", 90),
+            ("2026-11-01T08:00:00Z", 120),
+        ]:
+            log_ids.append(
+                await log_exercise(
+                    client, auth_headers, performed_at, "Row", weight, [6], notes=notes
+                )
+            )
+
+        response = await client.get(
+            STATS,
+            params={
+                "name": "Row",
+                "formula": "lombardi",
+                "date_from": "2026-10-01T10:00:00+02:00",
+                "date_to": "2026-11-01T09:00:00+01:00",
+            },
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        item = response.json()["items"][0]
+        assert item["sessions_count"] == 2
+        assert item["last_weight_kg"] == 90
+        assert item["best_weight_kg"] == 100
+        assert item["estimated_one_rep_max_kg"] == 119.5
+        assert item["trend"] == "down"
+        assert [point["performed_at"] for point in item["recent"]] == [
+            "2026-10-01T08:00:00Z",
+            "2026-10-05T08:00:00Z",
+        ]
+
+        all_time = await client.get(STATS, params={"name": "Row"}, headers=auth_headers)
+        assert all_time.json()["items"][0]["sessions_count"] == 4
+        assert all_time.json()["items"][0]["best_weight_kg"] == 120
+
+        for date_range in [
+            {"date_from": "2026-11-01T08:00:00Z"},
+            {"date_to": "2026-11-01T08:00:00Z"},
+            {"date_from": "2026-11-01T08:00:00Z", "date_to": "2026-11-01T08:00:00Z"},
+            {"date_from": "2026-11-01T08:00:00Z", "date_to": "2026-10-01T08:00:00Z"},
+            {"date_from": "2026-10-01T08:00:00", "date_to": "2026-11-01T08:00:00Z"},
+        ]:
+            invalid = await client.get(
+                STATS, params={"name": "Row", **date_range}, headers=auth_headers
+            )
+            assert invalid.status_code == 422, date_range
+    finally:
+        for log_id in log_ids:
+            url = f"{LOGS}/{log_id}"
+            assert (await client.delete(url, headers=auth_headers)).status_code == 204
+            assert (await client.get(url, headers=auth_headers)).status_code == 404
+
+
 async def test_stats_use_selected_formula_and_bound_alternate_models(
     migrated_client, app_engine, auth_headers
 ):

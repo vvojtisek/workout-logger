@@ -7,6 +7,7 @@ lift (weight x reps).
 """
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,12 +16,22 @@ from app.models import Exercise, WorkoutLog, WorkoutSession
 from app.services.volume import DEFAULT_RULE, VolumeRule
 
 
+@dataclass(frozen=True)
+class CatalogueVolumeProfile:
+    rule: VolumeRule
+    primary_muscles: tuple[str, ...] = ()
+
+
+DEFAULT_PROFILE = CatalogueVolumeProfile(DEFAULT_RULE)
+
+
 def _key(name: str) -> str:
     return name.strip().lower()
 
 
-async def rules_by_name(session: AsyncSession, names: Iterable[str]) -> dict[str, VolumeRule]:
-    """Rules keyed by lower-cased name; names with no match are left out."""
+async def _profiles_by_name(
+    session: AsyncSession, names: Iterable[str]
+) -> dict[str, CatalogueVolumeProfile]:
     wanted = {_key(name) for name in names}
     if not wanted:
         return {}
@@ -31,31 +42,48 @@ async def rules_by_name(session: AsyncSession, names: Iterable[str]) -> dict[str
             Exercise.owner_id,
             Exercise.equipment_load_mode,
             Exercise.is_unilateral,
+            Exercise.primary_muscles,
         )
     )
-    rules: dict[str, VolumeRule] = {}
+    profiles: dict[str, CatalogueVolumeProfile] = {}
     # Shared rows first, so an owned exercise of the same name overwrites them.
     rows = sorted(result.all(), key=lambda row: row.owner_id is not None)
     for row in rows:
-        rule = VolumeRule(row.equipment_load_mode, bool(row.is_unilateral))
+        profile = CatalogueVolumeProfile(
+            VolumeRule(row.equipment_load_mode, bool(row.is_unilateral)),
+            tuple(row.primary_muscles or ()),
+        )
         for alias in row.aliases or []:
             if _key(alias) in wanted:
-                rules[_key(alias)] = rule
+                profiles[_key(alias)] = profile
         if _key(row.name) in wanted:
-            rules[_key(row.name)] = rule
-    return rules
+            profiles[_key(row.name)] = profile
+    return profiles
+
+
+async def rules_by_name(session: AsyncSession, names: Iterable[str]) -> dict[str, VolumeRule]:
+    """Rules keyed by lower-cased name; names with no match are left out."""
+    return {
+        name: profile.rule for name, profile in (await _profiles_by_name(session, names)).items()
+    }
 
 
 def rule_for(rules: dict[str, VolumeRule], name: str) -> VolumeRule:
     return rules.get(_key(name), DEFAULT_RULE)
 
 
-async def apply_to_logs(session: AsyncSession, logs: Iterable[WorkoutLog]) -> None:
-    logs = list(logs)
+def profile_for(profiles: dict[str, CatalogueVolumeProfile], name: str) -> CatalogueVolumeProfile:
+    return profiles.get(_key(name), DEFAULT_PROFILE)
+
+
+async def apply_to_logs(
+    session: AsyncSession, logs: Iterable[WorkoutLog]
+) -> dict[str, CatalogueVolumeProfile]:
     exercises = [exercise for log in logs for exercise in log.exercises]
-    rules = await rules_by_name(session, (exercise.exercise_name for exercise in exercises))
+    profiles = await _profiles_by_name(session, (exercise.exercise_name for exercise in exercises))
     for exercise in exercises:
-        exercise.volume_rule = rule_for(rules, exercise.exercise_name)
+        exercise.volume_rule = profile_for(profiles, exercise.exercise_name).rule
+    return profiles
 
 
 async def apply_to_session(session: AsyncSession, workout_session: WorkoutSession) -> None:

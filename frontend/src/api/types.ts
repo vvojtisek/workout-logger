@@ -100,6 +100,31 @@ export interface ExerciseStatsResponse {
 
 export type OneRepMaxFormula = "epley" | "brzycki" | "lombardi" | "wathen";
 
+export interface TrainingLoadWeek {
+  week_start: string;
+  gym_sessions: number;
+  logged_sets: number;
+  volume_kg: number;
+  muscle_volume: { muscle: MuscleTag | null; volume_kg: number }[];
+  session_effort: {
+    logged_sessions: number;
+    rated_sessions: number;
+    rated_minutes: number;
+    load_au: number | null;
+  };
+  workload_ratio: {
+    status: "ready" | "week_incomplete" | "missing_sessions" | "missing_ratings" | "zero_baseline";
+    baseline_start: string | null;
+    baseline_mean_au: number | null;
+    ratio: number | null;
+  };
+}
+
+export interface TrainingLoadResponse {
+  timezone: string;
+  weeks: TrainingLoadWeek[];
+}
+
 export interface ExerciseLog {
   id: string;
   exercise_name: string;

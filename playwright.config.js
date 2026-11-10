@@ -22,6 +22,9 @@ const MOBILE_SPECS = [
   "volume-rules.spec.js",
   "drink-quick-add.spec.js",
   "history-edit.spec.js",
+  "exercise-progression.spec.js",
+  "training-load.spec.js",
+  "rep-retention.spec.js",
 ];
 
 export default defineConfig({

@@ -3,6 +3,9 @@ import { formatDate } from "./format";
 
 const TREND_LABELS = { up: "load up", down: "load down", flat: "load steady" } as const;
 
+export const STATS_RANGES = ["all", "30", "90", "365"] as const;
+export type StatsRange = (typeof STATS_RANGES)[number];
+
 function formatKg(value: number): string {
   return `${Number.isInteger(value) ? value : value.toFixed(1)} kg`;
 }

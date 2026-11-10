@@ -240,6 +240,43 @@ The other options use sets of 1–10 reps. The estimates use logged reps as inpu
 that assume reps to failure, and each chart point shows the set behind its estimate. Older
 logs with a single weight use that weight for every set. [Reference for the equations, Table 1](https://doi.org/10.1007/s11332-024-01264-y).
 
+The desktop history range can show the last 30, 90, or 365 days or all history. For a fixed
+window, pass both timezone-aware `date_from` (inclusive) and `date_to` (exclusive) to the
+exercise stats endpoint. The window applies to both the headline stats and the chart.
+Open an exercise in the catalogue to review the same progression without starting a workout.
+History matches the exercise name case-insensitively.
+
+Open **Workout History → Training load** for weekly counts and external-load volume. Weeks
+start Monday in the browser's timezone. Gym sessions are workout records with exercise sets,
+and separately logged activities are excluded. Volume follows the same per-set load rules
+as workout history. `GET /api/v1/training-load` accepts a local `week_of` date, `weeks` (1–26),
+and an IANA `timezone` (UTC by default).
+Select a week in the muscle breakdown to allocate that external volume across each exercise's
+current primary muscle tags. Each lift's volume is split evenly and leftover tenths go to tags
+in alphabetical order, so the breakdown sums to the weekly total. Unmatched and untagged lifts
+appear as Unclassified.
+
+The weekly session effort panel sums duration in minutes × whole-session RPE for rated gym
+workouts and activities. It shows rated and logged session counts and rated minutes, with
+separate labels for weeks without sessions and weeks without ratings. Add or clear a rating
+from the workout history editor. [Session-RPE method validation](https://pubmed.ncbi.nlm.nih.gov/11708692/).
+
+The calendar workload ratio divides a closed local week's session-RPE load by the mean load
+of its preceding four local weeks. The comparison shows its dates, numerator, and denominator.
+Each week needs logged sessions with complete ratings, including preceding weeks outside the
+visible table. Use this ratio to compare recorded workloads. [Methodological analysis](https://pubmed.ncbi.nlm.nih.gov/32502973/).
+
+In a past workout, expand **Rep retention at the same weight** when an exercise has repeated
+recorded loads. Each chart plots reps at the set numbers in workout history. The table shows recorded
+reps, RIR when available, and reps as a percentage of the first set at that load. Explicitly
+missing loads are excluded. Older single-weight records use that weight for each set.
+
+**Download training CSV** exports the visible Training load window using the same local-week
+boundaries. The UTF-8 file has one `session` row per workout or activity with duration and
+session RPE, and `set` rows linked by `workout_id` with exercise, weight, reps, and RIR. Blank
+cells represent missing values. Exercise names that look like spreadsheet formulas get a
+leading apostrophe. The API uses the same filters at `GET /api/v1/training-load/export`.
+
 Invite-only accounts have server-enforced per-account record ownership. See
 [`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,
 shared exercise templates, and administrative access rules.

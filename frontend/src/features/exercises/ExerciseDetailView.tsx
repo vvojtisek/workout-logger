@@ -3,24 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, MuscleTag } from "@/api/types";
+import { MUSCLE_LABELS } from "@/lib/exercise-catalogue";
+import { ProgressionCard } from "@/features/progression/ProgressionCard";
+import { useExerciseProgression } from "@/features/progression/useExerciseProgression";
 import { describeEquipmentOptions } from "@/lib/equipment";
 import { loadRuleText } from "@/lib/load-rules";
 import { Button, Card, EmptyState, PageHeading } from "@/ui";
-
-const MUSCLE_LABELS: Record<MuscleTag, string> = {
-  chest: "Chest",
-  back: "Back",
-  shoulders: "Shoulders",
-  biceps: "Biceps",
-  triceps: "Triceps",
-  forearms: "Forearms",
-  quads: "Quads",
-  hamstrings: "Hamstrings",
-  glutes: "Glutes",
-  calves: "Calves",
-  core: "Core",
-  full_body: "Full body",
-};
 
 function MuscleBadgeList({ title, muscles }: { title: string; muscles: MuscleTag[] }) {
   if (muscles.length === 0) return null;
@@ -89,6 +77,15 @@ function MediaContainer({ mediaUrl }: { mediaUrl: string | null }) {
   );
 }
 
+function ExerciseProgression({ name }: { name: string }) {
+  const { stats, ...progression } = useExerciseProgression([name]);
+  return (
+    <div className="mb-4">
+      <ProgressionCard stats={stats.get(name)} {...progression} showSummary />
+    </div>
+  );
+}
+
 export function ExerciseDetailView() {
   const { exerciseId } = useParams<{ exerciseId: string }>();
   const navigate = useNavigate();
@@ -127,6 +124,8 @@ export function ExerciseDetailView() {
         </PageHeading>
         <Button onClick={() => void navigate(`/exercises/${exercise.id}/edit`)}>Edit</Button>
       </div>
+
+      <ExerciseProgression name={exercise.name} />
 
       <Card className="p-4">
         <MediaContainer mediaUrl={exercise.media_url} />

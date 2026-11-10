@@ -127,7 +127,12 @@ def _summarize(
 
 
 async def get_exercise_stats(
-    session: AsyncSession, names: list[str], formula: OneRepMaxFormula = "epley"
+    session: AsyncSession,
+    names: list[str],
+    formula: OneRepMaxFormula = "epley",
+    *,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
 ) -> list[ExerciseStatsRead]:
     """Summarize logged history per exercise name, matched case-insensitively.
 
@@ -135,12 +140,17 @@ async def get_exercise_stats(
     loader criteria, so each account sees statistics for its own history only.
     """
     wanted = {_normalize(name) for name in names}
-    result = await session.execute(
+    statement = (
         select(WorkoutLog.performed_at, ExerciseLog)
         .join(WorkoutLog, ExerciseLog.workout_log_id == WorkoutLog.id)
         .where(func.lower(func.trim(ExerciseLog.exercise_name)).in_(wanted))
         .order_by(WorkoutLog.performed_at.desc(), ExerciseLog.sort_order)
     )
+    if date_from is not None and date_to is not None:
+        statement = statement.where(
+            WorkoutLog.performed_at >= date_from, WorkoutLog.performed_at < date_to
+        )
+    result = await session.execute(statement)
     history: dict[str, list[tuple[datetime, ExerciseLog]]] = defaultdict(list)
     for performed_at, entry in result.all():
         history[_normalize(entry.exercise_name)].append((performed_at, entry))

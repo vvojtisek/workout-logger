@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
-from app.schemas.exercise_stats import ExerciseStatsResponse, OneRepMaxFormula
+from app.schemas.exercise_stats import ExerciseStatsQuery, ExerciseStatsResponse
 from app.services import exercise_stats as exercise_stats_service
 
 router = APIRouter(prefix="/exercise-stats", tags=["exercise stats"])
@@ -17,20 +17,15 @@ router = APIRouter(prefix="/exercise-stats", tags=["exercise stats"])
     description="Summarizes logged workout history for each requested exercise name "
     "(case-insensitive): last session, heaviest set, estimated one-rep max "
     "from recorded weight and reps in the same set, and the working-weight trend "
-    "between the two most recent sessions. Items are returned "
-    "in the order the names were requested.",
+    "between the two most recent sessions. Both timestamps are required to filter to a range "
+    "[date_from, date_to). Items are returned in the order the names were requested.",
     response_model=ExerciseStatsResponse,
 )
 async def get_exercise_stats(
-    name: Annotated[
-        list[Annotated[str, Query(min_length=1, max_length=150)]],
-        Query(min_length=1, max_length=50),
-    ],
+    query: Annotated[ExerciseStatsQuery, Query()],
     session: Annotated[AsyncSession, Depends(get_session)],
-    formula: Annotated[
-        OneRepMaxFormula,
-        Query(description="Epley uses all logged rep counts. Other formulas use 1–10 reps."),
-    ] = "epley",
 ) -> ExerciseStatsResponse:
-    items = await exercise_stats_service.get_exercise_stats(session, name, formula)
+    items = await exercise_stats_service.get_exercise_stats(
+        session, query.name, query.formula, date_from=query.date_from, date_to=query.date_to
+    )
     return ExerciseStatsResponse(items=items)

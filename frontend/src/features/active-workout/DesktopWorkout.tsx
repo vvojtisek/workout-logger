@@ -3,18 +3,18 @@ import { useRef, useState } from "react";
 import type { FormEvent, ReactNode, RefObject } from "react";
 
 import { apiFetch, errorMessage } from "@/api/client";
-import type { ExerciseStats, OneRepMaxFormula, SessionExercise, WorkoutSession } from "@/api/types";
+import type { ExerciseStats, SessionExercise, WorkoutSession } from "@/api/types";
+import { ProgressionCard } from "@/features/progression/ProgressionCard";
+import type { useExerciseProgression } from "@/features/progression/useExerciseProgression";
 import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import { draftStorageKey, saveSetDraft } from "@/lib/active-workout-state";
 import type { SynchronizationState } from "@/lib/active-workout-state";
 import { fetchCatalogueNames } from "@/lib/exercise-catalogue";
-import { formatDate } from "@/lib/format";
 import { FEELING_SCALE, RIR_HINT } from "@/lib/scales";
 import {
   copyDraftFrom,
   exerciseSummaries,
   lastCompletedEntry,
-  progressionChart,
   targetText,
 } from "@/lib/workout-desktop";
 import type { ExerciseSummary } from "@/lib/workout-desktop";
@@ -34,13 +34,6 @@ const PILL_CLASS: Record<ExerciseSummary["status"], string> = {
   todo: "bg-warn-soft text-warn",
 };
 
-const ESTIMATE_FORMULAS: Record<OneRepMaxFormula, { label: string; equation: string }> = {
-  epley: { label: "Epley", equation: "W × (1 + r / 30)" },
-  brzycki: { label: "Brzycki", equation: "W / (1.0278 − 0.0278 × r)" },
-  lombardi: { label: "Lombardi", equation: "W × r^0.1" },
-  wathen: { label: "Wathen", equation: "W / (0.488 + 0.538 × e^(−0.075 × r))" },
-};
-
 export interface DesktopWorkoutProps {
   session: WorkoutSession;
   rows: HudRow[];
@@ -50,9 +43,7 @@ export interface DesktopWorkoutProps {
   restWasSkipped: boolean;
   stats: Map<string, ExerciseStats>;
   statsLine: (exercise: SessionExercise) => ReactNode;
-  statsStatus: "pending" | "error" | "success";
-  formula: OneRepMaxFormula;
-  onFormulaChange: (formula: OneRepMaxFormula) => void;
+  progression: Omit<ReturnType<typeof useExerciseProgression>, "stats">;
   gridRef: RefObject<HTMLDivElement | null>;
   feeling: string;
   onFeelingChange: (value: string) => void;
@@ -312,9 +303,7 @@ function ExercisePane({
           </div>
           <ProgressionCard
             stats={props.stats.get(exercise.exercise_name)}
-            status={props.statsStatus}
-            formula={props.formula}
-            onFormulaChange={props.onFormulaChange}
+            {...props.progression}
           />
         </div>
       </div>
@@ -331,120 +320,6 @@ function ExercisePane({
       />
     </div>
   );
-}
-
-const CHART_WIDTH = 300;
-const CHART_HEIGHT = 120;
-
-function formatKg(value: number): string {
-  return `${Number.isInteger(value) ? value : value.toFixed(1)} kg`;
-}
-
-function ProgressionCard({
-  stats,
-  status,
-  formula,
-  onFormulaChange,
-}: {
-  stats: ExerciseStats | undefined;
-  status: DesktopWorkoutProps["statsStatus"];
-  formula: OneRepMaxFormula;
-  onFormulaChange: (formula: OneRepMaxFormula) => void;
-}) {
-  const recent = stats?.recent ?? [];
-  const chart = progressionChart(recent, CHART_WIDTH, CHART_HEIGHT);
-  const best = [...recent]
-    .filter((point) => point.estimated_one_rep_max_kg !== null)
-    .sort((a, b) => (b.estimated_one_rep_max_kg ?? 0) - (a.estimated_one_rep_max_kg ?? 0))
-    .slice(0, 3);
-
-  return (
-    <section className="card flex flex-col gap-3 p-4" data-testid="progression-card">
-      <h3 className="font-semibold">Progression</h3>
-      <div>
-        <label className="field-label" htmlFor="progression-formula">
-          1RM formula
-        </label>
-        <select
-          className="input"
-          id="progression-formula"
-          aria-describedby="progression-formula-help"
-          value={formula}
-          onChange={(event) => onFormulaChange(event.target.value as OneRepMaxFormula)}
-        >
-          {Object.entries(ESTIMATE_FORMULAS).map(([key, { label }]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <p id="progression-formula-help" className="text-xs text-muted">
-        <span data-numeric>{ESTIMATE_FORMULAS[formula].equation}</span>. W is weight in kg and r is
-        logged reps. {formula === "epley" ? "Epley uses all logged rep counts." : "Uses sets of 1–10 reps."}{" "}
-        These equations assume reps to failure.
-      </p>
-      {chart ? (
-        <>
-          <svg
-            role="img"
-            aria-label={`Estimated 1RM over the last ${chart.points.length} ${chart.points.length === 1 ? "session" : "sessions"}, ${formatKg(chart.points[0].session.estimated_one_rep_max_kg ?? 0)} to ${formatKg(chart.points[chart.points.length - 1].session.estimated_one_rep_max_kg ?? 0)}`}
-            data-testid="progression-chart"
-            viewBox={`-6 -6 ${CHART_WIDTH + 12} ${CHART_HEIGHT + 12}`}
-            className="h-32 w-full"
-          >
-            <polyline
-              points={chart.points.map((point) => `${point.x},${point.y}`).join(" ")}
-              className="fill-none stroke-accent"
-              strokeWidth={2}
-              vectorEffect="non-scaling-stroke"
-            />
-            {chart.points.map((point) => (
-              <circle
-                key={point.session.performed_at}
-                cx={point.x}
-                cy={point.y}
-                r={4}
-                className="fill-accent"
-              />
-            ))}
-          </svg>
-          <p className="text-xs text-muted" data-numeric>
-            e1RM {formatKg(chart.min)} – {formatKg(chart.max)}
-          </p>
-          <div>
-            <h4 className="mb-1 text-sm font-medium">Best sets</h4>
-            <ul className="flex flex-col gap-1 text-sm" data-numeric>
-              {best.map((point) => (
-                <li key={point.performed_at} className="flex justify-between gap-2">
-                  <span className="text-muted">{formatDate(point.performed_at)}</span>
-                  <span>
-                    {formatKg(point.weight_kg ?? 0)} × {point.top_reps}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </>
-      ) : (
-        <ProgressionEmptyState status={status} formula={formula} />
-      )}
-    </section>
-  );
-}
-
-function ProgressionEmptyState({
-  status,
-  formula,
-}: {
-  status: DesktopWorkoutProps["statsStatus"];
-  formula: OneRepMaxFormula;
-}) {
-  let message = "No weighted history for this exercise yet.";
-  if (status === "pending") message = "Loading progression…";
-  else if (status === "error") message = "Progression is unavailable.";
-  else if (formula !== "epley") message = "No recent weighted sets with 1–10 reps.";
-  return <p role="status" className="text-sm text-muted">{message}</p>;
 }
 
 function SwapDialog({

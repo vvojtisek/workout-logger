@@ -1,3 +1,20 @@
+import type { MuscleTag } from "@/api/types";
+
+export const MUSCLE_LABELS: Record<MuscleTag, string> = {
+  chest: "Chest",
+  back: "Back",
+  shoulders: "Shoulders",
+  biceps: "Biceps",
+  triceps: "Triceps",
+  forearms: "Forearms",
+  quads: "Quads",
+  hamstrings: "Hamstrings",
+  glutes: "Glutes",
+  calves: "Calves",
+  core: "Core",
+  full_body: "Full body",
+};
+
 const PAGE_SIZE = 100;
 
 export function exerciseListPath(query: string, offset = 0, locationId = ""): string {

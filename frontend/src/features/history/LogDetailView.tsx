@@ -11,6 +11,7 @@ import { formatDateTime } from "@/lib/format";
 import { formatVolumeKg, loadNotes } from "@/lib/load-rules";
 import { TRAINING_LOAD_HINT } from "@/lib/scales";
 import { LogEditor } from "./LogEditor";
+import { RepRetention } from "./RepRetention";
 
 export function LogDetailView() {
   const { logId } = useParams<{ logId: string }>();
@@ -96,6 +97,7 @@ export function LogDetailView() {
                       · Volume {formatVolumeKg(exercise.volume_kg)}
                     </span>
                   ) : null}
+                  <RepRetention exercise={exercise} />
                 </li>
               ))}
             </ul>

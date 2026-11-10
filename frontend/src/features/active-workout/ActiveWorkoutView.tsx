@@ -1,10 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
-import type { ExerciseStatsResponse, OneRepMaxFormula, SessionExercise, WorkoutSession } from "@/api/types";
+import type { SessionExercise, WorkoutSession } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
+import { useExerciseProgression } from "@/features/progression/useExerciseProgression";
 import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import { exerciseStatsFacts } from "@/lib/exercise-stats";
 import {
@@ -69,7 +69,6 @@ function ActiveWorkoutSession({
   const syncInProgress = useRef(false);
   const gridRef = useRef<HTMLDivElement>(null);
   const isDesktop = useIsDesktop();
-  const [formula, setFormula] = useState<OneRepMaxFormula>("epley");
   const navigate = useNavigate();
 
   const progress = workoutProgress(session);
@@ -78,23 +77,10 @@ function ActiveWorkoutSession({
   // History stats are a read-only aid: a failed or offline fetch just leaves
   // them out and never blocks logging.
   const exerciseNames = [...new Set(session.exercises.map((exercise) => exercise.exercise_name))];
-  const statsFormula = isDesktop ? formula : "epley";
-  const { data: statsResponse, status: statsStatus } = useQuery({
-    // A swap renames an exercise, and changing the formula recalculates the estimates.
-    queryKey: ["exercise-stats", session.id, statsFormula, ...exerciseNames],
-    queryFn: () => {
-      const params = new URLSearchParams();
-      for (const name of exerciseNames) params.append("name", name);
-      if (statsFormula !== "epley") params.set("formula", statsFormula);
-      return apiFetch<ExerciseStatsResponse>(`/exercise-stats?${params.toString()}`);
-    },
-    enabled: exerciseNames.length > 0,
-    staleTime: Infinity,
-    retry: false,
+  const { stats: statsByName, ...progression } = useExerciseProgression(exerciseNames, {
+    sessionId: session.id,
+    enableFilters: isDesktop,
   });
-  const statsByName = new Map(
-    (statsResponse?.items ?? []).map((item) => [item.exercise_name, item])
-  );
 
   function exerciseStatsLine(exercise: SessionExercise) {
     const facts = exerciseStatsFacts(statsByName.get(exercise.exercise_name));
@@ -363,9 +349,7 @@ function ActiveWorkoutSession({
         restWasSkipped={restWasSkipped}
         stats={statsByName}
         statsLine={exerciseStatsLine}
-        statsStatus={statsStatus}
-        formula={formula}
-        onFormulaChange={setFormula}
+        progression={progression}
         gridRef={gridRef}
         feeling={feeling}
         onFeelingChange={setFeeling}

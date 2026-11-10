@@ -35,6 +35,19 @@ test("desktop progression shows the recorded set behind the estimate", async ({ 
     expect(log.status()).toBe(201);
     cleanup.unshift(`/api/v1/logs/${(await log.json()).id}`);
 
+    const olderLog = await request.post("/api/v1/logs", {
+      data: {
+        source_plan_id: planId,
+        performed_at: new Date(Date.now() - 120 * 86_400_000).toISOString(),
+        total_time_minutes: 30,
+        overall_feeling: 3,
+        notes: tag,
+        exercises: [{ exercise_name: exerciseName, sets_count: 1, weight_kg: 120, reps_per_set: [6] }],
+      },
+    });
+    expect(olderLog.status()).toBe(201);
+    cleanup.unshift(`/api/v1/logs/${(await olderLog.json()).id}`);
+
     const session = await request.post("/api/v1/workout-sessions", {
       data: { source_plan_id: planId },
     });
@@ -44,9 +57,13 @@ test("desktop progression shows the recorded set behind the estimate", async ({ 
     await page.goto("/workout");
     await expect(page.getByRole("heading", { name: exerciseName })).toBeVisible();
     const stats = page.locator(".exercise-stats");
+    await expect(stats).toContainText("Best 120 kg × 6");
+    const progression = page.getByTestId("progression-card");
+    const range = progression.getByRole("combobox", { name: "History range" });
+    await expect(range).toHaveValue("all");
+    await range.selectOption("30");
     await expect(stats).toContainText("Best 100 kg × 3");
     await expect(stats).toContainText("e1RM 110 kg");
-    const progression = page.getByTestId("progression-card");
     await expect(progression).toContainText("100 kg × 3");
 
     const formula = progression.getByRole("combobox", { name: "1RM formula" });
@@ -60,6 +77,9 @@ test("desktop progression shows the recorded set behind the estimate", async ({ 
         `Estimated 1RM over the last 1 session, ${value} kg to ${value} kg`,
       );
     }
+    await range.selectOption("all");
+    await expect(stats).toContainText("Best 120 kg × 6");
+    await expect(progression.getByTestId("progression-chart")).toHaveAttribute("aria-label", /last 2 sessions/);
   } finally {
     for (const url of cleanup) {
       expect((await request.delete(url)).status()).toBe(204);
