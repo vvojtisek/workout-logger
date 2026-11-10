@@ -35,3 +35,34 @@ Validation:
   run when the milestone PR is opened.
 - Added `uv.lock` to reproduce the Python dependencies used by these checks. Local checks
   used Python 3.11, matching CI. No production data, schema, or API fields changed.
+
+## Cycle 2 — Select the one-rep-max equation
+
+Desktop progression offers Epley, Brzycki, Lombardi, and Wathen. The server calculates the
+selected estimate from the same recorded weight and rep pairs used for heaviest-set statistics.
+React Query keeps separate results for each formula. The default Epley calculation still uses
+all recorded rep counts. The other formulas use an app limit of 1–10 reps and omit estimates
+for sessions with no eligible loaded set. The chart shows the equation and its input assumptions.
+[Reference for the equations, Table 1](https://doi.org/10.1007/s11332-024-01264-y).
+
+- `uv run --no-sync pytest -q tests/test_exercise_stats.py -k selected_formula --tb=short --show-capture=no`
+  failed before implementation because Brzycki returned the default Epley result of 205 kg
+  instead of 124 kg.
+- `E2E_BASE_URL=http://127.0.0.1:18090 TEST_RUN_ID=stats-model-red npm run test:e2e -- exercise-stats.spec.js --project=desktop`
+  reached the baseline chart and failed because the formula selector was absent. Tagged cleanup
+  verified 404s after deleting the session, log, and plan.
+- `uv run --no-sync pytest -q tests/test_exercise_stats.py tests/test_volume.py --tb=short`
+  passed all 21 tests, including the migrated SQLite regression for all formulas, rep bounds,
+  and invalid input.
+- `npm run typecheck`, `npm run lint`, targeted Ruff check and format, targeted mypy, and
+  `git diff --check` passed.
+- Full validation passed: 701 backend tests, 188 frontend tests, ESLint, TypeScript, Vite build,
+  required Ruff, formatting and mypy. Full Ruff remains at the unchanged 151 baseline findings.
+- Localhost browser suite: 55 passed, 3 existing viewport-specific skips; all workout cleanup
+  counts are zero. The new real-browser regression switches all four models and verifies the
+  displayed results. Manual review follows that same selector path; no separate manual pass.
+- Commands: `uv run --python 3.11 --with pytest-cov pytest --cov=app --cov-report=term-missing`,
+  `uv run --python 3.11 ruff check --select E4,E7,E9,F .`, `ruff format --check .`, `mypy app/`,
+  `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e`,
+  and `scripts/assert_empty_e2e_database.py` on the temporary database.
+- Production Compose and security CI remain pending the milestone PR. No schema changes.

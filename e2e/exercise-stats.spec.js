@@ -46,7 +46,20 @@ test("desktop progression shows the recorded set behind the estimate", async ({ 
     const stats = page.locator(".exercise-stats");
     await expect(stats).toContainText("Best 100 kg × 3");
     await expect(stats).toContainText("e1RM 110 kg");
-    await expect(page.getByTestId("progression-card")).toContainText("100 kg × 3");
+    const progression = page.getByTestId("progression-card");
+    await expect(progression).toContainText("100 kg × 3");
+
+    const formula = progression.getByRole("combobox", { name: "1RM formula" });
+    await expect(formula).toHaveValue("epley");
+    const estimates = { brzycki: 106, lombardi: 111.5, wathen: 109, epley: 110 };
+    for (const [name, value] of Object.entries(estimates)) {
+      await formula.selectOption(name);
+      await expect(stats).toContainText(`e1RM ${value} kg`);
+      await expect(progression.getByTestId("progression-chart")).toHaveAttribute(
+        "aria-label",
+        `Estimated 1RM over the last 1 session, ${value} kg to ${value} kg`,
+      );
+    }
   } finally {
     for (const url of cleanup) {
       expect((await request.delete(url)).status()).toBe(204);

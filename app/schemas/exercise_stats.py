@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+OneRepMaxFormula = Literal["epley", "brzycki", "lombardi", "wathen"]
+
 
 class ExerciseSessionPoint(BaseModel):
     """One logged session of an exercise, with the set behind its best estimate."""
