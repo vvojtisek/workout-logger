@@ -7,6 +7,7 @@ import type { ExerciseStatsResponse, OneRepMaxFormula, SessionExercise, WorkoutS
 import { useAppContext } from "@/AppLayout";
 import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import { exerciseStatsFacts } from "@/lib/exercise-stats";
+import type { StatsRange } from "@/lib/exercise-stats";
 import {
   clearSetDraft,
   draftStorageKey,
@@ -70,6 +71,11 @@ function ActiveWorkoutSession({
   const gridRef = useRef<HTMLDivElement>(null);
   const isDesktop = useIsDesktop();
   const [formula, setFormula] = useState<OneRepMaxFormula>("epley");
+  const [historyRange, setHistoryRange] = useState<{
+    range: StatsRange;
+    from?: string;
+    to?: string;
+  }>({ range: "all" });
   const navigate = useNavigate();
 
   const progress = workoutProgress(session);
@@ -79,13 +85,17 @@ function ActiveWorkoutSession({
   // them out and never blocks logging.
   const exerciseNames = [...new Set(session.exercises.map((exercise) => exercise.exercise_name))];
   const statsFormula = isDesktop ? formula : "epley";
+  const { from, to } = isDesktop ? historyRange : {};
   const { data: statsResponse, status: statsStatus } = useQuery({
-    // A swap renames an exercise, and changing the formula recalculates the estimates.
-    queryKey: ["exercise-stats", session.id, statsFormula, ...exerciseNames],
+    queryKey: ["exercise-stats", session.id, statsFormula, from, to, ...exerciseNames],
     queryFn: () => {
       const params = new URLSearchParams();
       for (const name of exerciseNames) params.append("name", name);
       if (statsFormula !== "epley") params.set("formula", statsFormula);
+      if (from && to) {
+        params.set("date_from", from);
+        params.set("date_to", to);
+      }
       return apiFetch<ExerciseStatsResponse>(`/exercise-stats?${params.toString()}`);
     },
     enabled: exerciseNames.length > 0,
@@ -95,6 +105,19 @@ function ActiveWorkoutSession({
   const statsByName = new Map(
     (statsResponse?.items ?? []).map((item) => [item.exercise_name, item])
   );
+
+  function changeHistoryRange(range: StatsRange) {
+    if (range === "all") {
+      setHistoryRange({ range });
+      return;
+    }
+    const now = Date.now();
+    setHistoryRange({
+      range,
+      from: new Date(now - Number(range) * 86_400_000).toISOString(),
+      to: new Date(now).toISOString(),
+    });
+  }
 
   function exerciseStatsLine(exercise: SessionExercise) {
     const facts = exerciseStatsFacts(statsByName.get(exercise.exercise_name));
@@ -366,6 +389,8 @@ function ActiveWorkoutSession({
         statsStatus={statsStatus}
         formula={formula}
         onFormulaChange={setFormula}
+        historyRange={historyRange.range}
+        onHistoryRangeChange={changeHistoryRange}
         gridRef={gridRef}
         feeling={feeling}
         onFeelingChange={setFeeling}

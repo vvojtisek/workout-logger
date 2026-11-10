@@ -1,9 +1,33 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 OneRepMaxFormula = Literal["epley", "brzycki", "lombardi", "wathen"]
+
+
+class ExerciseStatsQuery(BaseModel):
+    name: list[Annotated[str, Field(min_length=1, max_length=150)]] = Field(
+        min_length=1, max_length=50
+    )
+    formula: OneRepMaxFormula = Field(
+        default="epley",
+        description="Epley uses all logged rep counts. Other formulas use 1–10 reps.",
+    )
+    date_from: AwareDatetime | None = Field(default=None, description="Inclusive start timestamp.")
+    date_to: AwareDatetime | None = Field(default=None, description="Exclusive end timestamp.")
+
+    @model_validator(mode="after")
+    def validate_date_range(self) -> "ExerciseStatsQuery":
+        if (self.date_from is None) != (self.date_to is None):
+            raise ValueError("date_from and date_to must be supplied together")
+        if (
+            self.date_from is not None
+            and self.date_to is not None
+            and self.date_from >= self.date_to
+        ):
+            raise ValueError("date_to must be after date_from")
+        return self
 
 
 class ExerciseSessionPoint(BaseModel):

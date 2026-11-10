@@ -8,6 +8,8 @@ import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import { draftStorageKey, saveSetDraft } from "@/lib/active-workout-state";
 import type { SynchronizationState } from "@/lib/active-workout-state";
 import { fetchCatalogueNames } from "@/lib/exercise-catalogue";
+import { STATS_RANGES } from "@/lib/exercise-stats";
+import type { StatsRange } from "@/lib/exercise-stats";
 import { formatDate } from "@/lib/format";
 import { FEELING_SCALE, RIR_HINT } from "@/lib/scales";
 import {
@@ -53,6 +55,8 @@ export interface DesktopWorkoutProps {
   statsStatus: "pending" | "error" | "success";
   formula: OneRepMaxFormula;
   onFormulaChange: (formula: OneRepMaxFormula) => void;
+  historyRange: StatsRange;
+  onHistoryRangeChange: (range: StatsRange) => void;
   gridRef: RefObject<HTMLDivElement | null>;
   feeling: string;
   onFeelingChange: (value: string) => void;
@@ -315,6 +319,8 @@ function ExercisePane({
             status={props.statsStatus}
             formula={props.formula}
             onFormulaChange={props.onFormulaChange}
+            range={props.historyRange}
+            onRangeChange={props.onHistoryRangeChange}
           />
         </div>
       </div>
@@ -345,11 +351,15 @@ function ProgressionCard({
   status,
   formula,
   onFormulaChange,
+  range,
+  onRangeChange,
 }: {
   stats: ExerciseStats | undefined;
   status: DesktopWorkoutProps["statsStatus"];
   formula: OneRepMaxFormula;
   onFormulaChange: (formula: OneRepMaxFormula) => void;
+  range: StatsRange;
+  onRangeChange: (range: StatsRange) => void;
 }) {
   const recent = stats?.recent ?? [];
   const chart = progressionChart(recent, CHART_WIDTH, CHART_HEIGHT);
@@ -361,6 +371,23 @@ function ProgressionCard({
   return (
     <section className="card flex flex-col gap-3 p-4" data-testid="progression-card">
       <h3 className="font-semibold">Progression</h3>
+      <div>
+        <label className="field-label" htmlFor="progression-range">
+          History range
+        </label>
+        <select
+          className="input"
+          id="progression-range"
+          value={range}
+          onChange={(event) => onRangeChange(event.target.value as StatsRange)}
+        >
+          {STATS_RANGES.map((value) => (
+            <option key={value} value={value}>
+              {value === "all" ? "All history" : `Last ${value} days`}
+            </option>
+          ))}
+        </select>
+      </div>
       <div>
         <label className="field-label" htmlFor="progression-formula">
           1RM formula
@@ -427,7 +454,7 @@ function ProgressionCard({
           </div>
         </>
       ) : (
-        <ProgressionEmptyState status={status} formula={formula} />
+        <ProgressionEmptyState status={status} formula={formula} range={range} />
       )}
     </section>
   );
@@ -436,14 +463,17 @@ function ProgressionCard({
 function ProgressionEmptyState({
   status,
   formula,
+  range,
 }: {
   status: DesktopWorkoutProps["statsStatus"];
   formula: OneRepMaxFormula;
+  range: StatsRange;
 }) {
   let message = "No weighted history for this exercise yet.";
   if (status === "pending") message = "Loading progression…";
   else if (status === "error") message = "Progression is unavailable.";
-  else if (formula !== "epley") message = "No recent weighted sets with 1–10 reps.";
+  else if (formula !== "epley") message = "No recent weighted sets with 1–10 reps in this range.";
+  else if (range !== "all") message = "No weighted sets in this range.";
   return <p role="status" className="text-sm text-muted">{message}</p>;
 }
 

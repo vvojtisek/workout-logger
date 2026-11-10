@@ -66,3 +66,26 @@ for sessions with no eligible loaded set. The chart shows the equation and its i
   `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e`,
   and `scripts/assert_empty_e2e_database.py` on the temporary database.
 - Production Compose and security CI remain pending the milestone PR. No schema changes.
+## Cycle 3 — Compare progression within a history range
+
+Desktop progression can isolate the last 30, 90, or 365 days. The filter applies to the
+headline stats and the recent chart so both answer the same question. The exercise stats
+query validates paired timezone-aware endpoints and applies the inclusive start and exclusive
+end in SQL before calculating any stats. Requests without a range retain all history.
+
+- Before the fix, the migrated API regression counted four sessions in a two-session range.
+  The browser reached the existing chart and failed because its history selector was absent.
+- `uv run --no-sync pytest -q tests/test_exercise_stats.py --tb=short --show-capture=no`
+  passed 11 tests, including a non-UTC timestamp range and invalid range cases.
+- `uv run --no-sync --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 702 tests at 82% coverage. The coverage plugin ran through `uv --with` because the
+  workspace environment does not include it by default.
+- `npm run lint`, `npm run typecheck`, `npm run test` (188 tests), `npm run build`, required
+  Ruff rules, Ruff format, mypy (146 source files), and `git diff --check` passed. Informational
+  full Ruff remained at the 151 baseline findings.
+- The full Playwright suite against the migrated localhost application passed 55 tests with
+  three existing viewport-specific skips. The database cleanup assertion found zero records
+  in all nine checked tables.
+- Browser verification recipe. Log a heavier set 120 days ago and a lighter workout today.
+  Open the desktop workout and switch from All history to Last 30 days, then compare the
+  heaviest set and estimate, switch formulas, and restore All history. Playwright ran this flow.
