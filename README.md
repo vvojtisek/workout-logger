@@ -243,6 +243,8 @@ logs with a single weight use that weight for every set. [Reference for the equa
 The desktop history range can show the last 30, 90, or 365 days or all history. For a fixed
 window, pass both timezone-aware `date_from` (inclusive) and `date_to` (exclusive) to the
 exercise stats endpoint. The window applies to both the headline stats and the chart.
+Open an exercise in the catalogue to review the same progression without starting a workout.
+History matches the exercise name case-insensitively.
 
 Invite-only accounts have server-enforced per-account record ownership. See
 [`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,

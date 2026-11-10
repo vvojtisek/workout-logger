@@ -66,6 +66,7 @@ for sessions with no eligible loaded set. The chart shows the equation and its i
   `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e`,
   and `scripts/assert_empty_e2e_database.py` on the temporary database.
 - Production Compose and security CI remain pending the milestone PR. No schema changes.
+
 ## Cycle 3 — Compare progression within a history range
 
 Desktop progression can isolate the last 30, 90, or 365 days. The filter applies to the
@@ -89,3 +90,24 @@ end in SQL before calculating any stats. Requests without a range retain all his
 - Browser verification recipe. Log a heavier set 120 days ago and a lighter workout today.
   Open the desktop workout and switch from All history to Last 30 days, then compare the
   heaviest set and estimate, switch formulas, and restore All history. Playwright ran this flow.
+
+## Cycle 4 — Review completed lifts in the exercise catalogue
+
+Opening a catalogue entry shows its best set, estimated 1RM, and recent history without
+starting a workout. The catalogue and live workout share the progression card and query
+logic, including the range and formula selectors. The catalogue requests completed history
+for the exercise name, using the existing case-insensitive endpoint.
+
+- The new Playwright regression called the real stats endpoint successfully and failed
+  against the baseline because the catalogue had no progression panel.
+- `uv run --no-sync --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 702 tests at 82% coverage. Required Ruff rules, Ruff format, and mypy passed.
+  Informational Ruff stayed at the same 151 findings.
+- `npm run lint`, `npm run typecheck`, `npm run test` (188 tests), `npm run build`, and
+  `git diff --check` passed.
+- Full localhost Playwright passed 56 tests with three existing viewport skips. After
+  adding phone registration and the width assertion, the new test passed on desktop and
+  at 360 px. Both runs verified zero leftover records in the nine checked SQLite tables.
+- Browser verification recipe. Log a completed set, open its catalogue exercise, switch
+  to Last 30 days and Brzycki, and verify the changed estimate and chart. The Playwright
+  test performed those steps and verified that the app created no active workout.
