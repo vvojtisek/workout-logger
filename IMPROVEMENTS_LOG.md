@@ -202,3 +202,25 @@ missing sessions, missing ratings, an open week, or a zero baseline when a ratio
 - Browser verification recipe. Give four preceding weeks rated loads of 40, 80, 120 and
   160 AU, followed by a 180 AU week. Playwright verified the 100 AU baseline and 1.80×
   ratio, then selected an earlier week with insufficient logs and verified the explanation.
+
+## Cycle 9 — Review repetitions at a repeated recorded weight
+
+Past workout details can chart raw repetitions by saved set number for each repeated
+external load. The table keeps the actual reps, recorded RIR, and retention relative to the
+first set at that weight. Explicitly unknown loads stay out of the comparison. Older logs
+with one shared weight still work. The chart labels the reference set and retains gaps in
+saved set numbers when other loads intervene.
+
+- The new frontend test first failed because the retention module was missing. The
+  baseline Playwright run verified saved weights through the API, then failed on the
+  missing History control. Tagged cleanup passed.
+- Full Python coverage run passed 704 tests at 82%. Required Ruff rules, format, mypy,
+  and `git diff --check` passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm run test` (192 tests), and Vite build passed.
+- Full localhost Playwright on fresh migrated SQLite passed 63 tests with three existing
+  viewport skips. After clarifying the saved set label, lint, TypeScript, Vite build and
+  the focused desktop and 360 px phone browser tests passed. Both runs found zero rows
+  in all nine cleanup tables.
+- Browser verification recipe. Log 60 kg for 8 and 6 reps at saved sets 1 and 3, and
+  50 kg for 10 and 12 reps at sets 2 and 4. Playwright verified the 75% and 120% values,
+  the actual set indices, and the absence of a single-load comparison for a 70 kg set.

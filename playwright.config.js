@@ -24,6 +24,7 @@ const MOBILE_SPECS = [
   "history-edit.spec.js",
   "exercise-progression.spec.js",
   "training-load.spec.js",
+  "rep-retention.spec.js",
 ];
 
 export default defineConfig({

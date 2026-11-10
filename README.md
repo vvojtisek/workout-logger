@@ -266,6 +266,11 @@ of its preceding four local weeks. The comparison shows its dates, numerator, an
 Each week needs logged sessions with complete ratings, including preceding weeks outside the
 visible table. Use this ratio to compare recorded workloads. [Methodological analysis](https://pubmed.ncbi.nlm.nih.gov/32502973/).
 
+In a past workout, expand **Rep retention at the same weight** when an exercise has repeated
+recorded loads. Each chart plots reps at the set numbers in workout history. The table shows recorded
+reps, RIR when available, and reps as a percentage of the first set at that load. Explicitly
+missing loads are excluded. Older single-weight records use that weight for each set.
+
 Invite-only accounts have server-enforced per-account record ownership. See
 [`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,
 shared exercise templates, and administrative access rules.
