@@ -16,6 +16,8 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
             json={
                 "name": f"{tag} Split squat",
                 "aliases": [f"{tag} Lunge"],
+                "primary_muscles": ["quads", "glutes", "glutes"],
+                "secondary_muscles": ["hamstrings"],
                 "equipment_load_mode": "pair_db",
                 "is_unilateral": True,
             },
@@ -37,7 +39,7 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
             (
                 "2026-10-18T22:00:00Z",
                 None,
-                [lifted("Lunge", [8, 6], weights=[5, 7.5]), lifted("Push-up", [12])],
+                [lifted("Lunge", [8, 6], weights=[5, 7.5125]), lifted("Push-up", [12])],
             ),
             ("2026-10-21T12:00:00Z", "running", []),
             ("2026-10-25T23:00:00Z", None, [lifted("Row", [8], weight=100)]),
@@ -68,18 +70,24 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                     "gym_sessions": 0,
                     "logged_sets": 0,
                     "volume_kg": 0,
+                    "muscle_volume": [],
                 },
                 {
                     "week_start": "2026-10-12",
                     "gym_sessions": 1,
                     "logged_sets": 1,
                     "volume_kg": 120,
+                    "muscle_volume": [{"muscle": None, "volume_kg": 120}],
                 },
                 {
                     "week_start": "2026-10-19",
                     "gym_sessions": 1,
                     "logged_sets": 3,
-                    "volume_kg": 340,
+                    "volume_kg": 340.3,
+                    "muscle_volume": [
+                        {"muscle": "glutes", "volume_kg": 170.2},
+                        {"muscle": "quads", "volume_kg": 170.1},
+                    ],
                 },
             ],
         }

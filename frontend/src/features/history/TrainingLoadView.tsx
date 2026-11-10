@@ -2,13 +2,66 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiFetch, errorMessage } from "@/api/client";
-import type { TrainingLoadResponse } from "@/api/types";
+import type { TrainingLoadResponse, TrainingLoadWeek } from "@/api/types";
 import { isIsoCalendarDate } from "@/lib/date-time-inputs";
+import { MUSCLE_LABELS } from "@/lib/exercise-catalogue";
 import { formatDate } from "@/lib/format";
 import { PageHeading } from "@/ui";
 
 const WEEK_COUNTS = [4, 8, 12, 26];
 const VOLUME_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+
+function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  const week = weeks.find((entry) => entry.week_start === selectedWeek) ?? weeks.at(-1);
+  if (!week) return null;
+
+  return (
+    <section className="card mt-4 p-4">
+      <h3 className="font-semibold">External volume by primary muscle</h3>
+      <p className="my-2 text-sm text-muted">
+        Volume is divided across each exercise's distinct primary tags. Untagged volume appears
+        under Unclassified.
+      </p>
+      <label className="mb-3 flex flex-col gap-1">
+        <span className="field-label">Muscle breakdown week</span>
+        <select
+          className="input w-fit"
+          value={week.week_start}
+          onChange={(event) => setSelectedWeek(event.target.value)}
+        >
+          {[...weeks].reverse().map((entry) => (
+            <option key={entry.week_start} value={entry.week_start}>
+              {entry.week_start}
+            </option>
+          ))}
+        </select>
+      </label>
+      {week.muscle_volume.length > 0 ? (
+        <table aria-label="External volume by primary muscle" className="w-full text-left text-sm">
+          <thead className="text-muted">
+            <tr>
+              <th scope="col" className="py-2">Muscle</th>
+              <th scope="col" className="py-2 text-right">External volume</th>
+            </tr>
+          </thead>
+          <tbody>
+            {week.muscle_volume.map(({ muscle, volume_kg }) => (
+              <tr key={muscle ?? "unclassified"} className="border-t border-line-muted">
+                <th scope="row" className="py-2 font-medium">
+                  {muscle === null ? "Unclassified" : MUSCLE_LABELS[muscle] ?? muscle}
+                </th>
+                <td className="py-2 text-right" data-numeric>{VOLUME_FORMAT.format(volume_kg)} kg</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p role="status" className="text-sm text-muted">No external volume recorded for this week.</p>
+      )}
+    </section>
+  );
+}
 
 export function TrainingLoadView() {
   const [weekOf, setWeekOf] = useState(() => formatDate(new Date().toISOString()));
@@ -86,6 +139,7 @@ export function TrainingLoadView() {
           </table>
         </div>
       ) : null}
+      {data ? <MuscleVolumeTable weeks={data.weeks} /> : null}
     </section>
   );
 }

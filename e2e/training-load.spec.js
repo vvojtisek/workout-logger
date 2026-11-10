@@ -8,7 +8,19 @@ test("training load reviews recorded gym work by week", async ({ page, request }
   const cleanup = [];
 
   try {
-    for (const performedAt of ["2026-10-18T21:59:59Z", "2026-10-18T22:00:00Z"]) {
+    const exercise = await request.post("/api/v1/exercises", {
+      data: {
+        name: `${tag} Press`,
+        primary_muscles: ["chest", "triceps"],
+        secondary_muscles: ["shoulders"],
+      },
+    });
+    expect(exercise.status()).toBe(201);
+    cleanup.push(`/api/v1/exercises/${(await exercise.json()).id}`);
+    for (const [performedAt, exerciseName] of [
+      ["2026-10-18T21:59:59Z", `${tag} Unknown press`],
+      ["2026-10-18T22:00:00Z", `${tag} Press`],
+    ]) {
       const log = await request.post("/api/v1/logs", {
         data: {
           performed_at: performedAt,
@@ -16,7 +28,7 @@ test("training load reviews recorded gym work by week", async ({ page, request }
           overall_feeling: 3,
           notes: tag,
           exercises: [{
-            exercise_name: `${tag} Press`,
+            exercise_name: exerciseName,
             sets_count: 2,
             weight_per_set: [50, 25],
             reps_per_set: [3, 8],
@@ -42,11 +54,17 @@ test("training load reviews recorded gym work by week", async ({ page, request }
       "1", "2", "350 kg",
     ]);
     await expect(table.getByRole("row")).toHaveCount(5);
+    const breakdown = page.getByRole("table", { name: "External volume by primary muscle" });
+    await expect(breakdown.getByRole("row", { name: /^Chest/ })).toContainText("175 kg");
+    await expect(breakdown.getByRole("row", { name: /^Triceps/ })).toContainText("175 kg");
+    await expect(breakdown.getByRole("row", { name: /^Shoulders/ })).toHaveCount(0);
+    await page.getByLabel("Muscle breakdown week").selectOption("2026-10-12");
+    await expect(breakdown.getByRole("row", { name: /^Unclassified/ })).toContainText("350 kg");
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
       page.viewportSize()?.width,
     );
   } finally {
-    for (const url of cleanup) {
+    for (const url of cleanup.reverse()) {
       expect((await request.delete(url)).status()).toBe(204);
       expect((await request.get(url)).status()).toBe(404);
     }

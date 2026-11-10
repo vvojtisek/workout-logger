@@ -17,7 +17,9 @@ router = APIRouter(prefix="/training-load", tags=["training load"])
     description=(
         "Returns Monday-start weeks in the requested timezone, oldest first. Counts workout "
         "records with exercise sets and uses their logged weights and volume rules. Separate "
-        "activity records are excluded. Weeks without recorded work have zero counts."
+        "activity records are excluded. Weeks without recorded work have zero counts. "
+        "External volume is split equally among distinct primary muscle tags, with any "
+        "rounding tenths assigned in tag order. Null muscle denotes unclassified volume."
     ),
     response_model=TrainingLoadResponse,
 )

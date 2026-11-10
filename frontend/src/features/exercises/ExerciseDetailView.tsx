@@ -3,26 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, MuscleTag } from "@/api/types";
+import { MUSCLE_LABELS } from "@/lib/exercise-catalogue";
 import { ProgressionCard } from "@/features/progression/ProgressionCard";
 import { useExerciseProgression } from "@/features/progression/useExerciseProgression";
 import { describeEquipmentOptions } from "@/lib/equipment";
 import { loadRuleText } from "@/lib/load-rules";
 import { Button, Card, EmptyState, PageHeading } from "@/ui";
-
-const MUSCLE_LABELS: Record<MuscleTag, string> = {
-  chest: "Chest",
-  back: "Back",
-  shoulders: "Shoulders",
-  biceps: "Biceps",
-  triceps: "Triceps",
-  forearms: "Forearms",
-  quads: "Quads",
-  hamstrings: "Hamstrings",
-  glutes: "Glutes",
-  calves: "Calves",
-  core: "Core",
-  full_body: "Full body",
-};
 
 function MuscleBadgeList({ title, muscles }: { title: string; muscles: MuscleTag[] }) {
   if (muscles.length === 0) return null;

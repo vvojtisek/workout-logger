@@ -251,6 +251,10 @@ start Monday in the browser's timezone. Gym sessions are workout records with ex
 and separately logged activities are excluded. Volume follows the same per-set load rules
 as workout history. `GET /api/v1/training-load` accepts a local `week_of` date, `weeks` (1–26),
 and an IANA `timezone` (UTC by default).
+Select a week in the muscle breakdown to allocate that external volume across each exercise's
+current primary muscle tags. Each lift's volume is split evenly and leftover tenths go to tags
+in alphabetical order, so the breakdown sums to the weekly total. Unmatched and untagged lifts
+appear as Unclassified.
 
 Invite-only accounts have server-enforced per-account record ownership. See
 [`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,

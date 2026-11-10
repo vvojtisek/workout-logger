@@ -38,11 +38,17 @@ class TrainingLoadQuery(BaseModel):
         )
 
 
+class MuscleVolume(BaseModel):
+    muscle: str | None
+    volume_kg: float
+
+
 class TrainingLoadWeek(BaseModel):
     week_start: date
     gym_sessions: int = 0
     logged_sets: int = 0
     volume_kg: float = 0
+    muscle_volume: list[MuscleVolume] = Field(default_factory=list)
 
 
 class TrainingLoadResponse(BaseModel):

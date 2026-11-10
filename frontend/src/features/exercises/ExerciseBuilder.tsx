@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, EquipmentTag, MuscleTag } from "@/api/types";
+import { MUSCLE_LABELS } from "@/lib/exercise-catalogue";
 import { MUSCLE_TAGS } from "@/api/types";
 import { MAX_EQUIPMENT_OPTIONS, toggleEquipmentTag } from "@/lib/equipment";
 import { exercisePayloadSchema } from "@/lib/exercise-schema";
@@ -12,21 +13,6 @@ import type { EquipmentLoadMode } from "@/lib/load-rules";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { EquipmentChips } from "@/ui/EquipmentChips";
 import { toast } from "@/ui/Toast";
-
-const MUSCLE_LABELS: Record<MuscleTag, string> = {
-  chest: "Chest",
-  back: "Back",
-  shoulders: "Shoulders",
-  biceps: "Biceps",
-  triceps: "Triceps",
-  forearms: "Forearms",
-  quads: "Quads",
-  hamstrings: "Hamstrings",
-  glutes: "Glutes",
-  calves: "Calves",
-  core: "Core",
-  full_body: "Full body",
-};
 
 function MuscleTagPicker({
   label,

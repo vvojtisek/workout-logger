@@ -105,6 +105,7 @@ export interface TrainingLoadWeek {
   gym_sessions: number;
   logged_sets: number;
   volume_kg: number;
+  muscle_volume: { muscle: MuscleTag | null; volume_kg: number }[];
 }
 
 export interface TrainingLoadResponse {

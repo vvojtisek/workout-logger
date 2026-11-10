@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
@@ -6,8 +7,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import WorkoutLog
-from app.schemas.training_load import TrainingLoadQuery, TrainingLoadResponse, TrainingLoadWeek
-from app.services.volume_rules import apply_to_logs
+from app.schemas.training_load import (
+    MuscleVolume,
+    TrainingLoadQuery,
+    TrainingLoadResponse,
+    TrainingLoadWeek,
+)
+from app.services.volume_rules import apply_to_logs, profile_for
+
+
+def _add_muscle_volume(
+    totals: dict[str | None, int], volume_kg: float, primary_muscles: tuple[str, ...]
+) -> None:
+    if volume_kg <= 0:
+        return
+    muscles: tuple[str | None, ...] = tuple(sorted(set(primary_muscles))) or (None,)
+    # Split whole tenths to preserve the recorded exercise's volume exactly.
+    share, remainder = divmod(round(volume_kg * 10), len(muscles))
+    for index, muscle in enumerate(muscles):
+        totals[muscle] += share + (index < remainder)
 
 
 async def weekly_training_load(
@@ -19,6 +37,7 @@ async def weekly_training_load(
     weeks = [
         TrainingLoadWeek(week_start=first + timedelta(weeks=index)) for index in range(query.weeks)
     ]
+    muscle_volumes: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
     result = await session.scalars(
         select(WorkoutLog)
         .options(selectinload(WorkoutLog.exercises))
@@ -29,17 +48,27 @@ async def weekly_training_load(
         )
     )
     logs = list(result)
-    await apply_to_logs(session, logs)
+    profiles = await apply_to_logs(session, logs)
 
     for log in logs:
         if not log.exercises:
             continue
         local_date = log.performed_at.astimezone(zone).date()
-        week = weeks[(local_date - first).days // 7]
+        index = (local_date - first).days // 7
+        week = weeks[index]
         week.gym_sessions += 1
         week.logged_sets += sum(exercise.sets_count for exercise in log.exercises)
-        week.volume_kg += log.total_volume_kg
+        for exercise in log.exercises:
+            profile = profile_for(profiles, exercise.exercise_name)
+            _add_muscle_volume(muscle_volumes[index], exercise.volume_kg, profile.primary_muscles)
 
-    for week in weeks:
-        week.volume_kg = round(week.volume_kg, 1)
+    for week, muscle_volume in zip(weeks, muscle_volumes, strict=True):
+        week.volume_kg = sum(muscle_volume.values()) / 10
+        week.muscle_volume = [
+            MuscleVolume(muscle=muscle, volume_kg=tenths / 10)
+            for muscle, tenths in sorted(
+                muscle_volume.items(), key=lambda item: (-item[1], item[0] or "unclassified")
+            )
+            if tenths
+        ]
     return TrainingLoadResponse(timezone=query.timezone, weeks=weeks)

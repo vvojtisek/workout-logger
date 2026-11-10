@@ -137,3 +137,26 @@ unilateral volume rules. The desktop and mobile History sections both expose the
 - Browser verification recipe. Log two sets on both sides of a Monday boundary in Prague.
   Select that week in Training load and verify that each session lands in the proper row.
   The Playwright test ran that review and verified 350 kg and two sets per session.
+
+## Cycle 6 — Attribute external volume to primary muscle tags
+
+The Training load view can show a primary-muscle breakdown for any week in its range.
+The service reuses the catalogue resolution used by load rules, including account scope
+and aliases. Each exercise's recorded external volume is split across its distinct primary
+tags. Whole-tenth arithmetic keeps the breakdown reconciled to the weekly total. A remainder
+tenth goes to the first tags in alphabetical order, and untagged volume is Unclassified.
+
+- The migrated API regression first found the expected totals without any muscle breakdown.
+  The baseline browser reached Training load and failed on the absent muscle table. Its
+  tagged database cleanup passed.
+- `uv run --no-sync pytest -q tests/test_training_load.py tests/test_volume.py tests/test_account_data_isolation.py --tb=short --show-capture=no`
+  passed 16 tests. The muscle test verifies a catalogue alias, duplicate tags, secondary tags,
+  unknown exercises and the split of 340.3 kg into 170.2 kg and 170.1 kg.
+- Full Python coverage run passed 703 tests at 83%. Required Ruff rules, format, mypy, and
+  diff checks passed. Full Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm run test` (188 tests), and Vite build passed.
+- Full localhost Playwright against fresh migrated SQLite passed 59 tests with three
+  existing viewport-specific skips. All nine checked tables were empty after cleanup.
+- Browser verification recipe. Review a week containing a press with Chest and Triceps
+  primary tags, then switch the breakdown to a week with an unclassified lift. Playwright
+  verified the split, the unclassified amount, and the viewport width on desktop and phone.
