@@ -9,7 +9,7 @@ const DESKTOP_SECTIONS = {
   "Active Workout": ["New Workout", "Log Activity"],
   "Programs & Plans": ["Plans", "Programs"],
   Calendar: ["Calendar", "Sport schedule"],
-  "Workout History": ["History"],
+  "Workout History": ["History", "Training load"],
   "Exercise Catalogue": ["Exercises", "Locations"],
   "Nutrition & Meals": ["Nutrition"],
   "Body Metrics & Sleep": ["Biometrics", "Sleep"],
@@ -20,7 +20,7 @@ const DESKTOP_SECTIONS = {
 /** @type {Record<string, string[]>} */
 const MOBILE_SECTIONS = {
   Today: ["Today"],
-  History: ["History", "Calendar"],
+  History: ["History", "Calendar", "Training load"],
   Coach: ["Plans", "Programs", "Exercises", "Locations", "Sport schedule"],
   More: ["Nutrition", "Biometrics", "Sleep", "Settings", "Tokens"],
 };

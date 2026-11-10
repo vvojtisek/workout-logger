@@ -269,6 +269,10 @@ export const router = createBrowserRouter([
               })),
           },
           {
+            path: "training-load",
+            lazy: () => import("@/features/history/TrainingLoadView").then((m) => ({ Component: m.TrainingLoadView })),
+          },
+          {
             path: "history",
             handle: FULL_BLEED,
             lazy: masterDetail("/history", "Pick a workout to see what was logged.", () =>

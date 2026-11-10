@@ -23,6 +23,7 @@ const MOBILE_SPECS = [
   "drink-quick-add.spec.js",
   "history-edit.spec.js",
   "exercise-progression.spec.js",
+  "training-load.spec.js",
 ];
 
 export default defineConfig({

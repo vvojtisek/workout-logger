@@ -27,6 +27,7 @@ from app.api.v1 import (
     scheduled_workouts,
     settings,
     sleep_entries,
+    training_load,
     users,
     workout_sessions,
 )
@@ -42,6 +43,7 @@ api_router.include_router(load_events.router)
 api_router.include_router(locations.router)
 api_router.include_router(logs.router)
 api_router.include_router(exercise_stats.router)
+api_router.include_router(training_load.router)
 api_router.include_router(workout_sessions.router)
 api_router.include_router(programs.router)
 api_router.include_router(program_templates.router)

@@ -100,6 +100,18 @@ export interface ExerciseStatsResponse {
 
 export type OneRepMaxFormula = "epley" | "brzycki" | "lombardi" | "wathen";
 
+export interface TrainingLoadWeek {
+  week_start: string;
+  gym_sessions: number;
+  logged_sets: number;
+  volume_kg: number;
+}
+
+export interface TrainingLoadResponse {
+  timezone: string;
+  weeks: TrainingLoadWeek[];
+}
+
 export interface ExerciseLog {
   id: string;
   exercise_name: string;

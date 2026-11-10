@@ -246,6 +246,12 @@ exercise stats endpoint. The window applies to both the headline stats and the c
 Open an exercise in the catalogue to review the same progression without starting a workout.
 History matches the exercise name case-insensitively.
 
+Open **Workout History → Training load** for weekly counts and external-load volume. Weeks
+start Monday in the browser's timezone. Gym sessions are workout records with exercise sets,
+and separately logged activities are excluded. Volume follows the same per-set load rules
+as workout history. `GET /api/v1/training-load` accepts a local `week_of` date, `weeks` (1–26),
+and an IANA `timezone` (UTC by default).
+
 Invite-only accounts have server-enforced per-account record ownership. See
 [`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,
 shared exercise templates, and administrative access rules.

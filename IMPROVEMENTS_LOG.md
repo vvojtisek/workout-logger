@@ -111,3 +111,29 @@ for the exercise name, using the existing case-insensitive endpoint.
 - Browser verification recipe. Log a completed set, open its catalogue exercise, switch
   to Last 30 days and Brzycki, and verify the changed estimate and chart. The Playwright
   test performed those steps and verified that the app created no active workout.
+
+## Cycle 5 — Review weekly logged sets and external volume
+
+Training load groups workout records into Monday-start weeks in the chosen IANA timezone.
+The bounded query accepts up to 26 weeks. It counts gym records with logged sets, excludes
+separately recorded activities, and reuses the existing per-set weight, paired-dumbbell and
+unilateral volume rules. The desktop and mobile History sections both expose the review.
+
+- The migrated API test first failed with HTTP 404 and the baseline browser lacked the
+  Training load link. The first browser RED reached the runner's timeout and lost its
+  cleanup context. Both exact-tag logs were deleted through the API and verified absent.
+  The revised RED uses an assertion timeout and cleaned up automatically.
+- `uv run --no-sync pytest -q tests/test_training_load.py tests/test_account_data_isolation.py --tb=short --show-capture=no`
+  passed five tests, including Prague DST boundaries and owner/other-account volume isolation.
+- `uv run --no-sync --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 703 tests at 82% coverage. Required Ruff rules, Ruff format, mypy (149 source files),
+  and `git diff --check` passed. Full Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm run test` (188 tests), and Vite build passed. The npm
+  audit output still reports the four existing moderate advisories tracked in #184.
+- The first full localhost run hit the invite cap in a reused test database. A repeat with
+  a fresh Alembic-migrated SQLite database and a single bootstrap admin passed 59 Playwright
+  tests with three existing viewport skips. All nine checked SQLite tables had zero rows
+  after cleanup. The new training load table fit both desktop and 360 px phone layouts.
+- Browser verification recipe. Log two sets on both sides of a Monday boundary in Prague.
+  Select that week in Training load and verify that each session lands in the proper row.
+  The Playwright test ran that review and verified 350 kg and two sets per session.
