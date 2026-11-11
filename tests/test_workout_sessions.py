@@ -250,7 +250,8 @@ async def test_save_set_persists_cardio_kind_fields(client, auth_headers):
     assert entry["added_weight_kg"] is None
 
 
-async def test_correct_set_updates_kind_specific_fields(client, auth_headers):
+async def test_correct_set_updates_kind_specific_fields(migrated_client, auth_headers):
+    client, _ = migrated_client
     plan = await create_plan(client, auth_headers)
     session = await start_session(client, auth_headers, plan["id"])
     exercise_id = session["exercises"][0]["id"]
@@ -275,6 +276,25 @@ async def test_correct_set_updates_kind_specific_fields(client, auth_headers):
     )
     assert corrected.status_code == 200
     assert corrected.json()["exercises"][0]["set_entries"][0]["rpe"] == 9
+
+    legacy_correction = await client.put(
+        f"{SESSIONS}/{session['id']}/sets/{entry_id}",
+        json={"weight_kg": 45, "reps": 7, "rir": 2},
+        headers=auth_headers,
+    )
+    assert legacy_correction.status_code == 200
+    entry = legacy_correction.json()["exercises"][0]["set_entries"][0]
+    assert (entry["weight_kg"], entry["reps"], entry["rir"], entry["rpe"]) == (45, 7, 2, 9)
+
+    cleared = await client.put(
+        f"{SESSIONS}/{session['id']}/sets/{entry_id}",
+        json={"weight_kg": 45, "reps": 7, "rir": 2, "rpe": None},
+        headers=auth_headers,
+    )
+    assert cleared.status_code == 200
+    entry = cleared.json()["exercises"][0]["set_entries"][0]
+    assert entry["rpe"] is None
+    assert entry["rir"] == 2
 
 
 async def test_delete_session_removes_it_for_test_data_cleanup(client, auth_headers):

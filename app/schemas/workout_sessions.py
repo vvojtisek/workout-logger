@@ -20,8 +20,8 @@ class SetEntryCreate(BaseModel):
     reps: int = Field(ge=1, le=1000)
     rir: int | None = Field(default=None, ge=0, le=10)
     # Kind-specific fields: bodyweight uses added_weight_kg/band_level, cardio
-    # uses duration_seconds/distance_km/incline_percent, and rpe is a strength
-    # alternative to rir. All optional regardless of the exercise's kind - the
+    # uses duration_seconds/distance_km/incline_percent, and strength can record
+    # RPE alongside RIR. All optional regardless of the exercise's kind - the
     # client only sends what its kind's inputs collected.
     added_weight_kg: float | None = Field(default=None, ge=0)
     band_level: str | None = Field(default=None, max_length=20)
@@ -42,7 +42,9 @@ class SetEntryUpdate(BaseModel):
     duration_seconds: int | None = Field(default=None, ge=0, le=86400)
     distance_km: float | None = Field(default=None, ge=0)
     incline_percent: float | None = Field(default=None, ge=-100, le=100)
-    rpe: int | None = Field(default=None, ge=0, le=10)
+    rpe: int | None = Field(
+        default=None, ge=0, le=10, description="Omit to retain the stored RPE. Null clears it."
+    )
 
 
 class SessionExerciseSwap(BaseModel):

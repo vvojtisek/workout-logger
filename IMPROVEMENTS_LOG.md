@@ -246,3 +246,26 @@ are quoted and prefixed with an apostrophe. [Spreadsheet formula text handling](
 - Browser verification recipe. Choose a four-week range and download the CSV from Training
   load. Playwright read the actual bytes and verified the range filename, one included workout,
   and exclusion of an earlier workout in the ratio lookback on both desktop and phone.
+
+## Cycle 11 — Record RPE and RIR independently in the phone HUD
+
+Strength sets offer inline RIR and RPE controls. The RPE scale accepts every integer from
+0 through 10. Ratings start blank on each new set, and the completion button still records
+the prefilled set in one tap. Cached drafts can include RPE and older drafts still load.
+A correction that omits RPE preserves the stored rating. A phone correction can clear it
+by sending null.
+
+- The migrated API regression initially returned null after a correction omitted the saved
+  RPE of 9. The phone browser regression reached the HUD and failed on the missing RPE control.
+- The first full browser run showed that an immediate reload can interrupt an in-flight
+  IndexedDB draft write. The final test waits for the actual committed draft, then reloads
+  and checks it in the HUD. The targeted run and full rerun passed.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 705 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm test` (192 tests), and Vite build passed.
+- Full localhost Playwright on a fresh migrated SQLite database passed 66 tests with three
+  existing viewport skips. The cleanup check found zero rows in all nine checked tables.
+- Browser verification recipe. On a phone, select RIR 2 and RPE 0, reload after the draft
+  is stored, and complete the set. Playwright verified both ratings and the rest timer,
+  then cleared RPE in the HUD and verified that RIR remained 2 through the real API.

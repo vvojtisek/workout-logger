@@ -46,6 +46,7 @@ export interface SetDraft {
   weight: string;
   reps: string;
   rir: string;
+  rpe?: string;
   added_weight_kg: string;
   band_level: string;
   duration_seconds: string;

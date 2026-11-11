@@ -271,6 +271,10 @@ recorded loads. Each chart plots reps at the set numbers in workout history. The
 reps, RIR when available, and reps as a percentage of the first set at that load. Explicitly
 missing loads are excluded. Older single-weight records use that weight for each set.
 
+In a live strength workout on a phone, tap **RIR** or **RPE** to enter a set rating inline. Each
+rating is optional and recorded independently. Tap a selected rating again to clear it. **Complete
+set & start rest** still saves the prefilled weight and reps in one tap.
+
 **Download training CSV** exports the visible Training load window using the same local-week
 boundaries. The UTF-8 file has one `session` row per workout or activity with duration and
 session RPE, and `set` rows linked by `workout_id` with exercise, weight, reps, and RIR. Blank

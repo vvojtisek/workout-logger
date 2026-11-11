@@ -260,7 +260,8 @@ async def update_set(
     entry.duration_seconds = data.duration_seconds
     entry.distance_km = data.distance_km
     entry.incline_percent = data.incline_percent
-    entry.rpe = data.rpe
+    if "rpe" in data.model_fields_set:
+        entry.rpe = data.rpe
     workout_session.version += 1
     await session.commit()
     return await get_session(session, workout_session.id)

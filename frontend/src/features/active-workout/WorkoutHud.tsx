@@ -35,6 +35,7 @@ import type { FieldSpec, SetValues } from "./SetRow";
 
 const UNDO_WINDOW_MS = 5_000;
 const SWIPE_MIN_PX = 60;
+const RPE_VALUES = Array.from({ length: 11 }, (_, value) => String(value));
 
 /** Stepper increments for each numeric field; RIR uses pills, band is text. */
 const STEPS: Partial<
@@ -87,8 +88,9 @@ function seedDraft(row: HudRow, previous: HudRow | null): SetDraft {
     return {
       weight: (entry.weight_kg ?? "").toString(),
       reps: entry.reps.toString(),
-      // RIR is judged fresh on every set, so it is only kept for a saved one.
+      // Rate each set independently, even when weight and reps repeat.
       rir: row.entry ? (entry.rir ?? "").toString() : "",
+      rpe: row.entry ? (entry.rpe ?? "").toString() : "",
       added_weight_kg: (entry.added_weight_kg ?? "").toString(),
       band_level: entry.band_level ?? "",
       duration_seconds: (entry.duration_seconds ?? "").toString(),
@@ -447,7 +449,7 @@ function RirPills({
               aria-checked={active}
               disabled={disabled}
               onClick={() => onChange(active ? "" : pill.value)}
-              className={`h-10 rounded-full border font-mono text-sm font-semibold ${
+              className={`h-12 rounded-full border font-mono text-sm font-semibold ${
                 active
                   ? "border-warn bg-warn-soft text-warn"
                   : "border-line bg-elevated text-muted"
@@ -461,6 +463,63 @@ function RirPills({
       <p id="rir-hint" className="text-center text-[11px] text-muted">
         {RIR_HINT}
       </p>
+    </div>
+  );
+}
+
+function EffortFields({ draft, disabled, onChange }: {
+  draft: SetDraft;
+  disabled: boolean;
+  onChange: (key: "rir" | "rpe", value: string) => void;
+}) {
+  const [scale, setScale] = useState<"RIR" | "RPE">("RIR");
+  return (
+    <div className="flex flex-col gap-1">
+      <div role="group" aria-label="Effort scale" className="grid grid-cols-2 gap-2">
+        {(["RIR", "RPE"] as const).map((option) => {
+          const rating = option === "RIR" ? draft.rir : draft.rpe;
+          return (
+            <button
+              key={option}
+              type="button"
+              aria-label={option}
+              aria-pressed={scale === option}
+              onClick={() => setScale(option)}
+              className={`btn h-12 ${scale === option ? "btn-secondary" : "btn-ghost"}`}
+            >
+              {option}{rating ? ` · ${rating}` : ""}
+            </button>
+          );
+        })}
+      </div>
+      {scale === "RIR" ? (
+        <RirPills value={draft.rir} disabled={disabled} onChange={(value) => onChange("rir", value)} />
+      ) : (
+        <>
+          <div role="group" aria-label="RPE" className="grid grid-cols-6 gap-1">
+            {RPE_VALUES.map((value) => {
+              const selected = value === draft.rpe;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={selected}
+                  disabled={disabled}
+                  onClick={() => onChange("rpe", selected ? "" : value)}
+                  className={`h-12 rounded-full border font-mono text-sm font-semibold ${
+                    selected
+                      ? "border-warn bg-warn-soft text-warn"
+                      : "border-line bg-elevated text-muted"
+                  }`}
+                >
+                  {value}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-center text-[11px] text-muted">Perceived exertion. Tap again to clear.</p>
+        </>
+      )}
     </div>
   );
 }
@@ -585,7 +644,7 @@ function SetPanel({
     if (!row.entry) void saveSetDraft(activeWorkoutStorage, draftKey, next);
   }
 
-  const values = () => draftToValues(kind, draft);
+  const values = () => draftToValues(kind, { ...draft, rpe: draft.rpe ?? "" });
   const locked = !ready || (row.entry !== null && !editing);
   const resting = Boolean(session.rest_ends_at) && !expired;
   const numberSpecs = specs.filter(
@@ -679,11 +738,7 @@ function SetPanel({
         ))}
       </div>
       {rirSpec ? (
-        <RirPills
-          value={draft.rir}
-          disabled={locked}
-          onChange={(value) => update("rir", value)}
-        />
+        <EffortFields draft={draft} disabled={locked} onChange={update} />
       ) : null}
       {bandSpec ? (
         <label className="flex items-center gap-3 text-sm text-muted">

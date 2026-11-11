@@ -20,6 +20,7 @@ export interface SetValues {
   weight: number | null;
   reps: number;
   rir: number | null;
+  rpe?: number | null;
   added_weight_kg: number | null;
   band_level: string | null;
   duration_seconds: number | null;
@@ -48,7 +49,7 @@ export const ROW_GRID = "grid grid-cols-[3.5rem_6rem_5.5rem_5.5rem_5.5rem_12rem]
 /** The three input cells shown for each exercise kind, in column order. Every
  *  kind gets exactly three, matching the grid's three middle columns. */
 export interface FieldSpec {
-  draftKey: keyof SetDraft;
+  draftKey: Exclude<keyof SetDraft, "rpe">;
   label: string;
   type: "number" | "text";
   inputMode?: "decimal" | "numeric";
@@ -131,6 +132,7 @@ export function draftToValues(kind: ExerciseKind, raw: Partial<SetDraft>): SetVa
     // server-side, so it is sent as a fixed placeholder rather than shown.
     reps: kind === "cardio" ? 1 : Number.parseInt(raw.reps ?? "", 10),
     rir: kind === "strength" && rir ? Number.parseInt(rir, 10) : null,
+    rpe: kind === "strength" && raw.rpe !== undefined ? numericValue(raw.rpe) : undefined,
     added_weight_kg: kind === "bodyweight" ? numericValue(raw.added_weight_kg ?? "") : null,
     band_level: kind === "bodyweight" ? raw.band_level || null : null,
     duration_seconds:
@@ -331,7 +333,7 @@ export function SetRow({
   }
 
   function currentValues(): SetValues {
-    const raw: Partial<SetDraft> = {};
+    const raw: Partial<SetDraft> = row.entry ? {} : { rpe: savedDraft.rpe };
     fieldSpecs.forEach((spec, index) => {
       raw[spec.draftKey] = fieldRefs[index].current?.value ?? "";
     });
