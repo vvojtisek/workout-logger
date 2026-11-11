@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openPage } from "./support/navigation.js";
+import { readWorkoutStorage } from "./support/workout.js";
 
 test("rest timer and an offline set retry recover against the real server", async ({
   context,
@@ -23,7 +24,7 @@ test("rest timer and an offline set retry recover against the real server", asyn
         exercises: [
           {
             exercise_name: `${tag} Deadlift`,
-            target_sets: 3,
+            target_sets: 4,
             target_reps_min: 5,
             target_reps_max: 8,
             target_weight_kg: 60,
@@ -124,49 +125,56 @@ test("rest timer and an offline set retry recover against the real server", asyn
     await page.clock.fastForward(61_000);
     await expect(restOverlay.getByRole("status")).toHaveText("Rest complete");
 
+    await row(3).getByLabel("Repetitions").fill("7");
     await context.setOffline(true);
-    await row(2).getByRole("button", { name: `Complete ${tag} Deadlift set 2` }).click();
+    // Dispatch both real actions in one task so the second queue read cannot
+    // depend on the first async browser write already having finished.
+    await page.evaluate(() => {
+      const complete = document.querySelector('[data-set-number="2"] button[type="submit"]');
+      const skip = document.querySelector('[data-set-number="3"] button[aria-label^="Skip "]');
+      if (!(complete instanceof HTMLButtonElement) || !(skip instanceof HTMLButtonElement)) {
+        throw new Error("Both offline set actions must be present");
+      }
+      complete.click();
+      skip.click();
+    });
     await expect(page.locator("#active-sync-status")).toHaveText("Pending synchronization");
-    // The write queue now lives in IndexedDB (frontend/src/lib/indexeddb-storage.ts),
-    // keyed by "<namespace>:<key>" - "active-workout" is active-workout-storage.ts's
-    // namespace and "workout_logger_active_set_queue" is SET_QUEUE_STORAGE_KEY.
-    const queued = await page.evaluate(
-      () =>
-        new Promise((resolve, reject) => {
-          const openRequest = indexedDB.open("workout-logger-offline", 1);
-          openRequest.onsuccess = () => {
-            const db = openRequest.result;
-            const getRequest = db
-              .transaction("kv", "readonly")
-              .objectStore("kv")
-              .get("active-workout:workout_logger_active_set_queue");
-            getRequest.onsuccess = () => resolve(JSON.parse(getRequest.result || "[]"));
-            getRequest.onerror = () => reject(getRequest.error);
-          };
-          openRequest.onerror = () => reject(openRequest.error);
-        })
-    );
-    expect(queued).toHaveLength(1);
-    const operationId = queued[0].client_operation_id;
+    const queueKey = "workout_logger_active_set_queue";
+    const readQueue = async () => {
+      const value = await readWorkoutStorage(page, queueKey);
+      return typeof value === "string" ? JSON.parse(value) : [];
+    };
+    await expect.poll(async () => (await readQueue()).length).toBe(2);
+    const queued = await readQueue();
+    expect(queued[0].payload.set_number).toBe(2);
+    expect(queued[1].payload.set_number).toBe(3);
 
     await context.setOffline(false);
     await expect(page.locator("#active-sync-status")).toHaveText("Synchronized");
     await expect(row(2)).toHaveAttribute("data-state", "completed");
+    await expect(row(3)).toHaveAttribute("data-state", "skipped");
     const synchronized = await (
       await request.get(`/api/v1/workout-sessions/${sessionId}`)
     ).json();
-    /** @type {Array<{set_number: number, weight_kg: number | null, reps: number, rir: number | null, client_operation_id: string}>} */
+    /** @type {Array<{set_number: number, state: string, weight_kg: number | null, reps: number, rir: number | null, client_operation_id: string}>} */
     const synchronizedEntries = synchronized.exercises[0].set_entries;
-    const setTwoEntries = synchronizedEntries.filter(
-      (entry) => entry.set_number === 2
-    );
-    expect(setTwoEntries).toHaveLength(1);
-    expect(setTwoEntries[0]).toMatchObject({
-      weight_kg: 62.75,
-      reps: 8,
-      rir: 1,
-      client_operation_id: operationId,
-    });
+    expect(synchronizedEntries.filter((entry) => entry.set_number >= 2)).toEqual([
+      expect.objectContaining({
+        set_number: 2,
+        state: "completed",
+        weight_kg: 62.75,
+        reps: 8,
+        rir: 1,
+        client_operation_id: queued[0].client_operation_id,
+      }),
+      expect.objectContaining({
+        set_number: 3,
+        state: "skipped",
+        reps: 7,
+        client_operation_id: queued[1].client_operation_id,
+      }),
+    ]);
+    expect(await readQueue()).toEqual([]);
     expect(synchronized.rest_ends_at).not.toBeNull();
 
     await restOverlay.getByRole("button", { name: "Skip rest" }).click();
@@ -176,13 +184,13 @@ test("rest timer and an offline set retry recover against the real server", asyn
     ).json();
     expect(skippedRest.rest_ends_at).toBeNull();
 
-    await row(3).getByRole("button", { name: `Skip ${tag} Deadlift set 3` }).click();
-    await expect(row(3)).toHaveAttribute("data-state", "skipped");
+    await row(4).getByRole("button", { name: `Skip ${tag} Deadlift set 4` }).click();
+    await expect(row(4)).toHaveAttribute("data-state", "skipped");
     const skippedSet = await (
       await request.get(`/api/v1/workout-sessions/${sessionId}`)
     ).json();
     expect(skippedSet.rest_ends_at).toBeNull();
-    expect(skippedSet.exercises[0].set_entries).toHaveLength(3);
+    expect(skippedSet.exercises[0].set_entries).toHaveLength(4);
   } finally {
     await context.setOffline(false);
     if (!sessionId && planId) {

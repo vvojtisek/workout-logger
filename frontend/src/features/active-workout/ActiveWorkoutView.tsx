@@ -67,6 +67,8 @@ function ActiveWorkoutSession({
   const [queue, setQueue] = useState<SetOperation[]>([]);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const syncInProgress = useRef(false);
+  const syncRequested = useRef(false);
+  const pendingWrites = useRef(new Set<string>());
   const gridRef = useRef<HTMLDivElement>(null);
   const isDesktop = useIsDesktop();
   const navigate = useNavigate();
@@ -96,8 +98,12 @@ function ActiveWorkoutSession({
   // render like the old localStorage version - this keeps a mirror of it in
   // state instead, refreshed after every write.
   const refreshQueue = useCallback(async () => {
-    const all = await getSetQueue(activeWorkoutStorage);
-    setQueue(all.filter((operation) => operation.session_id === session.id));
+    try {
+      const all = await getSetQueue(activeWorkoutStorage);
+      setQueue(all.filter((operation) => operation.session_id === session.id));
+    } catch (error) {
+      setSyncError(errorMessage(error));
+    }
   }, [session.id]);
 
   useEffect(() => {
@@ -105,35 +111,35 @@ function ActiveWorkoutSession({
   }, [refreshQueue]);
 
   const flushSetQueue = useCallback(async () => {
-    if (syncInProgress.current || !navigator.onLine) return;
-    const operations = (await getSetQueue(activeWorkoutStorage)).filter(
-      (operation) => operation.session_id === session.id
-    );
-    if (operations.length === 0) {
-      setSyncError(null);
-      return;
-    }
+    if (!navigator.onLine) return;
+    syncRequested.current = true;
+    if (syncInProgress.current) return;
     syncInProgress.current = true;
     setSyncError(null);
     try {
-      let latest = session;
-      for (const operation of operations) {
-        latest = await apiFetch<WorkoutSession>(
-          `/workout-sessions/${operation.session_id}/sets`,
-          { method: "POST", body: JSON.stringify(operation.payload) }
+      while (syncRequested.current && navigator.onLine) {
+        syncRequested.current = false;
+        const operations = (await getSetQueue(activeWorkoutStorage)).filter(
+          (operation) => operation.session_id === session.id,
         );
-        await removeSetOperation(activeWorkoutStorage, operation.client_operation_id);
-        if (operation.draft_key) await clearSetDraft(activeWorkoutStorage, operation.draft_key);
-        if (operation.payload.state !== "skipped") setRestWasSkipped(false);
+        for (const operation of operations) {
+          const updated = await apiFetch<WorkoutSession>(
+            `/workout-sessions/${operation.session_id}/sets`,
+            { method: "POST", body: JSON.stringify(operation.payload) },
+          );
+          await removeSetOperation(activeWorkoutStorage, operation.client_operation_id);
+          if (operation.draft_key) await clearSetDraft(activeWorkoutStorage, operation.draft_key);
+          if (operation.payload.state !== "skipped") setRestWasSkipped(false);
+          onSessionChange(updated);
+        }
       }
-      onSessionChange(latest);
     } catch (err) {
       setSyncError(errorMessage(err));
     } finally {
       syncInProgress.current = false;
       await refreshQueue();
     }
-  }, [session, onSessionChange, refreshQueue]);
+  }, [session.id, onSessionChange, refreshQueue]);
 
   // Reconnecting must drain anything queued while the network was gone.
   useEffect(() => {
@@ -161,31 +167,40 @@ function ActiveWorkoutSession({
 
   const persistSet = useCallback(
     async (row: GridRow, values: SetValues, state: "completed" | "skipped") => {
-      const operationId = crypto.randomUUID();
       const draftKey = draftStorageKey(session.id, row.exercise.id, row.setNumber);
-      await enqueueSetOperation(activeWorkoutStorage, {
-        client_operation_id: operationId,
-        session_id: session.id,
-        draft_key: draftKey,
-        payload: {
-          session_exercise_id: row.exercise.id,
-          set_number: row.setNumber,
-          weight_kg: values.weight,
-          reps: values.reps,
-          rir: values.rir,
-          rpe: values.rpe,
-          added_weight_kg: values.added_weight_kg,
-          band_level: values.band_level,
-          duration_seconds: values.duration_seconds,
-          distance_km: values.distance_km,
-          incline_percent: values.incline_percent,
-          state,
+      if (pendingWrites.current.has(draftKey)) return;
+      pendingWrites.current.add(draftKey);
+      try {
+        const operationId = crypto.randomUUID();
+        await enqueueSetOperation(activeWorkoutStorage, {
           client_operation_id: operationId,
-        },
-      });
-      setSyncError(null);
-      await refreshQueue();
-      await flushSetQueue();
+          session_id: session.id,
+          draft_key: draftKey,
+          payload: {
+            session_exercise_id: row.exercise.id,
+            set_number: row.setNumber,
+            weight_kg: values.weight,
+            reps: values.reps,
+            rir: values.rir,
+            rpe: values.rpe,
+            added_weight_kg: values.added_weight_kg,
+            band_level: values.band_level,
+            duration_seconds: values.duration_seconds,
+            distance_km: values.distance_km,
+            incline_percent: values.incline_percent,
+            state,
+            client_operation_id: operationId,
+          },
+        });
+        setSyncError(null);
+        await refreshQueue();
+        await flushSetQueue();
+      } catch (error) {
+        setSyncError(errorMessage(error));
+        toast.error("This device could not save the set. Try logging it again.");
+      } finally {
+        pendingWrites.current.delete(draftKey);
+      }
     },
     [session.id, flushSetQueue, refreshQueue]
   );

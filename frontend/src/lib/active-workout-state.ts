@@ -7,6 +7,10 @@ export interface AsyncStorageLike {
   getItem: (key: string) => Promise<string | null>;
   setItem: (key: string, value: string) => Promise<void>;
   removeItem: (key: string) => Promise<void>;
+  updateItem: <T>(
+    key: string,
+    update: (stored: string | null) => { value: string; result: T },
+  ) => Promise<T>;
 }
 
 export interface RestTimerState {
@@ -103,41 +107,42 @@ export interface SetOperation {
   payload: SetOperationPayload;
 }
 
+function decodeSetQueue(raw: string | null): SetOperation[] {
+  const value: unknown = JSON.parse(raw ?? "[]");
+  if (!Array.isArray(value)) throw new Error("The saved set queue is unreadable.");
+  return value as SetOperation[];
+}
+
 export async function getSetQueue(storage: AsyncStorageLike): Promise<SetOperation[]> {
-  try {
-    const raw = await storage.getItem(SET_QUEUE_STORAGE_KEY);
-    const value: unknown = JSON.parse(raw || "[]");
-    return Array.isArray(value) ? (value as SetOperation[]) : [];
-  } catch {
-    return [];
-  }
+  return decodeSetQueue(await storage.getItem(SET_QUEUE_STORAGE_KEY));
 }
 
 export async function enqueueSetOperation(
   storage: AsyncStorageLike,
   operation: SetOperation
 ): Promise<SetOperation> {
-  const queue = await getSetQueue(storage);
-  const existing = queue.find(
-    (item) =>
-      item.session_id === operation.session_id &&
-      item.payload.session_exercise_id === operation.payload.session_exercise_id &&
-      item.payload.set_number === operation.payload.set_number
-  );
-  if (existing) return existing;
-  queue.push(operation);
-  await storage.setItem(SET_QUEUE_STORAGE_KEY, JSON.stringify(queue));
-  return operation;
+  return storage.updateItem(SET_QUEUE_STORAGE_KEY, (stored) => {
+    const queue = decodeSetQueue(stored);
+    const existing = queue.find(
+      (item) =>
+        item.session_id === operation.session_id &&
+        item.payload.session_exercise_id === operation.payload.session_exercise_id &&
+        item.payload.set_number === operation.payload.set_number,
+    );
+    if (existing) return { value: JSON.stringify(queue), result: existing };
+    queue.push(operation);
+    return { value: JSON.stringify(queue), result: operation };
+  });
 }
 
 export async function removeSetOperation(
   storage: AsyncStorageLike,
   operationId: string
 ): Promise<void> {
-  const queue = (await getSetQueue(storage)).filter(
-    (item) => item.client_operation_id !== operationId
-  );
-  await storage.setItem(SET_QUEUE_STORAGE_KEY, JSON.stringify(queue));
+  await storage.updateItem(SET_QUEUE_STORAGE_KEY, (stored) => {
+    const queue = decodeSetQueue(stored).filter((item) => item.client_operation_id !== operationId);
+    return { value: JSON.stringify(queue), result: undefined };
+  });
 }
 
 export interface SynchronizationState {

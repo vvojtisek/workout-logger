@@ -297,3 +297,25 @@ can send aligned `rpe_per_set` values. Explicit null clears the field.
 - Browser verification recipe. Open a completed workout with RPE 0 and 9, add a set,
   and remove the first set. Playwright verified the displayed and stored order, then
   separately verified the exported set rating in the downloaded CSV on desktop and phone.
+
+## Cycle 13 — Commit offline set queue changes atomically
+
+Set enqueues and removals now read and update the IndexedDB queue in one transaction. The UI
+acknowledges queued actions after the transaction commits. Synchronization drains in order and
+checks again if another set was logged during a replay. Local write failures leave the set
+available to retry and surface an error. An unreadable queue stays available for recovery.
+
+- The baseline browser ran two set actions in one task while offline. Only one operation
+  remained in IndexedDB. The updated test saw both operations after their commits, then
+  verified each operation ID and value through the real server after reconnection.
+- The browser also verified that a standalone skip leaves rest inactive. A frontend test
+  verified that an unreadable queue is preserved when a new action is attempted.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 706 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm test` (193 tests), and Vite build passed.
+- Full localhost Playwright on fresh migrated SQLite passed 66 tests with three existing
+  viewport skips. The cleanup check found zero rows in all nine checked tables.
+- Browser verification recipe. Disconnect while a workout is active, complete one set
+  and skip another in quick succession, then reconnect. Playwright verified the two
+  distinct operations, one server entry per set, and an empty local queue after replay.
