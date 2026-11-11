@@ -280,7 +280,9 @@ API clients replacing `exercises` can send a `rpe_per_set` list aligned with the
 `null` to clear it. Omitting the field keeps ratings when the ordered exercise names, repetitions,
 weights, and RIR values still match the stored log.
 During a connection interruption, completed and skipped sets remain queued in browser storage.
-Reconnecting sends the queued actions in order.
+The phone advances after each set is saved on the device, and its rest timer can be adjusted or
+skipped before reconnecting. Reconnecting sends the queued actions in order with their original
+capture times. Finish the workout after its queued sets synchronize.
 
 **Download training CSV** exports the visible Training load window using the same local-week
 boundaries. The UTF-8 file has one `session` row per workout or activity with duration and

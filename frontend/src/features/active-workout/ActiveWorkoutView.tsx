@@ -8,6 +8,7 @@ import { useExerciseProgression } from "@/features/progression/useExerciseProgre
 import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import { exerciseStatsFacts } from "@/lib/exercise-stats";
 import {
+  adjustQueuedSetRest,
   clearSetDraft,
   draftStorageKey,
   enqueueSetOperation,
@@ -23,7 +24,7 @@ import { toast } from "@/ui/Toast";
 import { DesktopWorkout } from "./DesktopWorkout";
 import type { SetValues } from "./SetRow";
 import { useIsDesktop } from "@/lib/use-media-query";
-import { hudIndex, performanceOrder } from "@/lib/workout-hud";
+import { hudIndex, performanceOrder, projectQueuedSets } from "@/lib/workout-hud";
 import { WorkoutHud } from "./WorkoutHud";
 
 export function ActiveWorkoutView() {
@@ -64,7 +65,9 @@ function ActiveWorkoutSession({
   const [feeling, setFeeling] = useState("3");
   const [restWasSkipped, setRestWasSkipped] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [replayOffline, setReplayOffline] = useState(false);
   const [queue, setQueue] = useState<SetOperation[]>([]);
+  const [localFocus, setLocalFocus] = useState<{ exerciseId: string; setNumber: number } | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const syncInProgress = useRef(false);
   const syncRequested = useRef(false);
@@ -73,7 +76,14 @@ function ActiveWorkoutSession({
   const isDesktop = useIsDesktop();
   const navigate = useNavigate();
 
-  const progress = workoutProgress(session);
+  const showQueuedSets = !isDesktop && (!online || replayOffline || queue.some((item) => item.captured_offline));
+  const projected = showQueuedSets ? projectQueuedSets(session, queue) : { session, rest: null };
+  const displaySession = showQueuedSets && localFocus ? {
+    ...projected.session,
+    focused_exercise_id: localFocus.exerciseId,
+    focused_set_number: localFocus.setNumber,
+  } : projected.session;
+  const progress = workoutProgress(displaySession);
   const sync = synchronizationState(queue, online, syncError);
 
   // History stats are a read-only aid: a failed or offline fetch just leaves
@@ -131,9 +141,11 @@ function ActiveWorkoutSession({
           if (operation.draft_key) await clearSetDraft(activeWorkoutStorage, operation.draft_key);
           if (operation.payload.state !== "skipped") setRestWasSkipped(false);
           onSessionChange(updated);
+          setReplayOffline(false);
         }
       }
     } catch (err) {
+      if (err instanceof TypeError) setReplayOffline(true);
       setSyncError(errorMessage(err));
     } finally {
       syncInProgress.current = false;
@@ -176,6 +188,7 @@ function ActiveWorkoutSession({
           client_operation_id: operationId,
           session_id: session.id,
           draft_key: draftKey,
+          captured_offline: !navigator.onLine || replayOffline,
           payload: {
             session_exercise_id: row.exercise.id,
             set_number: row.setNumber,
@@ -190,8 +203,11 @@ function ActiveWorkoutSession({
             incline_percent: values.incline_percent,
             state,
             client_operation_id: operationId,
+            client_completed_at: new Date().toISOString(),
           },
         });
+        setLocalFocus(null);
+        if (state === "completed") setRestWasSkipped(false);
         setSyncError(null);
         await refreshQueue();
         await flushSetQueue();
@@ -202,7 +218,7 @@ function ActiveWorkoutSession({
         pendingWrites.current.delete(draftKey);
       }
     },
-    [session.id, flushSetQueue, refreshQueue]
+    [session.id, flushSetQueue, refreshQueue, replayOffline]
   );
 
   const correctSet = useCallback(
@@ -258,6 +274,10 @@ function ActiveWorkoutSession({
 
   const focusSet = useCallback(
     async (row: GridRow) => {
+      if (showQueuedSets) {
+        setLocalFocus({ exerciseId: row.exercise.id, setNumber: row.setNumber });
+        return;
+      }
       try {
         const updated = await apiFetch<WorkoutSession>(`/workout-sessions/${session.id}/focus`, {
           method: "PATCH",
@@ -271,12 +291,24 @@ function ActiveWorkoutSession({
         toast.error(`Failed to focus set: ${errorMessage(err)}`);
       }
     },
-    [session.id, onSessionChange]
+    [session.id, onSessionChange, showQueuedSets]
   );
 
   const updateRest = useCallback(
     async (data: { adjustment_seconds?: number; skip?: boolean }) => {
       try {
+        if (projected.rest) {
+          if (syncInProgress.current) return;
+          const updated = await adjustQueuedSetRest(
+            activeWorkoutStorage,
+            projected.rest.operationId,
+            projected.rest.defaultSeconds,
+            data.skip ? null : data.adjustment_seconds ?? 0,
+          );
+          if (updated) setRestWasSkipped(data.skip === true);
+          await refreshQueue();
+          return;
+        }
         const updated = await apiFetch<WorkoutSession>(`/workout-sessions/${session.id}/rest`, {
           method: "PATCH",
           body: JSON.stringify({ ...data, expected_version: session.version }),
@@ -287,11 +319,16 @@ function ActiveWorkoutSession({
         toast.error(`Failed to update rest timer: ${errorMessage(err)}`);
       }
     },
-    [session.id, session.version, onSessionChange]
+    [session.id, session.version, onSessionChange, projected.rest, refreshQueue]
   );
 
   async function completeWorkout() {
     try {
+      const pending = await getSetQueue(activeWorkoutStorage);
+      if (pendingWrites.current.size || pending.some((operation) => operation.session_id === session.id)) {
+        toast.error("Synchronize queued sets before finishing.");
+        return;
+      }
       await apiFetch(`/workout-sessions/${session.id}/complete`, {
         method: "POST",
         body: JSON.stringify({ overall_feeling: Number.parseInt(feeling, 10) }),
@@ -303,6 +340,10 @@ function ActiveWorkoutSession({
   }
 
   function finishWorkout() {
+    if (queue.length || pendingWrites.current.size) {
+      toast.error("Synchronize queued sets before finishing.");
+      return;
+    }
     if (progress.done < progress.total) {
       setConfirmFinish(true);
       return;
@@ -323,17 +364,19 @@ function ActiveWorkoutSession({
   );
 
   if (!isDesktop) {
-    const hudRows = performanceOrder(session);
-    const shown = hudRows[hudIndex(session, hudRows)];
+    const hudRows = performanceOrder(displaySession);
+    const hudPosition = hudIndex(displaySession, hudRows);
+    const shown = hudRows[hudPosition];
     return (
       <>
         <WorkoutHud
-          session={session}
+          session={displaySession}
           rows={hudRows}
-          index={hudIndex(session, hudRows)}
+          index={hudPosition}
           progress={progress}
           sync={sync}
           restWasSkipped={restWasSkipped}
+          restControlsDisabled={Boolean(projected.rest && online && (!replayOffline || syncInProgress.current))}
           stats={statsByName}
           statsLine={shown ? exerciseStatsLine(shown.exercise as SessionExercise) : null}
           feeling={feeling}

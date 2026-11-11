@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.schemas.common import OrmModel
+from app.schemas.common import OrmModel, require_timezone_aware_utc
 from app.services.volume import LoadMode as EquipmentLoadMode
 
 
@@ -31,6 +31,25 @@ class SetEntryCreate(BaseModel):
     rpe: int | None = Field(default=None, ge=0, le=10)
     state: Literal["completed", "skipped"] = "completed"
     client_operation_id: str = Field(min_length=1, max_length=100)
+    client_completed_at: datetime | None = Field(
+        default=None, description="When a queued set was captured, with a UTC offset."
+    )
+    client_rest_seconds: int | None = Field(
+        default=None, ge=0, le=3600, description="Adjusted rest for a queued set. Zero skips rest."
+    )
+
+    @field_validator("client_completed_at")
+    @classmethod
+    def client_time_requires_timezone(cls, value: datetime | None) -> datetime | None:
+        return require_timezone_aware_utc(value) if value is not None else None
+
+    @model_validator(mode="after")
+    def rest_override_requires_queued_completion(self) -> "SetEntryCreate":
+        if self.client_rest_seconds is not None and (
+            self.client_completed_at is None or self.state != "completed"
+        ):
+            raise ValueError("client_rest_seconds requires a timed completed set")
+        return self
 
 
 class SetEntryUpdate(BaseModel):

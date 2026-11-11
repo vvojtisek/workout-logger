@@ -319,3 +319,31 @@ available to retry and surface an error. An unreadable queue stays available for
 - Browser verification recipe. Disconnect while a workout is active, complete one set
   and skip another in quick succession, then reconnect. Playwright verified the two
   distinct operations, one server entry per set, and an empty local queue after replay.
+
+## Cycle 14 — Advance the phone workout and run rest offline
+
+The phone HUD advances after IndexedDB commits a set. It prefills the next set from the
+local entry, distinguishes pending entries, and locks server corrections until replay.
+The athlete can navigate the sets and adjust or skip the pending set's rest without a
+network request. Finishing waits for queued sets to synchronize.
+
+The set API accepts a capture timestamp and an optional adjusted rest duration for queued
+completions. It bounds the timestamp by workout start and server receipt. Replay keeps the
+original rest deadline, and a late replay preserves the timer from a newer completed set.
+Requests without capture metadata retain server-time logging.
+
+- The original phone HUD stayed on set 1 after the offline completion. API regressions
+  reproduced discarded capture time and a late replay overwriting a newer rest deadline.
+- The two focused migrated API tests passed for original timestamps, offline skip, future
+  clock bounds, and a newer timer preserved after a late replay. Focused phone tests passed.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 708 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm test` (193 tests), and Vite build passed.
+- Full localhost Playwright on fresh migrated SQLite passed 67 tests with four
+  viewport skips, including the new phone-only scenario. The cleanup check found zero rows
+  in all nine checked tables.
+- Browser verification recipe. Disconnect, complete a set, add 15 seconds, skip rest, and
+  complete the next set. Playwright verified local focus and timer controls, the finish
+  guard, zero server focus or rest requests while offline, and both original operation IDs
+  and the last capture deadline after reconnection.

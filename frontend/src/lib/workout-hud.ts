@@ -4,6 +4,8 @@ import {
   groupSessionExercises,
 } from "./workout-utils";
 import type { GridRow, GridSession } from "./workout-utils";
+import type { WorkoutSession } from "@/api/types";
+import type { SetOperation } from "./active-workout-state";
 
 /** A set in the order it is performed, with the superset badge it shows. */
 export interface HudRow extends GridRow {
@@ -51,6 +53,75 @@ export function hudIndex(session: GridSession, rows: HudRow[]): number {
   const pending = rows.findIndex((row) => row.entry === null);
   if (pending >= 0) return pending;
   return rows.length - 1;
+}
+
+export interface QueuedRest {
+  operationId: string;
+  defaultSeconds: number;
+}
+
+/** Applies only locally committed entries the server snapshot has not seen. */
+export function projectQueuedSets(
+  session: WorkoutSession,
+  queue: SetOperation[],
+): { session: WorkoutSession; rest: QueuedRest | null } {
+  if (queue.length === 0) return { session, rest: null };
+  const projected = {
+    ...session,
+    exercises: session.exercises.map((exercise) => ({ ...exercise, set_entries: [...exercise.set_entries] })),
+  };
+  let rest: QueuedRest | null = null;
+  let restStarted = session.exercises.flatMap((exercise) => exercise.set_entries)
+    .reduce((latest, entry) => {
+      const time = entry.state === "completed" && entry.completed_at ? Date.parse(entry.completed_at) : NaN;
+      return Number.isFinite(time) ? Math.max(latest, time) : latest;
+    }, -Infinity);
+  const sessionStarted = Date.parse(session.started_at);
+  let changed = false;
+  for (const operation of queue) {
+    const set = operation.payload;
+    const exercise = projected.exercises.find((item) => item.id === set.session_exercise_id);
+    if (!exercise || set.set_number < 1 || set.set_number > exercise.target_sets ||
+        exercise.set_entries.some((entry) => entry.set_number === set.set_number)) continue;
+
+    const state = set.state ?? "completed";
+    exercise.set_entries.push({
+      id: operation.client_operation_id,
+      set_number: set.set_number,
+      weight_kg: set.weight_kg,
+      reps: set.reps,
+      rir: set.rir,
+      rpe: set.rpe ?? null,
+      added_weight_kg: set.added_weight_kg ?? null,
+      band_level: set.band_level ?? null,
+      duration_seconds: set.duration_seconds ?? null,
+      distance_km: set.distance_km ?? null,
+      incline_percent: set.incline_percent ?? null,
+      state,
+      pending: true,
+    });
+    changed = true;
+
+    if (state === "completed" && set.client_completed_at) {
+      const started = Math.max(sessionStarted, Date.parse(set.client_completed_at));
+      if (!Number.isFinite(started) || started < restStarted) continue;
+      restStarted = started;
+      const seconds = set.client_rest_seconds ?? exercise.rest_time_seconds;
+      projected.rest_ends_at = set.client_rest_seconds === 0
+        ? null
+        : new Date(started + seconds * 1000).toISOString();
+      rest = { operationId: operation.client_operation_id, defaultSeconds: exercise.rest_time_seconds };
+    }
+  }
+  if (!changed) return { session, rest: null };
+
+  const rows = performanceOrder(projected);
+  const next = rows.find((row) => row.entry === null) ?? rows.at(-1);
+  if (next) {
+    projected.focused_exercise_id = next.exercise.id;
+    projected.focused_set_number = next.setNumber;
+  }
+  return { session: projected, rest };
 }
 
 /** "EXERCISE X OF Y" counts distinct exercises in performance order. */

@@ -98,12 +98,15 @@ export interface SetOperationPayload {
   rpe?: number | null;
   state?: string;
   client_operation_id?: string;
+  client_completed_at?: string;
+  client_rest_seconds?: number;
 }
 
 export interface SetOperation {
   client_operation_id: string;
   session_id: string;
   draft_key?: string;
+  captured_offline?: boolean;
   payload: SetOperationPayload;
 }
 
@@ -142,6 +145,24 @@ export async function removeSetOperation(
   await storage.updateItem(SET_QUEUE_STORAGE_KEY, (stored) => {
     const queue = decodeSetQueue(stored).filter((item) => item.client_operation_id !== operationId);
     return { value: JSON.stringify(queue), result: undefined };
+  });
+}
+
+export async function adjustQueuedSetRest(
+  storage: AsyncStorageLike,
+  operationId: string,
+  defaultSeconds: number,
+  adjustmentSeconds: number | null,
+): Promise<boolean> {
+  return storage.updateItem(SET_QUEUE_STORAGE_KEY, (stored) => {
+    const queue = decodeSetQueue(stored);
+    const operation = queue.find((item) => item.client_operation_id === operationId);
+    if (!operation) return { value: stored ?? "[]", result: false };
+    const current = operation.payload.client_rest_seconds ?? defaultSeconds;
+    operation.payload.client_rest_seconds = adjustmentSeconds === null
+      ? 0
+      : Math.max(0, Math.min(3600, current + adjustmentSeconds));
+    return { value: JSON.stringify(queue), result: true };
   });
 }
 

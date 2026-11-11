@@ -125,6 +125,7 @@ export interface WorkoutHudProps {
   progress: { done: number; total: number; percent: number };
   sync: SynchronizationState;
   restWasSkipped: boolean;
+  restControlsDisabled: boolean;
   stats: Map<string, ExerciseStats>;
   statsLine: ReactNode;
   feeling: string;
@@ -179,7 +180,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
       .at(-1) ?? null;
   const allLogged = rows.every((candidate) => candidate.entry !== null);
   const prev = previousSet(rows, index);
-  const next = nextExercise(rows, index);
+  const next = nextExercise(rows, index) ?? rows[index + 1] ?? null;
 
   function onTouchStart(event: TouchEvent) {
     const touch = event.touches[0];
@@ -346,7 +347,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
           onClick={() => next && props.onFocus(next)}
           className="btn btn-ghost h-11"
         >
-          Next Exercise →
+          {next?.exercise.id === row.exercise.id ? "Next Set →" : "Next Exercise →"}
         </button>
       </footer>
     </section>
@@ -526,10 +527,12 @@ function EffortFields({ draft, disabled, onChange }: {
 
 function RestBar({
   restEndsAt,
+  disabled,
   onAdjust,
   onSkip,
 }: {
   restEndsAt: string;
+  disabled: boolean;
   onAdjust: (seconds: number) => void;
   onSkip: () => void;
 }) {
@@ -552,6 +555,7 @@ function RestBar({
         type="button"
         id="subtract-rest-time"
         aria-label="−15 seconds"
+        disabled={disabled}
         onClick={() => onAdjust(-15)}
         className="btn btn-secondary h-10 shrink-0 px-2 font-mono text-xs"
       >
@@ -561,6 +565,7 @@ function RestBar({
         type="button"
         id="add-rest-time"
         aria-label="+15 seconds"
+        disabled={disabled}
         onClick={() => onAdjust(15)}
         className="btn btn-secondary h-10 shrink-0 px-2 font-mono text-xs"
       >
@@ -569,6 +574,7 @@ function RestBar({
       <button
         type="button"
         id="skip-rest"
+        disabled={disabled}
         onClick={onSkip}
         className="btn btn-primary h-10 shrink-0 px-2 text-xs whitespace-nowrap"
       >
@@ -586,6 +592,7 @@ function SetPanel({
   allLogged,
   session,
   restWasSkipped,
+  restControlsDisabled,
   feeling,
   onFeelingChange,
   onComplete,
@@ -612,7 +619,7 @@ function SetPanel({
   // An unsaved set resumes from its local draft (IndexedDB is async).
   useEffect(() => {
     if (row.entry) {
-      void clearSetDraft(activeWorkoutStorage, draftKey);
+      if (!row.entry.pending) void clearSetDraft(activeWorkoutStorage, draftKey);
       return;
     }
     let cancelled = false;
@@ -654,7 +661,13 @@ function SetPanel({
   const bandSpec = specs.find((spec) => spec.draftKey === "band_level");
 
   let action: ReactNode;
-  if (row.entry && !editing) {
+  if (row.entry?.pending) {
+    action = (
+      <p className="flex h-[54px] items-center text-sm font-semibold text-warn">
+        {row.state === "skipped" ? "Skip saved on this device" : "Set saved on this device"}
+      </p>
+    );
+  } else if (row.entry && !editing) {
     action = (
       <div className="flex h-[54px] items-center gap-2">
         <span
@@ -698,6 +711,7 @@ function SetPanel({
     action = (
       <RestBar
         restEndsAt={session.rest_ends_at}
+        disabled={restControlsDisabled}
         onAdjust={onAdjustRest}
         onSkip={onSkipRest}
       />
@@ -759,6 +773,7 @@ function SetPanel({
           {resting && session.rest_ends_at ? (
             <RestBar
               restEndsAt={session.rest_ends_at}
+              disabled={restControlsDisabled}
               onAdjust={onAdjustRest}
               onSkip={onSkipRest}
             />

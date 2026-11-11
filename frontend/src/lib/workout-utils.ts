@@ -17,6 +17,7 @@ export interface SetEntry {
   state: string;
   completed_at?: string;
   client_operation_id?: string;
+  pending?: boolean;
 }
 
 export interface GridExercise {

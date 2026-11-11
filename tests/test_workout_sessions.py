@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 SESSIONS = "/api/v1/workout-sessions"
@@ -188,6 +188,90 @@ async def test_complete_session_creates_existing_history_summary(migrated_client
     assert history_body["exercises"][0]["rir_per_set"] == [2]
     assert history_body["exercises"][0]["rpe_per_set"] == [0]
     assert history_body["effort_rpe"] is None
+
+
+async def test_queued_set_replay_keeps_its_capture_time_and_rest(migrated_client, auth_headers):
+    client, _ = migrated_client
+    plan = await create_plan(client, auth_headers)
+    session = await start_session(client, auth_headers, plan["id"])
+    url = f"{SESSIONS}/{session['id']}/sets"
+    payload = {
+        "session_exercise_id": session["exercises"][0]["id"],
+        "set_number": 1,
+        "weight_kg": 42.5,
+        "reps": 8,
+        "client_operation_id": "test-run-offline-rest-1",
+        "client_completed_at": session["started_at"],
+    }
+
+    replayed = await client.post(url, json=payload, headers=auth_headers)
+    assert replayed.status_code == 201
+    body = replayed.json()
+    started_at = datetime.fromisoformat(session["started_at"])
+    assert (
+        datetime.fromisoformat(body["exercises"][0]["set_entries"][0]["completed_at"]) == started_at
+    )
+    assert datetime.fromisoformat(body["rest_ends_at"]) == started_at + timedelta(seconds=90)
+
+    skipped_rest = await client.post(
+        url,
+        json={
+            **payload,
+            "set_number": 2,
+            "client_operation_id": "test-run-offline-rest-2",
+            "client_rest_seconds": 0,
+        },
+        headers=auth_headers,
+    )
+    assert skipped_rest.status_code == 201
+    assert skipped_rest.json()["rest_ends_at"] is None
+
+    sent_at = datetime.now(UTC)
+    future = await client.post(
+        url,
+        json={
+            **payload,
+            "set_number": 3,
+            "client_operation_id": "test-run-offline-rest-3",
+            "client_completed_at": (sent_at + timedelta(hours=1)).isoformat(),
+            "client_rest_seconds": 15,
+        },
+        headers=auth_headers,
+    )
+    assert future.status_code == 201
+    body = future.json()
+    completed_at = datetime.fromisoformat(body["exercises"][0]["set_entries"][2]["completed_at"])
+    assert sent_at <= completed_at <= datetime.now(UTC)
+    assert datetime.fromisoformat(body["rest_ends_at"]) == completed_at + timedelta(seconds=15)
+
+
+async def test_older_queued_completion_preserves_newer_rest(migrated_client, auth_headers):
+    client, _ = migrated_client
+    plan = await create_plan(client, auth_headers)
+    session = await start_session(client, auth_headers, plan["id"])
+    url = f"{SESSIONS}/{session['id']}/sets"
+    payload = {"session_exercise_id": session["exercises"][0]["id"], "reps": 8}
+    latest = await client.post(
+        url,
+        json={**payload, "set_number": 2, "client_operation_id": "newer-rest-2"},
+        headers=auth_headers,
+    )
+    assert latest.status_code == 201
+    deadline = latest.json()["rest_ends_at"]
+
+    earlier = await client.post(
+        url,
+        json={
+            **payload,
+            "set_number": 1,
+            "client_operation_id": "earlier-rest-1",
+            "client_completed_at": session["started_at"],
+            "client_rest_seconds": 0,
+        },
+        headers=auth_headers,
+    )
+    assert earlier.status_code == 201
+    assert earlier.json()["rest_ends_at"] == deadline
 
 
 async def test_session_snapshots_exercise_kind_from_the_plan(client, auth_headers):
