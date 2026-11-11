@@ -274,10 +274,15 @@ missing loads are excluded. Older single-weight records use that weight for each
 In a live strength workout on a phone, tap **RIR** or **RPE** to enter a set rating inline. Each
 rating is optional and recorded independently. Tap a selected rating again to clear it. **Complete
 set & start rest** still saves the prefilled weight and reps in one tap.
+Completed workout details list the recorded RPE by set. Adding or removing sets in History
+keeps the ratings with their original sets. Whole-workout effort is recorded separately.
+API clients replacing `exercises` can send a `rpe_per_set` list aligned with the new sets or
+`null` to clear it. Omitting the field keeps ratings when the ordered exercise names, repetitions,
+weights, and RIR values still match the stored log.
 
 **Download training CSV** exports the visible Training load window using the same local-week
 boundaries. The UTF-8 file has one `session` row per workout or activity with duration and
-session RPE, and `set` rows linked by `workout_id` with exercise, weight, reps, and RIR. Blank
+session RPE, and `set` rows linked by `workout_id` with exercise, weight, reps, RIR, and `set_rpe`. Blank
 cells represent missing values. Exercise names that look like spreadsheet formulas get a
 leading apostrophe. The API uses the same filters at `GET /api/v1/training-load/export`.
 

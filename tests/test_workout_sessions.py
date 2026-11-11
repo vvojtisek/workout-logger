@@ -144,7 +144,8 @@ async def test_set_completion_is_idempotent_and_survives_read(client, auth_heade
     assert reloaded.json()["exercises"][0]["set_entries"] == duplicate_entries
 
 
-async def test_complete_session_creates_existing_history_summary(client, auth_headers):
+async def test_complete_session_creates_existing_history_summary(migrated_client, auth_headers):
+    client, _ = migrated_client
     plan = await create_plan(client, auth_headers)
     session = await start_session(client, auth_headers, plan["id"])
     exercise_id = session["exercises"][0]["id"]
@@ -156,6 +157,7 @@ async def test_complete_session_creates_existing_history_summary(client, auth_he
             "weight_kg": 42.5,
             "reps": 8,
             "rir": 2,
+            "rpe": 0,
             "client_operation_id": "test-run-complete-set-1",
         },
         headers=auth_headers,
@@ -183,6 +185,9 @@ async def test_complete_session_creates_existing_history_summary(client, auth_he
     assert history_body["exercises"][0]["exercise_name"] == "Bench Press"
     assert history_body["exercises"][0]["reps_per_set"] == [8]
     assert history_body["exercises"][0]["weight_kg"] == 42.5
+    assert history_body["exercises"][0]["rir_per_set"] == [2]
+    assert history_body["exercises"][0]["rpe_per_set"] == [0]
+    assert history_body["effort_rpe"] is None
 
 
 async def test_session_snapshots_exercise_kind_from_the_plan(client, auth_headers):

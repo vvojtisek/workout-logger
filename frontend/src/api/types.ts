@@ -135,6 +135,7 @@ export interface ExerciseLog {
   /** One entry per set; null on logs saved with a single weight (weight_kg). */
   weight_per_set?: (number | null)[] | null;
   rir_per_set?: (number | null)[] | null;
+  rpe_per_set?: (number | null)[] | null;
   rest_time_seconds: number;
   notes: string | null;
   equipment_load_mode?: EquipmentLoadMode;

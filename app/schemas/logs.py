@@ -26,6 +26,9 @@ class ExerciseLogCreate(BaseModel):
     rir_per_set: list[Annotated[int, Field(ge=0, le=10)] | None] | None = Field(
         default=None, description="Reps in reserve for each set, one entry per set."
     )
+    rpe_per_set: list[Annotated[int, Field(ge=0, le=10)] | None] | None = Field(
+        default=None, description="Perceived exertion for each set, one entry per set."
+    )
     rest_time_seconds: int = Field(default=60, ge=0, le=3600)
     notes: str | None = Field(default=None, max_length=4000)
 
@@ -47,7 +50,7 @@ class ExerciseLogCreate(BaseModel):
     def sets_count_matches_reps_per_set(self) -> "ExerciseLogCreate":
         if len(self.reps_per_set) != self.sets_count:
             raise ValueError("sets_count must equal the number of entries in reps_per_set")
-        for name in ("weight_per_set", "rir_per_set"):
+        for name in ("weight_per_set", "rir_per_set", "rpe_per_set"):
             values = getattr(self, name)
             if values is not None and len(values) != self.sets_count:
                 raise ValueError(f"{name} must have one entry per set")

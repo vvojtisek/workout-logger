@@ -1116,17 +1116,17 @@ def test_per_set_detail_migration_backfills_from_the_finished_session(
                 ),
                 {"id": exercise_id, "order": order, "name": name},
             )
-        for entry_id, exercise_id, number, weight, rir, state in (
-            ("s1", "se-squat", 1, 85, 2, "completed"),
-            ("s2", "se-squat", 2, 90, 1, "completed"),
-            ("s3", "se-press", 1, 40, None, "completed"),
-            ("s4", "se-press", 2, 40, None, "skipped"),
+        for entry_id, exercise_id, number, weight, rir, rpe, state in (
+            ("s1", "se-squat", 1, 85, 2, 0, "completed"),
+            ("s2", "se-squat", 2, 90, 1, None, "completed"),
+            ("s3", "se-press", 1, 40, None, 8, "completed"),
+            ("s4", "se-press", 2, 40, None, 10, "skipped"),
         ):
             connection.execute(
                 text(
                     "INSERT INTO set_entries (id, session_exercise_id, set_number, weight_kg, "
-                    "reps, rir, state, completed_at, client_operation_id) "
-                    "VALUES (:id, :exercise, :number, :weight, 5, :rir, :state, :now, :id)"
+                    "reps, rir, rpe, state, completed_at, client_operation_id) "
+                    "VALUES (:id, :exercise, :number, :weight, 5, :rir, :rpe, :state, :now, :id)"
                 ),
                 {
                     "id": entry_id,
@@ -1134,6 +1134,7 @@ def test_per_set_detail_migration_backfills_from_the_finished_session(
                     "number": number,
                     "weight": weight,
                     "rir": rir,
+                    "rpe": rpe,
                     "state": state,
                     "now": now,
                 },
@@ -1150,6 +1151,23 @@ def test_per_set_detail_migration_backfills_from_the_finished_session(
     assert rows["el-squat"] == ("[85.0, 90.0]", "[2, 1]")
     assert rows["el-press"] == (None, None)
     assert rows["el-manual"] == (None, None)
+
+    command.upgrade(alembic_config, "head")
+    with sync_engine.connect() as connection:
+        rpes = dict(connection.execute(text("SELECT id, rpe_per_set FROM exercise_logs")).all())
+    assert rpes == {"el-squat": "[0, null]", "el-press": None, "el-manual": None}
+
+    command.downgrade(alembic_config, "f2b4d6a8c0e1")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text("UPDATE exercise_logs SET reps_per_set = '[5, 4]' WHERE id = 'el-squat'")
+        )
+    command.upgrade(alembic_config, "head")
+    with sync_engine.connect() as connection:
+        squat = connection.execute(
+            text("SELECT reps_per_set, rpe_per_set FROM exercise_logs WHERE id = 'el-squat'")
+        ).one()
+    assert tuple(squat) == ("[5, 4]", None)
 
     command.downgrade(alembic_config, "b5d8f2a4c6e1")
     with sync_engine.connect() as connection:

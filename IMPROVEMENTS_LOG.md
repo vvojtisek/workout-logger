@@ -269,3 +269,31 @@ by sending null.
 - Browser verification recipe. On a phone, select RIR 2 and RPE 0, reload after the draft
   is stored, and complete the set. Playwright verified both ratings and the rest timer,
   then cleared RPE in the HUD and verified that RIR remained 2 through the real API.
+
+## Cycle 12 — Preserve and export completed per-set RPE
+
+Completed strength sets carry their individual RPE into History and the Training load CSV.
+History keeps ratings attached to the set when an athlete adds, edits, or removes rows. The
+CSV adds `set_rpe` after the existing columns, preserving zero and leaving missing values
+blank. Whole-workout `effort_rpe` remains a separate field.
+
+The additive migration copies ratings from a linked completed session only when ownership,
+exercise identity and order, and the recorded set values match. Older replacement clients
+keep stored RPE when the ordered exercise and set values match. For a changed layout, clients
+can send aligned `rpe_per_set` values. Explicit null clears the field.
+
+- The migrated API and upgrade regressions first failed on the missing field and column.
+  The phone browser reached History but could not find the set ratings. Separate API tests
+  reproduced RPE loss on a legacy replacement and the missing CSV column before both fixes.
+- Focused regressions passed for migrated completion, backfill, downgrade and re-upgrade,
+  legacy PUT and PATCH, and CSV zero and blank values. The history test preserved ratings
+  during an unrelated edit, left a new set unrated, and removed the rating with its set.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 706 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. The new migration passed all Ruff rules. Full Ruff stayed at 151 baseline findings.
+- `npm ci`, ESLint, TypeScript, `npm test` (192 tests), and Vite build passed.
+- Full localhost Playwright on fresh migrated SQLite passed 66 tests with three existing
+  viewport skips. The cleanup check found zero rows in all nine checked tables.
+- Browser verification recipe. Open a completed workout with RPE 0 and 9, add a set,
+  and remove the first set. Playwright verified the displayed and stored order, then
+  separately verified the exported set rating in the downloaded CSV on desktop and phone.
