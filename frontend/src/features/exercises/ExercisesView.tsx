@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useListVersion } from "@/app/MasterDetail";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, Location, Paginated } from "@/api/types";
 import { exerciseListPath } from "@/lib/exercise-catalogue";
@@ -10,6 +11,7 @@ import { toast } from "@/ui/Toast";
 import { Button, EmptyState, Input, PageHeading } from "@/ui";
 
 export function ExercisesView() {
+  const listVersion = useListVersion();
   const navigate = useNavigate();
   const [exercises, setExercises] = useState<CatalogExercise[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -30,25 +32,32 @@ export function ExercisesView() {
     return () => window.clearTimeout(timer);
   }, [search]);
 
+  const latestRequest = useRef(0);
   const load = useCallback(async () => {
+    const request = ++latestRequest.current;
     setLoading(true);
     try {
       const data = await apiFetch<Paginated<CatalogExercise>>(
         exerciseListPath(query, 0, locationId),
       );
+      // A slower, older request (an earlier search, or the reload after a
+      // detail closed) must not overwrite the result of a newer one.
+      if (request !== latestRequest.current) return;
       setExercises(data.items);
       setTotal(data.total);
       setError(null);
     } catch (err) {
+      if (request !== latestRequest.current) return;
       setError(`Failed to load exercises: ${errorMessage(err)}`);
     } finally {
-      setLoading(false);
+      if (request === latestRequest.current) setLoading(false);
     }
   }, [query, locationId]);
 
+  // Reload after the detail beside the list closes (see MasterDetail).
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, listVersion]);
 
   async function deleteExercise(exercise: CatalogExercise) {
     try {

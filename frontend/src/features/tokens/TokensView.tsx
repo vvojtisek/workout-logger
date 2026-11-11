@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
+import { useListVersion } from "@/app/MasterDetail";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { ApiToken, Paginated } from "@/api/types";
 import { ConfirmDialog } from "@/ui/Dialog";
@@ -13,6 +14,7 @@ function formatScopes(scopes: ApiToken["scopes"]): string {
 }
 
 export function TokensView() {
+  const listVersion = useListVersion();
   const navigate = useNavigate();
   const location = useLocation();
   const [tokens, setTokens] = useState<ApiToken[]>([]);
@@ -35,9 +37,10 @@ export function TokensView() {
     }
   }, []);
 
+  // Reload after the detail beside the list closes (see MasterDetail).
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, listVersion]);
 
   function dismissNewToken() {
     void navigate(".", { replace: true, state: null });

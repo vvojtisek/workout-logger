@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useListVersion } from "@/app/MasterDetail";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { Food, Paginated } from "@/api/types";
 import { ConfirmDialog } from "@/ui/Dialog";
@@ -8,6 +9,7 @@ import { toast } from "@/ui/Toast";
 import { Button, EmptyState, Input, PageHeading } from "@/ui";
 
 export function FoodsView() {
+  const listVersion = useListVersion();
   const navigate = useNavigate();
   const [foods, setFoods] = useState<Food[]>([]);
   const [query, setQuery] = useState("");
@@ -15,24 +17,31 @@ export function FoodsView() {
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<Food | null>(null);
 
+  const latestRequest = useRef(0);
   const load = useCallback(async (q: string) => {
+    const request = ++latestRequest.current;
     setLoading(true);
     try {
       const search = q.trim() ? `&q=${encodeURIComponent(q.trim())}` : "";
       const data = await apiFetch<Paginated<Food>>(`/foods?limit=100${search}`);
+      // A slower, older request (an earlier search, or the reload after a
+      // detail closed) must not overwrite the result of a newer one.
+      if (request !== latestRequest.current) return;
       setFoods(data.items);
       setError(null);
     } catch (err) {
+      if (request !== latestRequest.current) return;
       setError(`Failed to load foods: ${errorMessage(err)}`);
     } finally {
-      setLoading(false);
+      if (request === latestRequest.current) setLoading(false);
     }
   }, []);
 
+  // Reload after the detail beside the list closes (see MasterDetail).
   useEffect(() => {
     const timeout = setTimeout(() => void load(query), 200);
     return () => clearTimeout(timeout);
-  }, [query, load]);
+  }, [query, load, listVersion]);
 
   async function deleteFood(food: Food) {
     try {

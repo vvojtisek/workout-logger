@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMatch, useNavigate } from "react-router-dom";
 
+import { useListVersion } from "@/app/MasterDetail";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { Paginated, WorkoutLogSummary } from "@/api/types";
 import { logSummaryFacts, logTitle } from "@/lib/activity";
@@ -8,6 +9,7 @@ import { EmptyState, PageHeading } from "@/ui";
 import { formatDateTime } from "@/lib/format";
 
 export function HistoryView() {
+  const listVersion = useListVersion();
   const navigate = useNavigate();
   const openLogId = useMatch("/history/:logId")?.params.logId;
   const [logs, setLogs] = useState<WorkoutLogSummary[]>([]);
@@ -32,7 +34,8 @@ export function HistoryView() {
     return () => {
       cancelled = true;
     };
-  }, []);
+    // Reload after the detail beside the list closes (see MasterDetail).
+  }, [listVersion]);
 
   return (
     <section id="history-view">

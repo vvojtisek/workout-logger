@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useListVersion } from "@/app/MasterDetail";
 import { apiFetch, errorMessage } from "@/api/client";
 import type {
   Location,
@@ -18,6 +19,7 @@ import { toast } from "@/ui/Toast";
 import { Button, EmptyState, PageHeading } from "@/ui";
 
 export function PlansView() {
+  const listVersion = useListVersion();
   const { openSession } = useAppContext();
   const navigate = useNavigate();
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
@@ -60,9 +62,10 @@ export function PlansView() {
     }
   }, []);
 
+  // Reload after the detail beside the list closes (see MasterDetail).
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, listVersion]);
 
   async function startWorkout(planId: string) {
     try {

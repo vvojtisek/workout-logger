@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useListVersion } from "@/app/MasterDetail";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { NutritionPlan, Paginated } from "@/api/types";
 import { ConfirmDialog } from "@/ui/Dialog";
@@ -8,6 +9,7 @@ import { toast } from "@/ui/Toast";
 import { Button, EmptyState, PageHeading } from "@/ui";
 
 export function NutritionPlansView() {
+  const listVersion = useListVersion();
   const navigate = useNavigate();
   const [plans, setPlans] = useState<NutritionPlan[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -27,9 +29,10 @@ export function NutritionPlansView() {
     }
   }, []);
 
+  // Reload after the detail beside the list closes (see MasterDetail).
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, listVersion]);
 
   async function deletePlan(plan: NutritionPlan) {
     try {
