@@ -5,6 +5,7 @@ import { AppLayout } from "@/AppLayout";
 import { FULL_BLEED, MasterDetail } from "@/app/MasterDetail";
 import { RouteErrorBoundary } from "@/app/RouteErrorBoundary";
 import { RequireAuth } from "@/auth/RequireAuth";
+import { ActiveWorkoutView } from "@/features/active-workout/ActiveWorkoutView";
 import { useIsDesktop } from "@/lib/use-media-query";
 
 /** Lazily loads a list page and wraps it in the list-and-detail layout. */
@@ -289,10 +290,7 @@ export const router = createBrowserRouter([
           {
             path: "workout",
             handle: FULL_BLEED,
-            lazy: () =>
-              import("@/features/active-workout/ActiveWorkoutView").then((m) => ({
-                Component: m.ActiveWorkoutView,
-              })),
+            element: <ActiveWorkoutView />,
           },
         ],
       },

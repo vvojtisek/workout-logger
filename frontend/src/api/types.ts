@@ -59,6 +59,7 @@ export interface SessionExercise extends GridExercise {
 
 export interface WorkoutSession extends GridSession {
   id: string;
+  owner_id: string | null;
   source_plan_id: string | null;
   source_plan_name: string;
   location_id: string | null;

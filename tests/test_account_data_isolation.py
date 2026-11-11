@@ -140,6 +140,9 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
         )
         assert started.status_code == 201
         session_id = started.json()["id"]
+        owner = await client.get("/api/v1/auth/me", headers=owner_cookies)
+        assert owner.status_code == 200
+        assert started.json()["owner_id"] == owner.json()["id"]
         other_session = await client.get(
             f"/api/v1/workout-sessions/{session_id}", headers=other_cookies
         )

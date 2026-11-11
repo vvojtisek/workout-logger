@@ -377,3 +377,101 @@ test("advances the phone HUD offline and replays the original rest deadline", as
     }
   }
 });
+
+test("recovers the phone workout offline and verifies the account before replay", async ({
+  context, page, request,
+}) => {
+  test.skip(isDesktop(page), "The offline resume journey uses the phone HUD");
+  const tag = `[E2E:${process.env.TEST_RUN_ID || `hud-${Date.now()}`}:offline-resume]`;
+  let planId;
+  let sessionId;
+  let replayRequests = 0;
+
+  try {
+    page.setDefaultTimeout(5_000);
+    const plan = await request.post("/api/v1/plans", {
+      data: {
+        name: `${tag} plan`,
+        exercises: [{
+          exercise_name: `${tag} Row`,
+          target_sets: 3,
+          target_reps_min: 8,
+          target_reps_max: 10,
+          target_weight_kg: 20,
+          rest_time_seconds: 60,
+        }],
+      },
+    });
+    expect(plan.status()).toBe(201);
+    planId = (await plan.json()).id;
+    const started = await request.post("/api/v1/workout-sessions", {
+      data: { source_plan_id: planId },
+    });
+    expect(started.status()).toBe(201);
+    sessionId = (await started.json()).id;
+    const sessionPath = `/api/v1/workout-sessions/${sessionId}`;
+    page.on("request", (request) => {
+      if (request.method() === "POST" && new URL(request.url()).pathname === `${sessionPath}/sets`) {
+        replayRequests += 1;
+      }
+    });
+    await page.goto("/workout");
+
+    const position = page.locator("#hud-position");
+    const sync = page.locator("#active-sync-status");
+    const complete = page.getByRole("button", { name: "Complete set & start rest" });
+    await expect(position).toHaveText("EXERCISE 1 OF 1 • SET 1 OF 3");
+    await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+    await context.setOffline(true);
+    await complete.click();
+    await expect(sync).toHaveText("Pending synchronization");
+    await expect(position).toHaveText("EXERCISE 1 OF 1 • SET 2 OF 3");
+    await page.reload();
+    await expect(page.getByRole("heading", { name: `${tag} Row` })).toBeVisible();
+    await expect(position).toHaveText("EXERCISE 1 OF 1 • SET 2 OF 3");
+    await expect(sync).toHaveText("Pending synchronization");
+    await expect(page.getByRole("timer")).toHaveText(/RESTING — 00:\d\d/);
+    const cachedApiPaths = await page.evaluate(async () => {
+      const entries = await Promise.all((await caches.keys()).map(async (key) => (await caches.open(key)).keys()));
+      return entries.flat().map((entry) => new URL(entry.url).pathname).filter((path) => path.startsWith("/api/"));
+    });
+    expect(cachedApiPaths).toEqual([]);
+
+    await context.setOffline(false);
+    await expect(sync).toHaveText("Synchronized");
+    expect(replayRequests).toBe(1);
+    await page.getByRole("button", { name: "Skip Rest" }).click();
+    await expect(complete).toBeVisible();
+
+    await context.setOffline(true);
+    await complete.click();
+    await expect(sync).toHaveText("Pending synchronization");
+    await expect(position).toHaveText("EXERCISE 1 OF 1 • SET 3 OF 3");
+    await context.clearCookies();
+    await context.setOffline(false);
+    await expect(page).toHaveURL(/\/login$/);
+    expect(replayRequests).toBe(1);
+    const current = await request.get(sessionPath);
+    expect(current.status()).toBe(200);
+    expect((await current.json()).exercises[0].set_entries).toHaveLength(1);
+
+    await context.setOffline(true);
+    await page.goto("/workout");
+    await expect(page.getByText("Reconnect to sign in.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: `${tag} Row` })).toHaveCount(0);
+    const pending = await readWorkoutStorage(page, "workout_logger_active_set_queue");
+    expect(typeof pending === "string" ? JSON.parse(pending) : null).toMatchObject([
+      { session_id: sessionId, payload: { set_number: 2 } },
+    ]);
+  } finally {
+    await context.setOffline(false);
+    if (sessionId) {
+      await request.delete(`/api/v1/workout-sessions/${sessionId}`);
+      expect((await request.get(`/api/v1/workout-sessions/${sessionId}`)).status()).toBe(404);
+    }
+    if (planId) {
+      await request.delete(`/api/v1/plans/${planId}`);
+      expect((await request.get(`/api/v1/plans/${planId}`)).status()).toBe(404);
+    }
+  }
+});

@@ -149,6 +149,7 @@ class SessionExerciseRead(OrmModel):
 
 class WorkoutSessionRead(OrmModel):
     id: UUID
+    owner_id: UUID | None
     source_plan_id: UUID | None
     source_plan_name: str
     location_id: UUID | None

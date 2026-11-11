@@ -140,7 +140,7 @@ export interface WorkoutHudProps {
   onSkipRest: () => void;
   onRetrySync: () => void;
   onFinish: () => void;
-  onMinimize: () => void;
+  onMinimize?: () => void;
 }
 
 /**
@@ -208,14 +208,16 @@ export function WorkoutHud(props: WorkoutHudProps) {
     >
       <header className="flex shrink-0 flex-col gap-2">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            aria-label="Minimize workout"
-            onClick={props.onMinimize}
-            className="btn btn-ghost h-11 w-11 p-0"
-          >
-            <X aria-hidden="true" size={20} />
-          </button>
+          {props.onMinimize ? (
+            <button
+              type="button"
+              aria-label="Minimize workout"
+              onClick={props.onMinimize}
+              className="btn btn-ghost h-11 w-11 p-0"
+            >
+              <X aria-hidden="true" size={20} />
+            </button>
+          ) : null}
           <p
             id="active-plan-name"
             className="min-w-0 flex-1 truncate text-sm font-semibold"

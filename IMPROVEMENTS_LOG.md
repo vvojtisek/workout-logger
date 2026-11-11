@@ -347,3 +347,30 @@ Requests without capture metadata retain server-time logging.
   complete the next set. Playwright verified local focus and timer controls, the finish
   guard, zero server focus or rest requests while offline, and both original operation IDs
   and the last capture deadline after reconnection.
+
+## Cycle 15 — Recover an owned workout after an offline reload
+
+The service worker can load the public workout shell and its required assets offline. The
+browser restores the last verified account's active workout from IndexedDB and reapplies its
+committed queue. Offline authorization exposes only the workout route. It cannot send queued
+actions until the server verifies the current cookie and the active session's owner. A server
+denial removes the local account pointer. Sign-out clears the resume snapshot. A stale session
+response cannot replace a workout opened or updated while that request was in flight.
+
+- The baseline phone browser could queue a set but could not hard-reload `/workout` offline.
+  The migrated account-isolation regression initially lacked the session's owner identifier.
+- The final browser test resumed a pending set and its timer after hard reload. It verified
+  there were no personalized API responses in Cache Storage, then reconnected and recorded
+  exactly one replay. Removing the session cookie before a second reconnect produced zero
+  additional POSTs, left the pending set in IndexedDB, and hid the old workout on offline reload.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 708 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm test` (193 tests), and Vite build passed. Making the workout
+  route part of the shell increased the gzipped entry bundle from 106.00 to 122.27 kB.
+- Full localhost Playwright on fresh migrated SQLite passed 68 tests with five viewport
+  skips, including the new phone-only scenario. The cleanup check found zero rows in all nine
+  checked tables. The full browser suite also passed after the stale-response guard was added.
+- Browser verification recipe. Load a workout online, disconnect, log one set, and reload.
+  Reconnect to synchronize it. The browser test separately removed the active cookie before
+  reconnection and verified that the queued set remained local after the server rejected the session.

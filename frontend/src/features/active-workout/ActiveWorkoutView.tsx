@@ -28,7 +28,7 @@ import { hudIndex, performanceOrder, projectQueuedSets } from "@/lib/workout-hud
 import { WorkoutHud } from "./WorkoutHud";
 
 export function ActiveWorkoutView() {
-  const { session, online, updateSession, finishSession } = useAppContext();
+  const { session, sessionReady, online, updateSession, finishSession } = useAppContext();
   const hadSessionRef = useRef(false);
   if (session) hadSessionRef.current = true;
 
@@ -38,7 +38,14 @@ export function ActiveWorkoutView() {
   // router's own navigate("/history") lands, and redirecting to /plans here
   // in that window would win the race and hijack the destination — so after
   // finishing, render nothing and let the in-flight navigation land instead.
-  if (!session && !hadSessionRef.current) return <Navigate to="/plans" replace />;
+  if (!session && !hadSessionRef.current) {
+    if (sessionReady && online) return <Navigate to="/plans" replace />;
+    return (
+      <div className="flex min-h-dvh items-center justify-center text-sm text-muted">
+        {sessionReady ? "Reconnect to start a workout." : "Loading workout…"}
+      </div>
+    );
+  }
   if (!session) return null;
 
   return (
@@ -71,6 +78,7 @@ function ActiveWorkoutSession({
   const [confirmFinish, setConfirmFinish] = useState(false);
   const syncInProgress = useRef(false);
   const syncRequested = useRef(false);
+  const replayAllowed = useRef(false);
   const pendingWrites = useRef(new Set<string>());
   const gridRef = useRef<HTMLDivElement>(null);
   const isDesktop = useIsDesktop();
@@ -92,6 +100,7 @@ function ActiveWorkoutSession({
   const { stats: statsByName, ...progression } = useExerciseProgression(exerciseNames, {
     sessionId: session.id,
     enableFilters: isDesktop,
+    enabled: online,
   });
 
   function exerciseStatsLine(exercise: SessionExercise) {
@@ -120,19 +129,25 @@ function ActiveWorkoutSession({
     void refreshQueue();
   }, [refreshQueue]);
 
+  useEffect(() => {
+    replayAllowed.current = online;
+    return () => { replayAllowed.current = false; };
+  }, [online]);
+
   const flushSetQueue = useCallback(async () => {
-    if (!navigator.onLine) return;
+    if (!replayAllowed.current || !navigator.onLine) return;
     syncRequested.current = true;
     if (syncInProgress.current) return;
     syncInProgress.current = true;
     setSyncError(null);
     try {
-      while (syncRequested.current && navigator.onLine) {
+      while (syncRequested.current && replayAllowed.current && navigator.onLine) {
         syncRequested.current = false;
         const operations = (await getSetQueue(activeWorkoutStorage)).filter(
           (operation) => operation.session_id === session.id,
         );
         for (const operation of operations) {
+          if (!replayAllowed.current || !navigator.onLine) break;
           const updated = await apiFetch<WorkoutSession>(
             `/workout-sessions/${operation.session_id}/sets`,
             { method: "POST", body: JSON.stringify(operation.payload) },
@@ -188,7 +203,7 @@ function ActiveWorkoutSession({
           client_operation_id: operationId,
           session_id: session.id,
           draft_key: draftKey,
-          captured_offline: !navigator.onLine || replayOffline,
+          captured_offline: !replayAllowed.current || !navigator.onLine || replayOffline,
           payload: {
             session_exercise_id: row.exercise.id,
             set_number: row.setNumber,
@@ -224,6 +239,10 @@ function ActiveWorkoutSession({
   const correctSet = useCallback(
     async (row: GridRow, values: SetValues): Promise<boolean> => {
       if (!row.entry) return false;
+      if (!replayAllowed.current) {
+        toast.error("Reconnect to correct a synchronized set.");
+        return false;
+      }
       if (!Number.isInteger(values.reps) || values.reps < 1) {
         toast.error("Enter a whole number of reps before saving the correction.");
         return false;
@@ -259,6 +278,10 @@ function ActiveWorkoutSession({
   const undoSet = useCallback(
     async (row: GridRow) => {
       if (!row.entry) return;
+      if (!replayAllowed.current) {
+        toast.error("Reconnect to undo a synchronized set.");
+        return;
+      }
       try {
         const updated = await apiFetch<WorkoutSession>(
           `/workout-sessions/${session.id}/sets/${row.entry.id}`,
@@ -309,6 +332,7 @@ function ActiveWorkoutSession({
           await refreshQueue();
           return;
         }
+        if (!replayAllowed.current) return;
         const updated = await apiFetch<WorkoutSession>(`/workout-sessions/${session.id}/rest`, {
           method: "PATCH",
           body: JSON.stringify({ ...data, expected_version: session.version }),
@@ -327,6 +351,10 @@ function ActiveWorkoutSession({
       const pending = await getSetQueue(activeWorkoutStorage);
       if (pendingWrites.current.size || pending.some((operation) => operation.session_id === session.id)) {
         toast.error("Synchronize queued sets before finishing.");
+        return;
+      }
+      if (!replayAllowed.current) {
+        toast.error("Reconnect to finish the workout.");
         return;
       }
       await apiFetch(`/workout-sessions/${session.id}/complete`, {
@@ -376,7 +404,9 @@ function ActiveWorkoutSession({
           progress={progress}
           sync={sync}
           restWasSkipped={restWasSkipped}
-          restControlsDisabled={Boolean(projected.rest && online && (!replayOffline || syncInProgress.current))}
+          restControlsDisabled={projected.rest
+            ? online && (!replayOffline || syncInProgress.current)
+            : !online}
           stats={statsByName}
           statsLine={shown ? exerciseStatsLine(shown.exercise as SessionExercise) : null}
           feeling={feeling}
@@ -390,7 +420,7 @@ function ActiveWorkoutSession({
           onSkipRest={() => void updateRest({ skip: true })}
           onRetrySync={() => void flushSetQueue()}
           onFinish={finishWorkout}
-          onMinimize={() => void navigate("/")}
+          onMinimize={online ? () => void navigate("/") : undefined}
         />
         {confirmDialog}
       </>
