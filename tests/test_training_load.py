@@ -127,6 +127,73 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
             assert (await client.get(url, headers=auth_headers)).status_code == 404
 
 
+async def test_weekly_external_volume_is_grouped_by_primary_movement_pattern(
+    migrated_client, auth_headers
+):
+    client, _ = migrated_client
+    tag = f"[TEST_RUN_ID:{uuid4()}]"
+    cleanup = []
+    try:
+        for name, alias, pattern in [
+            (f"{tag} Back squat", f"{tag} Squat", "squat"),
+            (f"{tag} Deadlift", f"{tag} Hinge", "hinge"),
+        ]:
+            exercise = await client.post(
+                f"{API}/exercises",
+                headers=auth_headers,
+                json={"name": name, "aliases": [alias], "movement_pattern": pattern},
+            )
+            assert exercise.status_code == 201
+            cleanup.append(f"{API}/exercises/{exercise.json()['id']}")
+
+        for name, weight, reps in [
+            (f"{tag} Squat", 100, 5),
+            (f"{tag} Hinge", 80, 3),
+            (f"{tag} Unclassified press", 50, 2),
+        ]:
+            log = await client.post(
+                f"{API}/logs",
+                headers=auth_headers,
+                json={
+                    "performed_at": "2026-10-19T12:00:00Z",
+                    "total_time_minutes": 45,
+                    "overall_feeling": 3,
+                    "notes": tag,
+                    "exercises": [
+                        {
+                            "exercise_name": name,
+                            "sets_count": 1,
+                            "weight_kg": weight,
+                            "reps_per_set": [reps],
+                        }
+                    ],
+                },
+            )
+            assert log.status_code == 201
+            cleanup.append(f"{API}/logs/{log.json()['id']}")
+
+        response = await client.get(
+            f"{API}/training-load",
+            params={"week_of": "2026-10-19", "weeks": 1, "timezone": "UTC"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        [week] = response.json()["weeks"]
+        assert week["volume_kg"] == 840
+        assert week["movement_pattern_volume"] == [
+            {"movement_pattern": "squat", "volume_kg": 500},
+            {"movement_pattern": "hinge", "volume_kg": 240},
+            {"movement_pattern": None, "volume_kg": 100},
+        ]
+        assert (
+            sum(item["volume_kg"] for item in week["movement_pattern_volume"]) == week["volume_kg"]
+        )
+    finally:
+        for url in reversed(cleanup):
+            assert (await client.delete(url, headers=auth_headers)).status_code == 204
+            assert (await client.get(url, headers=auth_headers)).status_code == 404
+
+
 async def test_calendar_workload_ratio_uses_prior_weeks_and_requires_coverage(
     migrated_client, app_engine, auth_headers
 ):

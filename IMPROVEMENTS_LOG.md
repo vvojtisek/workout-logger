@@ -869,3 +869,23 @@ review without inferring whether it was intentional, while keeping long empty st
 - Browser verification recipe. Create a four-week program, schedule workouts in Weeks 1, 2, and
   4, then expand **Week-by-week states**. Confirm Week 3 is present as a zero-count gap; also
   confirm the current week and final block week remain visible when they have no scheduled work.
+
+## Cycle 37 — Compare weekly volume by movement pattern
+
+Training load now breaks actual gym volume down by each catalogue exercise's single primary
+movement pattern, alongside the existing primary-muscle view. The API matches logged exercise
+names and aliases using the catalogue's existing rules. Exercises without a pattern stay in an
+Unclassified row; their volume is not guessed or spread across secondary movement tags. The
+classified and unclassified rows sum to the same weekly external-volume total.
+
+- Backend coverage verifies alias matching, squat and hinge assignments, the unclassified bucket,
+  and exact reconciliation to weekly total volume. The real-API browser journey checks the labeled
+  movement-pattern table for a classified week and an unclassified week on desktop and phone.
+- `uv run pytest -q` passed all 740 backend tests; `npm test` passed all 225 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips. E2E records were
+  removed and the unique run tag was verified absent from the temporary SQLite database.
+- Browser verification recipe. Log workouts using catalogue exercises with different primary
+  movement patterns, then open **Training load**. Compare one week's pattern volumes with total
+  weekly volume; select a week containing free-text exercises and confirm those loads remain under
+  Unclassified.

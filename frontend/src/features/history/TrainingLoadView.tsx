@@ -4,7 +4,7 @@ import { useState } from "react";
 import { apiFetch, apiFetchBlob, errorMessage, triggerBlobDownload } from "@/api/client";
 import type { TrainingLoadResponse, TrainingLoadWeek } from "@/api/types";
 import { isIsoCalendarDate } from "@/lib/date-time-inputs";
-import { MUSCLE_LABELS } from "@/lib/exercise-catalogue";
+import { MOVEMENT_PATTERN_LABELS, MUSCLE_LABELS } from "@/lib/exercise-catalogue";
 import { formatDate } from "@/lib/format";
 import { Button, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
@@ -67,6 +67,70 @@ function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
         </table>
       ) : (
         <p role="status" className="text-sm text-muted">No external volume recorded for this week.</p>
+      )}
+    </section>
+  );
+}
+
+function MovementPatternVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  const week = weeks.find((entry) => entry.week_start === selectedWeek) ?? weeks.at(-1);
+  if (!week) return null;
+
+  return (
+    <section className="card mt-4 p-4">
+      <h3 className="font-semibold">External volume by primary movement pattern</h3>
+      <p className="my-2 text-sm text-muted">
+        Each catalogue exercise contributes to its single primary movement pattern. Exercises
+        without a classification remain under Unclassified.
+      </p>
+      <label className="mb-3 flex flex-col gap-1">
+        <span className="field-label">Movement pattern breakdown week</span>
+        <select
+          className="input w-fit"
+          value={week.week_start}
+          onChange={(event) => setSelectedWeek(event.target.value)}
+        >
+          {[...weeks].reverse().map((entry) => (
+            <option key={entry.week_start} value={entry.week_start}>
+              {entry.week_start}
+            </option>
+          ))}
+        </select>
+      </label>
+      {week.movement_pattern_volume.length > 0 ? (
+        <table
+          aria-label="External volume by primary movement pattern"
+          className="w-full text-left text-sm"
+        >
+          <thead className="text-muted">
+            <tr>
+              <th scope="col" className="py-2">Primary movement pattern</th>
+              <th scope="col" className="py-2 text-right">External volume</th>
+            </tr>
+          </thead>
+          <tbody>
+            {week.movement_pattern_volume.map(({ movement_pattern, volume_kg }) => (
+              <tr
+                key={movement_pattern ?? "unclassified"}
+                className="border-t border-line-muted"
+              >
+                <th scope="row" className="py-2 font-medium">
+                  {movement_pattern === null
+                    ? "Unclassified"
+                    : MOVEMENT_PATTERN_LABELS[movement_pattern] ?? movement_pattern}
+                </th>
+                <td className="py-2 text-right" data-numeric>
+                  {NUMBER_FORMAT.format(volume_kg)} kg
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p role="status" className="text-sm text-muted">
+          No classified or unclassified external volume recorded for this week.
+        </p>
       )}
     </section>
   );
@@ -260,6 +324,7 @@ export function TrainingLoadView() {
         </div>
       ) : null}
       {data ? <MuscleVolumeTable weeks={data.weeks} /> : null}
+      {data ? <MovementPatternVolumeTable weeks={data.weeks} /> : null}
       {data ? <SessionEffortTable weeks={data.weeks} /> : null}
       {data ? <WorkloadRatioCard weeks={data.weeks} /> : null}
     </section>

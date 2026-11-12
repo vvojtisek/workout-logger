@@ -4,6 +4,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.schemas.exercises import MovementPattern
+
 
 class TrainingLoadQuery(BaseModel):
     week_of: date = Field(description="Any local date in the last week to include.")
@@ -44,6 +46,11 @@ class MuscleVolume(BaseModel):
     volume_kg: float
 
 
+class MovementPatternVolume(BaseModel):
+    movement_pattern: MovementPattern | None
+    volume_kg: float
+
+
 class TrainingSessionEffort(BaseModel):
     logged_sessions: int = 0
     rated_sessions: int = 0
@@ -66,6 +73,7 @@ class TrainingLoadWeek(BaseModel):
     logged_sets: int = 0
     volume_kg: float = 0
     muscle_volume: list[MuscleVolume] = Field(default_factory=list)
+    movement_pattern_volume: list[MovementPatternVolume] = Field(default_factory=list)
     session_effort: TrainingSessionEffort = Field(default_factory=TrainingSessionEffort)
     workload_ratio: WeeklyWorkloadRatio = Field(default_factory=WeeklyWorkloadRatio)
 
