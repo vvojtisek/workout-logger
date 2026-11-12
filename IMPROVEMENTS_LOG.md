@@ -507,6 +507,250 @@ filter can select exercises by one movement pattern before pagination and locati
   or more movement patterns. Confirm the tags on its detail and list cards. Filter by one pattern
   and check that matching multi-tag exercises remain; clear the filter to restore the catalogue.
 
+## Cycle 21 — Configure the progression increment per exercise
+
+The exercise catalogue can override the double-progression load increase with a user-set value
+from 0.05 to 20 kg in 0.01 kg steps. The next-session engine uses the override when every set
+reaches the top of its rep range with reserve. An unset value preserves the existing
+equipment-based 1 kg or 2.5 kg rule. An additive migration after the exercise volume-rule
+revision adds the nullable field, so legacy exercises keep automatic progression.
+
+- API tests verify create, replacement, clearing, range and precision validation. A migrated
+  database test confirms a pre-existing exercise remains automatic and verifies downgrade. The
+  next-session regression logs a completed dumbbell row at 22 kg and verifies the configured
+  increment suggests 22.25 kg. Four API assertions failed against the baseline before
+  implementation because the field was ignored or absent.
+- The exercise editor persists the override on desktop and phone. A real migrated-SQLite browser
+  flow then creates a plan, records three top-of-range sets, starts the next session through the
+  real API, and verifies the 20.25 kg suggestion. E2E cleanup found zero rows in all nine
+  tracked tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 709 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. Informational full Ruff remains at the existing 151 findings.
+- ESLint, TypeScript, Vite build, and all 197 Vitest tests passed. Full localhost Playwright
+  passed 67 tests with three expected viewport skips.
+- Browser verification recipe. Edit an exercise and set **Progression increment (kg)** to
+  0.25. Record all sets at the top of the plan's rep range, then start the plan again. Confirm
+  the suggested load is previous load + 0.25 kg. Clear the override to restore the automatic
+  equipment-based step.
+
+## Cycle 22 — Review each program's scheduled workout states
+
+The Programs page now reports scheduled, in-progress, completed, and skipped workout counts
+for each program. `GET /api/v1/programs/schedule-summary` returns the same account-scoped
+counts and keeps the four states distinct instead of combining them into an inferred score.
+
+- The API tests create one workout in each state and verify the exact per-program counts. An
+  account-isolation assertion confirms another invited account cannot see a private program's
+  summary. Both new endpoint checks failed against the baseline before the route existed.
+- The real migrated-SQLite browser flow schedules a workout, starts it, and verifies the
+  Programs counts on desktop and phone. The phone test minimizes the active workout HUD to
+  reach the navigation tabs. Both focused viewport runs passed, and cleanup found zero rows
+  in all nine tracked tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 710 tests at 82% coverage. Required Ruff rules, Ruff format, mypy, and
+  `git diff --check` passed. Informational full Ruff remains at the existing 151 findings.
+- ESLint, TypeScript, Vite build, and all 197 Vitest tests passed. Full localhost Playwright
+  passed 68 tests with three expected viewport skips; cleanup again found zero rows in all
+  nine tracked tables.
+- Browser verification recipe. Schedule four workouts in one program. Mark one skipped,
+  start and complete one, start another, and leave the fourth scheduled. Confirm the Programs
+  row reports one in each state, then cancel the active workout and verify its count returns
+  to Scheduled.
+
+## Cycle 23 — Include recorded RIR in estimated one-rep max
+
+Exercise progression estimates now use effective reps: logged repetitions plus logged RIR.
+Unknown RIR leaves the original rep count unchanged, and actual repetitions remain the value
+shown in workout history. The progression card explains that 4+ is represented by four, which
+makes estimates based on that value a lower-bound input. Brzycki, Lombardi, and Wathen apply
+their existing 1–10 range to effective reps.
+
+- The new API regression first failed on the baseline: 60 kg for five reps at three RIR was
+  reported as 70 kg instead of the expected RIR-adjusted 76 kg. It also checks the adjusted
+  Brzycki result and confirms the chart point retains the actual five reps.
+- The real migrated-SQLite exercise progression flow passed on desktop and phone, checking the
+  RIR-adjusted Epley and Brzycki estimates. Cleanup found zero rows in all nine tracked tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 711 tests at 82% coverage. Required Ruff rules, Ruff format, mypy, and
+  `git diff --check` passed. Informational full Ruff remains at the existing 151 findings.
+- ESLint, TypeScript, Vite build, and all 197 Vitest tests passed. Full localhost Playwright
+  passed 68 tests with three expected viewport skips; cleanup again found zero rows in all
+  nine tracked tables.
+- Browser verification recipe. Log a 60 kg set for five reps at three RIR, then open the
+  exercise's progression card. Confirm it displays five actual reps while Epley estimates from
+  eight effective reps (76 kg), and Brzycki uses the same effective-rep count (74.5 kg).
+
+## Cycle 24 — Prescribe a target RIR per planned exercise
+
+Plan authors can optionally set a target RIR from 0 to 10 for each strength exercise. Starting
+a workout copies that prescription into the session snapshot, so later plan edits do not change
+an active session. The desktop workout and in-gym HUD show the target beside the control for
+recording actual set RIR; plans without a target keep the existing uncluttered display.
+
+- API tests first failed because create/update omitted the field, accepted an out-of-range
+  value, and session snapshots did not carry it. The frontend schema test also confirmed the
+  field was discarded and did not reject values above 10.
+- An additive migration adds nullable constrained fields to plan and session exercises, keeping
+  existing records unset. The real browser flow creates and edits a target through the desktop
+  plan builder, verifies it in the session snapshot, and confirms it on the desktop workout.
+  The phone HUD flow checks the same target beside the RIR pills. Both focused runs cleaned all
+  nine tracked tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 714 tests at 82% coverage. Required Ruff rules, Ruff format, mypy, the single Alembic
+  head check, and `git diff --check` passed. Informational full Ruff remains at the existing
+  151 findings.
+- ESLint, TypeScript, Vite build, and all 199 Vitest tests passed. Full localhost Playwright
+  passed 68 tests with three expected viewport skips; cleanup found zero rows in all nine
+  tracked tables.
+- Browser verification recipe. Set Target RIR to 2 on one plan exercise and leave another
+  blank. Start the plan, confirm only the prescribed exercise shows Target RIR: 2 in the
+  desktop and phone workout views, then edit the plan and verify the active snapshot is
+  unchanged.
+
+## Cycle 25 — Preserve target RIR when duplicating a plan
+
+Duplicating a workout plan now copies each exercise's optional target RIR along with its other
+prescription fields. This keeps the copied plan equivalent to the original before the user
+chooses to make changes.
+
+- The real browser regression first failed on the baseline because the duplicate endpoint
+  response omitted the original exercise's target RIR. After the fix it verifies the duplicated
+  plan through the actual GUI action and API response.
+- The focused migrated-SQLite browser run passed and verified cleanup across all nine tracked
+  tables. The full localhost Playwright suite also passed.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 714 tests at 82% coverage. Required Ruff rules, mypy, and `git diff --check` passed.
+  Informational full Ruff remains at the existing 151 findings.
+- ESLint, TypeScript, Vite build, and all 199 Vitest tests passed. Full Playwright passed 69
+  tests with three expected viewport skips; cleanup found zero rows in all nine tracked tables.
+- Browser verification recipe. Create a strength plan with Target RIR 2, choose Duplicate,
+  then inspect the copy through the API and confirm the exercise still carries Target RIR 2.
+
+## Cycle 26 — Calculate barbell plate loading from configured gym equipment
+
+The mobile strength-workout HUD now calculates a symmetric per-side plate setup from the
+current weight dial. Settings store the bar weight and available plate pairs. The bounded
+combination search minimizes the number of plates, respects pair counts, and reports the closest
+achievable total when the exact request cannot be loaded. Showing the bar contribution and
+excluding collars makes the arithmetic explicit instead of asking the lifter to do it between
+sets.
+
+- The settings API now validates quarter-kilogram plate sizes, pair counts, unique sizes, and
+  bar weight. An additive migration supplies a standard starting profile while preserving
+  existing rest preferences. The Settings screen can adjust the bar and available pairs.
+- API regressions first confirmed the new fields were ignored and invalid pair counts accepted.
+  Plate math tests cover minimum-count combinations, limited inventory, unavailable targets,
+  below-bar requests, and selecting the closest load on either side.
+- The migrated-SQLite mobile browser flow configures the profile through Settings, starts a real
+  plan, and verifies the per-side setup at two loads. Cleanup found zero rows in all nine tracked
+  tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 717 tests at 82% coverage. Required Ruff rules, Ruff format, mypy, Alembic metadata
+  parity, and `git diff --check` passed. Informational full Ruff remains at the existing 151
+  findings.
+- ESLint, TypeScript, Vite build, and all 204 Vitest tests passed. Full localhost Playwright
+  passed 70 tests with four expected viewport skips; cleanup again found zero rows in all nine
+  tracked tables.
+- Browser verification recipe. In **Settings → Preferences**, set the bar weight and available
+  pairs. Start a strength workout, open **Plate calculator**, and check that each side matches
+  the loaded weight; change the weight dial and confirm the distribution updates. Unavailable
+  loads show the closest achievable total.
+
+## Cycle 27 — Plot RIR-adjusted performance across repeated loads
+
+Past-workout rep-retention charts can now switch from recorded reps to estimated reps at failure
+for sets at the same load. The estimate is recorded reps + recorded RIR; sets without an RIR stay
+missing from that curve. The table keeps actual reps, RIR, the estimate, and both retention
+percentages separate, so a change in reported reserve is visible alongside rep dropoff without
+presenting the estimate as a directly measured failure threshold.
+
+- The unit regression first failed because the baseline had no estimated-at-failure values. It
+  now verifies the first rated set as its own baseline and preserves unknown RIR as missing.
+- The migrated-SQLite browser flow records alternating loads and mixed RIR, then checks the
+  estimate and retention values on desktop and phone. It verifies the chart selector and confirms
+  the document does not overflow the phone viewport. Cleanup found zero rows in all nine tracked
+  tables.
+- Full Python coverage passed 717 tests at 82%. ESLint, TypeScript, all 204 Vitest tests, Vite
+  build, required Ruff rules, Ruff format, mypy, and `git diff --check` passed. Informational full
+  Ruff remains at the existing 151 findings.
+- Full localhost Playwright passed 70 tests with four expected viewport skips; cleanup found
+  zero rows in all nine tracked tables.
+- Browser verification recipe. Log multiple sets at the same weight with RIR on at least two.
+  In the past workout, expand **Rep retention at the same weight** and switch its chart measure
+  to **Estimated reps at failure**. Compare the estimated values with actual reps and RIR in the
+  adjacent table; unrated sets should not appear in the curve.
+
+## Cycle 28 — Classify catalogue exercises by movement pattern
+
+The exercise catalogue now supports an optional controlled movement pattern: horizontal or
+vertical push/pull, squat, hinge, lunge, carry, rotation, core stability, or locomotion. The
+catalogue can filter by a selected pattern, and the builder and detail view display the
+classification. Existing entries stay unclassified until someone reviews them; movement patterns
+complement the existing muscle tags.
+
+- API regressions cover valid and invalid patterns, nullable classification, and list filtering.
+  Browser-schema regressions cover the controlled values and nullable form payload.
+- The migrated-SQLite browser flow creates a tagged exercise in the GUI, reads the classification
+  from the real API, checks the detail label, filters the catalogue, edits the exercise, and
+  deletes it. The focused run and full desktop/mobile browser suite both verified zero rows in
+  all nine tracked tables after cleanup.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 719 backend tests at 82% coverage. ESLint, TypeScript, all 208 Vitest tests, and the Vite
+  production build passed. Required Ruff rules, Ruff format, mypy, the single Alembic head check,
+  and `git diff --check` passed. Informational full Ruff remains at the existing 151 findings.
+- Full localhost Playwright passed 70 tests with four viewport-specific skips; cleanup found zero
+  rows in every tracked table.
+- Browser verification recipe. In **Exercises**, add an exercise with a movement pattern, view
+  its detail classification, filter the catalogue to that pattern, then edit and clear it. Older
+  exercises remain available under **Any pattern** until explicitly classified.
+
+## Cycle 29 — Switch equipment profiles during a workout
+
+The plate calculator now supports named equipment profiles, so a lifter can account for different
+bar baselines and plate inventories in one gym. Settings can add, rename, remove, edit, and choose
+the default profile; the mobile workout calculator can switch profiles without interrupting a set.
+The selected profile's bar weight and inventory drive the load calculation.
+
+- The additive migration copies each existing bar weight and inventory into a default profile,
+  preserving configured equipment. Legacy settings fields remain mirrored to the selected
+  profile for existing clients.
+- API regressions verify profile round trips, active-profile selection, validation of duplicate
+  IDs and unknown selections, and migration of a customized 15 kg bar/inventory. The migrated
+  mobile browser journey edits the default inventory, adds a 15 kg technique bar, and switches
+  the active workout calculator to it. Cleanup found zero rows in all nine tracked tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 722 backend tests at 82% coverage. ESLint, TypeScript, all 208 Vitest tests, and the Vite
+  production build passed. Required Ruff rules, Ruff format, mypy, the single Alembic head check,
+  and `git diff --check` passed. Informational full Ruff remains at the existing 151 findings.
+- Full localhost Playwright passed 70 tests with four viewport-specific skips; cleanup found zero
+  rows in every tracked table.
+- Browser verification recipe. In **Settings → Preferences**, add a profile with a different
+  bar weight and inventory. Start a strength workout, open **Plate calculator**, select that
+  profile, and confirm both the displayed bar contribution and the per-side plate load update.
+
+## Cycle 30 — Review planned set exposure by movement pattern
+
+The plan editor now shows a live summary of target sets by movement pattern. It matches planned
+exercise names and aliases to the reviewed catalogue taxonomy and reports untagged, ambiguous, or
+free-text rows as unclassified. Counts describe the prescription; they do not grade it against a
+universal balance target.
+
+- A pure summary helper regression covers exact names, aliases, case-insensitive matching,
+  ambiguous aliases, unclassified catalogue entries, and invalid or blank draft rows. The
+  migrated-SQLite browser journey verifies a tagged squat and an unmatched lunge appear in their
+  respective groups while building a real superset plan; generated exercises and plans are
+  removed, and all nine tracked tables are empty after cleanup.
+- Backend coverage passed 722 tests at 82%. ESLint, TypeScript, all 211 Vitest tests, and the Vite
+  production build passed. Required Ruff rules, Ruff format, mypy, the single Alembic head check,
+  and `git diff --check` passed. Informational full Ruff remains at the existing 151 findings.
+- Full localhost Playwright passed 70 tests with four viewport-specific skips; cleanup found zero
+  rows in every tracked table.
+- Browser verification recipe. Create or edit a plan using a catalogue exercise with a reviewed
+  movement pattern alongside a free-text or unclassified exercise. Watch **Planned sets by
+  movement pattern** update as target set counts change; the unclassified bucket should remain
+  separate.
+
 ## Cycle 31 — Visualize same-load rep retention within a session
 
 Exercise progression now summarizes repeated loads from the latest session as set-to-set rep

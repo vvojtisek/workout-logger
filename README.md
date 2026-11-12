@@ -228,6 +228,21 @@ Never copy a database over `/data/workout_logger.db` while the app is running. S
 * **Machine-Readable Spec:** `GET /openapi.json` (OpenAPI 3.1).
 * **Compatibility Aliases:** `/workout-plans` maps to `/api/v1/plans`, `/workout-logs` maps to `/api/v1/logs`.
 
+Programs show counts for scheduled, in-progress, completed, and skipped workouts. The
+account-scoped `GET /api/v1/programs/schedule-summary` endpoint returns those counts per
+program without combining them into an adherence score.
+
+Each planned strength exercise can optionally define a target RIR from 0 to 10. Starting a
+workout copies that target into its session snapshot, and the mobile HUD and desktop workout
+view show it beside the controls for recording actual set effort. Duplicating a plan preserves
+the prescription.
+
+Configure named bar and plate inventories in **Settings → Preferences**, then choose the default
+profile. The mobile strength-workout HUD can switch profiles for the current workout and
+calculates the fewest matching plates per side from the current weight dial. When the requested
+load cannot be made, it shows the closest available load. The calculation includes the bar and
+excludes collars. Existing bar weight and plate settings migrate into a profile unchanged.
+
 Active-workout Slice 1 adds authenticated `/api/v1/workout-sessions` operations to start or
 resume a plan snapshot, idempotently save a set with an absolute rest deadline, read the session,
 complete it into the existing workout-log history, and remove E2E records during verified cleanup.
@@ -236,9 +251,25 @@ Exercise progression at `GET /api/v1/exercise-stats` uses each set's recorded we
 to find the heaviest set and the highest estimated one-rep max. Choose Epley, Brzycki, Lombardi,
 or Wathen in the desktop progression card or with the optional `formula` query parameter
 (`epley`, `brzycki`, `lombardi`, or `wathen`). The default Epley model retains all rep counts.
-The other options use sets of 1–10 reps. The estimates use logged reps as input to equations
-that assume reps to failure, and each chart point shows the set behind its estimate. Older
-logs with a single weight use that weight for every set. [Reference for the equations, Table 1](https://doi.org/10.1007/s11332-024-01264-y).
+The other options use sets of 1–10 effective reps. When a set has recorded RIR, the estimate
+adds RIR to reps as estimated reps to failure; unknown RIR uses the logged reps as-is. The
+4+ value is represented by four, so that estimate uses a minimum. Each chart point shows the
+recorded reps and the set behind its estimate. Older logs with a single weight use that weight
+for every set. [Reference for the equations, Table 1](https://doi.org/10.1007/s11332-024-01264-y).
+
+An exercise can optionally set a custom progression increment in kilograms, from 0.05 to 20 kg
+in 0.01 kg steps. When every set reaches the top of its rep range with reserve, the next-session
+suggestion uses that increment. Leaving the field blank keeps the existing equipment-based
+automatic increase.
+
+Exercise catalogue entries can also be tagged with an optional movement pattern: horizontal or
+vertical push/pull, squat, hinge, lunge, carry, rotation, core stability, or locomotion. Existing
+entries remain unclassified until someone reviews and tags them. The catalogue can filter by the
+selected pattern; movement classification complements the primary and secondary muscle tags.
+
+The plan editor also summarizes prescribed set counts by movement pattern as you change the
+exercise list. It matches catalogue names and aliases, reports free-text and ambiguous matches as
+unclassified, and keeps the counts descriptive rather than grading the plan against a fixed ratio.
 
 Exercise catalogue entries can also carry up to four movement-pattern tags (push/pull directions,
 squat, hinge, lunge, carry, trunk work, and locomotion). Use the catalogue's **Movement pattern**
@@ -275,6 +306,9 @@ In a past workout, expand **Rep retention at the same weight** when an exercise 
 recorded loads. Each chart plots reps at the set numbers in workout history. The table shows recorded
 reps, RIR when available, and reps as a percentage of the first set at that load. Explicitly
 missing loads are excluded. Older single-weight records use that weight for each set.
+When at least two same-load sets include RIR, the chart can also plot estimated reps at failure
+(recorded reps + RIR); sets without RIR are omitted from that estimate. This helps separate actual
+rep dropoff from a change in reported reserve.
 
 In a live strength workout on a phone, tap **RIR** or **RPE** to enter a set rating inline. Each
 rating is optional and recorded independently. Tap a selected rating again to clear it. **Complete

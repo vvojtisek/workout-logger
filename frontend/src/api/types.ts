@@ -29,6 +29,7 @@ export interface PlanExercise {
   target_sets: number;
   target_reps_min: number;
   target_reps_max: number;
+  target_rir: number | null;
   target_weight_kg: number | null;
   rest_time_seconds: number;
   notes: string | null;
@@ -48,6 +49,7 @@ export interface WorkoutPlan {
 export interface SessionExercise extends GridExercise {
   target_reps_min: number;
   target_reps_max: number;
+  target_rir: number | null;
   target_weight_kg: number | null;
   rest_time_seconds: number;
   notes: string | null;
@@ -242,6 +244,7 @@ export const MOVEMENT_PATTERNS = [
   "anti_rotation",
   "trunk_flexion",
   "trunk_extension",
+  "core_stability",
   "locomotion",
 ] as const;
 
@@ -257,10 +260,12 @@ export interface CatalogExercise {
   movement_patterns: MovementPattern[];
   instructions: string[];
   equipment: string | null;
+  movement_pattern: MovementPattern | null;
   // Alternatives: any one option will do, and an option needs all its tags.
   // Empty means the exercise is not tagged.
   equipment_any_of: EquipmentTag[][];
   safety_notes: string | null;
+  progression_increment_kg: number | null;
   equipment_load_mode: EquipmentLoadMode;
   is_unilateral: boolean;
   created_at: string;
@@ -356,6 +361,14 @@ export interface Program {
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProgramScheduleSummary {
+  program_id: string;
+  scheduled: number;
+  in_progress: number;
+  completed: number;
+  skipped: number;
 }
 
 export interface ProgramTemplate {
@@ -597,11 +610,27 @@ export interface ApiTokenCreated extends ApiToken {
 /** Legacy API values remain typed for compatibility; the UI always displays metric. */
 export type Units = "metric" | "imperial";
 
+export interface PlateInventoryItem {
+  plate_weight_kg: number;
+  pairs: number;
+}
+
+export interface EquipmentProfile {
+  id: string;
+  name: string;
+  barbell_weight_kg: number;
+  plate_inventory: PlateInventoryItem[];
+}
+
 export interface UserSettings {
   id: string;
   units: Units;
   default_rest_compound_seconds: number;
   default_rest_isolation_seconds: number;
+  barbell_weight_kg: number;
+  plate_inventory: { plate_weight_kg: number; pairs: number }[];
+  equipment_profiles: EquipmentProfile[];
+  active_equipment_profile_id: string;
   created_at: string;
   updated_at: string;
 }

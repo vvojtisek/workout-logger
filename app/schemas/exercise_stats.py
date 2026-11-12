@@ -12,7 +12,10 @@ class ExerciseStatsQuery(BaseModel):
     )
     formula: OneRepMaxFormula = Field(
         default="epley",
-        description="Epley uses all logged rep counts. Other formulas use 1–10 reps.",
+        description=(
+            "Logged RIR is added to reps; unknown RIR assumes failure. Epley accepts all "
+            "effective rep counts. Other formulas use 1–10 effective reps."
+        ),
     )
     date_from: AwareDatetime | None = Field(default=None, description="Inclusive start timestamp.")
     date_to: AwareDatetime | None = Field(default=None, description="Exclusive end timestamp.")

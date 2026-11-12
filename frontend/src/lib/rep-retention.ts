@@ -4,7 +4,9 @@ export interface RetentionSet {
   number: number;
   reps: number;
   rir: number | null;
+  repsAtFailure: number | null;
   percent: number;
+  failurePercent: number | null;
 }
 
 export interface RetentionGroup {
@@ -22,13 +24,30 @@ export function repRetentionGroups(
     if (weightKg == null || weightKg <= 0 || reps <= 0) continue;
     const group = groups.get(weightKg) ?? { weightKg, sets: [] };
     const reference = group.sets[0]?.reps ?? reps;
+    const rir = exercise.rir_per_set?.[index] ?? null;
     group.sets.push({
       number: index + 1,
       reps,
-      rir: exercise.rir_per_set?.[index] ?? null,
+      rir,
+      repsAtFailure: rir === null ? null : reps + rir,
       percent: (reps / reference) * 100,
+      failurePercent: null,
     });
     groups.set(weightKg, group);
   }
-  return [...groups.values()].filter((group) => group.sets.length > 1);
+  return [...groups.values()]
+    .filter((group) => group.sets.length > 1)
+    .map((group) => {
+      const baseline = group.sets.find((set) => set.repsAtFailure !== null)?.repsAtFailure;
+      return {
+        ...group,
+        sets: group.sets.map((set) => ({
+          ...set,
+          failurePercent:
+            baseline !== undefined && baseline !== null && set.repsAtFailure !== null
+              ? (set.repsAtFailure / baseline) * 100
+              : null,
+        })),
+      };
+    });
 }

@@ -41,6 +41,8 @@ async def increment_for(
 ) -> float:
     match = await _catalogue_match(session, exercise_name, catalog_exercise_id)
     if match is not None:
+        if match.progression_increment_kg is not None:
+            return match.progression_increment_kg
         leg = bool(LEG_MUSCLES & set(match.primary_muscles))
         barbell = any(
             "barbell" in option or "trap_bar" in option for option in match.equipment_any_of

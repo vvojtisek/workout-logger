@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import CheckConstraint, Integer, String
+from sqlalchemy import JSON, CheckConstraint, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import GUID, Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -32,3 +32,47 @@ class UserSettings(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # isolation exercise; never enforced or stored against the exercise itself.
     default_rest_compound_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=90)
     default_rest_isolation_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
+    barbell_weight_kg: Mapped[float] = mapped_column(
+        Float, nullable=False, default=20.0, server_default="20"
+    )
+    plate_inventory: Mapped[list[dict[str, float | int]]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=lambda: [
+            {"plate_weight_kg": weight, "pairs": 4}
+            for weight in (25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25, 0.5, 0.25)
+        ],
+        server_default=(
+            '[{"plate_weight_kg":25.0,"pairs":4},{"plate_weight_kg":20.0,"pairs":4},'
+            '{"plate_weight_kg":15.0,"pairs":4},{"plate_weight_kg":10.0,"pairs":4},'
+            '{"plate_weight_kg":5.0,"pairs":4},{"plate_weight_kg":2.5,"pairs":4},'
+            '{"plate_weight_kg":1.25,"pairs":4},{"plate_weight_kg":0.5,"pairs":4},'
+            '{"plate_weight_kg":0.25,"pairs":4}]'
+        ),
+    )
+    equipment_profiles: Mapped[list[dict[str, object]]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=lambda: [
+            {
+                "id": "barbell-default",
+                "name": "Barbell 20 kg",
+                "barbell_weight_kg": 20,
+                "plate_inventory": [
+                    {"plate_weight_kg": weight, "pairs": 4}
+                    for weight in (25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25, 0.5, 0.25)
+                ],
+            }
+        ],
+        server_default=(
+            '[{"id":"barbell-default","name":"Barbell 20 kg","barbell_weight_kg":20,'
+            '"plate_inventory":[{"plate_weight_kg":25.0,"pairs":4},'
+            '{"plate_weight_kg":20.0,"pairs":4},{"plate_weight_kg":15.0,"pairs":4},'
+            '{"plate_weight_kg":10.0,"pairs":4},{"plate_weight_kg":5.0,"pairs":4},'
+            '{"plate_weight_kg":2.5,"pairs":4},{"plate_weight_kg":1.25,"pairs":4},'
+            '{"plate_weight_kg":0.5,"pairs":4},{"plate_weight_kg":0.25,"pairs":4}]}]'
+        ),
+    )
+    active_equipment_profile_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="barbell-default", server_default="barbell-default"
+    )

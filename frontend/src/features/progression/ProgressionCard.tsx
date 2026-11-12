@@ -102,8 +102,9 @@ export function ProgressionCard({
       </div>
       <p id={`${id}-formula-help`} className="text-xs text-muted">
         <span data-numeric>{ESTIMATE_FORMULAS[formula].equation}</span>. W is weight in kg and r is
-        logged reps. {formula === "epley" ? "Epley uses all logged rep counts." : "Uses sets of 1–10 reps."}{" "}
-        These equations assume reps to failure.
+        effective reps. {formula === "epley" ? "Epley accepts all rep counts." : "Uses sets of 1–10 reps."}{" "}
+        Logged RIR is added to reps; unknown RIR assumes failure. For 4+, four is used as a
+        minimum. These equations estimate capacity from the logged set.
       </p>
       {agreement ? (
         <section data-testid="formula-agreement">

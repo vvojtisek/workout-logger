@@ -3,9 +3,9 @@ import { ChevronDown } from "lucide-react";
 
 import type { PlateProfile } from "@/api/types";
 import { DEFAULT_BARBELL, solvePlateLoad } from "@/lib/plate-calculator";
-import type { PlateLoad } from "@/lib/plate-calculator";
+import type { ProfilePlateLoad } from "@/lib/plate-calculator";
 
-function plateStackText(load: PlateLoad): string {
+function plateStackText(load: ProfilePlateLoad): string {
   return load.perSide.length
     ? load.perSide.map(({ weight_kg, count }) => `${count} × ${weight_kg} kg`).join(" + ")
     : "No plates";

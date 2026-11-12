@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import ConflictError, NotFoundError
 from app.models import Exercise
-from app.schemas.exercises import ExerciseCreate, ExerciseReplace
+from app.schemas.exercises import ExerciseCreate, ExerciseReplace, MovementPattern
 
 
 def _escape_like(value: str) -> str:
@@ -18,7 +18,7 @@ async def list_exercises(
     limit: int | None,
     offset: int,
     query: str | None = None,
-    movement_pattern: str | None = None,
+    movement_pattern: MovementPattern | None = None,
 ) -> tuple[list[Exercise], int]:
     statement = select(Exercise)
     term = (query or "").strip().lower()
@@ -31,7 +31,7 @@ async def list_exercises(
                 func.lower(cast(Exercise.aliases, String)).like(pattern, escape="\\"),
             )
         )
-    if movement_pattern:
+    if movement_pattern is not None:
         statement = statement.where(
             cast(Exercise.movement_patterns, String).like(f'%"{movement_pattern}"%')
         )

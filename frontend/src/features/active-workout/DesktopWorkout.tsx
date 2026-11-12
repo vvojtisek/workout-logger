@@ -236,9 +236,12 @@ function ExercisePane({
       </header>
 
       {exercise.exercise_kind === "strength" ? (
-        <p id="rir-hint" className="-mt-2 text-xs text-muted">
-          {RIR_HINT}
-        </p>
+        <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+          {exercise.target_rir != null ? (
+            <p data-testid="target-rir">Target RIR: {exercise.target_rir}</p>
+          ) : null}
+          <p id="rir-hint">{RIR_HINT}</p>
+        </div>
       ) : null}
 
       <div className="grid grid-cols-1 gap-5 @min-[73rem]:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">

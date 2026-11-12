@@ -15,6 +15,8 @@ const MOBILE_SPECS = [
   "rest-alerts.spec.js",
   "exercise-catalogue.spec.js",
   "master-detail.spec.js",
+  "exercise-catalogue.spec.js",
+  "programs-and-calendar.spec.js",
   "locations.spec.js",
   "train-at-location.spec.js",
   "sport-schedule.spec.js",
@@ -29,6 +31,7 @@ const MOBILE_SPECS = [
   "programs-and-calendar.spec.js",
   "training-load.spec.js",
   "rep-retention.spec.js",
+  "plate-calculator.spec.js",
 ];
 
 export default defineConfig({

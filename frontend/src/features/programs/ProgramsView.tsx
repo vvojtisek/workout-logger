@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import { useListVersion } from "@/app/MasterDetail";
 import { apiFetch, errorMessage } from "@/api/client";
-import type { Paginated, Program } from "@/api/types";
+import type { Paginated, Program, ProgramScheduleSummary } from "@/api/types";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { Button, EmptyState, PageHeading } from "@/ui";
@@ -25,6 +25,9 @@ export function ProgramsView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [scheduleSummaries, setScheduleSummaries] = useState<
+    Record<string, ProgramScheduleSummary>
+  >({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<Program | null>(null);
@@ -32,8 +35,14 @@ export function ProgramsView() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiFetch<Paginated<Program>>("/programs?limit=100");
+      const [data, summaries] = await Promise.all([
+        apiFetch<Paginated<Program>>("/programs?limit=100"),
+        apiFetch<{ items: ProgramScheduleSummary[] }>("/programs/schedule-summary"),
+      ]);
       setPrograms(data.items);
+      setScheduleSummaries(
+        Object.fromEntries(summaries.items.map((item) => [item.program_id, item])),
+      );
       setError(null);
     } catch (err) {
       setError(`Failed to load programs: ${errorMessage(err)}`);
@@ -93,6 +102,14 @@ export function ProgramsView() {
               </p>
               <p className="mt-1 text-xs text-muted">{STATUS_LABELS[program.status]}</p>
               <ProgramWeekSummary program={program} />
+              {scheduleSummaries[program.id] ? (
+                <p className="mt-1 text-xs text-muted" data-testid="program-schedule-summary">
+                  Scheduled {scheduleSummaries[program.id].scheduled} · In progress{" "}
+                  {scheduleSummaries[program.id].in_progress} · Completed{" "}
+                  {scheduleSummaries[program.id].completed} · Skipped{" "}
+                  {scheduleSummaries[program.id].skipped}
+                </p>
+              ) : null}
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button onClick={() => void navigate(`/programs/${program.id}/edit`)}>Edit</Button>

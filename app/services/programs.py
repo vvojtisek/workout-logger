@@ -1,11 +1,11 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import NotFoundError
-from app.models import Program, WorkoutPlan
-from app.schemas.programs import ProgramCreate, ProgramReplace
+from app.models import Program, ScheduledWorkout, WorkoutPlan
+from app.schemas.programs import ProgramCreate, ProgramReplace, ProgramScheduleSummary
 
 
 async def list_programs(
@@ -16,6 +16,27 @@ async def list_programs(
         select(Program).order_by(Program.start_date.desc()).limit(limit).offset(offset)
     )
     return list(result.scalars().all()), total or 0
+
+
+async def schedule_summaries(session: AsyncSession) -> list[ProgramScheduleSummary]:
+    def count_status(status: str):
+        return func.coalesce(
+            func.sum(case((ScheduledWorkout.status == status, 1), else_=0)), 0
+        ).label(status)
+
+    result = await session.execute(
+        select(
+            Program.id.label("program_id"),
+            count_status("scheduled"),
+            count_status("in_progress"),
+            count_status("completed"),
+            count_status("skipped"),
+        )
+        .outerjoin(ScheduledWorkout, ScheduledWorkout.program_id == Program.id)
+        .group_by(Program.id, Program.start_date)
+        .order_by(Program.start_date.desc())
+    )
+    return [ProgramScheduleSummary.model_validate(row._mapping) for row in result]
 
 
 async def get_program(session: AsyncSession, program_id: UUID) -> Program:

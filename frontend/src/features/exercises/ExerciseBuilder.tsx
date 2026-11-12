@@ -209,8 +209,10 @@ function buildPayload(state: {
   equipment: string;
   equipment_any_of: EquipmentTag[][] | null;
   safety_notes: string;
+  progression_increment_kg: string;
   equipment_load_mode: EquipmentLoadMode;
   is_unilateral: boolean;
+  movement_pattern: MovementPattern | null;
 }) {
   return {
     name: state.name.trim(),
@@ -223,8 +225,12 @@ function buildPayload(state: {
     equipment: state.equipment.trim() || null,
     equipment_any_of: state.equipment_any_of,
     safety_notes: state.safety_notes.trim() || null,
+    progression_increment_kg: state.progression_increment_kg.trim()
+      ? Number(state.progression_increment_kg)
+      : null,
     equipment_load_mode: state.equipment_load_mode,
     is_unilateral: state.is_unilateral,
+    movement_pattern: state.movement_pattern,
   };
 }
 
@@ -248,8 +254,10 @@ export function ExerciseBuilder() {
   // follow the text, so editing "barbell" to "dumbbell" retags the exercise.
   const [tagsTouched, setTagsTouched] = useState(false);
   const [safetyNotes, setSafetyNotes] = useState("");
+  const [progressionIncrement, setProgressionIncrement] = useState("");
   const [loadMode, setLoadMode] = useState<EquipmentLoadMode>("standard");
   const [unilateral, setUnilateral] = useState(false);
+  const [movementPattern, setMovementPattern] = useState<MovementPattern | "">("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const seededExerciseId = useRef<string | null>(null);
 
@@ -272,8 +280,10 @@ export function ExerciseBuilder() {
     setEquipment(existing.equipment ?? "");
     setEquipmentAnyOf(existing.equipment_any_of.length > 0 ? existing.equipment_any_of : null);
     setSafetyNotes(existing.safety_notes ?? "");
+    setProgressionIncrement(existing.progression_increment_kg?.toString() ?? "");
     setLoadMode(existing.equipment_load_mode);
     setUnilateral(existing.is_unilateral);
+    setMovementPattern(existing.movement_pattern ?? "");
   }, [existing]);
 
   const mutation = useMutation({
@@ -327,8 +337,10 @@ export function ExerciseBuilder() {
       equipment,
       equipment_any_of: equipmentAnyOf,
       safety_notes: safetyNotes,
+      progression_increment_kg: progressionIncrement,
       equipment_load_mode: loadMode,
       is_unilateral: unilateral,
+      movement_pattern: movementPattern || null,
     });
     const result = exercisePayloadSchema.safeParse(payload);
     if (!result.success) {
@@ -409,6 +421,27 @@ export function ExerciseBuilder() {
           selected={primaryMuscles}
           onToggle={(tag) => toggleMuscle(primaryMuscles, setPrimaryMuscles, tag)}
         />
+        <div>
+          <label className="field-label" htmlFor="exercise-movement-pattern">
+            Primary movement pattern
+          </label>
+          <p className="mb-1 text-xs text-muted">
+            Used for plan balance; also included among the movement-pattern tags below.
+          </p>
+          <select
+            id="exercise-movement-pattern"
+            className="input"
+            value={movementPattern}
+            onChange={(event) => setMovementPattern(event.target.value as MovementPattern | "")}
+          >
+            <option value="">Unclassified</option>
+            {MOVEMENT_PATTERNS.map((pattern) => (
+              <option key={pattern} value={pattern}>
+                {MOVEMENT_PATTERN_LABELS[pattern]}
+              </option>
+            ))}
+          </select>
+        </div>
         <MovementPatternPicker selected={movementPatterns} onToggle={toggleMovementPattern} />
         <MuscleTagPicker
           label="Secondary muscles"
@@ -464,6 +497,30 @@ export function ExerciseBuilder() {
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="field-label" htmlFor="exercise-progression-increment">
+            Progression increment (kg)
+          </label>
+          <Input
+            id="exercise-progression-increment"
+            type="number"
+            min="0.05"
+            max="20"
+            step="0.01"
+            inputMode="decimal"
+            placeholder="Automatic"
+            value={progressionIncrement}
+            onChange={(event) => setProgressionIncrement(event.target.value)}
+          />
+          <p className="mt-1 text-sm text-muted">
+            Optional override for the load increase after all sets reach the top of the rep range.
+            Leave blank to use the automatic equipment-based increment.
+          </p>
+          {errors.progression_increment_kg ? (
+            <p className="mt-1 text-sm text-danger">{errors.progression_increment_kg}</p>
+          ) : null}
         </div>
 
         <label className="flex items-center gap-3 text-sm">

@@ -12,6 +12,7 @@ import type {
   AuditActorKind,
   AuditEventsPage,
   CoachingPrinciples,
+  EquipmentProfile,
   McpStatus,
   UserSettings,
 } from "@/api/types";
@@ -145,14 +146,22 @@ function PreferencesSection() {
   const { data: settings, isLoading } = useSettingsQuery();
   const [compound, setCompound] = useState("90");
   const [isolation, setIsolation] = useState("60");
+  const [equipmentProfiles, setEquipmentProfiles] = useState<EquipmentProfile[]>([]);
+  const [activeEquipmentProfileId, setActiveEquipmentProfileId] = useState("barbell-default");
   const [seeded, setSeeded] = useState(false);
 
   useEffect(() => {
     if (!settings || seeded) return;
     setCompound(String(settings.default_rest_compound_seconds));
     setIsolation(String(settings.default_rest_isolation_seconds));
+    setEquipmentProfiles(settings.equipment_profiles);
+    setActiveEquipmentProfileId(settings.active_equipment_profile_id);
     setSeeded(true);
   }, [settings, seeded]);
+
+  const activeProfile = equipmentProfiles.find(
+    (profile) => profile.id === activeEquipmentProfileId,
+  ) ?? equipmentProfiles[0];
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -162,6 +171,10 @@ function PreferencesSection() {
           units: "metric",
           default_rest_compound_seconds: Number.parseInt(compound, 10),
           default_rest_isolation_seconds: Number.parseInt(isolation, 10),
+          barbell_weight_kg: activeProfile?.barbell_weight_kg,
+          plate_inventory: activeProfile?.plate_inventory,
+          equipment_profiles: equipmentProfiles,
+          active_equipment_profile_id: activeEquipmentProfileId,
         }),
       }),
     onSuccess: () => {
@@ -215,6 +228,130 @@ function PreferencesSection() {
             <p className="text-sm text-muted">
               Pre-fills the rest field when you add a compound or isolation
               exercise to a plan. Existing exercises are unaffected.
+            </p>
+            <div>
+              <label className="field-label" htmlFor="active-equipment-profile">
+                Active equipment profile
+              </label>
+              <select
+                id="active-equipment-profile"
+                className="input"
+                value={activeEquipmentProfileId}
+                onChange={(event) => setActiveEquipmentProfileId(event.target.value)}
+              >
+                {equipmentProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>{profile.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-3">
+              {equipmentProfiles.map((profile, profileIndex) => (
+                <fieldset key={profile.id} className="flex flex-col gap-3 rounded-lg border border-line-muted p-3">
+                  <legend className="field-label px-1">Equipment profile {profileIndex + 1}</legend>
+                  <div className="grid gap-3 sm:grid-cols-[1fr_minmax(10rem,14rem)]">
+                    <div>
+                      <label className="field-label" htmlFor={`equipment-profile-name-${profile.id}`}>
+                        Profile name
+                      </label>
+                      <Input
+                        id={`equipment-profile-name-${profile.id}`}
+                        value={profile.name}
+                        onChange={(event) => {
+                          const next = [...equipmentProfiles];
+                          next[profileIndex] = { ...profile, name: event.target.value };
+                          setEquipmentProfiles(next);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="field-label" htmlFor={`equipment-profile-weight-${profile.id}`}>
+                        Bar weight (kg)
+                      </label>
+                      <Input
+                        id={`equipment-profile-weight-${profile.id}`}
+                        type="number"
+                        min="0.25"
+                        max="100"
+                        step="0.25"
+                        value={profile.barbell_weight_kg}
+                        onChange={(event) => {
+                          const next = [...equipmentProfiles];
+                          next[profileIndex] = {
+                            ...profile,
+                            barbell_weight_kg: Number.parseFloat(event.target.value) || 0,
+                          };
+                          setEquipmentProfiles(next);
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <fieldset className="min-w-0">
+                    <legend className="field-label">Plate pairs available per side</legend>
+                    <div className="grid grid-cols-3 gap-x-3 gap-y-2 sm:grid-cols-5">
+                      {profile.plate_inventory.map((plate, index) => (
+                        <label key={plate.plate_weight_kg} className="flex items-center gap-2 text-sm">
+                          <span className="min-w-12">{plate.plate_weight_kg} kg</span>
+                          <Input
+                            aria-label={`${profile.name}: ${plate.plate_weight_kg} kg plate pairs`}
+                            type="number"
+                            min="0"
+                            max="20"
+                            step="1"
+                            value={plate.pairs}
+                            onChange={(event) => {
+                              const inventory = [...profile.plate_inventory];
+                              inventory[index] = {
+                                ...plate,
+                                pairs: Number.parseInt(event.target.value, 10) || 0,
+                              };
+                              const next = [...equipmentProfiles];
+                              next[profileIndex] = { ...profile, plate_inventory: inventory };
+                              setEquipmentProfiles(next);
+                            }}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  {equipmentProfiles.length > 1 ? (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        const remaining = equipmentProfiles.filter((item) => item.id !== profile.id);
+                        setEquipmentProfiles(remaining);
+                        if (activeEquipmentProfileId === profile.id) {
+                          setActiveEquipmentProfileId(remaining[0]?.id ?? "");
+                        }
+                      }}
+                    >
+                      Remove profile
+                    </Button>
+                  ) : null}
+                </fieldset>
+              ))}
+              {equipmentProfiles.length < 12 ? (
+                <Button
+                  onClick={() => {
+                    const first = equipmentProfiles[0];
+                    const id = `profile-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+                    setEquipmentProfiles([
+                      ...equipmentProfiles,
+                      {
+                        id,
+                        name: "New bar",
+                        barbell_weight_kg: 15,
+                        plate_inventory: first ? [...first.plate_inventory] : [],
+                      },
+                    ]);
+                  }}
+                >
+                  Add equipment profile
+                </Button>
+              ) : null}
+            </div>
+            <p className="text-sm text-muted">
+              Profiles are saved in your settings. The in-workout plate calculator can switch
+              profiles for the current workout; a pair means one matching plate on each side.
             </p>
             <div>
               <Button
