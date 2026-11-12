@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openPage } from "./support/navigation.js";
+import { isDesktop, openPage } from "./support/navigation.js";
 import { clickAndAwaitWrite } from "./support/writes.js";
 
 function todayIso() {
@@ -98,11 +98,21 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     });
     scheduledId = scheduled?.id;
 
+    await openPage(page, "Programs");
+    const programCard = page
+      .locator("#programs-list")
+      .getByRole("listitem")
+      .filter({ hasText: `${tag} program` });
+    await expect(programCard.getByTestId("program-schedule-summary")).toContainText(
+      /Scheduled 1.*In progress 0.*Completed 0.*Skipped 0/,
+    );
+
     // Reschedule: move it one day into the future, then back to today.
     const tomorrow = new Date();
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
     const tomorrowIso = tomorrow.toISOString().slice(0, 10);
 
+    await openPage(page, "Calendar");
     await page.getByRole("button", { name: `${tag} plan` }).click();
     await expect(page.getByRole("heading", { name: `${tag} plan` })).toBeVisible();
     await expect(page.locator("#reschedule-date")).toHaveAttribute("type", "text");
@@ -144,6 +154,18 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     expect(activeResponse.status()).toBe(200);
     sessionId = (await activeResponse.json()).id;
 
+    if (!isDesktop(page)) {
+      await page.getByRole("button", { name: "Minimize workout" }).click();
+    }
+    await openPage(page, "Programs");
+    await expect(
+      page
+        .locator("#programs-list")
+        .getByRole("listitem")
+        .filter({ hasText: `${tag} program` })
+        .getByTestId("program-schedule-summary"),
+    ).toContainText(/Scheduled 0.*In progress 1.*Completed 0.*Skipped 0/);
+
     const afterStart = await request.get(`/api/v1/scheduled-workouts/${scheduledId}`);
     expect(await afterStart.json()).toMatchObject({
       status: "in_progress",
@@ -153,6 +175,15 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     // Cancel the session; the scheduled workout should revert automatically.
     await request.delete(`/api/v1/workout-sessions/${sessionId}`);
     sessionId = undefined;
+    await openPage(page, "Programs");
+    await expect(
+      page
+        .locator("#programs-list")
+        .getByRole("listitem")
+        .filter({ hasText: `${tag} program` })
+        .getByTestId("program-schedule-summary"),
+    ).toContainText(/Scheduled 1.*In progress 0.*Completed 0.*Skipped 0/);
+    await openPage(page, "Calendar");
     const afterCancel = await request.get(`/api/v1/scheduled-workouts/${scheduledId}`);
     expect(await afterCancel.json()).toMatchObject({ status: "scheduled", workout_session_id: null });
 

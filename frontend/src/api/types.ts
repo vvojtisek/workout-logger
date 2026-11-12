@@ -300,6 +300,14 @@ export interface Program {
   updated_at: string;
 }
 
+export interface ProgramScheduleSummary {
+  program_id: string;
+  scheduled: number;
+  in_progress: number;
+  completed: number;
+  skipped: number;
+}
+
 export interface ProgramTemplate {
   key: string;
   name: string;

@@ -228,6 +228,10 @@ Never copy a database over `/data/workout_logger.db` while the app is running. S
 * **Machine-Readable Spec:** `GET /openapi.json` (OpenAPI 3.1).
 * **Compatibility Aliases:** `/workout-plans` maps to `/api/v1/plans`, `/workout-logs` maps to `/api/v1/logs`.
 
+Programs show counts for scheduled, in-progress, completed, and skipped workouts. The
+account-scoped `GET /api/v1/programs/schedule-summary` endpoint returns those counts per
+program without combining them into an adherence score.
+
 Active-workout Slice 1 adds authenticated `/api/v1/workout-sessions` operations to start or
 resume a plan snapshot, idempotently save a set with an absolute rest deadline, read the session,
 complete it into the existing workout-log history, and remove E2E records during verified cleanup.

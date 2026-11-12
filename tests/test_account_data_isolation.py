@@ -308,6 +308,12 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
         program_id = created_program.json()["id"]
         other_programs = await client.get("/api/v1/programs", headers=other_cookies)
         assert all(item["id"] != program_id for item in other_programs.json()["items"])
+        other_program_summaries = await client.get(
+            "/api/v1/programs/schedule-summary", headers=other_cookies
+        )
+        assert all(
+            item["program_id"] != program_id for item in other_program_summaries.json()["items"]
+        )
 
         created_nutrition_plan = await client.post(
             "/api/v1/nutrition-plans",

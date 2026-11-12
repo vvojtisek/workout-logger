@@ -252,6 +252,30 @@ revision adds the nullable field, so legacy exercises keep automatic progression
   the suggested load is previous load + 0.25 kg. Clear the override to restore the automatic
   equipment-based step.
 
+## Cycle 22 — Review each program's scheduled workout states
+
+The Programs page now reports scheduled, in-progress, completed, and skipped workout counts
+for each program. `GET /api/v1/programs/schedule-summary` returns the same account-scoped
+counts and keeps the four states distinct instead of combining them into an inferred score.
+
+- The API tests create one workout in each state and verify the exact per-program counts. An
+  account-isolation assertion confirms another invited account cannot see a private program's
+  summary. Both new endpoint checks failed against the baseline before the route existed.
+- The real migrated-SQLite browser flow schedules a workout, starts it, and verifies the
+  Programs counts on desktop and phone. The phone test minimizes the active workout HUD to
+  reach the navigation tabs. Both focused viewport runs passed, and cleanup found zero rows
+  in all nine tracked tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 710 tests at 82% coverage. Required Ruff rules, Ruff format, mypy, and
+  `git diff --check` passed. Informational full Ruff remains at the existing 151 findings.
+- ESLint, TypeScript, Vite build, and all 197 Vitest tests passed. Full localhost Playwright
+  passed 68 tests with three expected viewport skips; cleanup again found zero rows in all
+  nine tracked tables.
+- Browser verification recipe. Schedule four workouts in one program. Mark one skipped,
+  start and complete one, start another, and leave the fourth scheduled. Confirm the Programs
+  row reports one in each state, then cancel the active workout and verify its count returns
+  to Scheduled.
+
 ## Cycle 10 — Export the selected training weeks as session and set data
 
 The Training load view downloads UTF-8 CSV for its selected local weeks. Session rows hold
