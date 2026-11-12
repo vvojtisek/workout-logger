@@ -234,7 +234,8 @@ program without combining them into an adherence score.
 
 Each planned strength exercise can optionally define a target RIR from 0 to 10. Starting a
 workout copies that target into its session snapshot, and the mobile HUD and desktop workout
-view show it beside the controls for recording actual set effort.
+view show it beside the controls for recording actual set effort. Duplicating a plan preserves
+the prescription.
 
 Active-workout Slice 1 adds authenticated `/api/v1/workout-sessions` operations to start or
 resume a plan snapshot, idempotently save a set with an absolute rest deadline, read the session,

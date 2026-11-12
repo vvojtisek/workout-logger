@@ -225,6 +225,28 @@ saved set numbers when other loads intervene.
   50 kg for 10 and 12 reps at sets 2 and 4. Playwright verified the 75% and 120% values,
   the actual set indices, and the absence of a single-load comparison for a 70 kg set.
 
+## Cycle 10 — Export the selected training weeks as session and set data
+
+The Training load view downloads UTF-8 CSV for its selected local weeks. Session rows hold
+duration and effort once per workout. Set rows join through `workout_id` and keep saved weight,
+reps, and RIR, including zero and missing values. The export uses the same account-scoped
+range query as Training load and a timestamp and workout ID tie-breaker. Formula-like names
+are quoted and prefixed with an apostrophe. [Spreadsheet formula text handling](https://owasp.org/www-community/attacks/CSV_Injection).
+
+- The migrated API test first received HTTP 404, and the baseline browser lacked the CSV
+  control. Tagged browser cleanup passed.
+- The focused export, training-load, and account-isolation run passed seven tests. It verified
+  Prague boundaries, hidden baseline exclusion, exact timestamp ordering, accented and quoted
+  exercise names, blanks versus zero, and owner-only rows.
+- Full Python coverage run passed 705 tests at 82%. Required Ruff rules, Ruff format, mypy,
+  and `git diff --check` passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm run test` (192 tests), and Vite build passed.
+- Full localhost Playwright on fresh migrated SQLite passed 65 tests with three existing
+  viewport skips. The cleanup check found zero rows in all nine checked tables.
+- Browser verification recipe. Choose a four-week range and download the CSV from Training
+  load. Playwright read the actual bytes and verified the range filename, one included workout,
+  and exclusion of an earlier workout in the ratio lookback on both desktop and phone.
+
 ## Cycle 21 — Configure the progression increment per exercise
 
 The exercise catalogue can override the double-progression load increase with a user-set value
@@ -326,24 +348,21 @@ recording actual set RIR; plans without a target keep the existing uncluttered d
   desktop and phone workout views, then edit the plan and verify the active snapshot is
   unchanged.
 
-## Cycle 10 — Export the selected training weeks as session and set data
+## Cycle 25 — Preserve target RIR when duplicating a plan
 
-The Training load view downloads UTF-8 CSV for its selected local weeks. Session rows hold
-duration and effort once per workout. Set rows join through `workout_id` and keep saved weight,
-reps, and RIR, including zero and missing values. The export uses the same account-scoped
-range query as Training load and a timestamp and workout ID tie-breaker. Formula-like names
-are quoted and prefixed with an apostrophe. [Spreadsheet formula text handling](https://owasp.org/www-community/attacks/CSV_Injection).
+Duplicating a workout plan now copies each exercise's optional target RIR along with its other
+prescription fields. This keeps the copied plan equivalent to the original before the user
+chooses to make changes.
 
-- The migrated API test first received HTTP 404, and the baseline browser lacked the CSV
-  control. Tagged browser cleanup passed.
-- The focused export, training-load, and account-isolation run passed seven tests. It verified
-  Prague boundaries, hidden baseline exclusion, exact timestamp ordering, accented and quoted
-  exercise names, blanks versus zero, and owner-only rows.
-- Full Python coverage run passed 705 tests at 82%. Required Ruff rules, Ruff format, mypy,
-  and `git diff --check` passed. Informational Ruff stayed at the existing 151 findings.
-- `npm ci`, ESLint, TypeScript, `npm run test` (192 tests), and Vite build passed.
-- Full localhost Playwright on fresh migrated SQLite passed 65 tests with three existing
-  viewport skips. The cleanup check found zero rows in all nine checked tables.
-- Browser verification recipe. Choose a four-week range and download the CSV from Training
-  load. Playwright read the actual bytes and verified the range filename, one included workout,
-  and exclusion of an earlier workout in the ratio lookback on both desktop and phone.
+- The real browser regression first failed on the baseline because the duplicate endpoint
+  response omitted the original exercise's target RIR. After the fix it verifies the duplicated
+  plan through the actual GUI action and API response.
+- The focused migrated-SQLite browser run passed and verified cleanup across all nine tracked
+  tables. The full localhost Playwright suite also passed.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 714 tests at 82% coverage. Required Ruff rules, mypy, and `git diff --check` passed.
+  Informational full Ruff remains at the existing 151 findings.
+- ESLint, TypeScript, Vite build, and all 199 Vitest tests passed. Full Playwright passed 69
+  tests with three expected viewport skips; cleanup found zero rows in all nine tracked tables.
+- Browser verification recipe. Create a strength plan with Target RIR 2, choose Duplicate,
+  then inspect the copy through the API and confirm the exercise still carries Target RIR 2.
