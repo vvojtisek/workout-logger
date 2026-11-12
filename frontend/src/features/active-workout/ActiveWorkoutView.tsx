@@ -7,6 +7,7 @@ import { useAppContext } from "@/AppLayout";
 import { useExerciseProgression } from "@/features/progression/useExerciseProgression";
 import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import { exerciseStatsFacts } from "@/lib/exercise-stats";
+import { unlockRestAlertAudio } from "@/lib/rest-alerts";
 import {
   adjustQueuedSetRest,
   clearSetDraft,
@@ -194,6 +195,7 @@ function ActiveWorkoutSession({
 
   const persistSet = useCallback(
     async (row: GridRow, values: SetValues, state: "completed" | "skipped") => {
+      if (state === "completed") unlockRestAlertAudio();
       const draftKey = draftStorageKey(session.id, row.exercise.id, row.setNumber);
       if (pendingWrites.current.has(draftKey)) return;
       pendingWrites.current.add(draftKey);

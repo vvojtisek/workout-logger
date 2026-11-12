@@ -456,3 +456,27 @@ a different profile never changes the saved set weight.
   mass and plate stock. Start a workout at that location, advance to a dumbbell exercise, open
   **Dumbbell plates**, and compare the calculated per-hand stack with the entered load. Save a
   set and verify the set weight is unchanged.
+
+## Cycle 19 — Alert once when a rest timer expires
+
+The active workout now plays one short tone and requests a brief vibration when a rest deadline
+expires. Sound and vibration have independent, device-local controls in Settings and default on.
+Sound is prepared by the athlete's completed-set action to meet browser audio gesture rules.
+The absolute rest deadline is claimed in persistent and in-memory guards so parallel timer views,
+remounts, and reloads do not repeat a cue. The visible timer remains the completion signal when a
+browser lacks audio or vibration support.
+
+- Unit coverage verifies device preference persistence, independent choices, one claim per
+  deadline, and graceful behavior when local storage is blocked.
+- A real localhost workout with a two-second rest verified exactly one audio oscillator and one
+  vibration pattern in both desktop and phone browser projects. The Settings flow switched both
+  preferences off and verified they stayed off after reload.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 712 tests at 82% coverage. The required Ruff gate, `git diff --check`, and mypy passed.
+  Informational full Ruff remains at 151 repository findings.
+- `npm test` passed 201 tests; ESLint, TypeScript, and Vite build passed. Full localhost
+  Playwright on fresh migrated SQLite passed 74 tests with seven viewport skips. Cleanup found
+  zero rows in all nine checked tables.
+- Browser verification recipe. In Settings, leave both rest cues on and reload. Start a workout,
+  complete a set with a two-second rest, and wait past its deadline. Confirm one tone and one
+  vibration. Repeat with each cue disabled to verify independent preferences.

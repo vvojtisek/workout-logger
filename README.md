@@ -294,6 +294,9 @@ loads when an exact stack is unavailable and never changes the value saved in th
 For adjustable dumbbells, open **Dumbbell plates** to calculate the symmetric stack on each
 side of one dumbbell. Named handle and plate inventories come from the selected location; the
 weight field continues to record kilograms per dumbbell.
+Rest completion plays a short tone and requests a brief vibration once per timer deadline.
+Toggle either cue in Settings; sound activates with the next completed set, and vibration depends
+on browser and device support.
 
 **Download training CSV** exports the visible Training load window using the same local-week
 boundaries. The UTF-8 file has one `session` row per workout or activity with duration and
