@@ -566,6 +566,18 @@ export interface ApiTokenCreated extends ApiToken {
 /** Legacy API values remain typed for compatibility; the UI always displays metric. */
 export type Units = "metric" | "imperial";
 
+export interface PlateInventoryItem {
+  plate_weight_kg: number;
+  pairs: number;
+}
+
+export interface EquipmentProfile {
+  id: string;
+  name: string;
+  barbell_weight_kg: number;
+  plate_inventory: PlateInventoryItem[];
+}
+
 export interface UserSettings {
   id: string;
   units: Units;
@@ -573,6 +585,8 @@ export interface UserSettings {
   default_rest_isolation_seconds: number;
   barbell_weight_kg: number;
   plate_inventory: { plate_weight_kg: number; pairs: number }[];
+  equipment_profiles: EquipmentProfile[];
+  active_equipment_profile_id: string;
   created_at: string;
   updated_at: string;
 }

@@ -1,3 +1,6 @@
+from typing import cast
+
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,10 +28,37 @@ async def update_settings(session: AsyncSession, data: UserSettingsUpdate) -> Us
     settings.units = "metric"
     settings.default_rest_compound_seconds = data.default_rest_compound_seconds
     settings.default_rest_isolation_seconds = data.default_rest_isolation_seconds
-    if data.barbell_weight_kg is not None:
-        settings.barbell_weight_kg = data.barbell_weight_kg
-    if data.plate_inventory is not None:
-        settings.plate_inventory = [plate.model_dump() for plate in data.plate_inventory]
+    profiles = list(settings.equipment_profiles)
+    if data.equipment_profiles is not None:
+        profiles = [profile.model_dump() for profile in data.equipment_profiles]
+    elif data.barbell_weight_kg is not None or data.plate_inventory is not None:
+        active_profile = next(
+            (
+                profile
+                for profile in profiles
+                if profile["id"] == settings.active_equipment_profile_id
+            ),
+            profiles[0],
+        )
+        if data.barbell_weight_kg is not None:
+            active_profile["barbell_weight_kg"] = data.barbell_weight_kg
+        if data.plate_inventory is not None:
+            active_profile["plate_inventory"] = [
+                plate.model_dump() for plate in data.plate_inventory
+            ]
+
+    selected_id = data.active_equipment_profile_id or settings.active_equipment_profile_id
+    selected = next((profile for profile in profiles if profile["id"] == selected_id), None)
+    if selected is None:
+        if data.active_equipment_profile_id is not None:
+            raise HTTPException(status_code=422, detail="Unknown active equipment profile")
+        selected = profiles[0]
+        selected_id = str(selected["id"])
+
+    settings.equipment_profiles = profiles
+    settings.active_equipment_profile_id = selected_id
+    settings.barbell_weight_kg = cast(float, selected["barbell_weight_kg"])
+    settings.plate_inventory = cast(list[dict[str, float | int]], selected["plate_inventory"])
     await session.commit()
     await session.refresh(settings)
     return settings

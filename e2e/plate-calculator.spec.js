@@ -17,7 +17,10 @@ test("mobile workout plate calculator uses the configured equipment profile", as
   try {
     await page.goto("/");
     await openPage(page, "Settings");
-    await page.getByLabel("20 kg plate pairs").fill("1");
+    await page.getByLabel("Barbell 20 kg: 20 kg plate pairs").fill("1");
+    await page.getByRole("button", { name: "Add equipment profile" }).click();
+    await page.getByLabel("Profile name").nth(1).fill("Technique bar 15 kg");
+    await page.getByLabel("Bar weight (kg)").nth(1).fill("15");
     await page.getByRole("button", { name: "Save preferences" }).click();
     await expect
       .poll(async () => (await (await request.get("/api/v1/settings")).json()).plate_inventory[1].pairs)
@@ -61,9 +64,12 @@ test("mobile workout plate calculator uses the configured equipment profile", as
     await calculator.getByText("Plate calculator · 82.5 kg").click();
     await expect(calculator).toContainText("82.5 kg total");
     await expect(calculator).toContainText("25 kg + 5 kg + 1.25 kg per side");
+    await calculator.getByLabel("Equipment profile").selectOption({ label: "Technique bar 15 kg" });
+    await expect(calculator).toContainText("15 kg bar included; collars excluded.");
+    await expect(calculator).toContainText("82.5 kg total");
     await page.getByLabel("Weight (kg)").fill("90");
     await expect(calculator).toContainText("90 kg total");
-    await expect(calculator).toContainText("25 kg + 10 kg per side");
+    await expect(calculator).toContainText("25 kg + 10 kg + 2.5 kg per side");
   } finally {
     if (sessionId) {
       expect((await request.delete(`/api/v1/workout-sessions/${sessionId}`)).status()).toBe(204);

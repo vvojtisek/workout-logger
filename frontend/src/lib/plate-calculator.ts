@@ -1,8 +1,6 @@
-export interface PlateInventoryItem {
-  plate_weight_kg: number;
-  /** Number of matching pairs available. One plate from each pair goes on each side. */
-  pairs: number;
-}
+import type { PlateInventoryItem } from "@/api/types";
+
+export type { PlateInventoryItem } from "@/api/types";
 
 export interface PlateLoad {
   requested_weight_kg: number;

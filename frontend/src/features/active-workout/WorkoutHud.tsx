@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode, TouchEvent } from "react";
 import { X } from "lucide-react";
 
-import type { ExerciseStats, WorkoutSession } from "@/api/types";
-import type { PlateInventoryItem } from "@/lib/plate-calculator";
+import type { EquipmentProfile, ExerciseStats, WorkoutSession } from "@/api/types";
 import { calculatePlateLoad, formatPlateWeight } from "@/lib/plate-calculator";
 import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import {
@@ -120,8 +119,8 @@ export function ElapsedClock({ startedAt }: { startedAt: string }) {
 
 export interface WorkoutHudProps {
   session: WorkoutSession;
-  barbellWeightKg: number;
-  plateInventory: PlateInventoryItem[];
+  equipmentProfiles: EquipmentProfile[];
+  activeEquipmentProfileId: string;
   rows: HudRow[];
   index: number;
   progress: { done: number; total: number; percent: number };
@@ -152,7 +151,12 @@ export interface WorkoutHudProps {
 export function WorkoutHud(props: WorkoutHudProps) {
   const { session, rows, index, progress, sync } = props;
   const row = rows[index];
+  const [equipmentProfileId, setEquipmentProfileId] = useState(props.activeEquipmentProfileId);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    setEquipmentProfileId(props.activeEquipmentProfileId);
+  }, [session.id, props.activeEquipmentProfileId]);
 
   // A sideways swipe changes exercise. Chrome would otherwise take it as the
   // page's back/forward gesture, which is set on the document's root scroller.
@@ -327,6 +331,8 @@ export function WorkoutHud(props: WorkoutHudProps) {
         <SetPanel
           key={`${row.exercise.id}:${row.setNumber}:${row.entry?.id ?? "draft"}`}
           {...props}
+          onEquipmentProfileChange={setEquipmentProfileId}
+          selectedEquipmentProfileId={equipmentProfileId}
           row={row}
           previous={previousLogged}
           allLogged={allLogged}
@@ -525,14 +531,22 @@ function RestBar({
 
 function PlateCalculator({
   requestedWeightKg,
-  barbellWeightKg,
-  inventory,
+  profiles,
+  activeProfileId,
+  onProfileChange,
 }: {
   requestedWeightKg: number;
-  barbellWeightKg: number;
-  inventory: PlateInventoryItem[];
+  profiles: EquipmentProfile[];
+  activeProfileId: string;
+  onProfileChange: (profileId: string) => void;
 }) {
-  const result = calculatePlateLoad(requestedWeightKg, barbellWeightKg, inventory);
+  const profile = profiles.find((candidate) => candidate.id === activeProfileId) ?? profiles[0];
+  if (!profile) return null;
+  const result = calculatePlateLoad(
+    requestedWeightKg,
+    profile.barbell_weight_kg,
+    profile.plate_inventory,
+  );
   const counts = new Map<number, number>();
   result.per_side.forEach((weight) => counts.set(weight, (counts.get(weight) ?? 0) + 1));
   const plates = [...counts.entries()]
@@ -547,6 +561,23 @@ function PlateCalculator({
           Plate calculator · {formatPlateWeight(requestedWeightKg)} kg
         </summary>
         <div className="pb-1 pt-2 text-center" data-testid="plate-distribution">
+          {profiles.length > 1 ? (
+            <label className="mb-2 block text-left">
+              <span className="field-label">Equipment profile</span>
+              <select
+                className="input"
+                aria-label="Equipment profile"
+                value={profile.id}
+                onChange={(event) => onProfileChange(event.target.value)}
+              >
+                {profiles.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <p className="font-mono text-lg font-bold" data-testid="plate-total">
             {formatPlateWeight(result.achieved_weight_kg)} kg total
           </p>
@@ -561,7 +592,7 @@ function PlateCalculator({
             </p>
           )}
           <p className="mt-1 text-xs text-muted">
-            {formatPlateWeight(barbellWeightKg)} kg bar included; collars excluded.
+            {formatPlateWeight(profile.barbell_weight_kg)} kg bar included; collars excluded.
           </p>
         </div>
       </details>
@@ -576,8 +607,9 @@ function SetPanel({
   previous,
   allLogged,
   session,
-  barbellWeightKg,
-  plateInventory,
+  equipmentProfiles,
+  onEquipmentProfileChange,
+  selectedEquipmentProfileId,
   restWasSkipped,
   feeling,
   onFeelingChange,
@@ -592,6 +624,8 @@ function SetPanel({
   row: HudRow;
   previous: HudRow | null;
   allLogged: boolean;
+  selectedEquipmentProfileId: string;
+  onEquipmentProfileChange: (profileId: string) => void;
 }) {
   const kind = row.exercise.exercise_kind;
   const specs = FIELD_SPECS_BY_KIND[kind];
@@ -732,8 +766,9 @@ function SetPanel({
         {kind === "strength" ? (
           <PlateCalculator
             requestedWeightKg={Number.parseFloat(draft.weight) || 0}
-            barbellWeightKg={barbellWeightKg}
-            inventory={plateInventory}
+            profiles={equipmentProfiles}
+            activeProfileId={selectedEquipmentProfileId}
+            onProfileChange={onEquipmentProfileChange}
           />
         ) : null}
       </div>

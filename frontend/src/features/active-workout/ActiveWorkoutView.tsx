@@ -313,8 +313,8 @@ function ActiveWorkoutSession({
     return (
       <>
         <WorkoutHud
-          barbellWeightKg={settings?.barbell_weight_kg ?? 20}
-          plateInventory={settings?.plate_inventory ?? []}
+          equipmentProfiles={settings?.equipment_profiles ?? []}
+          activeEquipmentProfileId={settings?.active_equipment_profile_id ?? "barbell-default"}
           session={session}
           rows={hudRows}
           index={hudIndex(session, hudRows)}

@@ -50,3 +50,29 @@ class UserSettings(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             '{"plate_weight_kg":0.25,"pairs":4}]'
         ),
     )
+    equipment_profiles: Mapped[list[dict[str, object]]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=lambda: [
+            {
+                "id": "barbell-default",
+                "name": "Barbell 20 kg",
+                "barbell_weight_kg": 20,
+                "plate_inventory": [
+                    {"plate_weight_kg": weight, "pairs": 4}
+                    for weight in (25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25, 0.5, 0.25)
+                ],
+            }
+        ],
+        server_default=(
+            '[{"id":"barbell-default","name":"Barbell 20 kg","barbell_weight_kg":20,'
+            '"plate_inventory":[{"plate_weight_kg":25.0,"pairs":4},'
+            '{"plate_weight_kg":20.0,"pairs":4},{"plate_weight_kg":15.0,"pairs":4},'
+            '{"plate_weight_kg":10.0,"pairs":4},{"plate_weight_kg":5.0,"pairs":4},'
+            '{"plate_weight_kg":2.5,"pairs":4},{"plate_weight_kg":1.25,"pairs":4},'
+            '{"plate_weight_kg":0.5,"pairs":4},{"plate_weight_kg":0.25,"pairs":4}]}]'
+        ),
+    )
+    active_equipment_profile_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="barbell-default", server_default="barbell-default"
+    )

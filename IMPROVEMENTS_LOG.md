@@ -444,3 +444,27 @@ complement the existing muscle tags.
 - Browser verification recipe. In **Exercises**, add an exercise with a movement pattern, view
   its detail classification, filter the catalogue to that pattern, then edit and clear it. Older
   exercises remain available under **Any pattern** until explicitly classified.
+
+## Cycle 29 — Switch equipment profiles during a workout
+
+The plate calculator now supports named equipment profiles, so a lifter can account for different
+bar baselines and plate inventories in one gym. Settings can add, rename, remove, edit, and choose
+the default profile; the mobile workout calculator can switch profiles without interrupting a set.
+The selected profile's bar weight and inventory drive the load calculation.
+
+- The additive migration copies each existing bar weight and inventory into a default profile,
+  preserving configured equipment. Legacy settings fields remain mirrored to the selected
+  profile for existing clients.
+- API regressions verify profile round trips, active-profile selection, validation of duplicate
+  IDs and unknown selections, and migration of a customized 15 kg bar/inventory. The migrated
+  mobile browser journey edits the default inventory, adds a 15 kg technique bar, and switches
+  the active workout calculator to it. Cleanup found zero rows in all nine tracked tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 722 backend tests at 82% coverage. ESLint, TypeScript, all 208 Vitest tests, and the Vite
+  production build passed. Required Ruff rules, Ruff format, mypy, the single Alembic head check,
+  and `git diff --check` passed. Informational full Ruff remains at the existing 151 findings.
+- Full localhost Playwright passed 70 tests with four viewport-specific skips; cleanup found zero
+  rows in every tracked table.
+- Browser verification recipe. In **Settings → Preferences**, add a profile with a different
+  bar weight and inventory. Start a strength workout, open **Plate calculator**, select that
+  profile, and confirm both the displayed bar contribution and the per-side plate load update.
