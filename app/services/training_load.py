@@ -2,6 +2,7 @@ import csv
 from collections import defaultdict
 from datetime import UTC, date, datetime, time, timedelta
 from io import StringIO
+from statistics import pstdev
 from typing import cast
 from unicodedata import category
 from zoneinfo import ZoneInfo
@@ -14,13 +15,17 @@ from app.models import WorkoutLog
 from app.models.base import utcnow
 from app.schemas.exercises import MovementPattern
 from app.schemas.training_load import (
+    DailyTrainingLoad,
     MuscleVolume,
+    SessionEffortByActivity,
+    SessionEffortDetail,
     MovementPatternSetCount,
     MovementPatternVolume,
     RirSetCount,
     TrainingLoadQuery,
     TrainingLoadResponse,
     TrainingLoadWeek,
+    WeeklyTrainingVariability,
     WeeklyWorkloadRatio,
 )
 from app.services.volume_rules import apply_to_logs, profile_for
@@ -43,6 +48,23 @@ CSV_COLUMNS = (
     "reps",
     "rir",
     "set_rpe",
+    "logged_sessions",
+    "rated_sessions",
+    "rated_minutes",
+    "load_au",
+    "daily_mean_au",
+    "daily_sd_au",
+    "monotony",
+    "strain_au",
+    "training_variability_status",
+    "baseline_start",
+    "baseline_mean_au",
+    "workload_ratio",
+    "workload_ratio_status",
+    "activity_baseline_start",
+    "activity_baseline_mean_au",
+    "activity_workload_ratio",
+    "activity_workload_ratio_status",
 )
 
 
@@ -76,8 +98,15 @@ def _spreadsheet_text(value: str) -> str:
     return value
 
 
+def _session_load_au(log: WorkoutLog) -> int | None:
+    if log.effort_rpe is None or log.total_time_minutes <= 0:
+        return None
+    return log.effort_rpe * log.total_time_minutes
+
+
 async def export_training_load_csv(session: AsyncSession, query: TrainingLoadQuery) -> bytes:
     logs = await _workout_logs_in_range(session, *query.utc_bounds())
+    summary = await weekly_training_load(session, query)
     zone = ZoneInfo(query.timezone)
     csv_buffer = StringIO(newline="")
     writer = csv.DictWriter(csv_buffer, fieldnames=CSV_COLUMNS, quoting=csv.QUOTE_ALL)
@@ -98,6 +127,7 @@ async def export_training_load_csv(session: AsyncSession, query: TrainingLoadQue
                 "activity_type": log.activity_type,
                 "duration_minutes": log.total_time_minutes,
                 "session_rpe": log.effort_rpe,
+                "load_au": _session_load_au(log),
             }
         )
         for exercise in log.exercises:
@@ -117,6 +147,47 @@ async def export_training_load_csv(session: AsyncSession, query: TrainingLoadQue
                         "set_rpe": rpes[index] if index < len(rpes) else None,
                     }
                 )
+    for week in summary.weeks:
+        effort = week.session_effort
+        variability = week.training_variability
+        ratio = week.workload_ratio
+        writer.writerow(
+            {
+                "record_type": "weekly_summary",
+                "week_start": week.week_start,
+                "timezone": query.timezone,
+                "logged_sessions": effort.logged_sessions,
+                "rated_sessions": effort.rated_sessions,
+                "rated_minutes": effort.rated_minutes,
+                "load_au": effort.load_au,
+                "daily_mean_au": variability.daily_mean_au,
+                "daily_sd_au": variability.daily_sd_au,
+                "monotony": variability.monotony,
+                "strain_au": variability.strain_au,
+                "training_variability_status": variability.status,
+                "baseline_start": ratio.baseline_start,
+                "baseline_mean_au": ratio.baseline_mean_au,
+                "workload_ratio": ratio.ratio,
+                "workload_ratio_status": ratio.status,
+            }
+        )
+        for activity in week.session_effort_by_activity:
+            writer.writerow(
+                {
+                    "record_type": "weekly_activity_summary",
+                    "week_start": week.week_start,
+                    "timezone": query.timezone,
+                    "activity_type": activity.activity_type,
+                    "logged_sessions": activity.logged_sessions,
+                    "rated_sessions": activity.rated_sessions,
+                    "rated_minutes": activity.rated_minutes,
+                    "load_au": activity.load_au,
+                    "activity_baseline_start": activity.workload_ratio.baseline_start,
+                    "activity_baseline_mean_au": activity.workload_ratio.baseline_mean_au,
+                    "activity_workload_ratio": activity.workload_ratio.ratio,
+                    "activity_workload_ratio_status": activity.workload_ratio.status,
+                }
+            )
     return csv_buffer.getvalue().encode("utf-8-sig")
 
 
@@ -150,12 +221,107 @@ def _workload_ratio(
     return comparison
 
 
+def _activity_workload_ratio(
+    week: TrainingLoadWeek,
+    activity_type: str | None,
+    baseline: list[TrainingLoadWeek],
+    today: date,
+) -> WeeklyWorkloadRatio:
+    comparison = WeeklyWorkloadRatio(
+        baseline_start=baseline[0].week_start if len(baseline) == BASELINE_WEEKS else None
+    )
+    if week.week_start + timedelta(weeks=1) > today:
+        comparison.status = "week_incomplete"
+        return comparison
+
+    efforts = [
+        next(
+            (
+                activity
+                for activity in entry.session_effort_by_activity
+                if activity.activity_type == activity_type
+            ),
+            None,
+        )
+        for entry in [*baseline, week]
+    ]
+    if len(baseline) < BASELINE_WEEKS or any(
+        effort is None or effort.logged_sessions == 0 for effort in efforts
+    ):
+        return comparison
+    rated_efforts = [effort for effort in efforts if effort is not None]
+    if any(
+        effort.rated_sessions != effort.logged_sessions or effort.load_au is None
+        for effort in rated_efforts
+    ):
+        comparison.status = "missing_ratings"
+        return comparison
+
+    mean = sum(effort.load_au or 0 for effort in rated_efforts[:-1]) / BASELINE_WEEKS
+    comparison.baseline_mean_au = mean
+    if mean <= 0:
+        comparison.status = "zero_baseline"
+        return comparison
+    comparison.status = "ready"
+    comparison.ratio = (rated_efforts[-1].load_au or 0) / mean
+    return comparison
+
+
+def _training_variability(
+    week: TrainingLoadWeek, daily_loads: list[int], today: date
+) -> WeeklyTrainingVariability:
+    if week.week_start + timedelta(weeks=1) > today:
+        return WeeklyTrainingVariability(status="week_incomplete")
+    effort = week.session_effort
+    if effort.logged_sessions == 0:
+        return WeeklyTrainingVariability(status="no_sessions")
+    if effort.rated_sessions != effort.logged_sessions:
+        return WeeklyTrainingVariability(status="missing_ratings")
+
+    mean = sum(daily_loads) / 7
+    standard_deviation = pstdev(daily_loads)
+    if standard_deviation == 0:
+        return WeeklyTrainingVariability(
+            status="zero_variation",
+            daily_mean_au=round(mean, 2),
+            daily_sd_au=0,
+            daily_loads=[
+                DailyTrainingLoad(
+                    local_date=week.week_start + timedelta(days=weekday), load_au=load_au
+                )
+                for weekday, load_au in enumerate(daily_loads)
+            ],
+        )
+
+    monotony = mean / standard_deviation
+    strain = (effort.load_au or 0) * monotony
+    return WeeklyTrainingVariability(
+        status="ready",
+        daily_mean_au=round(mean, 2),
+        daily_sd_au=round(standard_deviation, 2),
+        monotony=round(monotony, 2),
+        strain_au=round(strain, 2),
+        daily_loads=[
+            DailyTrainingLoad(local_date=week.week_start + timedelta(days=weekday), load_au=load_au)
+            for weekday, load_au in enumerate(daily_loads)
+        ],
+    )
+
+
 def _add_muscle_volume(
-    totals: dict[str | None, int], volume_kg: float, primary_muscles: tuple[str, ...]
+    totals: dict[str | None, int],
+    set_totals: dict[str | None, int],
+    set_count: int,
+    volume_kg: float,
+    primary_muscles: tuple[str, ...],
 ) -> None:
-    if volume_kg <= 0:
+    if set_count <= 0:
         return
     muscles: tuple[str | None, ...] = tuple(sorted(set(primary_muscles))) or (None,)
+    for muscle in muscles:
+        set_totals[muscle] += set_count
+    if volume_kg <= 0:
+        return
     # Split whole tenths to preserve the recorded exercise's volume exactly.
     share, remainder = divmod(round(volume_kg * 10), len(muscles))
     for index, muscle in enumerate(muscles):
@@ -200,7 +366,10 @@ async def weekly_training_load(
         TrainingLoadWeek(week_start=first + timedelta(weeks=index))
         for index in range(lookback + query.weeks)
     ]
+    daily_loads = [[0] * 7 for _ in weeks]
     muscle_volumes: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
+    muscle_sets: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
+    activity_efforts: list[dict[str | None, SessionEffortByActivity]] = [{} for _ in weeks]
     pattern_volumes: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
     pattern_sets: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
     rir_counts: list[dict[int | None, int]] = [defaultdict(int) for _ in weeks]
@@ -216,10 +385,32 @@ async def weekly_training_load(
         week = weeks[index]
         effort = week.session_effort
         effort.logged_sessions += 1
+        session_load = _session_load_au(log)
+        week.session_effort_sessions.append(
+            SessionEffortDetail(
+                performed_at_utc=log.performed_at,
+                local_date=local_date,
+                activity_type=log.activity_type,
+                duration_minutes=log.total_time_minutes,
+                effort_rpe=log.effort_rpe,
+                load_au=session_load,
+            )
+        )
+        activity_effort = activity_efforts[index].setdefault(
+            log.activity_type,
+            SessionEffortByActivity(activity_type=log.activity_type, logged_sessions=0),
+        )
+        activity_effort.logged_sessions += 1
         if log.effort_rpe is not None and log.total_time_minutes > 0:
             effort.rated_sessions += 1
             effort.rated_minutes += log.total_time_minutes
             effort.load_au = (effort.load_au or 0) + log.effort_rpe * log.total_time_minutes
+            activity_effort.rated_sessions += 1
+            activity_effort.rated_minutes += log.total_time_minutes
+            activity_effort.load_au = (activity_effort.load_au or 0) + (
+                log.effort_rpe * log.total_time_minutes
+            )
+            daily_loads[index][local_date.weekday()] += log.effort_rpe * log.total_time_minutes
 
         if index < lookback or log.activity_type is not None or not log.exercises:
             continue
@@ -227,7 +418,13 @@ async def weekly_training_load(
         week.logged_sets += sum(exercise.sets_count for exercise in log.exercises)
         for exercise in log.exercises:
             profile = profile_for(profiles, exercise.exercise_name)
-            _add_muscle_volume(muscle_volumes[index], exercise.volume_kg, profile.primary_muscles)
+            _add_muscle_volume(
+                muscle_volumes[index],
+                muscle_sets[index],
+                exercise.sets_count,
+                exercise.volume_kg,
+                profile.primary_muscles,
+            )
             _add_movement_pattern_volume(
                 pattern_volumes[index], exercise.volume_kg, profile.movement_pattern
             )
@@ -237,18 +434,33 @@ async def weekly_training_load(
             _add_rir_distribution(rir_counts[index], exercise.sets_count, exercise.rir_per_set)
 
     today = utcnow().astimezone(zone).date()
+    for week, efforts in zip(weeks, activity_efforts, strict=True):
+        week.session_effort_by_activity = sorted(
+            efforts.values(),
+            key=lambda effort: (effort.activity_type is not None, effort.activity_type or ""),
+        )
+
     for index in range(lookback, len(weeks)):
         week = weeks[index]
         muscle_volume = muscle_volumes[index]
         pattern_volume = pattern_volumes[index]
         movement_pattern_sets = pattern_sets[index]
         week.volume_kg = sum(muscle_volume.values()) / 10
-        week.muscle_volume = [
-            MuscleVolume(muscle=muscle, volume_kg=tenths / 10)
-            for muscle, tenths in sorted(
-                muscle_volume.items(), key=lambda item: (-item[1], item[0] or "unclassified")
+        baseline = weeks[max(0, index - BASELINE_WEEKS) : index]
+        for activity in week.session_effort_by_activity:
+            activity.workload_ratio = _activity_workload_ratio(
+                week, activity.activity_type, baseline, today
             )
-            if tenths
+        week.muscle_volume = [
+            MuscleVolume(
+                muscle=muscle,
+                set_count=muscle_sets[index][muscle],
+                volume_kg=muscle_volume.get(muscle, 0) / 10,
+            )
+            for muscle in sorted(
+                set(muscle_sets[index]) | set(muscle_volume),
+                key=lambda item: (-muscle_volume.get(item, 0), item or "unclassified"),
+            )
         ]
         week.movement_pattern_volume = [
             MovementPatternVolume(
@@ -275,7 +487,6 @@ async def weekly_training_load(
                 rir_counts[index].items(), key=lambda item: (item[0] is None, item[0] or 0)
             )
         ]
-        week.workload_ratio = _workload_ratio(
-            week, weeks[max(0, index - BASELINE_WEEKS) : index], today
-        )
+        week.workload_ratio = _workload_ratio(week, baseline, today)
+        week.training_variability = _training_variability(week, daily_loads[index], today)
     return TrainingLoadResponse(timezone=query.timezone, weeks=weeks[lookback:])

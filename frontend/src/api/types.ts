@@ -131,7 +131,7 @@ export interface TrainingLoadWeek {
   gym_sessions: number;
   logged_sets: number;
   volume_kg: number;
-  muscle_volume: { muscle: MuscleTag | null; volume_kg: number }[];
+  muscle_volume: { muscle: MuscleTag | null; set_count: number; volume_kg: number }[];
   movement_pattern_volume: {
     movement_pattern: MovementPattern | null;
     volume_kg: number;
@@ -144,11 +144,40 @@ export interface TrainingLoadWeek {
     rated_minutes: number;
     load_au: number | null;
   };
+  session_effort_sessions: {
+    performed_at_utc: string;
+    local_date: string;
+    activity_type: ActivityType | null;
+    duration_minutes: number;
+    effort_rpe: number | null;
+    load_au: number | null;
+  }[];
+  session_effort_by_activity: {
+    activity_type: ActivityType | null;
+    logged_sessions: number;
+    rated_sessions: number;
+    rated_minutes: number;
+    load_au: number | null;
+    workload_ratio: {
+      status: "ready" | "week_incomplete" | "missing_sessions" | "missing_ratings" | "zero_baseline";
+      baseline_start: string | null;
+      baseline_mean_au: number | null;
+      ratio: number | null;
+    };
+  }[];
   workload_ratio: {
     status: "ready" | "week_incomplete" | "missing_sessions" | "missing_ratings" | "zero_baseline";
     baseline_start: string | null;
     baseline_mean_au: number | null;
     ratio: number | null;
+  };
+  training_variability: {
+    status: "ready" | "week_incomplete" | "no_sessions" | "missing_ratings" | "zero_variation";
+    daily_mean_au: number | null;
+    daily_sd_au: number | null;
+    monotony: number | null;
+    strain_au: number | null;
+    daily_loads: { local_date: string; load_au: number }[];
   };
 }
 

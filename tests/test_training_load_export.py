@@ -58,28 +58,45 @@ async def test_training_load_export_preserves_logged_values_in_selected_local_we
             'attachment; filename="training-load-2026-10-19-through-2026-10-25.csv"'
         )
         rows = list(csv.DictReader(StringIO(response.content.decode("utf-8-sig"))))
-        assert [row["record_type"] for row in rows] == [
+        raw_rows = [row for row in rows if row["record_type"] in {"session", "set"}]
+        assert [row["record_type"] for row in raw_rows] == [
             "session",
             *["set"] * 5,
             "session",
             "session",
         ]
-        assert [row["workout_id"] for row in rows] == [*[ids[1]] * 6, *sorted(ids[2:4])]
-        assert all(row["week_start"] == "2026-10-19" for row in rows)
-        assert all(row["timezone"] == "Europe/Prague" for row in rows)
-        assert rows[0]["performed_at_utc"] == "2026-10-18T22:00:00Z"
-        assert rows[0]["local_date"] == "2026-10-19"
-        assert [row["duration_minutes"] for row in rows] == ["30", *[""] * 5, "30", "30"]
-        assert [row["session_rpe"] for row in rows] == ["7", *[""] * 5, "4", "4"]
-        assert rows[1]["exercise_name"] == '\'=2+2, "Činkový bench"'
-        assert rows[4]["exercise_name"] == "'\u200b +Legacy row"
-        assert [row["exercise_number"] for row in rows[1:6]] == ["1", "1", "1", "2", "2"]
-        assert [row["set_number"] for row in rows[1:6]] == ["1", "2", "3", "1", "2"]
-        assert [row["weight_kg"] for row in rows[1:6]] == ["60.0", "", "0.0", "20.0", "20.0"]
-        assert [row["reps"] for row in rows[1:6]] == ["8", "6", "4", "12", "9"]
-        assert [row["rir"] for row in rows[1:6]] == ["0", "", "1", "", ""]
-        assert [row["set_rpe"] for row in rows] == ["", "0", "", "9", "", "", "", ""]
-        assert {row["activity_type"] for row in rows[-2:]} == {"running", "swimming"}
+        assert [row["workout_id"] for row in raw_rows] == [*[ids[1]] * 6, *sorted(ids[2:4])]
+        assert all(row["week_start"] == "2026-10-19" for row in raw_rows)
+        assert all(row["timezone"] == "Europe/Prague" for row in raw_rows)
+        assert raw_rows[0]["performed_at_utc"] == "2026-10-18T22:00:00Z"
+        assert raw_rows[0]["local_date"] == "2026-10-19"
+        assert [row["duration_minutes"] for row in raw_rows] == ["30", *[""] * 5, "30", "30"]
+        assert [row["session_rpe"] for row in raw_rows] == ["7", *[""] * 5, "4", "4"]
+        assert raw_rows[1]["exercise_name"] == '\'=2+2, "Činkový bench"'
+        assert raw_rows[4]["exercise_name"] == "'\u200b +Legacy row"
+        assert [row["exercise_number"] for row in raw_rows[1:6]] == ["1", "1", "1", "2", "2"]
+        assert [row["set_number"] for row in raw_rows[1:6]] == ["1", "2", "3", "1", "2"]
+        assert [row["weight_kg"] for row in raw_rows[1:6]] == ["60.0", "", "0.0", "20.0", "20.0"]
+        assert [row["reps"] for row in raw_rows[1:6]] == ["8", "6", "4", "12", "9"]
+        assert [row["rir"] for row in raw_rows[1:6]] == ["0", "", "1", "", ""]
+        assert [row["set_rpe"] for row in raw_rows] == ["", "0", "", "9", "", "", "", ""]
+        assert {row["activity_type"] for row in raw_rows[-2:]} == {"running", "swimming"}
+
+        [summary] = [row for row in rows if row["record_type"] == "weekly_summary"]
+        assert summary["week_start"] == "2026-10-19"
+        assert summary["logged_sessions"] == "3"
+        assert summary["rated_sessions"] == "3"
+        assert summary["rated_minutes"] == "90"
+        assert summary["load_au"] == "450"
+        assert summary["training_variability_status"] == "ready"
+        activity_summaries = [
+            row for row in rows if row["record_type"] == "weekly_activity_summary"
+        ]
+        assert [(row["activity_type"], row["load_au"]) for row in activity_summaries] == [
+            ("", "210"),
+            ("running", "120"),
+            ("swimming", "120"),
+        ]
     finally:
         for log_id in ids:
             url = f"{LOGS}/{log_id}"

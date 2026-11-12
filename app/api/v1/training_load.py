@@ -20,7 +20,8 @@ router = APIRouter(prefix="/training-load", tags=["training load"])
         "records with exercise sets and uses their logged weights and volume rules for gym "
         "totals. Weeks without recorded work have zero counts. "
         "External volume is split equally among distinct primary muscle tags, with any "
-        "rounding tenths assigned in tag order. Null muscle denotes unclassified volume. "
+        "rounding tenths assigned in tag order. Muscle-tag set counts include each set for each "
+        "distinct primary tag, so counts can overlap. Null muscle denotes unclassified work. "
         "Session effort includes workouts and activities. Load in arbitrary units is the "
         "sum of rated session minutes multiplied by their RPE. Null load means no rated minutes. "
         "The workload ratio divides a closed local week's load by the mean of the four "
@@ -39,10 +40,12 @@ async def get_training_load(
 @router.get(
     "/export",
     operation_id="export_training_load",
-    summary="Download sessions and sets for the selected training weeks as CSV",
+    summary="Download sessions, sets, and weekly summaries for selected training weeks as CSV",
     description=(
         "Uses only the requested weeks. Session rows hold duration and whole-session RPE. "
-        "Set rows hold saved weight, reps and RIR and share the session's workout_id."
+        "Set rows hold saved weight, reps and RIR and share the session's workout_id. Weekly "
+        "summary rows include session effort, workload ratio, and monotony metrics; weekly "
+        "activity summary rows report effort coverage and load by activity type."
     ),
     response_class=Response,
     responses={200: {"content": {"text/csv": {"schema": {"type": "string"}}}}},

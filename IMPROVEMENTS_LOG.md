@@ -942,3 +942,194 @@ gym sets.
 - Browser verification recipe. Review a week with classified loaded work and a week with free-text
   or bodyweight work. In Training load, compare set counts by pattern with the weekly total and
   confirm that a bodyweight pattern remains visible even when external volume is zero.
+
+## Cycle 41 — Summarize weekly training monotony and strain
+
+Training load now reports session-RPE monotony and strain for closed weeks with complete ratings.
+It groups duration × whole-session RPE by local calendar day, includes rest days as zero, and uses
+the seven-day population standard deviation. Weeks that are open, unrated, empty, or have zero
+daily variation explain why the ratios are unavailable. The UI presents these as descriptive
+metrics rather than risk thresholds, following the [Foster method](https://pubmed.ncbi.nlm.nih.gov/9662690/).
+
+- API coverage verifies daily sums across the full seven-day week, rest-day zeros, missing ratings,
+  open-week handling, no-session weeks, and the undefined zero-variation case. The real-API browser
+  journey checks daily mean, standard deviation, monotony, and strain on desktop and phone.
+- `uv run pytest -q` passed all 737 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 80 tests with eight expected viewport skips. E2E rows tagged
+  with Cycle 41 run IDs were removed from the temporary databases and scans found no remaining hits.
+- Browser verification recipe. Record two fully rated sessions on different days in one closed
+  week. Open Training load and compare the seven-day mean, standard deviation, monotony, and strain;
+  select a week with an unrated session and confirm the explanation appears instead of a ratio.
+
+## Cycle 42 — Inspect daily loads behind weekly monotony
+
+The weekly monotony card now exposes the seven local-date session-RPE loads used in its summary.
+Each row shows the daily sum of duration × whole-session RPE, including zero-load rest days, so the
+mean, standard deviation, monotony, and strain can be checked against their inputs. A daily series
+is shown only when the closed week has complete ratings; partial or unrated data is not presented
+as zero.
+
+- API coverage verifies the Monday-to-Sunday dates, rated session sums, rest-day zeros, and the
+  daily series for a week with no daily variation. The real-API browser journey checks all seven
+  rows on desktop and phone.
+- `uv run pytest -q` passed all 737 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 80 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The auth journey requires `E2E_API_KEY`
+  to be set to the same throwaway key as the local server.
+- Browser verification recipe. Open **Training load**, select a closed week with fully rated
+  sessions on two different days, and compare the seven date/load rows with the displayed daily
+  mean and standard deviation. Confirm intervening rest days show 0 AU.
+
+## Cycle 43 — Break session effort down by activity
+
+Training load now separates weekly session-RPE totals into strength training and each recorded
+activity type. The selected week's table shows rated versus logged session counts, rated minutes,
+and load per category; unrated sessions remain in coverage counts without being assigned zero load.
+The category loads reconcile with the existing weekly session-effort total.
+
+- API coverage verifies strength, running, and cycling categories, the weekly sum, and an unrated
+  session. The real-API browser journey reads all three categories on desktop and phone and checks
+  that the viewport does not overflow.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The E2E auth journey used a throwaway
+  `E2E_API_KEY` matching the local server configuration.
+- Browser verification recipe. Log a rated strength workout, a rated run, and an unrated cycling
+  session in one week. Open **Training load**, choose that week in **Activity breakdown week**, and
+  confirm the category loads sum to the weekly total while cycling still shows its missing rating.
+
+## Cycle 44 — Export weekly training-load summaries
+
+The training CSV now appends one weekly summary row for every selected week and one activity
+summary row for each logged modality. Weekly rows include session coverage, rated minutes, session
+load, workload-ratio state, and the available daily mean, standard deviation, monotony, and strain.
+Per-activity rows retain rated and logged counts so unrated sessions are not mistaken for zero load.
+Existing session and set rows keep their original values and identifiers.
+
+- API coverage verifies the selected local-week boundary, unchanged raw session/set rows, weekly
+  totals and metrics, and strength/running/swimming summary rows. The real-API browser journey
+  checks summary record types in the downloaded file and confirms out-of-range sessions stay out.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The E2E auth journey used a throwaway
+  `E2E_API_KEY` matching the local server configuration.
+- Browser verification recipe. Download **Training load** CSV for a date range containing a
+  rated strength workout and rated activities. Filter by `weekly_summary` to inspect totals and
+  `weekly_activity_summary` to compare modalities; session and set rows remain available alongside.
+
+## Cycle 45 — Count primary-muscle set exposure
+
+The weekly muscle table now reports logged sets alongside external-load volume. Each set counts
+for every distinct primary muscle tag, so multi-tag set counts intentionally overlap; external
+volume continues to be split across tags. Zero-load bodyweight sets appear in the tagged muscle
+rows, and untagged sets remain visible under Unclassified.
+
+- API coverage checks loaded and zero-load sets, alias matching, duplicate tags, and unclassified
+  work. The real-API browser journey confirms bodyweight sets appear in both primary-muscle rows
+  while the split external-volume values remain unchanged.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The E2E auth journey used a throwaway
+  `E2E_API_KEY` matching the local server configuration.
+- Browser verification recipe. Open **Training load** for a week containing a loaded multi-tag
+  lift and a bodyweight set of that exercise. The set count should include both; external volume
+  should still be divided between the tags. Switch to a week with unclassified work to review its
+  separate row.
+
+## Cycle 46 — Compare weekly muscle exposure
+
+The selected week's primary-muscle table now includes changes from the immediately preceding
+week for tagged set counts and external volume. The baseline week is named in the table, and
+positive or negative changes are presented as descriptive comparisons without target values.
+Muscle rows from either week remain visible so a new or absent category has a clear zero-based
+change.
+
+- The real-API browser journey verifies positive chest and triceps changes and a negative
+  unclassified change on desktop and phone. It also confirms the comparison fits within the phone
+  viewport.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The E2E auth journey used a throwaway
+  `E2E_API_KEY` matching the local server configuration.
+- Browser verification recipe. Open **Training load**, select a week with muscle-tagged work, and
+  compare its set and volume changes with the prior displayed week. Select a week where a muscle
+  was previously unclassified or absent to see its negative or positive change.
+
+## Cycle 47 — Compare workload ratios by activity
+
+The activity breakdown now calculates each modality's calendar workload ratio against its own
+preceding four-week average. A ratio appears only when that activity has logged sessions and
+complete ratings in all five weeks; missing sessions, missing ratings, zero baselines, and open
+weeks keep their explicit status. The weekly summary CSV carries the same activity baseline, ratio,
+and coverage status.
+
+- API coverage verifies the running-specific ratio, its baseline mean, missing-session and
+  missing-rating coverage, and open-week handling. The real-API browser journey compares running,
+  strength, and unrated cycling without blending their baselines.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The E2E auth journey used a throwaway
+  `E2E_API_KEY` matching the local server configuration.
+- Browser verification recipe. Log five consecutive weeks of fully rated running, then a rated
+  strength workout and unrated cycling in the selected week. Open **Training load → Session effort
+  by activity** and confirm running uses its own prior-four-week mean while the other categories
+  report their coverage state.
+
+## Cycle 48 — Synchronize the analysis week
+
+Training load now has one **Analysis week** selector shared by the muscle exposure, activity
+effort, calendar workload ratio, and monotony cards. The default is the latest closed week with
+available data. Changing the week updates all detailed panels together, keeping their counts,
+baselines, and ratios aligned while reducing repeated selection.
+
+- The real-API browser flow changes the shared week and verifies activity loads and the workload
+  comparison follow it on desktop and phone. The full viewport checks pass at both sizes.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The E2E auth journey used a throwaway
+  `E2E_API_KEY` matching the local server configuration.
+- Browser verification recipe. Open **Training load** and change **Analysis week**. Confirm the
+  muscle exposure, activity breakdown, calendar workload ratio, and monotony cards all reflect
+  that same week.
+
+## Cycle 49 — Inspect session-level effort
+
+The selected Analysis week now includes a session-by-session effort table with local date and time,
+activity, duration, whole-session RPE, and calculated AU. Unrated sessions remain visible with no
+load, and the timestamp keeps multiple workouts recorded on the same local date distinguishable.
+
+- API and browser coverage verify rated strength and running sessions alongside an unrated cycling
+  session, including local-time display and load values. The shared week selector controls the new
+  table, and desktop and phone layouts remain within the viewport.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, focused Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the isolated
+  temporary database scan found zero application rows after cleanup. Full Ruff reports 151
+  existing repository-wide findings; all changed Python files pass Ruff.
+- Browser verification recipe. Open **Training load**, select a week with several activities, and
+  compare each session's local time, duration, rating, and AU with the weekly and activity totals.
+
+## Cycle 50 — Reconcile session loads in CSV exports
+
+Training-load CSV session rows now include each rated session's calculated AU alongside its
+duration and whole-session RPE. Unrated sessions and sessions without a positive duration leave the
+load field blank. The CSV and weekly analysis use the same load calculation, so exported session
+records can be reconciled directly with weekly totals.
+
+- The real-API browser export test verifies the rated session's AU, the unrated session's blank load,
+  and exclusion of records outside the selected date range on desktop and phone.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, focused Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the isolated
+  temporary database scan found zero application rows after cleanup.
+- Browser verification recipe. Download the CSV for a week containing rated and unrated sessions.
+  Match the `load_au` value on each rated session row to duration × RPE and confirm the unrated
+  session has no load value.

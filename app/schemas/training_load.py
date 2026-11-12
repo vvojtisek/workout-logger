@@ -43,6 +43,7 @@ class TrainingLoadQuery(BaseModel):
 
 class MuscleVolume(BaseModel):
     muscle: str | None
+    set_count: int
     volume_kg: float
 
 
@@ -68,6 +69,15 @@ class TrainingSessionEffort(BaseModel):
     load_au: int | None = None
 
 
+class SessionEffortDetail(BaseModel):
+    performed_at_utc: datetime
+    local_date: date
+    activity_type: str | None
+    duration_minutes: int
+    effort_rpe: int | None
+    load_au: int | None
+
+
 class WeeklyWorkloadRatio(BaseModel):
     status: Literal[
         "ready", "week_incomplete", "missing_sessions", "missing_ratings", "zero_baseline"
@@ -75,6 +85,25 @@ class WeeklyWorkloadRatio(BaseModel):
     baseline_start: date | None = None
     baseline_mean_au: float | None = None
     ratio: float | None = None
+
+
+class SessionEffortByActivity(TrainingSessionEffort):
+    activity_type: str | None
+    workload_ratio: WeeklyWorkloadRatio = Field(default_factory=WeeklyWorkloadRatio)
+
+
+class DailyTrainingLoad(BaseModel):
+    local_date: date
+    load_au: int
+
+
+class WeeklyTrainingVariability(BaseModel):
+    status: Literal["ready", "week_incomplete", "no_sessions", "missing_ratings", "zero_variation"]
+    daily_mean_au: float | None = None
+    daily_sd_au: float | None = None
+    monotony: float | None = None
+    strain_au: float | None = None
+    daily_loads: list[DailyTrainingLoad] = Field(default_factory=list)
 
 
 class TrainingLoadWeek(BaseModel):
@@ -87,7 +116,12 @@ class TrainingLoadWeek(BaseModel):
     movement_pattern_sets: list[MovementPatternSetCount] = Field(default_factory=list)
     rir_distribution: list[RirSetCount] = Field(default_factory=list)
     session_effort: TrainingSessionEffort = Field(default_factory=TrainingSessionEffort)
+    session_effort_sessions: list[SessionEffortDetail] = Field(default_factory=list)
+    session_effort_by_activity: list[SessionEffortByActivity] = Field(default_factory=list)
     workload_ratio: WeeklyWorkloadRatio = Field(default_factory=WeeklyWorkloadRatio)
+    training_variability: WeeklyTrainingVariability = Field(
+        default_factory=lambda: WeeklyTrainingVariability(status="no_sessions")
+    )
 
 
 class TrainingLoadResponse(BaseModel):
