@@ -60,6 +60,14 @@ class WeeklyWorkloadRatio(BaseModel):
     ratio: float | None = None
 
 
+class WeeklyTrainingVariability(BaseModel):
+    status: Literal["ready", "week_incomplete", "no_sessions", "missing_ratings", "zero_variation"]
+    daily_mean_au: float | None = None
+    daily_sd_au: float | None = None
+    monotony: float | None = None
+    strain_au: float | None = None
+
+
 class TrainingLoadWeek(BaseModel):
     week_start: date
     gym_sessions: int = 0
@@ -68,6 +76,9 @@ class TrainingLoadWeek(BaseModel):
     muscle_volume: list[MuscleVolume] = Field(default_factory=list)
     session_effort: TrainingSessionEffort = Field(default_factory=TrainingSessionEffort)
     workload_ratio: WeeklyWorkloadRatio = Field(default_factory=WeeklyWorkloadRatio)
+    training_variability: WeeklyTrainingVariability = Field(
+        default_factory=lambda: WeeklyTrainingVariability(status="no_sessions")
+    )
 
 
 class TrainingLoadResponse(BaseModel):

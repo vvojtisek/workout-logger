@@ -750,3 +750,22 @@ universal balance target.
   movement pattern alongside a free-text or unclassified exercise. Watch **Planned sets by
   movement pattern** update as target set counts change; the unclassified bucket should remain
   separate.
+
+## Cycle 41 — Summarize weekly training monotony and strain
+
+Training load now reports session-RPE monotony and strain for closed weeks with complete ratings.
+It groups duration × whole-session RPE by local calendar day, includes rest days as zero, and uses
+the seven-day population standard deviation. Weeks that are open, unrated, empty, or have zero
+daily variation explain why the ratios are unavailable. The UI presents these as descriptive
+metrics rather than risk thresholds, following the [Foster method](https://pubmed.ncbi.nlm.nih.gov/9662690/).
+
+- API coverage verifies daily sums across the full seven-day week, rest-day zeros, missing ratings,
+  open-week handling, no-session weeks, and the undefined zero-variation case. The real-API browser
+  journey checks daily mean, standard deviation, monotony, and strain on desktop and phone.
+- `uv run pytest -q` passed all 737 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 80 tests with eight expected viewport skips. E2E rows tagged
+  with Cycle 41 run IDs were removed from the temporary databases and scans found no remaining hits.
+- Browser verification recipe. Record two fully rated sessions on different days in one closed
+  week. Open Training load and compare the seven-day mean, standard deviation, monotony, and strain;
+  select a week with an unrated session and confirm the explanation appears instead of a ratio.

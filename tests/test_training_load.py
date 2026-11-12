@@ -79,6 +79,13 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                         "rated_minutes": 0,
                         "load_au": None,
                     },
+                    "training_variability": {
+                        "status": "no_sessions",
+                        "daily_mean_au": None,
+                        "daily_sd_au": None,
+                        "monotony": None,
+                        "strain_au": None,
+                    },
                 },
                 {
                     "week_start": "2026-10-12",
@@ -91,6 +98,13 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                         "rated_sessions": 0,
                         "rated_minutes": 0,
                         "load_au": None,
+                    },
+                    "training_variability": {
+                        "status": "missing_ratings",
+                        "daily_mean_au": None,
+                        "daily_sd_au": None,
+                        "monotony": None,
+                        "strain_au": None,
                     },
                 },
                 {
@@ -107,6 +121,13 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                         "rated_sessions": 1,
                         "rated_minutes": 30,
                         "load_au": 120,
+                    },
+                    "training_variability": {
+                        "status": "missing_ratings",
+                        "daily_mean_au": None,
+                        "daily_sd_au": None,
+                        "monotony": None,
+                        "strain_au": None,
                     },
                 },
             ],
@@ -188,5 +209,111 @@ async def test_calendar_workload_ratio_uses_prior_weeks_and_requires_coverage(
         assert early["ratio"] is None
     finally:
         for url in reversed(cleanup):
+            assert (await client.delete(url, headers=auth_headers)).status_code == 204
+            assert (await client.get(url, headers=auth_headers)).status_code == 404
+
+
+async def test_weekly_training_monotony_and_strain_use_all_seven_local_days(
+    migrated_client, auth_headers
+):
+    client, _ = migrated_client
+    tag = f"[TEST_RUN_ID:{uuid4()}]"
+    cleanup = []
+    try:
+        for day in ["2026-10-19", "2026-10-21"]:
+            response = await client.post(
+                f"{API}/logs",
+                headers=auth_headers,
+                json={
+                    "performed_at": f"{day}T12:00:00Z",
+                    "total_time_minutes": 10,
+                    "overall_feeling": 3,
+                    "effort_rpe": 7,
+                    "activity_type": "running",
+                    "notes": tag,
+                },
+            )
+            assert response.status_code == 201
+            cleanup.append(f"{API}/logs/{response.json()['id']}")
+
+        response = await client.get(
+            f"{API}/training-load",
+            params={"week_of": "2026-10-25", "weeks": 1, "timezone": "Europe/Prague"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        [week] = response.json()["weeks"]
+        assert week["training_variability"] == {
+            "status": "ready",
+            "daily_mean_au": 20,
+            "daily_sd_au": 31.62,
+            "monotony": 0.63,
+            "strain_au": 88.54,
+        }
+        current = await client.get(
+            f"{API}/training-load",
+            params={
+                "week_of": datetime.now(UTC).date().isoformat(),
+                "weeks": 1,
+                "timezone": "UTC",
+            },
+            headers=auth_headers,
+        )
+        assert current.status_code == 200
+        [current_week] = current.json()["weeks"]
+        assert current_week["training_variability"]["status"] == "week_incomplete"
+    finally:
+        for url in cleanup:
+            assert (await client.delete(url, headers=auth_headers)).status_code == 204
+            assert (await client.get(url, headers=auth_headers)).status_code == 404
+
+
+async def test_weekly_training_monotony_is_undefined_when_daily_load_never_varies(
+    migrated_client, auth_headers
+):
+    client, _ = migrated_client
+    tag = f"[TEST_RUN_ID:{uuid4()}]"
+    cleanup = []
+    try:
+        for day in [
+            "2026-10-26",
+            "2026-10-27",
+            "2026-10-28",
+            "2026-10-29",
+            "2026-10-30",
+            "2026-10-31",
+            "2026-11-01",
+        ]:
+            response = await client.post(
+                f"{API}/logs",
+                headers=auth_headers,
+                json={
+                    "performed_at": f"{day}T12:00:00Z",
+                    "total_time_minutes": 10,
+                    "overall_feeling": 3,
+                    "effort_rpe": 7,
+                    "activity_type": "running",
+                    "notes": tag,
+                },
+            )
+            assert response.status_code == 201
+            cleanup.append(f"{API}/logs/{response.json()['id']}")
+
+        response = await client.get(
+            f"{API}/training-load",
+            params={"week_of": "2026-11-01", "weeks": 1, "timezone": "UTC"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        [week] = response.json()["weeks"]
+        assert week["training_variability"] == {
+            "status": "zero_variation",
+            "daily_mean_au": 70,
+            "daily_sd_au": 0,
+            "monotony": None,
+            "strain_au": None,
+        }
+    finally:
+        for url in cleanup:
             assert (await client.delete(url, headers=auth_headers)).status_code == 204
             assert (await client.get(url, headers=auth_headers)).status_code == 404

@@ -127,6 +127,13 @@ export interface TrainingLoadWeek {
     baseline_mean_au: number | null;
     ratio: number | null;
   };
+  training_variability: {
+    status: "ready" | "week_incomplete" | "no_sessions" | "missing_ratings" | "zero_variation";
+    daily_mean_au: number | null;
+    daily_sd_au: number | null;
+    monotony: number | null;
+    strain_au: number | null;
+  };
 }
 
 export interface TrainingLoadResponse {

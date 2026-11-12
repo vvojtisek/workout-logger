@@ -5,6 +5,45 @@ import { clickAndAwaitWrite } from "./support/writes.js";
 
 test.use({ timezoneId: "Europe/Prague" });
 
+test("training monotony and strain summarize seven rated local days", async ({ page, request }) => {
+  const tag = `[TEST_RUN_ID:${process.env.TEST_RUN_ID || "local"}:${randomUUID()}]`;
+  const cleanup = [];
+  try {
+    for (const day of ["2026-10-19", "2026-10-21"]) {
+      const log = await request.post("/api/v1/logs", {
+        data: {
+          performed_at: `${day}T12:00:00Z`,
+          total_time_minutes: 10,
+          overall_feeling: 3,
+          effort_rpe: 7,
+          activity_type: "running",
+          notes: tag,
+        },
+      });
+      expect(log.status()).toBe(201);
+      cleanup.push(`/api/v1/logs/${(await log.json()).id}`);
+    }
+
+    await page.goto("/training-load");
+    await page.getByLabel("Week containing").fill("2026-10-25");
+    await page.getByLabel("Weeks to show").selectOption("4");
+    const metrics = page.getByRole("region", { name: "Weekly training monotony and strain" });
+    await expect(metrics).toContainText("Daily mean");
+    await expect(metrics).toContainText("20 AU/day");
+    await expect(metrics).toContainText("31.62 AU/day");
+    await expect(metrics).toContainText("0.63");
+    await expect(metrics).toContainText("88.54 AU");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+      page.viewportSize()?.width,
+    );
+  } finally {
+    for (const url of cleanup) {
+      expect((await request.delete(url)).status()).toBe(204);
+      expect((await request.get(url)).status()).toBe(404);
+    }
+  }
+});
+
 test("training load reviews recorded gym work by week", async ({ page, request }) => {
   const tag = `[TEST_RUN_ID:${process.env.TEST_RUN_ID || "local"}:${randomUUID()}]`;
   const cleanup = [];
@@ -83,6 +122,8 @@ test("training load reviews recorded gym work by week", async ({ page, request }
     await expect(latestEffort.getByRole("cell")).toHaveText(["1 / 2", "40", "160 AU"]);
     await expect(effort.getByRole("row", { name: /^2026-10-12/ })).toContainText("No ratings");
     await expect(effort.getByRole("row", { name: /^2026-10-05/ })).toContainText("No sessions");
+    await expect(page.getByRole("region", { name: "Weekly training monotony and strain" }))
+      .toContainText("Every session needs a whole-session RPE and positive duration.");
 
     await page.goto(`/history/${latestGymLog}`);
     await page.getByRole("button", { name: "Edit workout" }).click();

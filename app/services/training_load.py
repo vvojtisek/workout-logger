@@ -2,6 +2,7 @@ import csv
 from collections import defaultdict
 from datetime import UTC, date, datetime, time, timedelta
 from io import StringIO
+from statistics import pstdev
 from unicodedata import category
 from zoneinfo import ZoneInfo
 
@@ -16,6 +17,7 @@ from app.schemas.training_load import (
     TrainingLoadQuery,
     TrainingLoadResponse,
     TrainingLoadWeek,
+    WeeklyTrainingVariability,
     WeeklyWorkloadRatio,
 )
 from app.services.volume_rules import apply_to_logs, profile_for
@@ -145,6 +147,37 @@ def _workload_ratio(
     return comparison
 
 
+def _training_variability(
+    week: TrainingLoadWeek, daily_loads: list[int], today: date
+) -> WeeklyTrainingVariability:
+    if week.week_start + timedelta(weeks=1) > today:
+        return WeeklyTrainingVariability(status="week_incomplete")
+    effort = week.session_effort
+    if effort.logged_sessions == 0:
+        return WeeklyTrainingVariability(status="no_sessions")
+    if effort.rated_sessions != effort.logged_sessions:
+        return WeeklyTrainingVariability(status="missing_ratings")
+
+    mean = sum(daily_loads) / 7
+    standard_deviation = pstdev(daily_loads)
+    if standard_deviation == 0:
+        return WeeklyTrainingVariability(
+            status="zero_variation",
+            daily_mean_au=round(mean, 2),
+            daily_sd_au=0,
+        )
+
+    monotony = mean / standard_deviation
+    strain = (effort.load_au or 0) * monotony
+    return WeeklyTrainingVariability(
+        status="ready",
+        daily_mean_au=round(mean, 2),
+        daily_sd_au=round(standard_deviation, 2),
+        monotony=round(monotony, 2),
+        strain_au=round(strain, 2),
+    )
+
+
 def _add_muscle_volume(
     totals: dict[str | None, int], volume_kg: float, primary_muscles: tuple[str, ...]
 ) -> None:
@@ -173,6 +206,7 @@ async def weekly_training_load(
         TrainingLoadWeek(week_start=first + timedelta(weeks=index))
         for index in range(lookback + query.weeks)
     ]
+    daily_loads = [[0] * 7 for _ in weeks]
     muscle_volumes: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
     logs = await _workout_logs_in_range(session, date_from, date_to)
     profiles = await apply_to_logs(
@@ -190,6 +224,7 @@ async def weekly_training_load(
             effort.rated_sessions += 1
             effort.rated_minutes += log.total_time_minutes
             effort.load_au = (effort.load_au or 0) + log.effort_rpe * log.total_time_minutes
+            daily_loads[index][local_date.weekday()] += log.effort_rpe * log.total_time_minutes
 
         if index < lookback or log.activity_type is not None or not log.exercises:
             continue
@@ -213,4 +248,5 @@ async def weekly_training_load(
         week.workload_ratio = _workload_ratio(
             week, weeks[max(0, index - BASELINE_WEEKS) : index], today
         )
+        week.training_variability = _training_variability(week, daily_loads[index], today)
     return TrainingLoadResponse(timezone=query.timezone, weeks=weeks[lookback:])

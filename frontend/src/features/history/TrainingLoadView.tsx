@@ -19,6 +19,12 @@ const RATIO_MESSAGES = {
   missing_ratings: "At least one session in these weeks lacks a rating.",
   zero_baseline: "The four-week baseline has zero load.",
 };
+const VARIABILITY_MESSAGES = {
+  week_incomplete: "The selected calendar week is still open or in the future.",
+  no_sessions: "No sessions were logged in this week.",
+  missing_ratings: "Every session needs a whole-session RPE and positive duration.",
+  zero_variation: "Daily loads are identical across the week, so monotony and strain are undefined.",
+};
 
 function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
@@ -169,6 +175,83 @@ function WorkloadRatioCard({ weeks }: { weeks: TrainingLoadWeek[] }) {
   );
 }
 
+function TrainingVariabilityCard({ weeks }: { weeks: TrainingLoadWeek[] }) {
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  const latestFirst = [...weeks].reverse();
+  const week = weeks.find((entry) => entry.week_start === selectedWeek)
+    ?? latestFirst.find((entry) => entry.training_variability.status !== "week_incomplete")
+    ?? latestFirst[0];
+  if (!week) return null;
+  const variability = week.training_variability;
+
+  return (
+    <section className="card mt-4 p-4" aria-labelledby="training-variability-heading">
+      <h3 className="font-semibold" id="training-variability-heading">
+        Weekly training monotony and strain
+      </h3>
+      <p className="my-2 text-sm text-muted">
+        Daily load is session duration × whole-session RPE, summed in this timezone; rest days count
+        as zero. Monotony is the seven-day mean divided by the population standard deviation, and
+        strain is weekly load × monotony. These are descriptive metrics, not risk thresholds. See
+        <a
+          className="ml-1 underline"
+          href="https://pubmed.ncbi.nlm.nih.gov/9662690/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Foster (1998)
+        </a>.
+      </p>
+      <label className="mb-3 flex flex-col gap-1">
+        <span className="field-label">Monotony week</span>
+        <select
+          className="input w-fit"
+          value={week.week_start}
+          onChange={(event) => setSelectedWeek(event.target.value)}
+        >
+          {latestFirst.map((entry) => (
+            <option key={entry.week_start} value={entry.week_start}>
+              {entry.week_start}
+            </option>
+          ))}
+        </select>
+      </label>
+      {variability.status === "ready" ? (
+        <dl className="grid gap-3 sm:grid-cols-4">
+          <div>
+            <dt className="text-xs text-muted">Daily mean</dt>
+            <dd className="font-semibold" data-numeric>
+              {BASELINE_FORMAT.format(variability.daily_mean_au ?? 0)} AU/day
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted">Daily standard deviation</dt>
+            <dd className="font-semibold" data-numeric>
+              {BASELINE_FORMAT.format(variability.daily_sd_au ?? 0)} AU/day
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted">Monotony</dt>
+            <dd className="font-semibold" data-numeric>
+              {BASELINE_FORMAT.format(variability.monotony ?? 0)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted">Strain</dt>
+            <dd className="font-semibold" data-numeric>
+              {BASELINE_FORMAT.format(variability.strain_au ?? 0)} AU
+            </dd>
+          </div>
+        </dl>
+      ) : (
+        <p role="status" className="text-sm text-muted">
+          {VARIABILITY_MESSAGES[variability.status]}
+        </p>
+      )}
+    </section>
+  );
+}
+
 export function TrainingLoadView() {
   const [weekOf, setWeekOf] = useState(() => formatDate(new Date().toISOString()));
   const [weeks, setWeeks] = useState(8);
@@ -262,6 +345,7 @@ export function TrainingLoadView() {
       {data ? <MuscleVolumeTable weeks={data.weeks} /> : null}
       {data ? <SessionEffortTable weeks={data.weeks} /> : null}
       {data ? <WorkloadRatioCard weeks={data.weeks} /> : null}
+      {data ? <TrainingVariabilityCard weeks={data.weeks} /> : null}
     </section>
   );
 }
