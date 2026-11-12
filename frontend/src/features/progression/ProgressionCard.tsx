@@ -20,6 +20,17 @@ function formatKg(value: number): string {
   return `${Number.isInteger(value) ? value : value.toFixed(1)} kg`;
 }
 
+function repCurvePoints(reps: number[], width = 160, height = 36): string {
+  const peak = Math.max(...reps, 1);
+  return reps
+    .map((value, index) => {
+      const x = reps.length === 1 ? width / 2 : (index / (reps.length - 1)) * width;
+      const y = height - (value / peak) * height;
+      return `${x},${y}`;
+    })
+    .join(" ");
+}
+
 export function ProgressionCard({
   stats,
   status,
@@ -90,6 +101,37 @@ export function ProgressionCard({
         logged reps. {formula === "epley" ? "Epley uses all logged rep counts." : "Uses sets of 1–10 reps."}{" "}
         These equations assume reps to failure.
       </p>
+      {stats?.rep_retention.length ? (
+        <div>
+          <h4 className="mb-1 text-sm font-medium">Last session · same-load reps</h4>
+          <ul className="flex flex-col gap-2" data-numeric>
+            {stats.rep_retention.map((group) => (
+              <li key={group.weight_kg} className="grid grid-cols-[1fr_10rem] items-center gap-2">
+                <div className="text-sm">
+                  <span>{formatKg(group.weight_kg)} · {group.reps_per_set.join(" → ")}</span>
+                  <span className="ml-2 text-xs text-muted">{group.retention_percent}% retained</span>
+                </div>
+                <svg
+                  role="img"
+                  aria-label={`${formatKg(group.weight_kg)} same-load rep curve: ${group.reps_per_set.join(", ")} reps by set`}
+                  viewBox="-2 -2 164 40"
+                  className="h-9 w-full"
+                >
+                  <polyline
+                    points={repCurvePoints(group.reps_per_set)}
+                    className="fill-none stroke-accent"
+                    strokeWidth={2}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-muted">
+            Last set reps as a share of the first set at that load; this is a rep drop-off measure, not bar velocity or a failure estimate.
+          </p>
+        </div>
+      ) : null}
       {chart ? (
         <>
           <svg

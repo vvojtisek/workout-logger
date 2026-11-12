@@ -39,6 +39,14 @@ class ExerciseSessionPoint(BaseModel):
     estimated_one_rep_max_kg: float | None
 
 
+class RepRetentionGroup(BaseModel):
+    """Repetition sequence from sets performed at one recorded external load."""
+
+    weight_kg: float
+    reps_per_set: list[int]
+    retention_percent: float
+
+
 class ExerciseStatsRead(BaseModel):
     exercise_name: str
     sessions_count: int
@@ -49,8 +57,10 @@ class ExerciseStatsRead(BaseModel):
     best_weight_reps: int | None
     estimated_one_rep_max_kg: float | None
     trend: Literal["up", "down", "flat"] | None
+    # Same-load set sequences from the most recent session, when comparable.
+    rep_retention: list[RepRetentionGroup] = Field(default_factory=list)
     # Up to RECENT_SESSIONS most recent sessions, oldest first.
-    recent: list[ExerciseSessionPoint] = []
+    recent: list[ExerciseSessionPoint] = Field(default_factory=list)
 
 
 class ExerciseStatsResponse(BaseModel):

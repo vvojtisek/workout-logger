@@ -87,6 +87,12 @@ export interface ExerciseSessionPoint {
   estimated_one_rep_max_kg: number | null;
 }
 
+export interface RepRetentionGroup {
+  weight_kg: number;
+  reps_per_set: number[];
+  retention_percent: number;
+}
+
 export interface ExerciseStats {
   exercise_name: string;
   sessions_count: number;
@@ -97,6 +103,8 @@ export interface ExerciseStats {
   best_weight_reps: number | null;
   estimated_one_rep_max_kg: number | null;
   trend: "up" | "down" | "flat" | null;
+  /** Repeated same-load set sequences from the latest session. */
+  rep_retention: RepRetentionGroup[];
   /** Up to the last twelve sessions, oldest first. */
   recent: ExerciseSessionPoint[];
 }

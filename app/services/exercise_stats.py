@@ -8,7 +8,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ExerciseLog, WorkoutLog
-from app.schemas.exercise_stats import ExerciseSessionPoint, ExerciseStatsRead, OneRepMaxFormula
+from app.schemas.exercise_stats import (
+    ExerciseSessionPoint,
+    ExerciseStatsRead,
+    OneRepMaxFormula,
+    RepRetentionGroup,
+)
 
 # Sessions returned for progression charts.
 RECENT_SESSIONS = 12
@@ -67,6 +72,24 @@ def _recent_point(
     )
 
 
+def _same_load_rep_retention(entry: ExerciseLog) -> list[RepRetentionGroup]:
+    """Compare repetitions only across sets at a repeated recorded load."""
+    sets_by_load: dict[float, list[int]] = {}
+    for weight, reps in entry.sets_with_weights:
+        if weight is not None:
+            sets_by_load.setdefault(round(weight, 3), []).append(reps)
+
+    return [
+        RepRetentionGroup(
+            weight_kg=weight,
+            reps_per_set=reps,
+            retention_percent=round(reps[-1] / reps[0] * 100, 1),
+        )
+        for weight, reps in sets_by_load.items()
+        if len(reps) >= 2 and reps[0] > 0
+    ]
+
+
 def _summarize(
     name: str, history: list[tuple[datetime, ExerciseLog]], formula: OneRepMaxFormula
 ) -> ExerciseStatsRead:
@@ -81,6 +104,7 @@ def _summarize(
             best_weight_reps=None,
             estimated_one_rep_max_kg=None,
             trend=None,
+            rep_retention=[],
         )
 
     # `history` is newest first.
@@ -123,6 +147,7 @@ def _summarize(
         best_weight_reps=best_weight_reps,
         estimated_one_rep_max_kg=best_estimated_set[0] if best_estimated_set else None,
         trend=trend,
+        rep_retention=_same_load_rep_retention(last),
     )
 
 

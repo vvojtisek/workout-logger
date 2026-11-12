@@ -506,3 +506,24 @@ filter can select exercises by one movement pattern before pagination and locati
 - Browser verification recipe. In Exercise Catalogue, create or edit an exercise and select one
   or more movement patterns. Confirm the tags on its detail and list cards. Filter by one pattern
   and check that matching multi-tag exercises remain; clear the filter to restore the catalogue.
+
+## Cycle 31 — Visualize same-load rep retention within a session
+
+Exercise progression now summarizes repeated loads from the latest session as set-to-set rep
+curves. The API groups sets at the same recorded load, preserves their workout order, and reports
+last-set reps as a percentage of the first set. The progression card shows the sequence and an
+accessible sparkline even when the selected 1RM formula cannot chart that session. Sets at
+different loads remain separate, and the label describes a rep drop-off measure rather than bar
+velocity or a failure estimate.
+
+- API tests cover repeated-load grouping, per-set order, percentage calculation, and omission of
+  loads that appear only once. Existing log records and write endpoints are unchanged.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed all 720 tests at 82% coverage. The required Ruff gate, format check, mypy, and
+  `git diff --check` passed; informational full Ruff remains at the 151 existing findings.
+- `npm test` passed all 202 tests; ESLint, TypeScript, and Vite build passed. Full localhost
+  Playwright on fresh migrated SQLite passed 75 tests with seven expected viewport skips. Cleanup
+  found zero rows in all nine tracked tables.
+- Browser verification recipe. Open a catalogued exercise with a recent logged session that has
+  two sets at the same weight and another set at a different weight. Confirm the same-load curve
+  includes only the repeated weight, follows set order, and reports final-to-first rep retention.
