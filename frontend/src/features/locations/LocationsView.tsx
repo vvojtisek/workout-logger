@@ -8,6 +8,7 @@ import {
   DEFAULT_LOCATIONS,
   LOCATION_KIND_LABELS,
   type LocationDraft,
+  type PlateProfileDraft,
   draftFromLocation,
   draftIsDirty,
   draftToPayload,
@@ -24,6 +25,18 @@ function toggle(list: EquipmentTag[], tag: EquipmentTag): EquipmentTag[] {
   return list.includes(tag) ? list.filter((t) => t !== tag) : [...list, tag];
 }
 
+function newPlateProfile(): PlateProfileDraft {
+  return {
+    name: "Olympic bar",
+    bar: "20",
+    collars: "0",
+    plates: [25, 20, 15, 10, 5, 2.5, 1.25].map((weight) => ({
+      weight: String(weight),
+      pairs: weight === 20 ? "2" : "1",
+    })),
+  };
+}
+
 function saveError(err: unknown): string {
   if (err instanceof ApiError && err.code === "LOCATION_NAME_CONFLICT") return err.message;
   return `Failed to save location: ${errorMessage(err)}`;
@@ -38,6 +51,13 @@ function LocationFields({
   draft: LocationDraft;
   onChange: (draft: LocationDraft) => void;
 }) {
+  function updateProfile(index: number, next: PlateProfileDraft) {
+    onChange({
+      ...draft,
+      plateProfiles: draft.plateProfiles.map((profile, current) => current === index ? next : profile),
+    });
+  }
+
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-[1fr_10rem_10rem]">
@@ -90,6 +110,72 @@ function LocationFields({
           onToggle={(tag) => onChange({ ...draft, equipment: toggle(draft.equipment, tag) })}
         />
       </div>
+      <section aria-label="Barbell equipment" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-medium">Barbell profiles</h3>
+            <p className="text-sm text-muted">Bar weight, collars, and paired plates available here.</p>
+          </div>
+          <Button
+            variant="secondary"
+            disabled={draft.plateProfiles.length >= 8}
+            onClick={() => onChange({ ...draft, plateProfiles: [...draft.plateProfiles, newPlateProfile()] })}
+          >
+            Add bar profile
+          </Button>
+        </div>
+        {draft.plateProfiles.map((profile, index) => (
+          <fieldset key={index} className="grid gap-3 rounded-[var(--radius-md)] border border-line p-3">
+            <legend className="px-1 text-sm font-medium">Profile {index + 1}</legend>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="field-label">
+                Name
+                <Input aria-label={`Bar profile ${index + 1} name`} value={profile.name}
+                  onChange={(event) => updateProfile(index, { ...profile, name: event.target.value })} />
+              </label>
+              <label className="field-label">
+                Bar weight (kg)
+                <Input aria-label={`Bar profile ${index + 1} bar weight (kg)`} type="number" min="0.001" max="100" step="0.001" inputMode="decimal" value={profile.bar}
+                  onChange={(event) => updateProfile(index, { ...profile, bar: event.target.value })} />
+              </label>
+              <label className="field-label">
+                Collars (kg)
+                <Input aria-label={`Bar profile ${index + 1} collars (kg)`} type="number" min="0" max="10" step="0.001" inputMode="decimal" value={profile.collars}
+                  onChange={(event) => updateProfile(index, { ...profile, collars: event.target.value })} />
+              </label>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+              {profile.plates.map((plate, plateIndex) => (
+                <div key={plateIndex} className="grid grid-cols-2 gap-2">
+                  <label className="field-label">
+                    Plate (kg)
+                    <Input aria-label={`Bar profile ${index + 1} plate ${plateIndex + 1} weight (kg)`} type="number" min="0.001" max="100" step="0.001" inputMode="decimal" value={plate.weight}
+                      onChange={(event) => updateProfile(index, { ...profile, plates: profile.plates.map((item, current) => current === plateIndex ? { ...item, weight: event.target.value } : item) })} />
+                  </label>
+                  <label className="field-label">
+                    Pairs
+                    <Input aria-label={`Bar profile ${index + 1} plate ${plateIndex + 1} pairs`} type="number" min="1" max="30" step="1" inputMode="numeric" value={plate.pairs}
+                      onChange={(event) => updateProfile(index, { ...profile, plates: profile.plates.map((item, current) => current === plateIndex ? { ...item, pairs: event.target.value } : item) })} />
+                  </label>
+                </div>
+              ))}
+              <div className="flex flex-wrap items-end gap-2">
+                <Button variant="secondary" disabled={profile.plates.length >= 20}
+                  onClick={() => updateProfile(index, { ...profile, plates: [...profile.plates, { weight: "2.5", pairs: "1" }] })}>
+                  Add plate size
+                </Button>
+                <Button variant="ghost" disabled={profile.plates.length <= 1}
+                  onClick={() => updateProfile(index, { ...profile, plates: profile.plates.slice(0, -1) })}>
+                  Remove last size
+                </Button>
+              </div>
+            </div>
+            <Button variant="ghost" className="self-start" onClick={() => onChange({ ...draft, plateProfiles: draft.plateProfiles.filter((_, current) => current !== index) })}>
+              Remove profile
+            </Button>
+          </fieldset>
+        ))}
+      </section>
     </>
   );
 }

@@ -659,10 +659,23 @@ async def test_locations_are_private_per_invited_account(migrated_client, auth_h
         )
         created = await client.post(
             "/api/v1/locations",
-            json={"name": "Office", "kind": "office", "equipment": ["dumbbell"]},
+            json={
+                "name": "Office",
+                "kind": "office",
+                "equipment": ["dumbbell"],
+                "plate_profiles": [
+                    {
+                        "name": "Private bar",
+                        "bar_kg": 20,
+                        "collars_kg": 0,
+                        "plates": [{"weight_kg": 2.5, "pairs": 1}],
+                    }
+                ],
+            },
             headers=owner_cookies,
         )
         assert created.status_code == 201
+        assert created.json()["plate_profiles"][0]["name"] == "Private bar"
         location_id = created.json()["id"]
 
         # The same name is free for another account.

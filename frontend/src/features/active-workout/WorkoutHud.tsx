@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode, TouchEvent } from "react";
 import { X } from "lucide-react";
 
-import type { ExerciseStats, WorkoutSession } from "@/api/types";
+import type { ExerciseStats, PlateProfile, WorkoutSession } from "@/api/types";
 import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import {
   clearSetDraft,
@@ -153,6 +153,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
   const { session, rows, index, progress, sync } = props;
   const row = rows[index];
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const [selectedPlateProfileName, setSelectedPlateProfileName] = useState<string | null>(null);
 
   // A sideways swipe changes exercise. Chrome would otherwise take it as the
   // page's back/forward gesture, which is set on the document's root scroller.
@@ -332,6 +333,11 @@ export function WorkoutHud(props: WorkoutHudProps) {
           row={row}
           previous={previousLogged}
           allLogged={allLogged}
+          plateProfiles={session.location?.plate_profiles ?? []}
+          selectedPlateProfile={selectedPlateProfileName === null
+            ? session.location?.plate_profiles[0] ?? null
+            : session.location?.plate_profiles.find((profile) => profile.name === selectedPlateProfileName) ?? null}
+          onPlateProfileChange={setSelectedPlateProfileName}
         />
       </div>
 
@@ -593,6 +599,9 @@ function SetPanel({
   row,
   previous,
   allLogged,
+  plateProfiles,
+  selectedPlateProfile,
+  onPlateProfileChange,
   session,
   restWasSkipped,
   restControlsDisabled,
@@ -609,6 +618,9 @@ function SetPanel({
   row: HudRow;
   previous: HudRow | null;
   allLogged: boolean;
+  plateProfiles: PlateProfile[];
+  selectedPlateProfile: PlateProfile | null;
+  onPlateProfileChange: (name: string) => void;
 }) {
   const kind = row.exercise.exercise_kind;
   const specs = FIELD_SPECS_BY_KIND[kind];
@@ -758,7 +770,14 @@ function SetPanel({
           </div>
         ))}
       </div>
-      {showBarbellCalculator ? <BarbellPlateCalculator weight={draft.weight} /> : null}
+      {showBarbellCalculator ? (
+        <BarbellPlateCalculator
+          weight={draft.weight}
+          profiles={plateProfiles}
+          selectedProfile={selectedPlateProfile}
+          onProfileChange={onPlateProfileChange}
+        />
+      ) : null}
       {rirSpec ? (
         <EffortFields draft={draft} disabled={locked} onChange={update} />
       ) : null}

@@ -27,6 +27,10 @@ describe("location drafts", () => {
     kind: "office",
     equipment: ["bench", "dumbbell"],
     default_minutes: 30,
+    plate_profiles: [{
+      name: "Technique bar", bar_kg: 15, collars_kg: 0.25,
+      plates: [{ weight_kg: 10, pairs: 1 }, { weight_kg: 1.25, pairs: 2 }],
+    }],
     created_at: "",
     updated_at: "",
   };
@@ -34,7 +38,10 @@ describe("location drafts", () => {
   it("round-trips a saved location", () => {
     expect(draftToPayload(draftFromLocation(saved))).toEqual({
       ok: true,
-      payload: { name: "Office", kind: "office", equipment: ["bench", "dumbbell"], default_minutes: 30 },
+      payload: {
+        name: "Office", kind: "office", equipment: ["bench", "dumbbell"],
+        default_minutes: 30, plate_profiles: saved.plate_profiles,
+      },
     });
   });
 
@@ -44,13 +51,30 @@ describe("location drafts", () => {
     expect(draftIsDirty({ ...draft, equipment: ["dumbbell", "bench"] }, saved)).toBe(false);
     expect(draftIsDirty({ ...draft, minutes: "45" }, saved)).toBe(true);
     expect(draftIsDirty({ ...draft, name: "Work" }, saved)).toBe(true);
+    expect(draftIsDirty({ ...draft, plateProfiles: [] }, saved)).toBe(true);
+  });
+
+  it("converts editable equipment fields into exact plate profile data", () => {
+    const draft = draftFromLocation(saved);
+    expect(draft.plateProfiles[0]).toEqual({
+      name: "Technique bar", bar: "15", collars: "0.25",
+      plates: [{ weight: "10", pairs: "1" }, { weight: "1.25", pairs: "2" }],
+    });
+    const payload = draftToPayload(draft);
+    if (!payload.ok) throw new Error(payload.error);
+    expect(payload.payload.plate_profiles[0]).toEqual({
+      name: "Technique bar", bar_kg: 15, collars_kg: 0.25,
+      plates: [{ weight_kg: 10, pairs: 1 }, { weight_kg: 1.25, pairs: 2 }],
+    });
   });
 
   it("treats blank minutes as no default and trims the name", () => {
     const result = draftToPayload({ ...emptyDraft(), name: "  Hotel ", kind: "travel" });
     expect(result).toEqual({
       ok: true,
-      payload: { name: "Hotel", kind: "travel", equipment: [], default_minutes: null },
+      payload: {
+        name: "Hotel", kind: "travel", equipment: [], default_minutes: null, plate_profiles: [],
+      },
     });
   });
 

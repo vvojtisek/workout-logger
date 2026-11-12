@@ -401,3 +401,32 @@ the exercise's equipment tags so the HUD can hide the calculator on incompatible
   2.5 kg and inspect each side. Enter 63 kg to view the closest loads, then save the set and
   confirm that 63 kg is recorded unchanged. Start a machine set and confirm that no calculator
   is shown.
+
+## Cycle 17 — Configure named barbell profiles per location
+
+Gym equipment differs by bar, collars, and available plates. Locations now store up to eight
+named profiles, each with its bar mass, collar mass, and bounded paired plate stock. Profile
+weights are limited to gram precision and plate sizes are unique. A location editor supports
+adding and removing profiles and plate sizes. Starting a workout includes that location's
+profiles in its session response, so the phone can switch bars while calculating a load. The
+profile only informs the calculation; it never changes the weight submitted with a set. The
+existing location-check response remains unchanged.
+
+- An additive migration gives existing locations an empty profile list. API coverage verifies
+  create, read, replacement, normalized plate ordering, precision and stock limits, duplicate
+  profile rejection, and session profile delivery. Account isolation verifies that another
+  account cannot read the configured location.
+- The mobile browser configured a 25 kg safety bar and a 15 kg technique bar in a real location,
+  selected each in the active workout, verified symmetric per-side stacks, switched to the
+  default inventory, and confirmed the session retained both saved profiles.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 711 tests at 82% coverage. The required Ruff gate, changed-file format check, full Ruff
+  on the new migration, mypy, and `git diff --check` passed. Informational full Ruff remains at
+  the repository's existing 151 findings.
+- `npm test` passed 198 tests; ESLint, TypeScript, and Vite build passed. Full localhost
+  Playwright on fresh migrated SQLite passed 70 tests with seven viewport skips. Cleanup found
+  zero rows in all nine checked tables.
+- Browser verification recipe. In Locations, add a safety squat bar and a technique bar with
+  their actual weights and paired plates. Start a barbell workout at that location, open
+  **Barbell plates**, compare the same set under each profile, then select **Default inventory**.
+  Save a set and confirm its recorded load did not change when switching profiles.

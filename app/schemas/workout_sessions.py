@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.common import OrmModel, require_timezone_aware_utc
 from app.schemas.exercises import EquipmentTag
+from app.schemas.locations import PlateProfile
 from app.services.volume import LoadMode as EquipmentLoadMode
 
 
@@ -104,6 +105,12 @@ class WorkoutSessionComplete(BaseModel):
     overall_feeling: int = Field(ge=1, le=5)
 
 
+class SessionLocationRef(OrmModel):
+    id: UUID
+    name: str
+    plate_profiles: list[PlateProfile] = Field(default_factory=list)
+
+
 class SetEntryRead(OrmModel):
     id: UUID
     set_number: int
@@ -155,6 +162,7 @@ class WorkoutSessionRead(OrmModel):
     source_plan_id: UUID | None
     source_plan_name: str
     location_id: UUID | None
+    location: SessionLocationRef | None = None
     workout_log_id: UUID | None
     status: str
     started_at: datetime

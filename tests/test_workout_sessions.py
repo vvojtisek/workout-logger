@@ -83,6 +83,38 @@ async def test_start_session_snapshots_plan_and_prefers_latest_history(client, a
     assert session["focused_exercise_id"] == exercise["id"]
 
 
+async def test_session_carries_its_location_plate_profiles(client, auth_headers):
+    location = await client.post(
+        "/api/v1/locations",
+        json={
+            "name": "Plate lab",
+            "kind": "gym",
+            "plate_profiles": [
+                {
+                    "name": "Safety squat bar",
+                    "bar_kg": 25,
+                    "collars_kg": 0.5,
+                    "plates": [{"weight_kg": 5, "pairs": 2}],
+                }
+            ],
+        },
+        headers=auth_headers,
+    )
+    assert location.status_code == 201
+    plan = await create_plan(client, auth_headers)
+    started = await client.post(
+        SESSIONS,
+        json={"source_plan_id": plan["id"], "location_id": location.json()["id"]},
+        headers=auth_headers,
+    )
+    assert started.status_code == 201
+    expected = location.json()["plate_profiles"]
+    assert started.json()["location"]["plate_profiles"] == expected
+
+    active = await client.get(f"{SESSIONS}/active", headers=auth_headers)
+    assert active.json()["location"]["plate_profiles"] == expected
+
+
 async def test_duplicate_start_returns_the_existing_active_session(client, auth_headers):
     plan = await create_plan(client, auth_headers)
     first = await start_session(client, auth_headers, plan["id"])

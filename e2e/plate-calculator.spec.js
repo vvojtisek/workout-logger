@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { isDesktop } from "./support/navigation.js";
+import { isDesktop, openPage } from "./support/navigation.js";
 
 test("shows live barbell plate counts on the phone without changing the recorded load", async ({
   page, request,
@@ -77,6 +77,99 @@ test("shows live barbell plate counts on the phone without changing the recorded
     for (const id of exerciseIds) {
       await request.delete(`/api/v1/exercises/${id}`);
       expect((await request.get(`/api/v1/exercises/${id}`)).status()).toBe(404);
+    }
+  }
+});
+
+test("configures a location bar and selects it for the workout plate calculation", async ({
+  page, request,
+}) => {
+  test.skip(isDesktop(page), "The barbell calculator is on the phone workout HUD");
+  const tag = `[E2E:${process.env.TEST_RUN_ID || `profile-${Date.now()}`}:profile]`;
+  const locationName = `${tag} Strength room`;
+  const exerciseName = `${tag} Barbell press`;
+  let locationId;
+  let exerciseId;
+  let planId;
+  let sessionId;
+
+  try {
+    page.setDefaultTimeout(5_000);
+    const location = await request.post("/api/v1/locations", {
+      data: { name: locationName, kind: "gym" },
+    });
+    expect(location.status()).toBe(201);
+    locationId = (await location.json()).id;
+
+    await page.goto("/");
+    await openPage(page, "Locations");
+    const locationList = page.getByRole("list", { name: "Locations" });
+    await locationList.getByRole("button", { name: "Add bar profile" }).click();
+    await locationList.getByRole("button", { name: "Add bar profile" }).click();
+    await page.getByLabel("Bar profile 1 name").fill("Safety squat bar");
+    await page.getByLabel("Bar profile 1 bar weight (kg)").fill("25");
+    await page.getByLabel("Bar profile 2 name").fill("15 kg technique bar");
+    await page.getByLabel("Bar profile 2 bar weight (kg)").fill("15");
+    await page.getByRole("button", { name: `Save ${locationName}` }).click();
+    await expect(page.getByText(`Saved "${locationName}"`)).toBeVisible();
+
+    const exercise = await request.post("/api/v1/exercises", {
+      data: { name: exerciseName, equipment_any_of: [["barbell"]] },
+    });
+    expect(exercise.status()).toBe(201);
+    exerciseId = (await exercise.json()).id;
+    const plan = await request.post("/api/v1/plans", {
+      data: {
+        name: `${tag} plan`,
+        exercises: [{
+          exercise_name: exerciseName,
+          target_sets: 1,
+          target_reps_min: 5,
+          target_reps_max: 5,
+          target_weight_kg: 75,
+          rest_time_seconds: 30,
+        }],
+      },
+    });
+    expect(plan.status()).toBe(201);
+    planId = (await plan.json()).id;
+    const started = await request.post("/api/v1/workout-sessions", {
+      data: { source_plan_id: planId, location_id: locationId },
+    });
+    expect(started.status()).toBe(201);
+    sessionId = (await started.json()).id;
+
+    await page.goto("/workout");
+    await expect(page.getByRole("heading", { name: exerciseName })).toBeVisible();
+    await page.getByText("Barbell plates", { exact: true }).click();
+    await expect(page.getByLabel("Bar profile")).toHaveValue("Safety squat bar");
+    await expect(page.getByText("Safety squat bar · Bar 25 kg · Collars 0 kg")).toBeVisible();
+    await expect(page.getByText("Per side: 1 × 25 kg", { exact: true })).toBeVisible();
+    await page.getByLabel("Bar profile").selectOption("15 kg technique bar");
+    await expect(page.getByText("15 kg technique bar · Bar 15 kg · Collars 0 kg")).toBeVisible();
+    await expect(page.getByText("Per side: 1 × 20 kg + 1 × 10 kg", { exact: true })).toBeVisible();
+    await page.getByLabel("Bar profile").selectOption("default");
+    await expect(page.getByText("Default inventory · Bar 20 kg · Collars 0 kg")).toBeVisible();
+    const active = await request.get(`/api/v1/workout-sessions/${sessionId}`);
+    expect((await active.json()).location.plate_profiles[0]).toMatchObject({
+      name: "Safety squat bar", bar_kg: 25, collars_kg: 0,
+    });
+  } finally {
+    if (sessionId) {
+      await request.delete(`/api/v1/workout-sessions/${sessionId}`);
+      expect((await request.get(`/api/v1/workout-sessions/${sessionId}`)).status()).toBe(404);
+    }
+    if (planId) {
+      await request.delete(`/api/v1/plans/${planId}`);
+      expect((await request.get(`/api/v1/plans/${planId}`)).status()).toBe(404);
+    }
+    if (exerciseId) {
+      await request.delete(`/api/v1/exercises/${exerciseId}`);
+      expect((await request.get(`/api/v1/exercises/${exerciseId}`)).status()).toBe(404);
+    }
+    if (locationId) {
+      await request.delete(`/api/v1/locations/${locationId}`);
+      expect((await request.get(`/api/v1/locations/${locationId}`)).status()).toBe(404);
     }
   }
 });

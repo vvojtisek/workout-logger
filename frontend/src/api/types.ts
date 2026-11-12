@@ -63,6 +63,7 @@ export interface WorkoutSession extends GridSession {
   source_plan_id: string | null;
   source_plan_name: string;
   location_id: string | null;
+  location: { id: string; name: string; plate_profiles: PlateProfile[] } | null;
   workout_log_id: string | null;
   status: string;
   started_at: string;
@@ -230,6 +231,13 @@ export const LOCATION_KINDS = ["home", "office", "gym", "travel"] as const;
 
 export type LocationKind = (typeof LOCATION_KINDS)[number];
 
+export interface PlateProfile {
+  name: string;
+  bar_kg: number;
+  collars_kg: number;
+  plates: Array<{ weight_kg: number; pairs: number }>;
+}
+
 export interface Location {
   id: string;
   name: string;
@@ -237,6 +245,7 @@ export interface Location {
   // What the place has; bodyweight is implied everywhere.
   equipment: EquipmentTag[];
   default_minutes: number | null;
+  plate_profiles: PlateProfile[];
   created_at: string;
   updated_at: string;
 }

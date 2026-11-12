@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
+import type { PlateProfile } from "@/api/types";
 import { DEFAULT_BARBELL, solvePlateLoad } from "@/lib/plate-calculator";
 import type { PlateLoad } from "@/lib/plate-calculator";
 
@@ -10,10 +11,25 @@ function plateStackText(load: PlateLoad): string {
     : "No plates";
 }
 
-export function BarbellPlateCalculator({ weight }: { weight: string }) {
+export function BarbellPlateCalculator({
+  weight,
+  profiles,
+  selectedProfile,
+  onProfileChange,
+}: {
+  weight: string;
+  profiles: PlateProfile[];
+  selectedProfile: PlateProfile | null;
+  onProfileChange: (name: string) => void;
+}) {
   const [open, setOpen] = useState(false);
-  const load = useMemo(() => open && weight !== "" ? solvePlateLoad(Number(weight), DEFAULT_BARBELL) : null,
-    [open, weight]);
+  const inventory = selectedProfile ? {
+    base_kg: selectedProfile.bar_kg,
+    collars_kg: selectedProfile.collars_kg,
+    plates: selectedProfile.plates,
+  } : DEFAULT_BARBELL;
+  const load = useMemo(() => open && weight !== "" ? solvePlateLoad(Number(weight), inventory) : null,
+    [open, weight, inventory]);
 
   return (
     <details className="group rounded-[var(--radius-md)] border border-line" onToggle={(event) => setOpen(event.currentTarget.open)}>
@@ -22,7 +38,20 @@ export function BarbellPlateCalculator({ weight }: { weight: string }) {
         <ChevronDown aria-hidden="true" size={16} className="group-open:rotate-180" />
       </summary>
       <div className="grid gap-1 border-t border-line px-3 py-2 text-sm" aria-live="polite">
-        <p className="text-muted">Default inventory · Bar {DEFAULT_BARBELL.base_kg} kg · Collars {DEFAULT_BARBELL.collars_kg} kg</p>
+        {profiles.length ? (
+          <label className="grid gap-1 text-muted" htmlFor="active-barbell-profile">
+            Bar profile
+            <select id="active-barbell-profile" className="input" value={selectedProfile?.name ?? "default"}
+              onChange={(event) => onProfileChange(event.target.value === "default" ? "" : event.target.value)}>
+              <option value="default">Default inventory</option>
+              {profiles.map((profile) => <option key={profile.name} value={profile.name}>{profile.name}</option>)}
+            </select>
+          </label>
+        ) : null}
+        <p className="text-muted">
+          {selectedProfile ? `${selectedProfile.name} · ` : "Default inventory · "}
+          Bar {inventory.base_kg} kg · Collars {inventory.collars_kg} kg
+        </p>
         {load?.exact ? (
           <p data-numeric>Per side: {plateStackText(load.exact)}</p>
         ) : load ? (

@@ -44,4 +44,5 @@ class Location(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(100, collation="NOCASE"), nullable=False)
     kind: Mapped[str] = mapped_column(String(20), nullable=False)
     equipment: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    plate_profiles: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
     default_minutes: Mapped[int | None] = mapped_column(Integer(), nullable=True)
