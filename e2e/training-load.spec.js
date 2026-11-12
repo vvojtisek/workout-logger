@@ -167,6 +167,11 @@ test("training load reviews recorded gym work by week", async ({ page, request }
     await expect(breakdown.getByRole("row", { name: /^Triceps/ }).getByRole("cell"))
       .toHaveText(["4", "175 kg"]);
     await expect(breakdown.getByRole("row", { name: /^Shoulders/ })).toHaveCount(0);
+    const changes = page.getByRole("table", { name: "Week-over-week primary muscle exposure" });
+    await expect(changes.getByRole("row", { name: /^Chest/ }).getByRole("cell"))
+      .toHaveText(["+4 sets", "+175 kg"]);
+    await expect(changes.getByRole("row", { name: /^Unclassified/ }).getByRole("cell"))
+      .toHaveText(["-2 sets", "-350 kg"]);
     await page.getByLabel("Muscle breakdown week").selectOption("2026-10-12");
     await expect(breakdown.getByRole("row", { name: /^Unclassified/ }).getByRole("cell"))
       .toHaveText(["2", "350 kg"]);

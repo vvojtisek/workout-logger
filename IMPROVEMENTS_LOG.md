@@ -848,3 +848,23 @@ rows, and untagged sets remain visible under Unclassified.
   lift and a bodyweight set of that exercise. The set count should include both; external volume
   should still be divided between the tags. Switch to a week with unclassified work to review its
   separate row.
+
+## Cycle 46 — Compare weekly muscle exposure
+
+The selected week's primary-muscle table now includes changes from the immediately preceding
+week for tagged set counts and external volume. The baseline week is named in the table, and
+positive or negative changes are presented as descriptive comparisons without target values.
+Muscle rows from either week remain visible so a new or absent category has a clear zero-based
+change.
+
+- The real-API browser journey verifies positive chest and triceps changes and a negative
+  unclassified change on desktop and phone. It also confirms the comparison fits within the phone
+  viewport.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The E2E auth journey used a throwaway
+  `E2E_API_KEY` matching the local server configuration.
+- Browser verification recipe. Open **Training load**, select a week with muscle-tagged work, and
+  compare its set and volume changes with the prior displayed week. Select a week where a muscle
+  was previously unclassified or absent to see its negative or positive change.

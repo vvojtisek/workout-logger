@@ -77,7 +77,76 @@ function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
       ) : (
         <p role="status" className="text-sm text-muted">No external volume recorded for this week.</p>
       )}
+      <MuscleWeekOverWeekTable weeks={weeks} week={week} />
     </section>
+  );
+}
+
+function MuscleWeekOverWeekTable({
+  weeks,
+  week,
+}: {
+  weeks: TrainingLoadWeek[];
+  week: TrainingLoadWeek;
+}) {
+  const weekIndex = weeks.findIndex((entry) => entry.week_start === week.week_start);
+  const previousWeek = weeks[weekIndex - 1];
+  if (!previousWeek) {
+    return <p role="status" className="mt-4 text-sm text-muted">No prior week is included in this range.</p>;
+  }
+
+  const currentByMuscle = new Map(week.muscle_volume.map((entry) => [entry.muscle, entry]));
+  const previousByMuscle = new Map(previousWeek.muscle_volume.map((entry) => [entry.muscle, entry]));
+  const muscles = [...new Set([...currentByMuscle.keys(), ...previousByMuscle.keys()])].sort(
+    (left, right) =>
+      (currentByMuscle.get(right)?.set_count ?? 0) - (currentByMuscle.get(left)?.set_count ?? 0)
+      || (left ?? "unclassified").localeCompare(right ?? "unclassified"),
+  );
+
+  return (
+    <div className="mt-4">
+      <h4 className="font-medium">Week-over-week primary muscle exposure</h4>
+      <p className="my-2 text-sm text-muted">
+        Change from the week of {previousWeek.week_start}; this is a comparison, not a target.
+      </p>
+      {muscles.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table
+            aria-label="Week-over-week primary muscle exposure"
+            className="w-full text-left text-sm"
+          >
+            <thead className="text-muted">
+              <tr>
+                <th scope="col" className="py-2">Muscle</th>
+                <th scope="col" className="px-2 py-2 text-right">Set change</th>
+                <th scope="col" className="py-2 text-right">External-volume change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {muscles.map((muscle) => {
+                const current = currentByMuscle.get(muscle);
+                const previous = previousByMuscle.get(muscle);
+                const setChange = (current?.set_count ?? 0) - (previous?.set_count ?? 0);
+                const volumeChange = Math.round(((current?.volume_kg ?? 0) - (previous?.volume_kg ?? 0)) * 10) / 10;
+                return (
+                  <tr key={muscle ?? "unclassified"} className="border-t border-line-muted" data-numeric>
+                    <th scope="row" className="py-2 font-medium">
+                      {muscle === null ? "Unclassified" : MUSCLE_LABELS[muscle] ?? muscle}
+                    </th>
+                    <td className="px-2 py-2 text-right">{setChange > 0 ? "+" : ""}{setChange} sets</td>
+                    <td className="py-2 text-right">
+                      {volumeChange > 0 ? "+" : ""}{NUMBER_FORMAT.format(volumeChange)} kg
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p role="status" className="text-sm text-muted">No primary-muscle sets were recorded in either week.</p>
+      )}
+    </div>
   );
 }
 
