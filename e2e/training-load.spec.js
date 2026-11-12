@@ -284,15 +284,20 @@ test("workload ratio reports the selected week and its preceding baseline", asyn
 
 test("training load downloads a CSV for only the visible weeks", async ({ page, request }) => {
   const tag = `[TEST_RUN_ID:${process.env.TEST_RUN_ID || "local"}:${randomUUID()}]`;
+  /** @type {string[]} */
   const ids = [];
   try {
-    for (const day of ["2026-09-21", "2026-10-20"]) {
+    for (const [day, effort_rpe] of [
+      ["2026-09-21", 7],
+      ["2026-10-20", 7],
+      ["2026-10-21", null],
+    ]) {
       const log = await request.post("/api/v1/logs", {
         data: {
           performed_at: `${day}T12:00:00Z`,
           total_time_minutes: 40,
           overall_feeling: 3,
-          effort_rpe: 7,
+          effort_rpe,
           notes: tag,
           exercises: [{ exercise_name: `${tag} Press`, sets_count: 1, weight_kg: 60, reps_per_set: [8], rpe_per_set: [9] }],
         },
@@ -318,6 +323,14 @@ test("training load downloads a CSV for only the visible weeks", async ({ page, 
     expect(content).not.toContain(ids[0]);
     expect(content.split("\r\n")[0]).toMatch(/,"activity_workload_ratio_status"$/);
     expect(content.split("\r\n").find((line) => line.startsWith('"set",'))).toContain(',"9",');
+    const headers = content.split("\r\n")[0].split('","').map((field) => field.replaceAll('"', ""));
+    const rows = content.split("\r\n").map((line) =>
+      line.split('","').map((field) => field.replaceAll('"', "")),
+    );
+    const ratedSession = rows.find((row) => row[headers.indexOf("workout_id")] === ids[1]);
+    const unratedSession = rows.find((row) => row[headers.indexOf("workout_id")] === ids[2]);
+    expect(ratedSession?.[headers.indexOf("load_au")]).toBe("280");
+    expect(unratedSession?.[headers.indexOf("load_au")]).toBe("");
   } finally {
     for (const id of ids) {
       const url = `/api/v1/logs/${id}`;

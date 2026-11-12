@@ -93,6 +93,12 @@ def _spreadsheet_text(value: str) -> str:
     return value
 
 
+def _session_load_au(log: WorkoutLog) -> int | None:
+    if log.effort_rpe is None or log.total_time_minutes <= 0:
+        return None
+    return log.effort_rpe * log.total_time_minutes
+
+
 async def export_training_load_csv(session: AsyncSession, query: TrainingLoadQuery) -> bytes:
     logs = await _workout_logs_in_range(session, *query.utc_bounds())
     summary = await weekly_training_load(session, query)
@@ -116,6 +122,7 @@ async def export_training_load_csv(session: AsyncSession, query: TrainingLoadQue
                 "activity_type": log.activity_type,
                 "duration_minutes": log.total_time_minutes,
                 "session_rpe": log.effort_rpe,
+                "load_au": _session_load_au(log),
             }
         )
         for exercise in log.exercises:
@@ -348,11 +355,7 @@ async def weekly_training_load(
         week = weeks[index]
         effort = week.session_effort
         effort.logged_sessions += 1
-        session_load = (
-            log.effort_rpe * log.total_time_minutes
-            if log.effort_rpe is not None and log.total_time_minutes > 0
-            else None
-        )
+        session_load = _session_load_au(log)
         week.session_effort_sessions.append(
             SessionEffortDetail(
                 performed_at_utc=log.performed_at,

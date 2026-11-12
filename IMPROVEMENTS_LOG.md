@@ -924,3 +924,20 @@ load, and the timestamp keeps multiple workouts recorded on the same local date 
   existing repository-wide findings; all changed Python files pass Ruff.
 - Browser verification recipe. Open **Training load**, select a week with several activities, and
   compare each session's local time, duration, rating, and AU with the weekly and activity totals.
+
+## Cycle 50 — Reconcile session loads in CSV exports
+
+Training-load CSV session rows now include each rated session's calculated AU alongside its
+duration and whole-session RPE. Unrated sessions and sessions without a positive duration leave the
+load field blank. The CSV and weekly analysis use the same load calculation, so exported session
+records can be reconciled directly with weekly totals.
+
+- The real-API browser export test verifies the rated session's AU, the unrated session's blank load,
+  and exclusion of records outside the selected date range on desktop and phone.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, focused Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the isolated
+  temporary database scan found zero application rows after cleanup.
+- Browser verification recipe. Download the CSV for a week containing rated and unrated sessions.
+  Match the `load_au` value on each rated session row to duration × RPE and confirm the unrated
+  session has no load value.
