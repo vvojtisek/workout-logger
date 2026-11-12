@@ -809,3 +809,26 @@ keeps week boundaries stable across daylight-saving changes and time zones.
   found zero rows in all nine tracked tables.
 - Browser verification recipe. Create a program with start and end dates 28 days apart. Confirm
   it shows Week 1 of 4 and 4% elapsed, then edit the dates to verify the current week updates.
+
+## Cycle 34 — Track scheduled workout states by microcycle
+
+Program schedule summaries now include weekly counts for scheduled, in-progress, completed, and
+skipped workouts. Seven-day buckets are anchored to each program's start date; weekly buckets
+include only workouts scheduled inside the program's date range, while existing overall counts
+continue to include every workout linked to the program. The Programs list shows the current
+microcycle's counts beside its week and elapsed-block progress, without combining the states into
+an inferred completion score.
+
+- The API regression covers sessions across two weeks and confirms out-of-range sessions remain
+  in overall totals without being assigned to an in-block week. The real migrated-SQLite browser
+  flow verifies week counts for scheduled and in-progress workouts, and that cancelling an active
+  workout returns it to Scheduled on desktop and phone.
+- `uv run pytest -q` passed all 739 backend tests. `npm test` passed all 225 frontend tests;
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips. E2E cleanup
+  verified zero application rows in its tracked tables and zero tagged body-metric, sleep, step,
+  and meal rows.
+- Browser verification recipe. Create a program that starts today, schedule a workout today, and
+  open Programs. Confirm its active week shows one Scheduled workout. Start it and check the
+  count moves to In progress; cancel the workout and confirm it returns to Scheduled. A skipped
+  workout should remain distinct from both scheduled and completed sessions.

@@ -369,6 +369,15 @@ export interface ProgramScheduleSummary {
   in_progress: number;
   completed: number;
   skipped: number;
+  weeks: ProgramWeekScheduleSummary[];
+}
+
+export interface ProgramWeekScheduleSummary {
+  week_number: number;
+  scheduled: number;
+  in_progress: number;
+  completed: number;
+  skipped: number;
 }
 
 export interface ProgramTemplate {

@@ -120,18 +120,29 @@ async def test_program_schedule_summary_counts_each_calendar_state(client, auth_
     program_id = program_response.json()["id"]
 
     scheduled_ids = []
-    for day in range(1, 5):
+    for scheduled_date in ("2026-01-02", "2026-01-05", "2026-01-09", "2026-01-12"):
         response = await client.post(
             "/api/v1/scheduled-workouts",
             json={
                 "program_id": program_id,
                 "workout_plan_id": plan_id,
-                "scheduled_date": f"2026-02-0{day}",
+                "scheduled_date": scheduled_date,
             },
             headers=auth_headers,
         )
         assert response.status_code == 201
         scheduled_ids.append(response.json()["id"])
+    for scheduled_date in ("2025-12-31", "2026-03-02"):
+        response = await client.post(
+            "/api/v1/scheduled-workouts",
+            json={
+                "program_id": program_id,
+                "workout_plan_id": plan_id,
+                "scheduled_date": scheduled_date,
+            },
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
 
     skipped = await client.patch(
         f"/api/v1/scheduled-workouts/{scheduled_ids[1]}",
@@ -175,10 +186,26 @@ async def test_program_schedule_summary_counts_each_calendar_state(client, auth_
         "items": [
             {
                 "program_id": program_id,
-                "scheduled": 1,
+                "scheduled": 3,
                 "in_progress": 1,
                 "completed": 1,
                 "skipped": 1,
+                "weeks": [
+                    {
+                        "week_number": 1,
+                        "scheduled": 1,
+                        "in_progress": 0,
+                        "completed": 0,
+                        "skipped": 1,
+                    },
+                    {
+                        "week_number": 2,
+                        "scheduled": 0,
+                        "in_progress": 1,
+                        "completed": 1,
+                        "skipped": 0,
+                    },
+                ],
             }
         ]
     }

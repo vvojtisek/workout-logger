@@ -110,6 +110,12 @@ export function ProgramsView() {
                   {scheduleSummaries[program.id].skipped}
                 </p>
               ) : null}
+              {scheduleSummaries[program.id] ? (
+                <ProgramWeekScheduleSummary
+                  program={program}
+                  summary={scheduleSummaries[program.id]}
+                />
+              ) : null}
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button onClick={() => void navigate(`/programs/${program.id}/edit`)}>Edit</Button>
@@ -174,5 +180,34 @@ function ProgramWeekSummary({ program }: { program: Program }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ProgramWeekScheduleSummary({
+  program,
+  summary,
+}: {
+  program: Program;
+  summary: ProgramScheduleSummary;
+}) {
+  const progress = programWeekProgress(
+    program.start_date,
+    program.end_date,
+    localIsoDate(new Date()),
+  );
+  if (progress.state !== "active") return null;
+
+  const counts = summary.weeks.find((week) => week.week_number === progress.week) ?? {
+    week_number: progress.week,
+    scheduled: 0,
+    in_progress: 0,
+    completed: 0,
+    skipped: 0,
+  };
+  return (
+    <p className="mt-1 text-xs text-muted" data-testid="program-week-schedule-summary">
+      Week {counts.week_number} · Scheduled {counts.scheduled} · In progress {counts.in_progress} ·
+      {" "}Completed {counts.completed} · Skipped {counts.skipped}
+    </p>
   );
 }

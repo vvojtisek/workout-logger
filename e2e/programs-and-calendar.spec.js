@@ -117,6 +117,9 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     await expect(programCard.getByTestId("program-schedule-summary")).toContainText(
       /Scheduled 1.*In progress 0.*Completed 0.*Skipped 0/,
     );
+    await expect(programCard.getByTestId("program-week-schedule-summary")).toContainText(
+      /Week 1.*Scheduled 1.*In progress 0.*Completed 0.*Skipped 0/,
+    );
 
     // Reschedule: move it one day into the future, then back to today.
     const tomorrow = new Date();
@@ -176,6 +179,13 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
         .filter({ hasText: `${tag} program` })
         .getByTestId("program-schedule-summary"),
     ).toContainText(/Scheduled 0.*In progress 1.*Completed 0.*Skipped 0/);
+    await expect(
+      page
+        .locator("#programs-list")
+        .getByRole("listitem")
+        .filter({ hasText: `${tag} program` })
+        .getByTestId("program-week-schedule-summary"),
+    ).toContainText(/Week 1.*Scheduled 0.*In progress 1.*Completed 0.*Skipped 0/);
 
     const afterStart = await request.get(`/api/v1/scheduled-workouts/${scheduledId}`);
     expect(await afterStart.json()).toMatchObject({
