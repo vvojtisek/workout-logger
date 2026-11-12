@@ -291,6 +291,9 @@ each side. Locations can store up to eight named bar profiles, including bar and
 plus paired plate stock. The workout starts with that location's first profile; choose another
 profile or the labeled default inventory when needed. The calculator shows the nearest supported
 loads when an exact stack is unavailable and never changes the value saved in the weight field.
+For adjustable dumbbells, open **Dumbbell plates** to calculate the symmetric stack on each
+side of one dumbbell. Named handle and plate inventories come from the selected location; the
+weight field continues to record kilograms per dumbbell.
 
 **Download training CSV** exports the visible Training load window using the same local-week
 boundaries. The UTF-8 file has one `session` row per workout or activity with duration and

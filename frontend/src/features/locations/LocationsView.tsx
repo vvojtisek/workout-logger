@@ -8,6 +8,7 @@ import {
   DEFAULT_LOCATIONS,
   LOCATION_KIND_LABELS,
   type LocationDraft,
+  type DumbbellProfileDraft,
   type PlateProfileDraft,
   draftFromLocation,
   draftIsDirty,
@@ -37,6 +38,15 @@ function newPlateProfile(): PlateProfileDraft {
   };
 }
 
+function newDumbbellProfile(): DumbbellProfileDraft {
+  return {
+    name: "Adjustable dumbbell",
+    handle: "2.5",
+    collars: "0",
+    plates: [5, 2.5, 1.25, 0.5].map((weight) => ({ weight: String(weight), pairs: "1" })),
+  };
+}
+
 function saveError(err: unknown): string {
   if (err instanceof ApiError && err.code === "LOCATION_NAME_CONFLICT") return err.message;
   return `Failed to save location: ${errorMessage(err)}`;
@@ -55,6 +65,13 @@ function LocationFields({
     onChange({
       ...draft,
       plateProfiles: draft.plateProfiles.map((profile, current) => current === index ? next : profile),
+    });
+  }
+
+  function updateDumbbellProfile(index: number, next: DumbbellProfileDraft) {
+    onChange({
+      ...draft,
+      dumbbellProfiles: draft.dumbbellProfiles.map((profile, current) => current === index ? next : profile),
     });
   }
 
@@ -172,6 +189,72 @@ function LocationFields({
             </div>
             <Button variant="ghost" className="self-start" onClick={() => onChange({ ...draft, plateProfiles: draft.plateProfiles.filter((_, current) => current !== index) })}>
               Remove profile
+            </Button>
+          </fieldset>
+        ))}
+      </section>
+      <section aria-label="Adjustable dumbbells" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-medium">Adjustable dumbbells</h3>
+            <p className="text-sm text-muted">Handle mass and symmetric plate pairs for each dumbbell.</p>
+          </div>
+          <Button
+            variant="secondary"
+            disabled={draft.dumbbellProfiles.length >= 8}
+            onClick={() => onChange({ ...draft, dumbbellProfiles: [...draft.dumbbellProfiles, newDumbbellProfile()] })}
+          >
+            Add dumbbell profile
+          </Button>
+        </div>
+        {draft.dumbbellProfiles.map((profile, index) => (
+          <fieldset key={index} className="grid gap-3 rounded-[var(--radius-md)] border border-line p-3">
+            <legend className="px-1 text-sm font-medium">Dumbbell profile {index + 1}</legend>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="field-label">
+                Name
+                <Input aria-label={`Dumbbell profile ${index + 1} name`} value={profile.name}
+                  onChange={(event) => updateDumbbellProfile(index, { ...profile, name: event.target.value })} />
+              </label>
+              <label className="field-label">
+                Handle weight (kg)
+                <Input aria-label={`Dumbbell profile ${index + 1} handle weight (kg)`} type="number" min="0.001" max="30" step="0.001" inputMode="decimal" value={profile.handle}
+                  onChange={(event) => updateDumbbellProfile(index, { ...profile, handle: event.target.value })} />
+              </label>
+              <label className="field-label">
+                Collars (kg)
+                <Input aria-label={`Dumbbell profile ${index + 1} collars (kg)`} type="number" min="0" max="10" step="0.001" inputMode="decimal" value={profile.collars}
+                  onChange={(event) => updateDumbbellProfile(index, { ...profile, collars: event.target.value })} />
+              </label>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+              {profile.plates.map((plate, plateIndex) => (
+                <div key={plateIndex} className="grid grid-cols-2 gap-2">
+                  <label className="field-label">
+                    Plate (kg)
+                    <Input aria-label={`Dumbbell profile ${index + 1} plate ${plateIndex + 1} weight (kg)`} type="number" min="0.001" max="100" step="0.001" inputMode="decimal" value={plate.weight}
+                      onChange={(event) => updateDumbbellProfile(index, { ...profile, plates: profile.plates.map((item, current) => current === plateIndex ? { ...item, weight: event.target.value } : item) })} />
+                  </label>
+                  <label className="field-label">
+                    Pairs
+                    <Input aria-label={`Dumbbell profile ${index + 1} plate ${plateIndex + 1} pairs`} type="number" min="1" max="30" step="1" inputMode="numeric" value={plate.pairs}
+                      onChange={(event) => updateDumbbellProfile(index, { ...profile, plates: profile.plates.map((item, current) => current === plateIndex ? { ...item, pairs: event.target.value } : item) })} />
+                  </label>
+                </div>
+              ))}
+              <div className="flex flex-wrap items-end gap-2">
+                <Button variant="secondary" disabled={profile.plates.length >= 20}
+                  onClick={() => updateDumbbellProfile(index, { ...profile, plates: [...profile.plates, { weight: "2.5", pairs: "1" }] })}>
+                  Add plate size
+                </Button>
+                <Button variant="ghost" disabled={profile.plates.length <= 1}
+                  onClick={() => updateDumbbellProfile(index, { ...profile, plates: profile.plates.slice(0, -1) })}>
+                  Remove last size
+                </Button>
+              </div>
+            </div>
+            <Button variant="ghost" className="self-start" onClick={() => onChange({ ...draft, dumbbellProfiles: draft.dumbbellProfiles.filter((_, current) => current !== index) })}>
+              Remove dumbbell profile
             </Button>
           </fieldset>
         ))}

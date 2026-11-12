@@ -88,8 +88,10 @@ test("configures a location bar and selects it for the workout plate calculation
   const tag = `[E2E:${process.env.TEST_RUN_ID || `profile-${Date.now()}`}:profile]`;
   const locationName = `${tag} Strength room`;
   const exerciseName = `${tag} Barbell press`;
+  const dumbbellName = `${tag} Dumbbell press`;
   let locationId;
   let exerciseId;
+  let dumbbellExerciseId;
   let planId;
   let sessionId;
 
@@ -110,6 +112,10 @@ test("configures a location bar and selects it for the workout plate calculation
     await page.getByLabel("Bar profile 1 bar weight (kg)").fill("25");
     await page.getByLabel("Bar profile 2 name").fill("15 kg technique bar");
     await page.getByLabel("Bar profile 2 bar weight (kg)").fill("15");
+    await locationList.getByRole("button", { name: "Add dumbbell profile" }).click();
+    await page.getByLabel("Dumbbell profile 1 name").fill("Adjustable pair");
+    await page.getByLabel("Dumbbell profile 1 handle weight (kg)").fill("2");
+    await page.getByLabel("Dumbbell profile 1 plate 1 weight (kg)").fill("4");
     await page.getByRole("button", { name: `Save ${locationName}` }).click();
     await expect(page.getByText(`Saved "${locationName}"`)).toBeVisible();
 
@@ -118,17 +124,32 @@ test("configures a location bar and selects it for the workout plate calculation
     });
     expect(exercise.status()).toBe(201);
     exerciseId = (await exercise.json()).id;
+    const dumbbellExercise = await request.post("/api/v1/exercises", {
+      data: { name: dumbbellName, equipment_any_of: [["dumbbell"]] },
+    });
+    expect(dumbbellExercise.status()).toBe(201);
+    dumbbellExerciseId = (await dumbbellExercise.json()).id;
     const plan = await request.post("/api/v1/plans", {
       data: {
         name: `${tag} plan`,
-        exercises: [{
-          exercise_name: exerciseName,
-          target_sets: 1,
-          target_reps_min: 5,
-          target_reps_max: 5,
-          target_weight_kg: 75,
-          rest_time_seconds: 30,
-        }],
+        exercises: [
+          {
+            exercise_name: exerciseName,
+            target_sets: 1,
+            target_reps_min: 5,
+            target_reps_max: 5,
+            target_weight_kg: 75,
+            rest_time_seconds: 30,
+          },
+          {
+            exercise_name: dumbbellName,
+            target_sets: 1,
+            target_reps_min: 8,
+            target_reps_max: 8,
+            target_weight_kg: 10,
+            rest_time_seconds: 30,
+          },
+        ],
       },
     });
     expect(plan.status()).toBe(201);
@@ -154,6 +175,17 @@ test("configures a location bar and selects it for the workout plate calculation
     expect((await active.json()).location.plate_profiles[0]).toMatchObject({
       name: "Safety squat bar", bar_kg: 25, collars_kg: 0,
     });
+    expect((await active.json()).location.dumbbell_profiles[0]).toMatchObject({
+      name: "Adjustable pair", handle_kg: 2, collars_kg: 0,
+    });
+
+    await page.getByRole("button", { name: "Complete set & start rest" }).click();
+    await expect(page.getByRole("heading", { name: dumbbellName })).toBeVisible();
+    await expect(page.getByText("Barbell plates", { exact: true })).toHaveCount(0);
+    await page.getByText("Dumbbell plates", { exact: true }).click();
+    await expect(page.getByLabel("Dumbbell profile")).toHaveValue("Adjustable pair");
+    await expect(page.getByText("Adjustable pair · Handle 2 kg · Collars 0 kg")).toBeVisible();
+    await expect(page.getByText("Per dumbbell: 1 × 4 kg on each side", { exact: true })).toBeVisible();
   } finally {
     if (sessionId) {
       await request.delete(`/api/v1/workout-sessions/${sessionId}`);
@@ -166,6 +198,10 @@ test("configures a location bar and selects it for the workout plate calculation
     if (exerciseId) {
       await request.delete(`/api/v1/exercises/${exerciseId}`);
       expect((await request.get(`/api/v1/exercises/${exerciseId}`)).status()).toBe(404);
+    }
+    if (dumbbellExerciseId) {
+      await request.delete(`/api/v1/exercises/${dumbbellExerciseId}`);
+      expect((await request.get(`/api/v1/exercises/${dumbbellExerciseId}`)).status()).toBe(404);
     }
     if (locationId) {
       await request.delete(`/api/v1/locations/${locationId}`);

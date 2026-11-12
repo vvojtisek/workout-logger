@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode, TouchEvent } from "react";
 import { X } from "lucide-react";
 
-import type { ExerciseStats, PlateProfile, WorkoutSession } from "@/api/types";
+import type { DumbbellProfile, ExerciseStats, PlateProfile, WorkoutSession } from "@/api/types";
 import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import {
   clearSetDraft,
@@ -31,6 +31,7 @@ import type { HudRow } from "@/lib/workout-hud";
 import { ScaleSelect } from "@/ui/ScaleSelect";
 import { useRestCountdown } from "./RestOverlay";
 import { BarbellPlateCalculator } from "./BarbellPlateCalculator";
+import { DumbbellPlateCalculator } from "./DumbbellPlateCalculator";
 import { EMPTY_DRAFT, FIELD_SPECS_BY_KIND, draftToValues, fieldHint } from "./SetRow";
 import type { FieldSpec, SetValues } from "./SetRow";
 
@@ -154,6 +155,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
   const row = rows[index];
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const [selectedPlateProfileName, setSelectedPlateProfileName] = useState<string | null>(null);
+  const [selectedDumbbellProfileName, setSelectedDumbbellProfileName] = useState<string | null>(null);
 
   // A sideways swipe changes exercise. Chrome would otherwise take it as the
   // page's back/forward gesture, which is set on the document's root scroller.
@@ -338,6 +340,11 @@ export function WorkoutHud(props: WorkoutHudProps) {
             ? session.location?.plate_profiles[0] ?? null
             : session.location?.plate_profiles.find((profile) => profile.name === selectedPlateProfileName) ?? null}
           onPlateProfileChange={setSelectedPlateProfileName}
+          dumbbellProfiles={session.location?.dumbbell_profiles ?? []}
+          selectedDumbbellProfile={selectedDumbbellProfileName === null
+            ? session.location?.dumbbell_profiles[0] ?? null
+            : session.location?.dumbbell_profiles.find((profile) => profile.name === selectedDumbbellProfileName) ?? null}
+          onDumbbellProfileChange={setSelectedDumbbellProfileName}
         />
       </div>
 
@@ -602,6 +609,9 @@ function SetPanel({
   plateProfiles,
   selectedPlateProfile,
   onPlateProfileChange,
+  dumbbellProfiles,
+  selectedDumbbellProfile,
+  onDumbbellProfileChange,
   session,
   restWasSkipped,
   restControlsDisabled,
@@ -621,6 +631,9 @@ function SetPanel({
   plateProfiles: PlateProfile[];
   selectedPlateProfile: PlateProfile | null;
   onPlateProfileChange: (name: string) => void;
+  dumbbellProfiles: DumbbellProfile[];
+  selectedDumbbellProfile: DumbbellProfile | null;
+  onDumbbellProfileChange: (name: string) => void;
 }) {
   const kind = row.exercise.exercise_kind;
   const specs = FIELD_SPECS_BY_KIND[kind];
@@ -678,6 +691,9 @@ function SetPanel({
   const showBarbellCalculator = kind === "strength" &&
     (row.exercise.equipment_load_mode ?? "standard") === "standard" &&
     (equipment.length === 0 || equipment.some((option) => option.includes("barbell")));
+  const showDumbbellCalculator = kind === "strength" &&
+    (row.exercise.equipment_load_mode ?? "standard") === "standard" &&
+    equipment.some((option) => option.includes("dumbbell"));
 
   let action: ReactNode;
   if (row.entry?.pending) {
@@ -776,6 +792,14 @@ function SetPanel({
           profiles={plateProfiles}
           selectedProfile={selectedPlateProfile}
           onProfileChange={onPlateProfileChange}
+        />
+      ) : null}
+      {showDumbbellCalculator ? (
+        <DumbbellPlateCalculator
+          weight={draft.weight}
+          profiles={dumbbellProfiles}
+          selectedProfile={selectedDumbbellProfile}
+          onProfileChange={onDumbbellProfileChange}
         />
       ) : null}
       {rirSpec ? (

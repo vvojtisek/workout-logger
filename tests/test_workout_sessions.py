@@ -97,6 +97,14 @@ async def test_session_carries_its_location_plate_profiles(client, auth_headers)
                     "plates": [{"weight_kg": 5, "pairs": 2}],
                 }
             ],
+            "dumbbell_profiles": [
+                {
+                    "name": "Adjustable pair",
+                    "handle_kg": 2,
+                    "collars_kg": 0,
+                    "plates": [{"weight_kg": 4, "pairs": 1}],
+                }
+            ],
         },
         headers=auth_headers,
     )
@@ -110,9 +118,11 @@ async def test_session_carries_its_location_plate_profiles(client, auth_headers)
     assert started.status_code == 201
     expected = location.json()["plate_profiles"]
     assert started.json()["location"]["plate_profiles"] == expected
+    assert started.json()["location"]["dumbbell_profiles"] == location.json()["dumbbell_profiles"]
 
     active = await client.get(f"{SESSIONS}/active", headers=auth_headers)
     assert active.json()["location"]["plate_profiles"] == expected
+    assert active.json()["location"]["dumbbell_profiles"] == location.json()["dumbbell_profiles"]
 
 
 async def test_duplicate_start_returns_the_existing_active_session(client, auth_headers):

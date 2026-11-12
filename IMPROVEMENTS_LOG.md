@@ -430,3 +430,29 @@ existing location-check response remains unchanged.
   their actual weights and paired plates. Start a barbell workout at that location, open
   **Barbell plates**, compare the same set under each profile, then select **Default inventory**.
   Save a set and confirm its recorded load did not change when switching profiles.
+
+## Cycle 18 — Calculate adjustable dumbbell loads per hand
+
+The weight field records the load of one dumbbell. Locations can now store up to eight named
+adjustable-dumbbell profiles with handle and collar mass and symmetric plate-pair stock. The
+same bounded integer-gram solver computes the stack on each side of one dumbbell, while the HUD
+labels the resulting load per dumbbell. The location editor validates and persists inventories,
+and the active session response carries them into the workout and its offline snapshot. Choosing
+a different profile never changes the saved set weight.
+
+- API regressions cover profile round-trip, gram precision, and delivery to started and active
+  sessions. Account-isolation coverage includes the new inventory field. Existing location-check
+  responses retain their original shape.
+- The mobile browser configured an adjustable pair at a training location, logged a barbell set,
+  moved to a dumbbell exercise, and verified a 10 kg per-dumbbell load uses one 4 kg plate on
+  each side of a 2 kg handle.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 712 tests at 82% coverage. Required Ruff checks, format, full Ruff on the new migration,
+  mypy, and `git diff --check` passed. Informational full Ruff remains at 151 repository findings.
+- `npm test` passed 198 tests; ESLint, TypeScript, and Vite build passed. Full localhost
+  Playwright on fresh migrated SQLite passed 70 tests with seven viewport skips. Cleanup found
+  zero rows in all nine checked tables.
+- Browser verification recipe. In Locations, add an adjustable-dumbbell profile with its handle
+  mass and plate stock. Start a workout at that location, advance to a dumbbell exercise, open
+  **Dumbbell plates**, and compare the calculated per-hand stack with the entered load. Save a
+  set and verify the set weight is unchanged.

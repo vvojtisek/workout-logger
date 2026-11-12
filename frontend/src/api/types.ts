@@ -63,7 +63,12 @@ export interface WorkoutSession extends GridSession {
   source_plan_id: string | null;
   source_plan_name: string;
   location_id: string | null;
-  location: { id: string; name: string; plate_profiles: PlateProfile[] } | null;
+  location: {
+    id: string;
+    name: string;
+    plate_profiles: PlateProfile[];
+    dumbbell_profiles: DumbbellProfile[];
+  } | null;
   workout_log_id: string | null;
   status: string;
   started_at: string;
@@ -238,6 +243,13 @@ export interface PlateProfile {
   plates: Array<{ weight_kg: number; pairs: number }>;
 }
 
+export interface DumbbellProfile {
+  name: string;
+  handle_kg: number;
+  collars_kg: number;
+  plates: Array<{ weight_kg: number; pairs: number }>;
+}
+
 export interface Location {
   id: string;
   name: string;
@@ -246,6 +258,7 @@ export interface Location {
   equipment: EquipmentTag[];
   default_minutes: number | null;
   plate_profiles: PlateProfile[];
+  dumbbell_profiles: DumbbellProfile[];
   created_at: string;
   updated_at: string;
 }

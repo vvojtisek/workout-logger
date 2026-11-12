@@ -31,6 +31,10 @@ describe("location drafts", () => {
       name: "Technique bar", bar_kg: 15, collars_kg: 0.25,
       plates: [{ weight_kg: 10, pairs: 1 }, { weight_kg: 1.25, pairs: 2 }],
     }],
+    dumbbell_profiles: [{
+      name: "Adjustable pair", handle_kg: 2, collars_kg: 0,
+      plates: [{ weight_kg: 4, pairs: 1 }],
+    }],
     created_at: "",
     updated_at: "",
   };
@@ -41,6 +45,7 @@ describe("location drafts", () => {
       payload: {
         name: "Office", kind: "office", equipment: ["bench", "dumbbell"],
         default_minutes: 30, plate_profiles: saved.plate_profiles,
+        dumbbell_profiles: saved.dumbbell_profiles,
       },
     });
   });
@@ -66,6 +71,10 @@ describe("location drafts", () => {
       name: "Technique bar", bar_kg: 15, collars_kg: 0.25,
       plates: [{ weight_kg: 10, pairs: 1 }, { weight_kg: 1.25, pairs: 2 }],
     });
+    expect(payload.payload.dumbbell_profiles[0]).toEqual({
+      name: "Adjustable pair", handle_kg: 2, collars_kg: 0,
+      plates: [{ weight_kg: 4, pairs: 1 }],
+    });
   });
 
   it("treats blank minutes as no default and trims the name", () => {
@@ -73,7 +82,8 @@ describe("location drafts", () => {
     expect(result).toEqual({
       ok: true,
       payload: {
-        name: "Hotel", kind: "travel", equipment: [], default_minutes: null, plate_profiles: [],
+        name: "Hotel", kind: "travel", equipment: [], default_minutes: null,
+        plate_profiles: [], dumbbell_profiles: [],
       },
     });
   });

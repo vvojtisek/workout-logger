@@ -671,11 +671,20 @@ async def test_locations_are_private_per_invited_account(migrated_client, auth_h
                         "plates": [{"weight_kg": 2.5, "pairs": 1}],
                     }
                 ],
+                "dumbbell_profiles": [
+                    {
+                        "name": "Private adjustable pair",
+                        "handle_kg": 2,
+                        "collars_kg": 0,
+                        "plates": [{"weight_kg": 1.25, "pairs": 2}],
+                    }
+                ],
             },
             headers=owner_cookies,
         )
         assert created.status_code == 201
         assert created.json()["plate_profiles"][0]["name"] == "Private bar"
+        assert created.json()["dumbbell_profiles"][0]["name"] == "Private adjustable pair"
         location_id = created.json()["id"]
 
         # The same name is free for another account.

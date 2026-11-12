@@ -58,6 +58,22 @@ async def test_location_round_trips_named_barbell_profiles(client, auth_headers)
     assert replaced.json()["plate_profiles"][0]["bar_kg"] == 17.5
 
 
+async def test_location_round_trips_adjustable_dumbbell_profiles(client, auth_headers):
+    profile = {
+        "name": "4 kg per side",
+        "handle_kg": 2,
+        "collars_kg": 0,
+        "plates": [{"weight_kg": 4, "pairs": 1}],
+    }
+    created = await client.post(
+        BASE,
+        json=make_location_payload(dumbbell_profiles=[profile]),
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    assert created.json()["dumbbell_profiles"] == [profile]
+
+
 async def test_location_plate_profiles_reject_duplicate_names_and_invalid_stock(
     client, auth_headers
 ):
@@ -79,6 +95,22 @@ async def test_location_plate_profiles_reject_duplicate_names_and_invalid_stock(
             headers=auth_headers,
         )
         assert response.status_code == 422
+
+    invalid_dumbbell = await client.post(
+        BASE,
+        json=make_location_payload(
+            dumbbell_profiles=[
+                {
+                    "name": "Broken handle",
+                    "handle_kg": 2,
+                    "collars_kg": 0,
+                    "plates": [{"weight_kg": 2.5125, "pairs": 1}],
+                }
+            ]
+        ),
+        headers=auth_headers,
+    )
+    assert invalid_dumbbell.status_code == 422
 
 
 async def test_location_defaults(client, auth_headers):
