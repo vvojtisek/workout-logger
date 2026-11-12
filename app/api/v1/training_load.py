@@ -39,10 +39,12 @@ async def get_training_load(
 @router.get(
     "/export",
     operation_id="export_training_load",
-    summary="Download sessions and sets for the selected training weeks as CSV",
+    summary="Download sessions, sets, and weekly summaries for selected training weeks as CSV",
     description=(
         "Uses only the requested weeks. Session rows hold duration and whole-session RPE. "
-        "Set rows hold saved weight, reps and RIR and share the session's workout_id."
+        "Set rows hold saved weight, reps and RIR and share the session's workout_id. Weekly "
+        "summary rows include session effort, workload ratio, and monotony metrics; weekly "
+        "activity summary rows report effort coverage and load by activity type."
     ),
     response_class=Response,
     responses={200: {"content": {"text/csv": {"schema": {"type": "string"}}}}},

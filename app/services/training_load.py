@@ -42,6 +42,19 @@ CSV_COLUMNS = (
     "reps",
     "rir",
     "set_rpe",
+    "logged_sessions",
+    "rated_sessions",
+    "rated_minutes",
+    "load_au",
+    "daily_mean_au",
+    "daily_sd_au",
+    "monotony",
+    "strain_au",
+    "training_variability_status",
+    "baseline_start",
+    "baseline_mean_au",
+    "workload_ratio",
+    "workload_ratio_status",
 )
 
 
@@ -77,6 +90,7 @@ def _spreadsheet_text(value: str) -> str:
 
 async def export_training_load_csv(session: AsyncSession, query: TrainingLoadQuery) -> bytes:
     logs = await _workout_logs_in_range(session, *query.utc_bounds())
+    summary = await weekly_training_load(session, query)
     zone = ZoneInfo(query.timezone)
     csv_buffer = StringIO(newline="")
     writer = csv.DictWriter(csv_buffer, fieldnames=CSV_COLUMNS, quoting=csv.QUOTE_ALL)
@@ -116,6 +130,43 @@ async def export_training_load_csv(session: AsyncSession, query: TrainingLoadQue
                         "set_rpe": rpes[index] if index < len(rpes) else None,
                     }
                 )
+    for week in summary.weeks:
+        effort = week.session_effort
+        variability = week.training_variability
+        ratio = week.workload_ratio
+        writer.writerow(
+            {
+                "record_type": "weekly_summary",
+                "week_start": week.week_start,
+                "timezone": query.timezone,
+                "logged_sessions": effort.logged_sessions,
+                "rated_sessions": effort.rated_sessions,
+                "rated_minutes": effort.rated_minutes,
+                "load_au": effort.load_au,
+                "daily_mean_au": variability.daily_mean_au,
+                "daily_sd_au": variability.daily_sd_au,
+                "monotony": variability.monotony,
+                "strain_au": variability.strain_au,
+                "training_variability_status": variability.status,
+                "baseline_start": ratio.baseline_start,
+                "baseline_mean_au": ratio.baseline_mean_au,
+                "workload_ratio": ratio.ratio,
+                "workload_ratio_status": ratio.status,
+            }
+        )
+        for activity in week.session_effort_by_activity:
+            writer.writerow(
+                {
+                    "record_type": "weekly_activity_summary",
+                    "week_start": week.week_start,
+                    "timezone": query.timezone,
+                    "activity_type": activity.activity_type,
+                    "logged_sessions": activity.logged_sessions,
+                    "rated_sessions": activity.rated_sessions,
+                    "rated_minutes": activity.rated_minutes,
+                    "load_au": activity.load_au,
+                }
+            )
     return csv_buffer.getvalue().encode("utf-8-sig")
 
 

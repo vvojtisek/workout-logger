@@ -269,9 +269,11 @@ test("training load downloads a CSV for only the visible weeks", async ({ page, 
     expect(content).toContain("record_type");
     expect(content).toContain(ids[1]);
     expect(content).toContain(`${tag} Press`);
+    expect(content).toContain('"weekly_summary"');
+    expect(content).toContain('"weekly_activity_summary"');
     expect(content).not.toContain(ids[0]);
-    expect(content.split("\r\n")[0]).toMatch(/,"set_rpe"$/);
-    expect(content.split("\r\n").find((line) => line.startsWith('"set",'))).toMatch(/,"9"$/);
+    expect(content.split("\r\n")[0]).toMatch(/,"workload_ratio_status"$/);
+    expect(content.split("\r\n").find((line) => line.startsWith('"set",'))).toContain(',"9",');
   } finally {
     for (const id of ids) {
       const url = `/api/v1/logs/${id}`;

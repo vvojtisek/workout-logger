@@ -808,3 +808,23 @@ The category loads reconcile with the existing weekly session-effort total.
 - Browser verification recipe. Log a rated strength workout, a rated run, and an unrated cycling
   session in one week. Open **Training load**, choose that week in **Activity breakdown week**, and
   confirm the category loads sum to the weekly total while cycling still shows its missing rating.
+
+## Cycle 44 — Export weekly training-load summaries
+
+The training CSV now appends one weekly summary row for every selected week and one activity
+summary row for each logged modality. Weekly rows include session coverage, rated minutes, session
+load, workload-ratio state, and the available daily mean, standard deviation, monotony, and strain.
+Per-activity rows retain rated and logged counts so unrated sessions are not mistaken for zero load.
+Existing session and set rows keep their original values and identifiers.
+
+- API coverage verifies the selected local-week boundary, unchanged raw session/set rows, weekly
+  totals and metrics, and strength/running/swimming summary rows. The real-API browser journey
+  checks summary record types in the downloaded file and confirms out-of-range sessions stay out.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The E2E auth journey used a throwaway
+  `E2E_API_KEY` matching the local server configuration.
+- Browser verification recipe. Download **Training load** CSV for a date range containing a
+  rated strength workout and rated activities. Filter by `weekly_summary` to inspect totals and
+  `weekly_activity_summary` to compare modalities; session and set rows remain available alongside.
