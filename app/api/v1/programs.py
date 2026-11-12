@@ -45,7 +45,9 @@ async def list_programs(
     summary="Count scheduled workout states by program",
     description=(
         "Returns scheduled, in-progress, completed, and skipped workout counts for each "
-        "program visible to the authenticated account. No completion score is inferred."
+        "program visible to the authenticated account, plus per-week counts for sessions "
+        "scheduled within each program's date range. Overall counts still include linked "
+        "sessions outside that range. No completion score is inferred."
     ),
     response_model=ProgramScheduleSummariesResponse,
 )

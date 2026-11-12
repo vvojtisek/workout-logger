@@ -20,6 +20,17 @@ function formatKg(value: number): string {
   return `${Number.isInteger(value) ? value : value.toFixed(1)} kg`;
 }
 
+function repCurvePoints(reps: number[], width = 160, height = 36): string {
+  const peak = Math.max(...reps, 1);
+  return reps
+    .map((value, index) => {
+      const x = reps.length === 1 ? width / 2 : (index / (reps.length - 1)) * width;
+      const y = height - (value / peak) * height;
+      return `${x},${y}`;
+    })
+    .join(" ");
+}
+
 export function ProgressionCard({
   stats,
   status,
@@ -40,6 +51,10 @@ export function ProgressionCard({
   const id = useId();
   const facts = showSummary ? exerciseStatsFacts(stats) : [];
   const recent = stats?.recent ?? [];
+  const agreement = stats?.formula_agreement;
+  const agreementEntries = agreement
+    ? (Object.entries(agreement.estimates_kg) as [OneRepMaxFormula, number][])
+    : [];
   const chart = progressionChart(recent, CHART_WIDTH, CHART_HEIGHT);
   const best = [...recent]
     .filter((point) => point.estimated_one_rep_max_kg !== null)
@@ -91,6 +106,58 @@ export function ProgressionCard({
         Logged RIR is added to reps; unknown RIR assumes failure. For 4+, four is used as a
         minimum. These equations estimate capacity from the logged set.
       </p>
+      {agreement ? (
+        <section data-testid="formula-agreement">
+          <h4 className="mb-1 text-sm font-medium">Same-set equation spread</h4>
+          <p className="text-sm" data-numeric>
+            {formatKg(agreement.reference_weight_kg)} × {agreement.reference_reps}: {formatKg(Math.min(...Object.values(agreement.estimates_kg)))}–{formatKg(Math.max(...Object.values(agreement.estimates_kg)))} e1RM · {agreement.spread_percent}% of mean
+          </p>
+          <details className="mt-1 text-xs text-muted">
+            <summary className="cursor-pointer">View all four estimates</summary>
+            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1" data-numeric>
+              {agreementEntries.map(([key, value]) => (
+                <li key={key}>{ESTIMATE_FORMULAS[key].label}: {formatKg(value)}</li>
+              ))}
+            </ul>
+          </details>
+        </section>
+      ) : null}
+      {stats?.rep_retention.length ? (
+        <div>
+          <h4 className="mb-1 text-sm font-medium">Last session · same-load reps</h4>
+          <ul className="flex flex-col gap-2" data-numeric>
+            {stats.rep_retention.map((group) => (
+              <li key={group.weight_kg} className="grid grid-cols-[1fr_10rem] items-center gap-2">
+                <div className="text-sm">
+                  <span>{formatKg(group.weight_kg)} · {group.reps_per_set.join(" → ")}</span>
+                  <span className="ml-2 text-xs text-muted">{group.retention_percent}% retained</span>
+                  {group.rir_per_set.some((rir) => rir !== null) ? (
+                    <span className="block text-xs text-muted">
+                      RIR {group.rir_per_set.map((rir) => rir ?? "—").join(" → ")}
+                    </span>
+                  ) : null}
+                </div>
+                <svg
+                  role="img"
+                  aria-label={`${formatKg(group.weight_kg)} same-load rep curve: ${group.reps_per_set.join(", ")} reps by set`}
+                  viewBox="-2 -2 164 40"
+                  className="h-9 w-full"
+                >
+                  <polyline
+                    points={repCurvePoints(group.reps_per_set)}
+                    className="fill-none stroke-accent"
+                    strokeWidth={2}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-muted">
+            Last set reps as a share of the first set at that load; this is a rep drop-off measure, not bar velocity or a failure estimate.
+          </p>
+        </div>
+      ) : null}
       {chart ? (
         <>
           <svg

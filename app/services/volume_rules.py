@@ -21,6 +21,7 @@ class CatalogueVolumeProfile:
     rule: VolumeRule
     primary_muscles: tuple[str, ...] = ()
     equipment_any_of: tuple[tuple[str, ...], ...] = ()
+    movement_pattern: str | None = None
 
 
 DEFAULT_PROFILE = CatalogueVolumeProfile(DEFAULT_RULE)
@@ -45,6 +46,7 @@ async def _profiles_by_name(
             Exercise.is_unilateral,
             Exercise.primary_muscles,
             Exercise.equipment_any_of,
+            Exercise.movement_pattern,
         )
     )
     profiles: dict[str, CatalogueVolumeProfile] = {}
@@ -55,6 +57,7 @@ async def _profiles_by_name(
             VolumeRule(row.equipment_load_mode, bool(row.is_unilateral)),
             tuple(row.primary_muscles or ()),
             tuple(tuple(option) for option in row.equipment_any_of or ()),
+            row.movement_pattern,
         )
         for alias in row.aliases or []:
             if _key(alias) in wanted:

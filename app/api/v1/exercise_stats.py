@@ -17,7 +17,12 @@ router = APIRouter(prefix="/exercise-stats", tags=["exercise stats"])
     description="Summarizes logged workout history for each requested exercise name "
     "(case-insensitive): last session, heaviest set, estimated one-rep max "
     "from recorded weight and reps in the same set, and the working-weight trend "
-    "between the two most recent sessions. Both timestamps are required to filter to a range "
+    "between the two most recent sessions. The latest session also includes ordered "
+    "rep sequences at repeated recorded loads, with last-set reps as a percentage of "
+    "the first set at each load. This is a rep drop-off measure, not bar velocity or "
+    "a failure estimate. The latest session also reports the spread among all four "
+    "equations on the same heaviest 1–10 rep set when one exists. Both timestamps "
+    "are required to filter to a range "
     "[date_from, date_to). Items are returned in the order the names were requested.",
     response_model=ExerciseStatsResponse,
 )

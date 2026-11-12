@@ -751,6 +751,198 @@ universal balance target.
   movement pattern** update as target set counts change; the unclassified bucket should remain
   separate.
 
+## Cycle 31 — Visualize same-load rep retention within a session
+
+Exercise progression now summarizes repeated loads from the latest session as set-to-set rep
+curves. The API groups sets at the same recorded load, preserves their workout order, and reports
+last-set reps as a percentage of the first set. The progression card shows the sequence and an
+accessible sparkline even when the selected 1RM formula cannot chart that session. Sets at
+different loads remain separate, and the label describes a rep drop-off measure rather than bar
+velocity or a failure estimate.
+
+- API tests cover repeated-load grouping, per-set order, percentage calculation, and omission of
+  loads that appear only once. Existing log records and write endpoints are unchanged.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed all 720 tests at 82% coverage. The required Ruff gate, format check, mypy, and
+  `git diff --check` passed; informational full Ruff remains at the 151 existing findings.
+- `npm test` passed all 202 tests; ESLint, TypeScript, and Vite build passed. Full localhost
+  Playwright on fresh migrated SQLite passed 75 tests with seven expected viewport skips. Cleanup
+  found zero rows in all nine tracked tables.
+- Browser verification recipe. Open a catalogued exercise with a recent logged session that has
+  two sets at the same weight and another set at a different weight. Confirm the same-load curve
+  includes only the repeated weight, follows set order, and reports final-to-first rep retention.
+
+## Cycle 32 — Compare one-rep-max equation sensitivity
+
+Exercise progression now reports the estimate range produced by Epley, Brzycki, Lombardi, and
+Wathen on one shared reference set: the latest session's heaviest set in the common 1–10 rep
+range. The API also returns each rounded equation estimate and the range as a percentage of their
+mean. The UI keeps the four values expandable beneath the compact spread summary. This exposes
+equation sensitivity without describing it as statistical model fit; sessions without a common
+reference set show no spread.
+
+- API tests verify all four results, the spread calculation, and the empty state outside the
+  shared rep range. The browser journey checks the response and all four visible equation labels.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed all 722 tests at 82% coverage. Required Ruff, format, mypy, frontend tests, ESLint,
+  TypeScript, Vite build, and `git diff --check` passed. Full localhost Playwright on fresh
+  migrated SQLite passed 75 tests with seven expected viewport skips; all nine cleanup tables
+  were empty.
+- Browser verification recipe. Open an exercise with a recent 1–10 rep loaded set. Read the
+  same-set equation spread, expand **View all four estimates**, and compare each value. Record a
+  session containing only sets above ten reps to confirm the spread is omitted.
+
+## Cycle 33 — Show program microcycle week and block progress
+
+The Programs list now translates each date-bounded program into seven-day weeks measured from
+its start date. It shows the current week, total weeks, and elapsed percentage with an accessible
+progress bar. Future blocks show days until start, ended blocks retain their final week, and
+open-ended programs show their current week without inventing a duration. Date-only arithmetic
+keeps week boundaries stable across daylight-saving changes and time zones.
+
+- Unit tests cover active, future, ended, and open-ended blocks. The browser journey creates a
+  four-week program and checks the first-week label and elapsed progress; it now runs on desktop
+  and phone viewports.
+- Backend validation passed all 722 tests at 82% coverage. All 206 frontend tests passed; ESLint,
+  TypeScript, Vite build, required Ruff, format, mypy, and `git diff --check` passed. Full localhost
+  Playwright on fresh migrated SQLite passed 76 tests with seven expected viewport skips; cleanup
+  found zero rows in all nine tracked tables.
+- Browser verification recipe. Create a program with start and end dates 28 days apart. Confirm
+  it shows Week 1 of 4 and 4% elapsed, then edit the dates to verify the current week updates.
+
+## Cycle 34 — Track scheduled workout states by microcycle
+
+Program schedule summaries now include weekly counts for scheduled, in-progress, completed, and
+skipped workouts. Seven-day buckets are anchored to each program's start date; weekly buckets
+include only workouts scheduled inside the program's date range, while existing overall counts
+continue to include every workout linked to the program. The Programs list shows the current
+microcycle's counts beside its week and elapsed-block progress, without combining the states into
+an inferred completion score.
+
+- The API regression covers sessions across two weeks and confirms out-of-range sessions remain
+  in overall totals without being assigned to an in-block week. The real migrated-SQLite browser
+  flow verifies week counts for scheduled and in-progress workouts, and that cancelling an active
+  workout returns it to Scheduled on desktop and phone.
+- `uv run pytest -q` passed all 739 backend tests. `npm test` passed all 225 frontend tests;
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips. E2E cleanup
+  verified zero application rows in its tracked tables and zero tagged body-metric, sleep, step,
+  and meal rows.
+- Browser verification recipe. Create a program that starts today, schedule a workout today, and
+  open Programs. Confirm its active week shows one Scheduled workout. Start it and check the
+  count moves to In progress; cancel the workout and confirm it returns to Scheduled. A skipped
+  workout should remain distinct from both scheduled and completed sessions.
+
+## Cycle 35 — Inspect schedule states across the full block
+
+Programs now expose a collapsed week-by-week table with scheduled, in-progress, completed, and
+skipped counts for every microcycle that contains a scheduled workout. The table uses the existing
+date-bounded API summary, keeps status categories separate, and leaves the current-week summary
+visible for a quick scan. This makes planned distribution and gaps across the block inspectable
+without crowding the program list or implying that unlike states combine into a completion score.
+
+- The real-API browser journey creates a second-week workout, expands the accessible table, checks
+  Week 1 and Week 2 counts, then deletes the added record and verifies its absence on desktop and
+  phone. E2E audit rows bearing this cycle's unique run IDs were also removed from the temporary
+  SQLite database and checked for absence.
+- `uv run pytest -q` passed all 739 backend tests; `npm test` passed all 225 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips.
+- Browser verification recipe. Open a program with scheduled workouts in at least two weeks and
+  expand **Week-by-week states**. Compare each row's four state counts with the Calendar; weeks
+  with no scheduled workouts are omitted, and a block with no scheduled workouts shows an empty
+  state.
+
+## Cycle 36 — Make empty training weeks explicit
+
+The weekly state table now covers the full finite program block, plus the current and furthest
+scheduled week for open-ended programs. Consecutive weeks with no scheduled workouts appear as a
+single labeled range with zero counts in all four state columns. This makes a gap explicit for
+review without inferring whether it was intentional, while keeping long empty stretches compact.
+
+- The real-API browser journey schedules workouts in Weeks 1, 2, and 4 of a four-week block and
+  confirms Week 3 appears with zero counts on desktop and phone. Temporary schedules and audit
+  rows were removed, and the unique run tag was verified absent from the SQLite database.
+- `uv run pytest -q` passed all 739 backend tests; `npm test` passed all 225 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips.
+- Browser verification recipe. Create a four-week program, schedule workouts in Weeks 1, 2, and
+  4, then expand **Week-by-week states**. Confirm Week 3 is present as a zero-count gap; also
+  confirm the current week and final block week remain visible when they have no scheduled work.
+
+## Cycle 37 — Compare weekly volume by movement pattern
+
+Training load now breaks actual gym volume down by each catalogue exercise's single primary
+movement pattern, alongside the existing primary-muscle view. The API matches logged exercise
+names and aliases using the catalogue's existing rules. Exercises without a pattern stay in an
+Unclassified row; their volume is not guessed or spread across secondary movement tags. The
+classified and unclassified rows sum to the same weekly external-volume total.
+
+- Backend coverage verifies alias matching, squat and hinge assignments, the unclassified bucket,
+  and exact reconciliation to weekly total volume. The real-API browser journey checks the labeled
+  movement-pattern table for a classified week and an unclassified week on desktop and phone.
+- `uv run pytest -q` passed all 740 backend tests; `npm test` passed all 225 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips. E2E records were
+  removed and the unique run tag was verified absent from the temporary SQLite database.
+- Browser verification recipe. Log workouts using catalogue exercises with different primary
+  movement patterns, then open **Training load**. Compare one week's pattern volumes with total
+  weekly volume; select a week containing free-text exercises and confirm those loads remain under
+  Unclassified.
+
+## Cycle 38 — Summarize weekly set RIR exposure
+
+Training load now includes a selectable weekly count of logged sets at each recorded RIR from 0
+through 10. Sets with missing RIR, including older records, appear in an Unreported bucket. Every
+logged gym set is counted once, so the distribution reconciles with the week's logged-set total;
+the view reports recorded effort without estimating effort for unrated sets.
+
+- Backend coverage checks RIR 0, 2, and 10, explicit null values, and sets with no RIR field, then
+  verifies that the buckets sum to all six logged sets. The real-API browser journey checks two
+  reported RIR values and the Unreported bucket on desktop and phone.
+- `uv run pytest -q` passed all 741 backend tests; `npm test` passed all 225 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips. E2E records were
+  removed, and no rows containing the unique run tag remained in the temporary SQLite database.
+- Browser verification recipe. Log sets with different RIR values, plus a workout with unreported
+  RIR, then open **Training load**. Select each week and confirm the set counts and Unreported row
+  match the workout records.
+
+## Cycle 39 — Show effort beside same-load rep drop-off
+
+Exercise progression now shows the recorded RIR sequence next to repetitions for each repeated
+load in the latest session. The API keeps RIR aligned with its corresponding set and represents
+unknown effort as null; the card renders unknown entries as an em dash. The existing retention
+percentage remains a repetitions-only measure.
+
+- Backend coverage checks mixed reported and unreported RIR, plus older logs with no RIR field.
+  The real-API browser journey checks the repeated-load sequence on desktop and phone.
+- `uv run pytest -q` passed all 742 backend tests; `npm test` passed all 225 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips. Temporary E2E
+  rows containing the unique run tag were removed and a database scan confirmed no remaining hits.
+- Browser verification recipe. Log multiple sets at the same load with different repetitions and
+  include one set with unreported RIR. Open that exercise's progression card and confirm the RIR
+  sequence lines up with the rep sequence while the unknown set is visibly marked.
+
+## Cycle 40 — Count weekly sets by movement pattern
+
+The weekly movement-pattern breakdown now pairs external volume with completed set counts. Counts
+include bodyweight sets that have no external load, while free-text and otherwise unclassified
+exercises remain in Unclassified. The API count buckets reconcile exactly with each week's logged
+gym sets.
+
+- Backend coverage checks catalogue alias matching, squat and hinge patterns, a classified
+  bodyweight pull, an unclassified press, and reconciliation to all four logged sets. The real-API
+  browser journey checks the volume and set columns on desktop and phone.
+- `uv run pytest -q` passed all 742 backend tests; `npm test` passed all 225 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips. Temporary E2E
+  rows containing the unique run tag were removed and a database scan confirmed no remaining hits.
+- Browser verification recipe. Review a week with classified loaded work and a week with free-text
+  or bodyweight work. In Training load, compare set counts by pattern with the weekly total and
+  confirm that a bodyweight pattern remains visible even when external volume is zero.
+
 ## Cycle 41 — Summarize weekly training monotony and strain
 
 Training load now reports session-RPE monotony and strain for closed weeks with complete ratings.

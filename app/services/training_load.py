@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import UTC, date, datetime, time, timedelta
 from io import StringIO
 from statistics import pstdev
+from typing import cast
 from unicodedata import category
 from zoneinfo import ZoneInfo
 
@@ -12,11 +13,15 @@ from sqlalchemy.orm import selectinload
 
 from app.models import WorkoutLog
 from app.models.base import utcnow
+from app.schemas.exercises import MovementPattern
 from app.schemas.training_load import (
     DailyTrainingLoad,
     MuscleVolume,
     SessionEffortByActivity,
     SessionEffortDetail,
+    MovementPatternSetCount,
+    MovementPatternVolume,
+    RirSetCount,
     TrainingLoadQuery,
     TrainingLoadResponse,
     TrainingLoadWeek,
@@ -323,6 +328,28 @@ def _add_muscle_volume(
         totals[muscle] += share + (index < remainder)
 
 
+def _add_movement_pattern_volume(
+    totals: dict[str | None, int], volume_kg: float, movement_pattern: str | None
+) -> None:
+    if volume_kg > 0:
+        totals[movement_pattern] += round(volume_kg * 10)
+
+
+def _add_movement_pattern_sets(
+    totals: dict[str | None, int], sets_count: int, movement_pattern: str | None
+) -> None:
+    totals[movement_pattern] += sets_count
+
+
+def _add_rir_distribution(
+    totals: dict[int | None, int], sets_count: int, rir_per_set: list[int | None] | None
+) -> None:
+    values = rir_per_set or []
+    for index in range(sets_count):
+        rir = values[index] if index < len(values) else None
+        totals[rir] += 1
+
+
 async def weekly_training_load(
     session: AsyncSession, query: TrainingLoadQuery
 ) -> TrainingLoadResponse:
@@ -343,6 +370,9 @@ async def weekly_training_load(
     muscle_volumes: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
     muscle_sets: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
     activity_efforts: list[dict[str | None, SessionEffortByActivity]] = [{} for _ in weeks]
+    pattern_volumes: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
+    pattern_sets: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
+    rir_counts: list[dict[int | None, int]] = [defaultdict(int) for _ in weeks]
     logs = await _workout_logs_in_range(session, date_from, date_to)
     profiles = await apply_to_logs(
         session,
@@ -395,6 +425,13 @@ async def weekly_training_load(
                 exercise.volume_kg,
                 profile.primary_muscles,
             )
+            _add_movement_pattern_volume(
+                pattern_volumes[index], exercise.volume_kg, profile.movement_pattern
+            )
+            _add_movement_pattern_sets(
+                pattern_sets[index], exercise.sets_count, profile.movement_pattern
+            )
+            _add_rir_distribution(rir_counts[index], exercise.sets_count, exercise.rir_per_set)
 
     today = utcnow().astimezone(zone).date()
     for week, efforts in zip(weeks, activity_efforts, strict=True):
@@ -404,7 +441,10 @@ async def weekly_training_load(
         )
 
     for index in range(lookback, len(weeks)):
-        week, muscle_volume = weeks[index], muscle_volumes[index]
+        week = weeks[index]
+        muscle_volume = muscle_volumes[index]
+        pattern_volume = pattern_volumes[index]
+        movement_pattern_sets = pattern_sets[index]
         week.volume_kg = sum(muscle_volume.values()) / 10
         baseline = weeks[max(0, index - BASELINE_WEEKS) : index]
         for activity in week.session_effort_by_activity:
@@ -420,6 +460,31 @@ async def weekly_training_load(
             for muscle in sorted(
                 set(muscle_sets[index]) | set(muscle_volume),
                 key=lambda item: (-muscle_volume.get(item, 0), item or "unclassified"),
+            )
+        ]
+        week.movement_pattern_volume = [
+            MovementPatternVolume(
+                movement_pattern=cast(MovementPattern | None, pattern), volume_kg=tenths / 10
+            )
+            for pattern, tenths in sorted(
+                pattern_volume.items(),
+                key=lambda item: (-item[1], item[0] or "unclassified"),
+            )
+            if tenths
+        ]
+        week.movement_pattern_sets = [
+            MovementPatternSetCount(
+                movement_pattern=cast(MovementPattern | None, pattern), sets=count
+            )
+            for pattern, count in sorted(
+                movement_pattern_sets.items(),
+                key=lambda item: (-item[1], item[0] or "unclassified"),
+            )
+        ]
+        week.rir_distribution = [
+            RirSetCount(rir=rir, sets=count)
+            for rir, count in sorted(
+                rir_counts[index].items(), key=lambda item: (item[0] is None, item[0] or 0)
             )
         ]
         week.workload_ratio = _workload_ratio(week, baseline, today)
