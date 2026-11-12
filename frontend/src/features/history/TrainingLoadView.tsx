@@ -248,6 +248,26 @@ function TrainingVariabilityCard({ weeks }: { weeks: TrainingLoadWeek[] }) {
           {VARIABILITY_MESSAGES[variability.status]}
         </p>
       )}
+      {variability.daily_loads.length > 0 ? (
+        <div className="mt-4 overflow-x-auto">
+          <table aria-label="Daily training load" className="w-full text-left text-sm">
+            <thead className="text-muted">
+              <tr>
+                <th scope="col" className="py-2">Local date</th>
+                <th scope="col" className="py-2 text-right">Load</th>
+              </tr>
+            </thead>
+            <tbody>
+              {variability.daily_loads.map(({ local_date, load_au }) => (
+                <tr key={local_date} className="border-t border-line-muted" data-numeric>
+                  <th scope="row" className="py-2 font-medium">{local_date}</th>
+                  <td className="py-2 text-right">{NUMBER_FORMAT.format(load_au)} AU</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
     </section>
   );
 }

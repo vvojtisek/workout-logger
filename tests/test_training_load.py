@@ -85,6 +85,7 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                         "daily_sd_au": None,
                         "monotony": None,
                         "strain_au": None,
+                        "daily_loads": [],
                     },
                 },
                 {
@@ -105,6 +106,7 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                         "daily_sd_au": None,
                         "monotony": None,
                         "strain_au": None,
+                        "daily_loads": [],
                     },
                 },
                 {
@@ -128,6 +130,7 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                         "daily_sd_au": None,
                         "monotony": None,
                         "strain_au": None,
+                        "daily_loads": [],
                     },
                 },
             ],
@@ -249,6 +252,15 @@ async def test_weekly_training_monotony_and_strain_use_all_seven_local_days(
             "daily_sd_au": 31.62,
             "monotony": 0.63,
             "strain_au": 88.54,
+            "daily_loads": [
+                {"local_date": "2026-10-19", "load_au": 70},
+                {"local_date": "2026-10-20", "load_au": 0},
+                {"local_date": "2026-10-21", "load_au": 70},
+                {"local_date": "2026-10-22", "load_au": 0},
+                {"local_date": "2026-10-23", "load_au": 0},
+                {"local_date": "2026-10-24", "load_au": 0},
+                {"local_date": "2026-10-25", "load_au": 0},
+            ],
         }
         current = await client.get(
             f"{API}/training-load",
@@ -312,6 +324,18 @@ async def test_weekly_training_monotony_is_undefined_when_daily_load_never_varie
             "daily_sd_au": 0,
             "monotony": None,
             "strain_au": None,
+            "daily_loads": [
+                {"local_date": day, "load_au": 70}
+                for day in [
+                    "2026-10-26",
+                    "2026-10-27",
+                    "2026-10-28",
+                    "2026-10-29",
+                    "2026-10-30",
+                    "2026-10-31",
+                    "2026-11-01",
+                ]
+            ],
         }
     finally:
         for url in cleanup:

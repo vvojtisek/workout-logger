@@ -133,6 +133,7 @@ export interface TrainingLoadWeek {
     daily_sd_au: number | null;
     monotony: number | null;
     strain_au: number | null;
+    daily_loads: { local_date: string; load_au: number }[];
   };
 }
 

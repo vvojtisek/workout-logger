@@ -33,6 +33,11 @@ test("training monotony and strain summarize seven rated local days", async ({ p
     await expect(metrics).toContainText("31.62 AU/day");
     await expect(metrics).toContainText("0.63");
     await expect(metrics).toContainText("88.54 AU");
+    const dailyLoads = metrics.getByRole("table", { name: "Daily training load" });
+    await expect(dailyLoads.getByRole("row")).toHaveCount(8);
+    await expect(dailyLoads.getByRole("row", { name: "2026-10-19 70 AU" })).toBeVisible();
+    await expect(dailyLoads.getByRole("row", { name: "2026-10-20 0 AU" })).toBeVisible();
+    await expect(dailyLoads.getByRole("row", { name: "2026-10-21 70 AU" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
       page.viewportSize()?.width,
     );

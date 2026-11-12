@@ -60,12 +60,18 @@ class WeeklyWorkloadRatio(BaseModel):
     ratio: float | None = None
 
 
+class DailyTrainingLoad(BaseModel):
+    local_date: date
+    load_au: int
+
+
 class WeeklyTrainingVariability(BaseModel):
     status: Literal["ready", "week_incomplete", "no_sessions", "missing_ratings", "zero_variation"]
     daily_mean_au: float | None = None
     daily_sd_au: float | None = None
     monotony: float | None = None
     strain_au: float | None = None
+    daily_loads: list[DailyTrainingLoad] = Field(default_factory=list)
 
 
 class TrainingLoadWeek(BaseModel):

@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.models import WorkoutLog
 from app.models.base import utcnow
 from app.schemas.training_load import (
+    DailyTrainingLoad,
     MuscleVolume,
     TrainingLoadQuery,
     TrainingLoadResponse,
@@ -165,6 +166,12 @@ def _training_variability(
             status="zero_variation",
             daily_mean_au=round(mean, 2),
             daily_sd_au=0,
+            daily_loads=[
+                DailyTrainingLoad(
+                    local_date=week.week_start + timedelta(days=weekday), load_au=load_au
+                )
+                for weekday, load_au in enumerate(daily_loads)
+            ],
         )
 
     monotony = mean / standard_deviation
@@ -175,6 +182,10 @@ def _training_variability(
         daily_sd_au=round(standard_deviation, 2),
         monotony=round(monotony, 2),
         strain_au=round(strain, 2),
+        daily_loads=[
+            DailyTrainingLoad(local_date=week.week_start + timedelta(days=weekday), load_au=load_au)
+            for weekday, load_au in enumerate(daily_loads)
+        ],
     )
 
 

@@ -769,3 +769,23 @@ metrics rather than risk thresholds, following the [Foster method](https://pubme
 - Browser verification recipe. Record two fully rated sessions on different days in one closed
   week. Open Training load and compare the seven-day mean, standard deviation, monotony, and strain;
   select a week with an unrated session and confirm the explanation appears instead of a ratio.
+
+## Cycle 42 — Inspect daily loads behind weekly monotony
+
+The weekly monotony card now exposes the seven local-date session-RPE loads used in its summary.
+Each row shows the daily sum of duration × whole-session RPE, including zero-load rest days, so the
+mean, standard deviation, monotony, and strain can be checked against their inputs. A daily series
+is shown only when the closed week has complete ratings; partial or unrated data is not presented
+as zero.
+
+- API coverage verifies the Monday-to-Sunday dates, rated session sums, rest-day zeros, and the
+  daily series for a week with no daily variation. The real-API browser journey checks all seven
+  rows on desktop and phone.
+- `uv run pytest -q` passed all 737 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 80 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The auth journey requires `E2E_API_KEY`
+  to be set to the same throwaway key as the local server.
+- Browser verification recipe. Open **Training load**, select a closed week with fully rated
+  sessions on two different days, and compare the seven date/load rows with the displayed daily
+  mean and standard deviation. Confirm intervening rest days show 0 AU.
