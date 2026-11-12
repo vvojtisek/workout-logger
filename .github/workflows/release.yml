@@ -39,7 +39,7 @@ jobs:
       actions: read
     steps:
       - name: Check out the release source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.RELEASE_SHA }}
           fetch-depth: 0
@@ -113,7 +113,7 @@ jobs:
       IMAGE: ghcr.io/${{ github.repository }}
     steps:
       - name: Check out the release source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.RELEASE_SHA }}
           fetch-depth: 0

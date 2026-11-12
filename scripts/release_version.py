@@ -8,7 +8,8 @@ tested commit and bumps:
 - minor for ``feat``,
 - patch for ``fix``, ``perf`` and ``revert``.
 
-Anything else (``chore``, ``docs``, ``test``, ``ci``, ``build``, ``refactor``,
+GitHub squash-merge commit lists are also classified when the PR title is not
+conventional. Anything else (``chore``, ``docs``, ``test``, ``ci``, ``build``, ``refactor``,
 ``style`` or a subject that is not a Conventional Commit) does not release.
 Commits by ``github-actions[bot]`` and ``chore(release):`` commits are skipped
 so a release can never trigger another one.
@@ -77,12 +78,24 @@ def classify(commit: Commit) -> str | None:
     if is_ignored(commit):
         return None
     match = SUBJECT.match(commit.subject)
-    if not match:
-        return None
-    if match.group("breaking") or BREAKING_FOOTER.search(commit.body):
-        return "major"
-    commit_type = match.group("type").lower()
-    return commit_type if commit_type in BUMPS else None
+    section = None
+    if match:
+        if match.group("breaking") or BREAKING_FOOTER.search(commit.body):
+            section = "major"
+        else:
+            commit_type = match.group("type").lower()
+            section = commit_type if commit_type in BUMPS else None
+    candidates = [section]
+    if re.search(r" \(#\d+\)$", commit.subject):
+        candidates.extend(
+            classify(Commit(commit.sha, commit.author_name, commit.author_email, line[2:]))
+            for line in commit.body.splitlines()
+            if line.startswith("* ")
+        )
+    return max(
+        candidates,
+        key=lambda item: RANK["major" if item == "major" else BUMPS.get(item or "")],
+    )
 
 
 def bump_for(commits: list[Commit]) -> str | None:

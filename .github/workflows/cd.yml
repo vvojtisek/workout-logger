@@ -54,7 +54,7 @@ jobs:
           [[ "$RUN_SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "sha=$RUN_SHA" >> "$GITHUB_OUTPUT"
       - name: Check out the tested commit with full history and tags
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.target.outputs.sha }}
           fetch-depth: 0

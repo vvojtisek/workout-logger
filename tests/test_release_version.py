@@ -35,6 +35,18 @@ def test_breaking_change_footer_is_a_major_bump() -> None:
     assert release_version.bump_for([commit("feat: new logs API", body)]) == "major"
 
 
+def test_squash_merge_commit_classifies_its_conventional_commit_list() -> None:
+    squash = commit("Milestone 5: workout analytics (#192)", "* fix: one\n\n* feat(training): two")
+    assert release_version.classify(squash) == "feat"
+    assert (
+        release_version.classify(commit("Docs (#1)", "* docs: clarify\n* test: add test")) is None
+    )
+    assert release_version.classify(commit("Notes", "* feat: an example")) is None
+    assert release_version.classify(commit("Release (#2)", "* feat!: remove old API")) == "major"
+    assert release_version.classify(commit("fix: bundle (#3)", "* feat: new capability")) == "feat"
+    assert release_version.classify(commit("chore(release): v1 (#4)", "* feat: x")) is None
+
+
 def test_release_and_bot_commits_never_cut_a_release() -> None:
     commits = [
         commit("chore(release): v3.7.0"),

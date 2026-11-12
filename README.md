@@ -171,6 +171,8 @@ Release with checksummed deployment assets, then deploys through AWS Systems Man
 a verified SQLite backup before the new image starts and rolling back the image if it fails its
 readiness check. Host setup, the release procedure, and admin bootstrap are documented in
 [`deploy/aws/README.md`](deploy/aws/README.md).
+After merge checks pass, the release planner considers Conventional Commit subjects and the
+commit list in GitHub squash merges when selecting the next version.
 
 ### SQLite upgrade and shutdown behavior
 
