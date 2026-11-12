@@ -547,3 +547,21 @@ reference set show no spread.
 - Browser verification recipe. Open an exercise with a recent 1–10 rep loaded set. Read the
   same-set equation spread, expand **View all four estimates**, and compare each value. Record a
   session containing only sets above ten reps to confirm the spread is omitted.
+
+## Cycle 33 — Show program microcycle week and block progress
+
+The Programs list now translates each date-bounded program into seven-day weeks measured from
+its start date. It shows the current week, total weeks, and elapsed percentage with an accessible
+progress bar. Future blocks show days until start, ended blocks retain their final week, and
+open-ended programs show their current week without inventing a duration. Date-only arithmetic
+keeps week boundaries stable across daylight-saving changes and time zones.
+
+- Unit tests cover active, future, ended, and open-ended blocks. The browser journey creates a
+  four-week program and checks the first-week label and elapsed progress; it now runs on desktop
+  and phone viewports.
+- Backend validation passed all 722 tests at 82% coverage. All 206 frontend tests passed; ESLint,
+  TypeScript, Vite build, required Ruff, format, mypy, and `git diff --check` passed. Full localhost
+  Playwright on fresh migrated SQLite passed 76 tests with seven expected viewport skips; cleanup
+  found zero rows in all nine tracked tables.
+- Browser verification recipe. Create a program with start and end dates 28 days apart. Confirm
+  it shows Week 1 of 4 and 4% elapsed, then edit the dates to verify the current week updates.

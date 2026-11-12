@@ -26,6 +26,7 @@ const MOBILE_SPECS = [
   "drink-quick-add.spec.js",
   "history-edit.spec.js",
   "exercise-progression.spec.js",
+  "programs-and-calendar.spec.js",
   "training-load.spec.js",
   "rep-retention.spec.js",
 ];

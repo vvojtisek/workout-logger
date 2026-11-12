@@ -11,6 +11,8 @@ import { Button, EmptyState, PageHeading } from "@/ui";
 
 import { ProgramTemplates } from "./ProgramTemplates";
 import { formatDate } from "@/lib/format";
+import { localIsoDate } from "@/lib/today";
+import { programWeekProgress } from "@/lib/program-week";
 
 const STATUS_LABELS: Record<Program["status"], string> = {
   active: "Active",
@@ -90,6 +92,7 @@ export function ProgramsView() {
                 {program.end_date ? ` – ${formatDate(program.end_date)}` : " – ongoing"}
               </p>
               <p className="mt-1 text-xs text-muted">{STATUS_LABELS[program.status]}</p>
+              <ProgramWeekSummary program={program} />
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button onClick={() => void navigate(`/programs/${program.id}/edit`)}>Edit</Button>
@@ -114,5 +117,45 @@ export function ProgramsView() {
         confirmLabel="Delete"
       />
     </section>
+  );
+}
+
+function ProgramWeekSummary({ program }: { program: Program }) {
+  const progress = programWeekProgress(
+    program.start_date,
+    program.end_date,
+    localIsoDate(new Date()),
+  );
+  let label: string;
+  if (progress.state === "upcoming") {
+    label = `Starts in ${progress.daysUntilStart} ${progress.daysUntilStart === 1 ? "day" : "days"}`;
+  } else if (progress.totalWeeks === null) {
+    label = `Week ${progress.week} · ongoing`;
+  } else if (progress.state === "ended") {
+    label = `Block ended · Week ${progress.week} of ${progress.totalWeeks}`;
+  } else {
+    label = `Week ${progress.week} of ${progress.totalWeeks} · ${progress.elapsedPercent}% elapsed`;
+  }
+
+  return (
+    <div className="mt-2 max-w-xs" data-testid="program-week-summary">
+      <p className="text-xs font-medium" data-numeric>{label}</p>
+      {progress.elapsedPercent !== null && progress.state !== "upcoming" ? (
+        <div
+          role="progressbar"
+          aria-label={`${program.name} block duration`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress.elapsedPercent}
+          aria-valuetext={`${label}`}
+          className="mt-1 h-1.5 overflow-hidden rounded-full bg-elevated"
+        >
+          <div
+            className="h-full rounded-full bg-accent"
+            style={{ width: `${progress.elapsedPercent}%` }}
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }

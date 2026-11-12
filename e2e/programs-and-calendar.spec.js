@@ -10,6 +10,13 @@ function todayIso() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/** @param {string} isoDate @param {number} days */
+function addUtcDays(isoDate, days) {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 test("schedules, starts, reschedules, skips, and unschedules a real workout through the calendar GUI", async ({
   page,
   request,
@@ -17,6 +24,7 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
   const TEST_RUN_ID = process.env.TEST_RUN_ID || `calendar-${Date.now()}`;
   const tag = `[E2E:${TEST_RUN_ID}:calendar]`;
   const today = todayIso();
+  const blockEnd = addUtcDays(today, 27);
   /** @type {string | undefined} */
   let planId;
   /** @type {string | undefined} */
@@ -58,8 +66,11 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     await page.getByLabel("Name").fill(`${tag} program`);
     await page.getByLabel("Kind").fill("Hypertrophy");
     await page.getByLabel("Start date").fill(today);
+    await page.getByLabel("End date (optional)").fill(blockEnd);
     await clickAndAwaitWrite(page, page.getByRole("button", { name: "Create program" }), "POST");
     await expect(page.getByRole("heading", { name: "Programs", exact: true })).toBeVisible();
+    const programRow = page.locator("#programs-list").getByRole("listitem", { name: `${tag} program` });
+    await expect(programRow.getByTestId("program-week-summary")).toContainText("Week 1 of 4 · 4% elapsed");
 
     const programList = await request.get("/api/v1/programs?limit=100");
     /** @type {{items: Array<{id: string, name: string}>}} */
