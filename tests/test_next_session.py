@@ -102,6 +102,25 @@ async def test_catalogue_equipment_decides_the_increment(client, auth_headers):
     assert squat["suggested_weight_kg"] == 17
 
 
+async def test_catalogue_progression_increment_overrides_equipment_default(client, auth_headers):
+    created = await client.post(
+        EXERCISES,
+        json={
+            "name": "Test microplate row",
+            "equipment_any_of": [["dumbbell"]],
+            "progression_increment_kg": 0.25,
+        },
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    plan = await make_plan(client, auth_headers, [("Test microplate row", 8, 12, 20)])
+    await log(client, auth_headers, plan["id"], 1, "Test microplate row", [12, 12, 12], 22)
+
+    row = by_name(await start(client, auth_headers, plan["id"]))["Test microplate row"]
+    assert row["suggested_weight_kg"] == 22.25
+    assert row["suggestion_note"] == "+0.25 kg: every set reached 12 reps"
+
+
 async def test_inside_the_range_keeps_the_load_and_adds_a_rep(client, auth_headers):
     plan = await make_plan(client, auth_headers, [("Back squat", 5, 8, 60)])
     await log(client, auth_headers, plan["id"], 1, "Back squat", [7, 6, 6], 80)

@@ -42,8 +42,18 @@ export const exercisePayloadSchema = z.object({
       if (message) ctx.addIssue({ code: "custom", message });
     }),
   safety_notes: z.string().max(4000, "Max 4000 characters").nullable(),
+  progression_increment_kg: z
+    .number()
+    .min(0.05, "Minimum increment is 0.05 kg")
+    .max(20, "Maximum increment is 20 kg")
+    .refine(
+      (value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-8,
+      "Use no more than two decimal places",
+    )
+    .nullable(),
   equipment_load_mode: z.enum(EQUIPMENT_LOAD_MODES),
   is_unilateral: z.boolean(),
+  movement_pattern: z.enum(MOVEMENT_PATTERNS).nullable(),
 });
 
 export type ExercisePayload = z.infer<typeof exercisePayloadSchema>;

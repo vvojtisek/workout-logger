@@ -137,6 +137,7 @@ class SessionExerciseRead(OrmModel):
     target_sets: int
     target_reps_min: int
     target_reps_max: int
+    target_rir: int | None
     target_weight_kg: float | None
     rest_time_seconds: int
     notes: str | None

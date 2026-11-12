@@ -50,5 +50,17 @@ class ProgramRead(OrmModel):
     updated_at: datetime
 
 
+class ProgramScheduleSummary(BaseModel):
+    program_id: UUID
+    scheduled: int
+    in_progress: int
+    completed: int
+    skipped: int
+
+
+class ProgramScheduleSummariesResponse(BaseModel):
+    items: list[ProgramScheduleSummary]
+
+
 class PaginatedProgramsResponse(PaginatedResponse[ProgramRead]):
     pass

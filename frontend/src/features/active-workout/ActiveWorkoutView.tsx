@@ -18,6 +18,7 @@ import {
   synchronizationState,
 } from "@/lib/active-workout-state";
 import type { SetOperation } from "@/lib/active-workout-state";
+import { useSettingsQuery } from "@/lib/settings-query";
 import { workoutProgress } from "@/lib/workout-utils";
 import type { GridRow } from "@/lib/workout-utils";
 import { ConfirmDialog } from "@/ui/Dialog";
@@ -103,6 +104,7 @@ function ActiveWorkoutSession({
     enableFilters: isDesktop,
     enabled: online,
   });
+  const { data: settings } = useSettingsQuery();
 
   function exerciseStatsLine(exercise: SessionExercise) {
     const facts = exerciseStatsFacts(statsByName.get(exercise.exercise_name));
@@ -400,6 +402,8 @@ function ActiveWorkoutSession({
     return (
       <>
         <WorkoutHud
+          equipmentProfiles={settings?.equipment_profiles ?? []}
+          activeEquipmentProfileId={settings?.active_equipment_profile_id ?? "barbell-default"}
           session={displaySession}
           rows={hudRows}
           index={hudPosition}

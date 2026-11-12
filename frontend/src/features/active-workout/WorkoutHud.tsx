@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode, TouchEvent } from "react";
 import { X } from "lucide-react";
 
-import type { DumbbellProfile, ExerciseStats, PlateProfile, WorkoutSession } from "@/api/types";
+import type { DumbbellProfile, EquipmentProfile, ExerciseStats, PlateProfile, WorkoutSession } from "@/api/types";
+import { calculatePlateLoad, formatPlateWeight } from "@/lib/plate-calculator";
 import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import {
   clearSetDraft,
@@ -122,6 +123,8 @@ export function ElapsedClock({ startedAt }: { startedAt: string }) {
 
 export interface WorkoutHudProps {
   session: WorkoutSession;
+  equipmentProfiles: EquipmentProfile[];
+  activeEquipmentProfileId: string;
   rows: HudRow[];
   index: number;
   progress: { done: number; total: number; percent: number };
@@ -153,9 +156,14 @@ export interface WorkoutHudProps {
 export function WorkoutHud(props: WorkoutHudProps) {
   const { session, rows, index, progress, sync } = props;
   const row = rows[index];
+  const [equipmentProfileId, setEquipmentProfileId] = useState(props.activeEquipmentProfileId);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const [selectedPlateProfileName, setSelectedPlateProfileName] = useState<string | null>(null);
   const [selectedDumbbellProfileName, setSelectedDumbbellProfileName] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEquipmentProfileId(props.activeEquipmentProfileId);
+  }, [session.id, props.activeEquipmentProfileId]);
 
   // A sideways swipe changes exercise. Chrome would otherwise take it as the
   // page's back/forward gesture, which is set on the document's root scroller.
@@ -332,6 +340,8 @@ export function WorkoutHud(props: WorkoutHudProps) {
         <SetPanel
           key={`${row.exercise.id}:${row.setNumber}:${row.entry?.id ?? "draft"}`}
           {...props}
+          onEquipmentProfileChange={setEquipmentProfileId}
+          selectedEquipmentProfileId={equipmentProfileId}
           row={row}
           previous={previousLogged}
           allLogged={allLogged}
@@ -600,6 +610,77 @@ function RestBar({
   );
 }
 
+function PlateCalculator({
+  requestedWeightKg,
+  profiles,
+  activeProfileId,
+  onProfileChange,
+}: {
+  requestedWeightKg: number;
+  profiles: EquipmentProfile[];
+  activeProfileId: string;
+  onProfileChange: (profileId: string) => void;
+}) {
+  const profile = profiles.find((candidate) => candidate.id === activeProfileId) ?? profiles[0];
+  if (!profile) return null;
+  const result = calculatePlateLoad(
+    requestedWeightKg,
+    profile.barbell_weight_kg,
+    profile.plate_inventory,
+  );
+  const counts = new Map<number, number>();
+  result.per_side.forEach((weight) => counts.set(weight, (counts.get(weight) ?? 0) + 1));
+  const plates = [...counts.entries()]
+    .sort(([left], [right]) => right - left)
+    .map(([weight, count]) => `${count > 1 ? `${count} × ` : ""}${formatPlateWeight(weight)} kg`)
+    .join(" + ");
+
+  return (
+    <section aria-label="Plate calculator" className="col-span-2 rounded-[var(--radius-md)] border border-line bg-elevated px-3 py-2">
+      <details>
+        <summary className="min-h-10 cursor-pointer content-center text-sm font-semibold">
+          Plate calculator · {formatPlateWeight(requestedWeightKg)} kg
+        </summary>
+        <div className="pb-1 pt-2 text-center" data-testid="plate-distribution">
+          {profiles.length > 1 ? (
+            <label className="mb-2 block text-left">
+              <span className="field-label">Equipment profile</span>
+              <select
+                className="input"
+                aria-label="Equipment profile"
+                value={profile.id}
+                onChange={(event) => onProfileChange(event.target.value)}
+              >
+                {profiles.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <p className="font-mono text-lg font-bold" data-testid="plate-total">
+            {formatPlateWeight(result.achieved_weight_kg)} kg total
+          </p>
+          {result.exact ? (
+            <p className="text-sm text-muted">
+              {plates ? `${plates} per side` : "Bar only"}
+            </p>
+          ) : (
+            <p className="text-sm text-warn">
+              Closest available: {formatPlateWeight(result.achieved_weight_kg)} kg total
+              {plates ? ` · ${plates} per side` : " · bar only"}
+            </p>
+          )}
+          <p className="mt-1 text-xs text-muted">
+            {formatPlateWeight(profile.barbell_weight_kg)} kg bar included; collars excluded.
+          </p>
+        </div>
+      </details>
+    </section>
+  );
+}
+
 /** The thumb zone for one set. Remounted (via key) whenever the shown set or
  * its saved entry changes, so its values always start from the right source. */
 function SetPanel({
@@ -613,6 +694,9 @@ function SetPanel({
   selectedDumbbellProfile,
   onDumbbellProfileChange,
   session,
+  equipmentProfiles,
+  onEquipmentProfileChange,
+  selectedEquipmentProfileId,
   restWasSkipped,
   restControlsDisabled,
   feeling,
@@ -628,6 +712,8 @@ function SetPanel({
   row: HudRow;
   previous: HudRow | null;
   allLogged: boolean;
+  selectedEquipmentProfileId: string;
+  onEquipmentProfileChange: (profileId: string) => void;
   plateProfiles: PlateProfile[];
   selectedPlateProfile: PlateProfile | null;
   onPlateProfileChange: (name: string) => void;
@@ -785,6 +871,14 @@ function SetPanel({
             />
           </div>
         ))}
+        {kind === "strength" && (session.location?.plate_profiles.length ?? 0) === 0 ? (
+          <PlateCalculator
+            requestedWeightKg={Number.parseFloat(draft.weight) || 0}
+            profiles={equipmentProfiles}
+            activeProfileId={selectedEquipmentProfileId}
+            onProfileChange={onEquipmentProfileChange}
+          />
+        ) : null}
       </div>
       {showBarbellCalculator ? (
         <BarbellPlateCalculator
@@ -803,7 +897,14 @@ function SetPanel({
         />
       ) : null}
       {rirSpec ? (
-        <EffortFields draft={draft} disabled={locked} onChange={update} />
+        <div className="flex flex-col gap-2">
+          {row.exercise.target_rir != null ? (
+            <p className="text-center text-xs font-medium text-muted" data-testid="target-rir">
+              Target RIR: {row.exercise.target_rir}
+            </p>
+          ) : null}
+          <EffortFields draft={draft} disabled={locked} onChange={update} />
+        </div>
       ) : null}
       {bandSpec ? (
         <label className="flex items-center gap-3 text-sm text-muted">

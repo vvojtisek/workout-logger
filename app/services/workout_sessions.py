@@ -171,6 +171,7 @@ async def start_session(
                 target_sets=exercise.target_sets,
                 target_reps_min=exercise.target_reps_min,
                 target_reps_max=exercise.target_reps_max,
+                target_rir=exercise.target_rir,
                 target_weight_kg=exercise.target_weight_kg,
                 rest_time_seconds=exercise.rest_time_seconds,
                 notes=exercise.notes,

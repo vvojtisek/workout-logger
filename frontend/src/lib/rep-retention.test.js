@@ -13,15 +13,15 @@ describe("repRetentionGroups", () => {
       {
         weightKg: 60,
         sets: [
-          { number: 1, reps: 8, rir: 2, percent: 100 },
-          { number: 3, reps: 6, rir: 1, percent: 75 },
+          { number: 1, reps: 8, rir: 2, percent: 100, repsAtFailure: 10, failurePercent: 100 },
+          { number: 3, reps: 6, rir: 1, percent: 75, repsAtFailure: 7, failurePercent: 70 },
         ],
       },
       {
         weightKg: 50,
         sets: [
-          { number: 2, reps: 10, rir: null, percent: 100 },
-          { number: 4, reps: 12, rir: 0, percent: 120 },
+          { number: 2, reps: 10, rir: null, percent: 100, repsAtFailure: null, failurePercent: null },
+          { number: 4, reps: 12, rir: 0, percent: 120, repsAtFailure: 12, failurePercent: 100 },
         ],
       },
     ]);

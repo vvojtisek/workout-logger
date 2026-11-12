@@ -21,6 +21,7 @@ const exercisePayloadSchema = z
       .int("Whole number only")
       .min(1, "At least 1")
       .max(1000, "At most 1000"),
+    target_rir: z.number().int().min(0, "At least 0").max(10, "At most 10").nullable(),
     target_weight_kg: z.number().min(0, "Must be 0 or more").nullable(),
     rest_time_seconds: z
       .number({ error: "Required" })
@@ -34,6 +35,10 @@ const exercisePayloadSchema = z
   .refine((row) => row.target_reps_max >= row.target_reps_min, {
     message: "Max reps must be ≥ min reps",
     path: ["target_reps_max"],
+  })
+  .refine((row) => row.exercise_kind === "strength" || row.target_rir === null, {
+    message: "Target RIR is only available for strength exercises",
+    path: ["target_rir"],
   });
 
 export const planPayloadSchema = z.object({

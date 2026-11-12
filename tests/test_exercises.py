@@ -13,6 +13,7 @@ def make_exercise_payload(**overrides) -> dict:
         "instructions": ["Lie on the bench.", "Lower the bar to the chest.", "Press up."],
         "equipment": "Barbell",
         "safety_notes": "Use a spotter for heavy sets.",
+        "progression_increment_kg": 0.25,
         "movement_patterns": ["horizontal_push"],
     }
     payload.update(overrides)
@@ -20,12 +21,18 @@ def make_exercise_payload(**overrides) -> dict:
 
 
 async def test_create_exercise_with_full_fields(client, auth_headers):
-    response = await client.post(BASE, json=make_exercise_payload(), headers=auth_headers)
+    response = await client.post(
+        BASE,
+        json=make_exercise_payload(movement_pattern="horizontal_push"),
+        headers=auth_headers,
+    )
     assert response.status_code == 201
     body = response.json()
     assert body["name"] == "Barbell Bench Press"
     assert body["aliases"] == ["Bench Press", "Flat Bench"]
     assert body["primary_muscles"] == ["chest", "triceps"]
+    assert body["progression_increment_kg"] == 0.25
+    assert body["movement_pattern"] == "horizontal_push"
     assert body["movement_patterns"] == ["horizontal_push"]
     assert "Location" in response.headers
     assert response.headers["Location"] == f"{BASE}/{body['id']}"
@@ -41,12 +48,45 @@ async def test_create_exercise_with_minimal_fields(client, auth_headers):
         instructions=[],
         equipment=None,
         safety_notes=None,
+        movement_patterns=[],
+        movement_pattern=None,
     )
     response = await client.post(BASE, json=payload, headers=auth_headers)
     assert response.status_code == 201
     body = response.json()
     assert body["media_url"] is None
     assert body["instructions"] == []
+    assert body["movement_pattern"] is None
+
+
+async def test_create_exercise_rejects_unknown_movement_pattern(client, auth_headers):
+    response = await client.post(
+        BASE,
+        json=make_exercise_payload(movement_pattern="leg_day"),
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
+
+
+async def test_exercise_list_filters_by_movement_pattern(client, auth_headers):
+    for name, pattern in (
+        ("Pattern bench press", "horizontal_push"),
+        ("Pattern squat", "squat"),
+        ("Pattern unclassified", None),
+    ):
+        response = await client.post(
+            BASE,
+            json=make_exercise_payload(name=name, movement_pattern=pattern),
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
+
+    response = await client.get(BASE, params={"movement_pattern": "squat"}, headers=auth_headers)
+    assert response.status_code == 200
+    assert [item["name"] for item in response.json()["items"]] == ["Pattern squat"]
+    assert response.json()["total"] == 1
+    invalid = await client.get(BASE, params={"movement_pattern": "leg_day"}, headers=auth_headers)
+    assert invalid.status_code == 422
 
 
 async def test_create_exercise_with_http_media_url_returns_422(client, auth_headers):
@@ -67,7 +107,17 @@ async def test_create_exercise_with_invalid_muscle_tag_returns_422(client, auth_
     assert response.status_code == 422
 
 
-async def test_create_exercise_rejects_unknown_movement_pattern(client, auth_headers):
+async def test_create_exercise_rejects_invalid_progression_increment(client, auth_headers):
+    for increment in (0, 0.01, 20.01, 0.125):
+        response = await client.post(
+            BASE,
+            json=make_exercise_payload(progression_increment_kg=increment),
+            headers=auth_headers,
+        )
+        assert response.status_code == 422, increment
+
+
+async def test_create_exercise_rejects_unknown_movement_patterns(client, auth_headers):
     response = await client.post(
         BASE,
         json=make_exercise_payload(movement_patterns=["push_day"]),
@@ -186,6 +236,15 @@ async def test_replace_exercise_updates_fields(client, auth_headers):
     body = response.json()
     assert body["name"] == "New Name"
     assert body["equipment"] == "Dumbbell"
+
+
+async def test_replace_exercise_can_clear_custom_progression_increment(client, auth_headers):
+    created = await client.post(BASE, json=make_exercise_payload(), headers=auth_headers)
+    exercise_id = created.json()["id"]
+    payload = make_exercise_payload(progression_increment_kg=None)
+    response = await client.put(f"{BASE}/{exercise_id}", json=payload, headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["progression_increment_kg"] is None
 
 
 async def test_replace_exercise_with_name_taken_by_another_returns_409(client, auth_headers):

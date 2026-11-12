@@ -4,7 +4,8 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, Paginated, WorkoutPlan } from "@/api/types";
-import { fetchCatalogueNames } from "@/lib/exercise-catalogue";
+import { fetchCatalogueExercises, MOVEMENT_PATTERN_LABELS } from "@/lib/exercise-catalogue";
+import { summarizePlanPatterns } from "@/lib/plan-pattern-balance";
 import { planPayloadSchema } from "@/lib/plan-schema";
 import { useSettingsQuery } from "@/lib/settings-query";
 import type { ExerciseKind } from "@/lib/workout-utils";
@@ -24,6 +25,7 @@ interface ExerciseRowState {
   target_sets: string;
   target_reps_min: string;
   target_reps_max: string;
+  target_rir: string;
   target_weight_kg: string;
   rest_time_seconds: string;
   notes: string;
@@ -38,6 +40,7 @@ function emptyRow(restSeconds = 60): ExerciseRowState {
     target_sets: "3",
     target_reps_min: "8",
     target_reps_max: "12",
+    target_rir: "",
     target_weight_kg: "",
     rest_time_seconds: String(restSeconds),
     notes: "",
@@ -53,6 +56,7 @@ function rowFromExercise(exercise: WorkoutPlan["exercises"][number]): ExerciseRo
     target_sets: String(exercise.target_sets),
     target_reps_min: String(exercise.target_reps_min),
     target_reps_max: String(exercise.target_reps_max),
+    target_rir: exercise.target_rir != null ? String(exercise.target_rir) : "",
     target_weight_kg: exercise.target_weight_kg != null ? String(exercise.target_weight_kg) : "",
     rest_time_seconds: String(exercise.rest_time_seconds),
     notes: exercise.notes ?? "",
@@ -76,6 +80,10 @@ function buildPayload(name: string, description: string, rows: ExerciseRowState[
       target_sets: Number.parseInt(row.target_sets, 10),
       target_reps_min: Number.parseInt(row.target_reps_min, 10),
       target_reps_max: Number.parseInt(row.target_reps_max, 10),
+      target_rir:
+        row.exercise_kind === "strength" && row.target_rir.trim()
+          ? Number.parseInt(row.target_rir, 10)
+          : null,
       target_weight_kg: row.target_weight_kg.trim()
         ? Number.parseFloat(row.target_weight_kg)
         : null,
@@ -111,12 +119,13 @@ export function PlanBuilder() {
     enabled: isEditing,
   });
   // Suggestions only: a name outside the catalogue is still a valid plan exercise.
-  const { data: catalogueNames = [] } = useQuery({
-    queryKey: ["exercise-catalogue-names"],
+  const { data: catalogueExercises = [] } = useQuery({
+    queryKey: ["exercise-catalogue"],
     queryFn: () =>
-      fetchCatalogueNames((path) => apiFetch<Paginated<CatalogExercise>>(path)),
+      fetchCatalogueExercises((path) => apiFetch<Paginated<CatalogExercise>>(path)),
     staleTime: 5 * 60_000,
   });
+  const movementBalance = summarizePlanPatterns(rows, catalogueExercises);
 
   useEffect(() => {
     if (!existingPlan || seededPlanId.current === existingPlan.id) return;
@@ -200,8 +209,8 @@ export function PlanBuilder() {
   return (
     <section id="plan-builder-view">
       <datalist id="exercise-catalogue-names">
-        {catalogueNames.map((catalogueName) => (
-          <option key={catalogueName} value={catalogueName} />
+        {catalogueExercises.map((exercise) => (
+          <option key={exercise.id} value={exercise.name} />
         ))}
       </datalist>
       <PageHeading hint="Superset rows by giving them the same group name.">
@@ -383,6 +392,28 @@ export function PlanBuilder() {
                     </p>
                   ) : null}
                 </div>
+                {row.exercise_kind === "strength" ? (
+                  <div>
+                    <label className="field-label" htmlFor={`exercise-target-rir-${row.key}`}>
+                      Target RIR (optional)
+                    </label>
+                    <Input
+                      id={`exercise-target-rir-${row.key}`}
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={row.target_rir}
+                      onChange={(event) =>
+                        updateRow(row.key, { target_rir: event.target.value })
+                      }
+                    />
+                    {errors[`${index}.target_rir`] ? (
+                      <p className="mt-1 text-sm text-danger">
+                        {errors[`${index}.target_rir`]}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div>
                   <label className="field-label" htmlFor={`exercise-rest-${row.key}`}>
                     Rest seconds
@@ -434,6 +465,37 @@ export function PlanBuilder() {
             </div>
           ))}
         </div>
+        {movementBalance.length > 0 ? (
+          <section
+            className="mt-3 rounded-lg border border-line-muted p-3"
+            aria-label="Plan movement balance"
+            role="region"
+          >
+            <h4 className="font-medium">Planned sets by movement pattern</h4>
+            <p className="mt-1 text-xs text-muted">
+              Descriptive prescription totals. Catalogue name or alias matches determine the
+              pattern; unmatched, ambiguous, and unclassified exercises stay unclassified.
+            </p>
+            <ul className="mt-2 flex flex-col gap-1 text-sm">
+              {movementBalance.map((item) => (
+                <li
+                  key={item.movement_pattern ?? "unclassified"}
+                  className="flex justify-between gap-3"
+                >
+                  <span>
+                    {item.movement_pattern
+                      ? MOVEMENT_PATTERN_LABELS[item.movement_pattern]
+                      : "Unclassified"}
+                  </span>
+                  <span className="text-muted">
+                    {item.target_sets} target set{item.target_sets === 1 ? "" : "s"} · {item.exercise_count} exercise
+                    {item.exercise_count === 1 ? "" : "s"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
           <Button
             id="add-compound-exercise-btn"

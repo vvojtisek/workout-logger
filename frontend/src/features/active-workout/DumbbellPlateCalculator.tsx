@@ -3,7 +3,7 @@ import { ChevronDown } from "lucide-react";
 
 import type { DumbbellProfile } from "@/api/types";
 import { solvePlateLoad } from "@/lib/plate-calculator";
-import type { PlateLoad } from "@/lib/plate-calculator";
+import type { ProfilePlateLoad } from "@/lib/plate-calculator";
 
 const DEFAULT_DUMBBELL: DumbbellProfile = {
   name: "Default inventory",
@@ -17,7 +17,7 @@ const DEFAULT_DUMBBELL: DumbbellProfile = {
   ],
 };
 
-function stackText(load: PlateLoad): string {
+function stackText(load: ProfilePlateLoad): string {
   return load.perSide.length
     ? load.perSide.map(({ weight_kg, count }) => `${count} × ${weight_kg} kg`).join(" + ")
     : "No plates";

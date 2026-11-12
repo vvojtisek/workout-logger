@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -10,6 +11,7 @@ from app.schemas.programs import (
     ProgramCreate,
     ProgramRead,
     ProgramReplace,
+    ProgramScheduleSummariesResponse,
 )
 from app.services import programs as programs_service
 
@@ -34,6 +36,24 @@ async def list_programs(
         total=total,
         limit=limit,
         offset=offset,
+    )
+
+
+@router.get(
+    "/schedule-summary",
+    operation_id="list_program_schedule_summaries",
+    summary="Count scheduled workout states by program",
+    description=(
+        "Returns scheduled, in-progress, completed, and skipped workout counts for each "
+        "program visible to the authenticated account. No completion score is inferred."
+    ),
+    response_model=ProgramScheduleSummariesResponse,
+)
+async def list_program_schedule_summaries(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ProgramScheduleSummariesResponse:
+    return ProgramScheduleSummariesResponse(
+        items=await programs_service.schedule_summaries(session)
     )
 
 

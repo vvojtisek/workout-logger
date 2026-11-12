@@ -108,6 +108,7 @@ export function PlansView() {
         target_sets: ex.target_sets,
         target_reps_min: ex.target_reps_min,
         target_reps_max: ex.target_reps_max,
+        target_rir: ex.target_rir,
         target_weight_kg: ex.target_weight_kg,
         rest_time_seconds: ex.rest_time_seconds,
         notes: ex.notes,

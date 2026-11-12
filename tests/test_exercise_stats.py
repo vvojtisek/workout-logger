@@ -13,6 +13,7 @@ async def log_exercise(
     reps_per_set: list[int],
     *,
     weight_per_set: list[float | None] | None = None,
+    rir_per_set: list[int | None] | None = None,
     notes: str | None = None,
 ) -> str:
     response = await client.post(
@@ -29,6 +30,7 @@ async def log_exercise(
                     "reps_per_set": reps_per_set,
                     "weight_kg": weight_kg,
                     "weight_per_set": weight_per_set,
+                    "rir_per_set": rir_per_set,
                     "rest_time_seconds": 60,
                 }
             ],
@@ -82,6 +84,36 @@ async def test_stats_summarize_last_best_estimate_and_trend(client, auth_headers
     assert item["estimated_one_rep_max_kg"] == 45.0
     # Most recent top load (30) is below the previous session's (32.5).
     assert item["trend"] == "down"
+
+
+async def test_stats_use_logged_rir_as_effective_reps_for_estimates(client, auth_headers):
+    await log_exercise(
+        client,
+        auth_headers,
+        "2026-10-12T08:00:00Z",
+        "RIR-adjusted press",
+        60,
+        [5],
+        rir_per_set=[3],
+    )
+
+    epley = await client.get(STATS, params={"name": "RIR-adjusted press"}, headers=auth_headers)
+    assert epley.status_code == 200
+    item = epley.json()["items"][0]
+    assert item["estimated_one_rep_max_kg"] == 76.0
+    assert item["recent"][0] == {
+        "performed_at": "2026-10-12T08:00:00Z",
+        "weight_kg": 60,
+        "top_reps": 5,
+        "estimated_one_rep_max_kg": 76.0,
+    }
+
+    brzycki = await client.get(
+        STATS,
+        params={"name": "RIR-adjusted press", "formula": "brzycki"},
+        headers=auth_headers,
+    )
+    assert brzycki.json()["items"][0]["estimated_one_rep_max_kg"] == 74.5
 
 
 async def test_stats_trend_up_and_flat(client, auth_headers):

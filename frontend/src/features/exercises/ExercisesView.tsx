@@ -92,24 +92,6 @@ export function ExercisesView() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
-        <div className="mt-3">
-          <label className="field-label" htmlFor="exercise-movement-pattern">
-            Movement pattern
-          </label>
-          <select
-            id="exercise-movement-pattern"
-            className="input"
-            value={movementPattern}
-            onChange={(event) => setMovementPattern(event.target.value as MovementPattern | "")}
-          >
-            <option value="">All movement patterns</option>
-            {MOVEMENT_PATTERNS.map((pattern) => (
-              <option key={pattern} value={pattern}>
-                {MOVEMENT_PATTERN_LABELS[pattern]}
-              </option>
-            ))}
-          </select>
-        </div>
         {locations.length > 0 ? (
           <div className="mt-3">
             <label className="field-label" htmlFor="exercise-location">
@@ -130,6 +112,24 @@ export function ExercisesView() {
             </select>
           </div>
         ) : null}
+        <div className="mt-3">
+          <label className="field-label" htmlFor="exercise-movement-pattern-filter">
+            Movement pattern
+          </label>
+          <select
+            id="exercise-movement-pattern-filter"
+            className="input"
+            value={movementPattern}
+            onChange={(event) => setMovementPattern(event.target.value as MovementPattern | "")}
+          >
+            <option value="">Any pattern</option>
+            {MOVEMENT_PATTERNS.map((pattern) => (
+              <option key={pattern} value={pattern}>
+                {MOVEMENT_PATTERN_LABELS[pattern]}
+              </option>
+            ))}
+          </select>
+        </div>
         {!loading && total > exercises.length ? (
           <p className="mt-1 text-xs text-muted">
             Showing {exercises.length} of {total}. Search to narrow the list.
@@ -144,7 +144,7 @@ export function ExercisesView() {
               title={query.trim() || locationId || movementPattern ? "No matching exercises" : "No exercises yet"}
               description={
                 query.trim() || locationId || movementPattern
-                  ? "Try another name or alias, or add it with 'New exercise'."
+                  ? "Try another name, alias, or movement pattern, or add it with 'New exercise'."
                   : "Tap 'New exercise' to add your first catalogue entry."
               }
             />

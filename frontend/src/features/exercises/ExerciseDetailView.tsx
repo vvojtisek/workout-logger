@@ -132,6 +132,12 @@ export function ExerciseDetailView() {
       </Card>
 
       <Card className="mt-4 flex flex-col gap-3 p-4">
+        {exercise.movement_pattern ? (
+          <div>
+            <h3 className="mb-1.5 text-sm font-medium text-muted">Movement pattern</h3>
+            <p>{MOVEMENT_PATTERN_LABELS[exercise.movement_pattern]}</p>
+          </div>
+        ) : null}
         {exercise.primary_muscles.length === 0 && exercise.secondary_muscles.length === 0 ? (
           <p className="text-sm text-muted">No muscle groups recorded for this exercise.</p>
         ) : (
