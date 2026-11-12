@@ -20,13 +20,18 @@ def make_exercise_payload(**overrides) -> dict:
 
 
 async def test_create_exercise_with_full_fields(client, auth_headers):
-    response = await client.post(BASE, json=make_exercise_payload(), headers=auth_headers)
+    response = await client.post(
+        BASE,
+        json=make_exercise_payload(movement_pattern="horizontal_push"),
+        headers=auth_headers,
+    )
     assert response.status_code == 201
     body = response.json()
     assert body["name"] == "Barbell Bench Press"
     assert body["aliases"] == ["Bench Press", "Flat Bench"]
     assert body["primary_muscles"] == ["chest", "triceps"]
     assert body["progression_increment_kg"] == 0.25
+    assert body["movement_pattern"] == "horizontal_push"
     assert "Location" in response.headers
     assert response.headers["Location"] == f"{BASE}/{body['id']}"
 
@@ -47,6 +52,37 @@ async def test_create_exercise_with_minimal_fields(client, auth_headers):
     body = response.json()
     assert body["media_url"] is None
     assert body["instructions"] == []
+    assert body["movement_pattern"] is None
+
+
+async def test_create_exercise_rejects_unknown_movement_pattern(client, auth_headers):
+    response = await client.post(
+        BASE,
+        json=make_exercise_payload(movement_pattern="leg_day"),
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
+
+
+async def test_exercise_list_filters_by_movement_pattern(client, auth_headers):
+    for name, pattern in (
+        ("Pattern bench press", "horizontal_push"),
+        ("Pattern squat", "squat"),
+        ("Pattern unclassified", None),
+    ):
+        response = await client.post(
+            BASE,
+            json=make_exercise_payload(name=name, movement_pattern=pattern),
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
+
+    response = await client.get(BASE, params={"movement_pattern": "squat"}, headers=auth_headers)
+    assert response.status_code == 200
+    assert [item["name"] for item in response.json()["items"]] == ["Pattern squat"]
+    assert response.json()["total"] == 1
+    invalid = await client.get(BASE, params={"movement_pattern": "leg_day"}, headers=auth_headers)
+    assert invalid.status_code == 422
 
 
 async def test_create_exercise_with_http_media_url_returns_422(client, auth_headers):

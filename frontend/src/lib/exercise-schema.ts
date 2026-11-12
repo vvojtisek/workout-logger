@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { EQUIPMENT_TAGS, MUSCLE_TAGS } from "@/api/types";
+import { EQUIPMENT_TAGS, MOVEMENT_PATTERNS, MUSCLE_TAGS } from "@/api/types";
 import { equipmentOptionsError } from "@/lib/equipment";
 import { EQUIPMENT_LOAD_MODES } from "@/lib/load-rules";
 
@@ -49,6 +49,7 @@ export const exercisePayloadSchema = z.object({
     .nullable(),
   equipment_load_mode: z.enum(EQUIPMENT_LOAD_MODES),
   is_unilateral: z.boolean(),
+  movement_pattern: z.enum(MOVEMENT_PATTERNS).nullable(),
 });
 
 export type ExercisePayload = z.infer<typeof exercisePayloadSchema>;

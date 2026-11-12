@@ -48,6 +48,20 @@ EquipmentTag = Literal[
 ]
 EquipmentOption = Annotated[list[EquipmentTag], Field(min_length=1, max_length=8)]
 
+MovementPattern = Literal[
+    "horizontal_push",
+    "horizontal_pull",
+    "vertical_push",
+    "vertical_pull",
+    "squat",
+    "hinge",
+    "lunge",
+    "carry",
+    "rotation",
+    "core_stability",
+    "locomotion",
+]
+
 Alias = Annotated[str, Field(min_length=1, max_length=150)]
 InstructionStep = Annotated[str, Field(min_length=1, max_length=1000)]
 
@@ -70,6 +84,7 @@ class ExerciseCreate(BaseModel):
     # The typed weight is always one dumbbell: "pair_db" counts it twice in
     # volume (both hands), "single_db" and "standard" once.
     equipment_load_mode: LoadMode = "standard"
+    movement_pattern: MovementPattern | None = None
     # One logged set is the same reps on each side; reps and volume count twice.
     is_unilateral: bool = False
 
@@ -134,6 +149,7 @@ class ExerciseRead(OrmModel):
     safety_notes: str | None
     progression_increment_kg: float | None
     equipment_load_mode: LoadMode
+    movement_pattern: MovementPattern | None
     is_unilateral: bool
     created_at: datetime
     updated_at: datetime

@@ -420,3 +420,27 @@ presenting the estimate as a directly measured failure threshold.
   In the past workout, expand **Rep retention at the same weight** and switch its chart measure
   to **Estimated reps at failure**. Compare the estimated values with actual reps and RIR in the
   adjacent table; unrated sets should not appear in the curve.
+
+## Cycle 28 — Classify catalogue exercises by movement pattern
+
+The exercise catalogue now supports an optional controlled movement pattern: horizontal or
+vertical push/pull, squat, hinge, lunge, carry, rotation, core stability, or locomotion. The
+catalogue can filter by a selected pattern, and the builder and detail view display the
+classification. Existing entries stay unclassified until someone reviews them; movement patterns
+complement the existing muscle tags.
+
+- API regressions cover valid and invalid patterns, nullable classification, and list filtering.
+  Browser-schema regressions cover the controlled values and nullable form payload.
+- The migrated-SQLite browser flow creates a tagged exercise in the GUI, reads the classification
+  from the real API, checks the detail label, filters the catalogue, edits the exercise, and
+  deletes it. The focused run and full desktop/mobile browser suite both verified zero rows in
+  all nine tracked tables after cleanup.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 719 backend tests at 82% coverage. ESLint, TypeScript, all 208 Vitest tests, and the Vite
+  production build passed. Required Ruff rules, Ruff format, mypy, the single Alembic head check,
+  and `git diff --check` passed. Informational full Ruff remains at the existing 151 findings.
+- Full localhost Playwright passed 70 tests with four viewport-specific skips; cleanup found zero
+  rows in every tracked table.
+- Browser verification recipe. In **Exercises**, add an exercise with a movement pattern, view
+  its detail classification, filter the catalogue to that pattern, then edit and clear it. Older
+  exercises remain available under **Any pattern** until explicitly classified.

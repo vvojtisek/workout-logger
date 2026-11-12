@@ -261,6 +261,11 @@ in 0.01 kg steps. When every set reaches the top of its rep range with reserve, 
 suggestion uses that increment. Leaving the field blank keeps the existing equipment-based
 automatic increase.
 
+Exercise catalogue entries can also be tagged with an optional movement pattern: horizontal or
+vertical push/pull, squat, hinge, lunge, carry, rotation, core stability, or locomotion. Existing
+entries remain unclassified until someone reviews and tags them. The catalogue can filter by the
+selected pattern; movement classification complements the primary and secondary muscle tags.
+
 The desktop history range can show the last 30, 90, or 365 days or all history. For a fixed
 window, pass both timezone-aware `date_from` (inclusive) and `date_to` (exclusive) to the
 exercise stats endpoint. The window applies to both the headline stats and the chart.

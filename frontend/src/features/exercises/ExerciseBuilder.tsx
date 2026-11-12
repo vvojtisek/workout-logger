@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
-import type { CatalogExercise, EquipmentTag, MuscleTag } from "@/api/types";
-import { MUSCLE_LABELS } from "@/lib/exercise-catalogue";
-import { MUSCLE_TAGS } from "@/api/types";
+import type { CatalogExercise, EquipmentTag, MuscleTag, MovementPattern } from "@/api/types";
+import { MOVEMENT_PATTERNS, MUSCLE_TAGS } from "@/api/types";
+import { MOVEMENT_PATTERN_LABELS, MUSCLE_LABELS } from "@/lib/exercise-catalogue";
 import { MAX_EQUIPMENT_OPTIONS, toggleEquipmentTag } from "@/lib/equipment";
 import { exercisePayloadSchema } from "@/lib/exercise-schema";
 import { EQUIPMENT_LOAD_MODES, LOAD_MODE_LABELS } from "@/lib/load-rules";
@@ -172,6 +172,7 @@ function buildPayload(state: {
   progression_increment_kg: string;
   equipment_load_mode: EquipmentLoadMode;
   is_unilateral: boolean;
+  movement_pattern: MovementPattern | null;
 }) {
   return {
     name: state.name.trim(),
@@ -188,6 +189,7 @@ function buildPayload(state: {
       : null,
     equipment_load_mode: state.equipment_load_mode,
     is_unilateral: state.is_unilateral,
+    movement_pattern: state.movement_pattern,
   };
 }
 
@@ -213,6 +215,7 @@ export function ExerciseBuilder() {
   const [progressionIncrement, setProgressionIncrement] = useState("");
   const [loadMode, setLoadMode] = useState<EquipmentLoadMode>("standard");
   const [unilateral, setUnilateral] = useState(false);
+  const [movementPattern, setMovementPattern] = useState<MovementPattern | "">("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const seededExerciseId = useRef<string | null>(null);
 
@@ -237,6 +240,7 @@ export function ExerciseBuilder() {
     setProgressionIncrement(existing.progression_increment_kg?.toString() ?? "");
     setLoadMode(existing.equipment_load_mode);
     setUnilateral(existing.is_unilateral);
+    setMovementPattern(existing.movement_pattern ?? "");
   }, [existing]);
 
   const mutation = useMutation({
@@ -282,6 +286,7 @@ export function ExerciseBuilder() {
       progression_increment_kg: progressionIncrement,
       equipment_load_mode: loadMode,
       is_unilateral: unilateral,
+      movement_pattern: movementPattern || null,
     });
     const result = exercisePayloadSchema.safeParse(payload);
     if (!result.success) {
@@ -362,6 +367,25 @@ export function ExerciseBuilder() {
           selected={primaryMuscles}
           onToggle={(tag) => toggleMuscle(primaryMuscles, setPrimaryMuscles, tag)}
         />
+
+        <div>
+          <label className="field-label" htmlFor="exercise-movement-pattern">
+            Movement pattern
+          </label>
+          <select
+            id="exercise-movement-pattern"
+            className="input"
+            value={movementPattern}
+            onChange={(event) => setMovementPattern(event.target.value as MovementPattern | "")}
+          >
+            <option value="">Unclassified</option>
+            {MOVEMENT_PATTERNS.map((pattern) => (
+              <option key={pattern} value={pattern}>
+                {MOVEMENT_PATTERN_LABELS[pattern]}
+              </option>
+            ))}
+          </select>
+        </div>
         <MuscleTagPicker
           label="Secondary muscles"
           selected={secondaryMuscles}

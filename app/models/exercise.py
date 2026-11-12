@@ -18,6 +18,12 @@ class Exercise(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "equipment_load_mode IN ('standard', 'single_db', 'pair_db')",
             name="ck_exercises_equipment_load_mode",
         ),
+        CheckConstraint(
+            "movement_pattern IS NULL OR movement_pattern IN "
+            "('horizontal_push', 'horizontal_pull', 'vertical_push', 'vertical_pull', "
+            "'squat', 'hinge', 'lunge', 'carry', 'rotation', 'core_stability', 'locomotion')",
+            name="ck_exercises_movement_pattern",
+        ),
         Index(
             "uq_exercises_owner_name",
             "owner_id",
@@ -60,6 +66,8 @@ class Exercise(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     equipment_load_mode: Mapped[str] = mapped_column(
         String(20), nullable=False, default="standard", server_default="standard"
     )
+    # Optional controlled movement classification; legacy catalogue entries stay unset.
+    movement_pattern: Mapped[str | None] = mapped_column(String(30), nullable=True)
     # One logged set is the same reps on each side; reps and volume count twice.
     is_unilateral: Mapped[bool] = mapped_column(
         Boolean(), nullable=False, default=False, server_default="0"

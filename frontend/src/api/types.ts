@@ -207,6 +207,22 @@ export const EQUIPMENT_TAGS = [
 
 export type EquipmentTag = (typeof EQUIPMENT_TAGS)[number];
 
+export const MOVEMENT_PATTERNS = [
+  "horizontal_push",
+  "horizontal_pull",
+  "vertical_push",
+  "vertical_pull",
+  "squat",
+  "hinge",
+  "lunge",
+  "carry",
+  "rotation",
+  "core_stability",
+  "locomotion",
+] as const;
+
+export type MovementPattern = (typeof MOVEMENT_PATTERNS)[number];
+
 export interface CatalogExercise {
   id: string;
   name: string;
@@ -216,6 +232,7 @@ export interface CatalogExercise {
   secondary_muscles: MuscleTag[];
   instructions: string[];
   equipment: string | null;
+  movement_pattern: MovementPattern | null;
   // Alternatives: any one option will do, and an option needs all its tags.
   // Empty means the exercise is not tagged.
   equipment_any_of: EquipmentTag[][];
