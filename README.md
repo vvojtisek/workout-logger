@@ -240,9 +240,11 @@ Exercise progression at `GET /api/v1/exercise-stats` uses each set's recorded we
 to find the heaviest set and the highest estimated one-rep max. Choose Epley, Brzycki, Lombardi,
 or Wathen in the desktop progression card or with the optional `formula` query parameter
 (`epley`, `brzycki`, `lombardi`, or `wathen`). The default Epley model retains all rep counts.
-The other options use sets of 1–10 reps. The estimates use logged reps as input to equations
-that assume reps to failure, and each chart point shows the set behind its estimate. Older
-logs with a single weight use that weight for every set. [Reference for the equations, Table 1](https://doi.org/10.1007/s11332-024-01264-y).
+The other options use sets of 1–10 effective reps. When a set has recorded RIR, the estimate
+adds RIR to reps as estimated reps to failure; unknown RIR uses the logged reps as-is. The
+4+ value is represented by four, so that estimate uses a minimum. Each chart point shows the
+recorded reps and the set behind its estimate. Older logs with a single weight use that weight
+for every set. [Reference for the equations, Table 1](https://doi.org/10.1007/s11332-024-01264-y).
 
 An exercise can optionally set a custom progression increment in kilograms, from 0.05 to 20 kg
 in 0.01 kg steps. When every set reaches the top of its rep range with reserve, the next-session

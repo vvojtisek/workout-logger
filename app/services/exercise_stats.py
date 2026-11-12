@@ -19,27 +19,30 @@ def _normalize(name: str) -> str:
     return name.strip().lower()
 
 
-def _estimated_one_rep_max(weight_kg: float, reps: int, formula: OneRepMaxFormula) -> float:
+def _estimated_one_rep_max(
+    weight_kg: float, reps: int, formula: OneRepMaxFormula, rir: int | None = None
+) -> float:
+    effective_reps = reps + (rir or 0)
     match formula:
         case "epley":
-            estimate = weight_kg * (1 + reps / 30)
+            estimate = weight_kg * (1 + effective_reps / 30)
         case "brzycki":
-            estimate = weight_kg / (1.0278 - 0.0278 * reps)
+            estimate = weight_kg / (1.0278 - 0.0278 * effective_reps)
         case "lombardi":
-            estimate = weight_kg * reps**0.1
+            estimate = weight_kg * effective_reps**0.1
         case "wathen":
-            estimate = weight_kg / (0.488 + 0.538 * exp(-0.075 * reps))
+            estimate = weight_kg / (0.488 + 0.538 * exp(-0.075 * effective_reps))
     return round(estimate * 2) / 2
 
 
 def _best_estimated_set(
-    loaded: Iterable[tuple[float, int]], formula: OneRepMaxFormula
+    loaded: Iterable[tuple[float, int, int | None]], formula: OneRepMaxFormula
 ) -> tuple[float, float, int] | None:
     return max(
         (
-            (_estimated_one_rep_max(weight, reps, formula), weight, reps)
-            for weight, reps in loaded
-            if formula == "epley" or 1 <= reps <= ALTERNATE_FORMULA_MAX_REPS
+            (_estimated_one_rep_max(weight, reps, formula, rir), weight, reps)
+            for weight, reps, rir in loaded
+            if formula == "epley" or 1 <= reps + (rir or 0) <= ALTERNATE_FORMULA_MAX_REPS
         ),
         default=None,
     )
@@ -49,7 +52,8 @@ def _recent_point(
     performed_at: datetime, entry: ExerciseLog, formula: OneRepMaxFormula
 ) -> ExerciseSessionPoint:
     best = _best_estimated_set(
-        ((weight, reps) for weight, reps in entry.sets_with_weights if weight), formula
+        ((weight, reps, rir) for weight, reps, rir in entry.sets_with_effort if weight),
+        formula,
     )
     if best is None:
         return ExerciseSessionPoint(
@@ -87,13 +91,16 @@ def _summarize(
     last_performed_at, last = history[0]
     # A historical working weight can differ from the weight of any given set.
     loaded = [
-        (weight, reps) for _, entry in history for weight, reps in entry.sets_with_weights if weight
+        (weight, reps, rir)
+        for _, entry in history
+        for weight, reps, rir in entry.sets_with_effort
+        if weight
     ]
 
     best_weight_kg = None
     best_weight_reps = None
     if loaded:
-        best_weight_kg, best_weight_reps = max(loaded)
+        best_weight_kg, best_weight_reps = max((weight, reps) for weight, reps, _ in loaded)
     best_estimated_set = _best_estimated_set(loaded, formula)
 
     trend: Literal["up", "down", "flat"] | None = None

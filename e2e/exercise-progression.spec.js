@@ -18,7 +18,13 @@ test("catalogue progression reviews completed lifts without an active workout", 
         total_time_minutes: 30,
         overall_feeling: 3,
         notes: tag,
-        exercises: [{ exercise_name: name, sets_count: 1, weight_kg: 60, reps_per_set: [6] }],
+        exercises: [{
+          exercise_name: name,
+          sets_count: 1,
+          weight_kg: 60,
+          reps_per_set: [5],
+          rir_per_set: [3],
+        }],
       },
     });
     expect(log.status()).toBe(201);
@@ -26,15 +32,15 @@ test("catalogue progression reviews completed lifts without an active workout", 
 
     const stats = await request.get(`/api/v1/exercise-stats?${new URLSearchParams({ name })}`);
     expect(stats.status()).toBe(200);
-    expect((await stats.json()).items[0].estimated_one_rep_max_kg).toBe(72);
+    expect((await stats.json()).items[0].estimated_one_rep_max_kg).toBe(76);
     await page.goto(`/exercises/${id}`);
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
     const panel = page.getByTestId("progression-card");
-    await expect(panel).toContainText("Best 60 kg × 6");
-    await expect(panel).toContainText("e1RM 72 kg");
+    await expect(panel).toContainText("Best 60 kg × 5");
+    await expect(panel).toContainText("e1RM 76 kg");
     await panel.getByRole("combobox", { name: "History range" }).selectOption("30");
     await panel.getByRole("combobox", { name: "1RM formula" }).selectOption("brzycki");
-    await expect(panel).toContainText("e1RM 69.5 kg");
+    await expect(panel).toContainText("e1RM 74.5 kg");
     await expect(panel.getByTestId("progression-chart")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
       page.viewportSize()?.width,

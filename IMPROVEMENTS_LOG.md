@@ -276,6 +276,29 @@ counts and keeps the four states distinct instead of combining them into an infe
   row reports one in each state, then cancel the active workout and verify its count returns
   to Scheduled.
 
+## Cycle 23 — Include recorded RIR in estimated one-rep max
+
+Exercise progression estimates now use effective reps: logged repetitions plus logged RIR.
+Unknown RIR leaves the original rep count unchanged, and actual repetitions remain the value
+shown in workout history. The progression card explains that 4+ is represented by four, which
+makes estimates based on that value a lower-bound input. Brzycki, Lombardi, and Wathen apply
+their existing 1–10 range to effective reps.
+
+- The new API regression first failed on the baseline: 60 kg for five reps at three RIR was
+  reported as 70 kg instead of the expected RIR-adjusted 76 kg. It also checks the adjusted
+  Brzycki result and confirms the chart point retains the actual five reps.
+- The real migrated-SQLite exercise progression flow passed on desktop and phone, checking the
+  RIR-adjusted Epley and Brzycki estimates. Cleanup found zero rows in all nine tracked tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 711 tests at 82% coverage. Required Ruff rules, Ruff format, mypy, and
+  `git diff --check` passed. Informational full Ruff remains at the existing 151 findings.
+- ESLint, TypeScript, Vite build, and all 197 Vitest tests passed. Full localhost Playwright
+  passed 68 tests with three expected viewport skips; cleanup again found zero rows in all
+  nine tracked tables.
+- Browser verification recipe. Log a 60 kg set for five reps at three RIR, then open the
+  exercise's progression card. Confirm it displays five actual reps while Epley estimates from
+  eight effective reps (76 kg), and Brzycki uses the same effective-rep count (74.5 kg).
+
 ## Cycle 10 — Export the selected training weeks as session and set data
 
 The Training load view downloads UTF-8 CSV for its selected local weeks. Session rows hold

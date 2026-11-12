@@ -63,5 +63,13 @@ class ExerciseLog(UUIDPrimaryKeyMixin, Base):
         return zip(weights, self.reps_per_set, strict=False)
 
     @property
+    def sets_with_effort(self) -> Iterator[tuple[float | None, int, int | None]]:
+        """Per-set load, reps, and RIR; absent RIR means unknown effort."""
+        per_set = self.weight_per_set
+        weights = per_set if per_set else [self.weight_kg] * len(self.reps_per_set)
+        rir_values = self.rir_per_set or [None] * len(self.reps_per_set)
+        return zip(weights, self.reps_per_set, rir_values, strict=False)
+
+    @property
     def volume_kg(self) -> float:
         return sets_volume_kg(self.sets_with_weights, self.volume_rule)
