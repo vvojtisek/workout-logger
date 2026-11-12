@@ -196,6 +196,16 @@ async def test_session_snapshots_exercise_kind_from_the_plan(client, auth_header
     assert session["exercises"][0]["exercise_kind"] == "bodyweight"
 
 
+async def test_session_snapshots_target_rir_from_the_plan(client, auth_headers):
+    payload = plan_payload("Target RIR Snapshot Plan")
+    payload["exercises"][0]["target_rir"] = 2
+    created = await client.post(PLANS, json=payload, headers=auth_headers)
+    assert created.status_code == 201
+
+    session = await start_session(client, auth_headers, created.json()["id"])
+    assert session["exercises"][0]["target_rir"] == 2
+
+
 async def test_save_set_persists_bodyweight_kind_fields(client, auth_headers):
     payload = plan_payload("Bodyweight Set Plan")
     payload["exercises"][0]["exercise_kind"] = "bodyweight"

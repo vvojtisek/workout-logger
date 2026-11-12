@@ -24,6 +24,7 @@ interface ExerciseRowState {
   target_sets: string;
   target_reps_min: string;
   target_reps_max: string;
+  target_rir: string;
   target_weight_kg: string;
   rest_time_seconds: string;
   notes: string;
@@ -38,6 +39,7 @@ function emptyRow(restSeconds = 60): ExerciseRowState {
     target_sets: "3",
     target_reps_min: "8",
     target_reps_max: "12",
+    target_rir: "",
     target_weight_kg: "",
     rest_time_seconds: String(restSeconds),
     notes: "",
@@ -53,6 +55,7 @@ function rowFromExercise(exercise: WorkoutPlan["exercises"][number]): ExerciseRo
     target_sets: String(exercise.target_sets),
     target_reps_min: String(exercise.target_reps_min),
     target_reps_max: String(exercise.target_reps_max),
+    target_rir: exercise.target_rir != null ? String(exercise.target_rir) : "",
     target_weight_kg: exercise.target_weight_kg != null ? String(exercise.target_weight_kg) : "",
     rest_time_seconds: String(exercise.rest_time_seconds),
     notes: exercise.notes ?? "",
@@ -76,6 +79,10 @@ function buildPayload(name: string, description: string, rows: ExerciseRowState[
       target_sets: Number.parseInt(row.target_sets, 10),
       target_reps_min: Number.parseInt(row.target_reps_min, 10),
       target_reps_max: Number.parseInt(row.target_reps_max, 10),
+      target_rir:
+        row.exercise_kind === "strength" && row.target_rir.trim()
+          ? Number.parseInt(row.target_rir, 10)
+          : null,
       target_weight_kg: row.target_weight_kg.trim()
         ? Number.parseFloat(row.target_weight_kg)
         : null,
@@ -383,6 +390,28 @@ export function PlanBuilder() {
                     </p>
                   ) : null}
                 </div>
+                {row.exercise_kind === "strength" ? (
+                  <div>
+                    <label className="field-label" htmlFor={`exercise-target-rir-${row.key}`}>
+                      Target RIR (optional)
+                    </label>
+                    <Input
+                      id={`exercise-target-rir-${row.key}`}
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={row.target_rir}
+                      onChange={(event) =>
+                        updateRow(row.key, { target_rir: event.target.value })
+                      }
+                    />
+                    {errors[`${index}.target_rir`] ? (
+                      <p className="mt-1 text-sm text-danger">
+                        {errors[`${index}.target_rir`]}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div>
                   <label className="field-label" htmlFor={`exercise-rest-${row.key}`}>
                     Rest seconds

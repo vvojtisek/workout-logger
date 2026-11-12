@@ -25,6 +25,7 @@ export interface GridExercise {
   exercise_name: string;
   exercise_kind: ExerciseKind;
   target_sets: number;
+  target_rir?: number | null;
   suggested_weight_kg: number | null;
   suggested_reps: number;
   suggestion_source: string;

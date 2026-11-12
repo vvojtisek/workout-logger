@@ -299,6 +299,33 @@ their existing 1–10 range to effective reps.
   exercise's progression card. Confirm it displays five actual reps while Epley estimates from
   eight effective reps (76 kg), and Brzycki uses the same effective-rep count (74.5 kg).
 
+## Cycle 24 — Prescribe a target RIR per planned exercise
+
+Plan authors can optionally set a target RIR from 0 to 10 for each strength exercise. Starting
+a workout copies that prescription into the session snapshot, so later plan edits do not change
+an active session. The desktop workout and in-gym HUD show the target beside the control for
+recording actual set RIR; plans without a target keep the existing uncluttered display.
+
+- API tests first failed because create/update omitted the field, accepted an out-of-range
+  value, and session snapshots did not carry it. The frontend schema test also confirmed the
+  field was discarded and did not reject values above 10.
+- An additive migration adds nullable constrained fields to plan and session exercises, keeping
+  existing records unset. The real browser flow creates and edits a target through the desktop
+  plan builder, verifies it in the session snapshot, and confirms it on the desktop workout.
+  The phone HUD flow checks the same target beside the RIR pills. Both focused runs cleaned all
+  nine tracked tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 714 tests at 82% coverage. Required Ruff rules, Ruff format, mypy, the single Alembic
+  head check, and `git diff --check` passed. Informational full Ruff remains at the existing
+  151 findings.
+- ESLint, TypeScript, Vite build, and all 199 Vitest tests passed. Full localhost Playwright
+  passed 68 tests with three expected viewport skips; cleanup found zero rows in all nine
+  tracked tables.
+- Browser verification recipe. Set Target RIR to 2 on one plan exercise and leave another
+  blank. Start the plan, confirm only the prescribed exercise shows Target RIR: 2 in the
+  desktop and phone workout views, then edit the plan and verify the active snapshot is
+  unchanged.
+
 ## Cycle 10 — Export the selected training weeks as session and set data
 
 The Training load view downloads UTF-8 CSV for its selected local weeks. Session rows hold

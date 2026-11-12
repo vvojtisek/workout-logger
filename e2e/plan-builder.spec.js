@@ -40,6 +40,7 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
     await rowOne.getByLabel("Min reps").fill("5");
     await rowOne.getByLabel("Max reps").fill("8");
     await rowOne.getByLabel("Target weight (kg)").fill("100");
+    await rowOne.getByLabel("Target RIR (optional)").fill("2");
     await rowOne.getByLabel("Rest seconds").fill("90");
     await rowOne.getByLabel("Superset group").fill(`${tag} superset`);
 
@@ -69,7 +70,7 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
 
     const read = await request.get(`/api/v1/plans/${planId}`);
     expect(read.status()).toBe(200);
-    /** @type {{exercises: Array<{exercise_name: string, target_sets: number, target_reps_min: number, target_reps_max: number, target_weight_kg: number | null, rest_time_seconds: number, group_key: string | null, group_order: number | null}>}} */
+    /** @type {{exercises: Array<{exercise_name: string, target_sets: number, target_reps_min: number, target_reps_max: number, target_rir: number | null, target_weight_kg: number | null, rest_time_seconds: number, group_key: string | null, group_order: number | null}>}} */
     const readBody = await read.json();
     const byName = (/** @type {string} */ name) =>
       readBody.exercises.find((ex) => ex.exercise_name === name);
@@ -79,6 +80,7 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
       target_sets: 4,
       target_reps_min: 5,
       target_reps_max: 8,
+      target_rir: 2,
       target_weight_kg: 100,
       rest_time_seconds: 90,
       group_key: `${tag} superset`,
@@ -106,16 +108,25 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
     // Start a session from the superset plan to prove it integrates with the
     // active-workout grid, then leave it uncompleted (cleaned up below).
     const planCard = page.getByRole("listitem").filter({ hasText: `${tag} plan` });
-    await planCard.getByRole("button", { name: "Start workout" }).click();
+    const [startResponse] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          response.url().includes("/api/v1/workout-sessions"),
+      ),
+      planCard.getByRole("button", { name: "Start workout" }).click(),
+    ]);
+    expect(startResponse.status()).toBe(201);
+    const activeBody = await startResponse.json();
+    sessionId = activeBody.id;
+    expect(activeBody.exercises[0].target_rir).toBe(2);
     await expect(page.getByRole("heading", { name: `${tag} Squat` })).toBeVisible();
+    await expect(page.getByTestId("target-rir")).toHaveText("Target RIR: 2");
     await expect(
       page
         .getByRole("navigation", { name: "Workout exercises" })
         .getByRole("button", { name: new RegExp(`A2.*${tag.replace(/[[\]]/g, "\\$&")} Lunge`) }),
     ).toBeVisible();
-    const activeResponse = await request.get("/api/v1/workout-sessions/active");
-    expect(activeResponse.status()).toBe(200);
-    sessionId = (await activeResponse.json()).id;
     await request.delete(`/api/v1/workout-sessions/${sessionId}`);
     sessionId = undefined;
 
@@ -128,16 +139,19 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
     await expect(page.getByRole("heading", { name: "Edit Program" })).toBeVisible();
     await expect(page.getByLabel("Plan name")).toHaveValue(`${tag} plan`);
     const editRows = page.locator("#plan-exercises-list > div");
+    await expect(editRows.nth(0).getByLabel("Target RIR (optional)")).toHaveValue("2");
     await editRows.nth(0).getByLabel("Target weight (kg)").fill("105");
+    await editRows.nth(0).getByLabel("Target RIR (optional)").fill("3");
     await clickAndAwaitWrite(page, page.getByRole("button", { name: "Save changes" }), "PUT");
     await expect(page.getByRole("heading", { name: "Workout Plans" })).toBeVisible();
 
     const updated = await request.get(`/api/v1/plans/${planId}`);
     expect(updated.status()).toBe(200);
-    /** @type {{exercises: Array<{exercise_name: string, target_weight_kg: number | null}>}} */
+    /** @type {{exercises: Array<{exercise_name: string, target_weight_kg: number | null, target_rir: number | null}>}} */
     const updatedBody = await updated.json();
     const updatedSquat = updatedBody.exercises.find((ex) => ex.exercise_name === `${tag} Squat`);
     expect(updatedSquat?.target_weight_kg).toBe(105);
+    expect(updatedSquat?.target_rir).toBe(3);
 
     // Delete through the GUI and prove it is gone.
     await page.getByRole("listitem").filter({ hasText: `${tag} plan` }).getByRole("button", { name: "Delete" }).click();

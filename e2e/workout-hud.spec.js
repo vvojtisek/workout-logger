@@ -54,6 +54,7 @@ test("logs a superset workout one-handed on the phone HUD", async ({
             target_sets: 2,
             target_reps_min: 5,
             target_reps_max: 8,
+            target_rir: 2,
             target_weight_kg: 80,
             rest_time_seconds: 30,
           },
@@ -111,6 +112,7 @@ test("logs a superset workout one-handed on the phone HUD", async ({
     await expect(page.locator("#hud-position")).toHaveText(
       "EXERCISE 1 OF 3 • SET 1 OF 2",
     );
+    await expect(page.getByTestId("target-rir")).toHaveText("Target RIR: 2");
     await expect(page.locator("#active-elapsed")).toHaveText(
       /^\d{2}:\d{2}:\d{2}$/,
     );

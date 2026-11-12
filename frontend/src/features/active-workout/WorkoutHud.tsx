@@ -679,11 +679,18 @@ function SetPanel({
         ))}
       </div>
       {rirSpec ? (
-        <RirPills
-          value={draft.rir}
-          disabled={locked}
-          onChange={(value) => update("rir", value)}
-        />
+        <div className="flex flex-col gap-2">
+          {row.exercise.target_rir != null ? (
+            <p className="text-center text-xs font-medium text-muted" data-testid="target-rir">
+              Target RIR: {row.exercise.target_rir}
+            </p>
+          ) : null}
+          <RirPills
+            value={draft.rir}
+            disabled={locked}
+            onChange={(value) => update("rir", value)}
+          />
+        </div>
       ) : null}
       {bandSpec ? (
         <label className="flex items-center gap-3 text-sm text-muted">

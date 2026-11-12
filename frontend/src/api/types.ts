@@ -29,6 +29,7 @@ export interface PlanExercise {
   target_sets: number;
   target_reps_min: number;
   target_reps_max: number;
+  target_rir: number | null;
   target_weight_kg: number | null;
   rest_time_seconds: number;
   notes: string | null;
@@ -48,6 +49,7 @@ export interface WorkoutPlan {
 export interface SessionExercise extends GridExercise {
   target_reps_min: number;
   target_reps_max: number;
+  target_rir: number | null;
   target_weight_kg: number | null;
   rest_time_seconds: number;
   notes: string | null;

@@ -47,6 +47,32 @@ async def test_create_plan_with_multiple_exercises(client, auth_headers):
     assert len(body["exercises"]) == 3
 
 
+async def test_plan_target_rir_is_preserved_on_create_and_replace(client, auth_headers):
+    payload = make_plan_payload(exercises=[{**make_exercise("Bench press"), "target_rir": 2}])
+    created = await client.post(BASE, json=payload, headers=auth_headers)
+    assert created.status_code == 201
+    plan_id = created.json()["id"]
+    assert created.json()["exercises"][0]["target_rir"] == 2
+
+    replacement = make_plan_payload(exercises=[{**make_exercise("Bench press"), "target_rir": 4}])
+    updated = await client.put(f"{BASE}/{plan_id}", json=replacement, headers=auth_headers)
+    assert updated.status_code == 200
+    assert updated.json()["exercises"][0]["target_rir"] == 4
+
+
+async def test_plan_target_rir_rejects_values_above_ten(client, auth_headers):
+    payload = make_plan_payload(exercises=[{**make_exercise("Bench press"), "target_rir": 11}])
+    response = await client.post(BASE, json=payload, headers=auth_headers)
+    assert response.status_code == 422
+
+    bodyweight = make_exercise("Pull-up")
+    bodyweight.update({"exercise_kind": "bodyweight", "target_rir": 2})
+    response = await client.post(
+        BASE, json=make_plan_payload(exercises=[bodyweight]), headers=auth_headers
+    )
+    assert response.status_code == 422
+
+
 async def test_exercise_sort_order_matches_input_order(client, auth_headers):
     payload = make_plan_payload(
         name="Leg Day",
