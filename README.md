@@ -237,6 +237,11 @@ workout copies that target into its session snapshot, and the mobile HUD and des
 view show it beside the controls for recording actual set effort. Duplicating a plan preserves
 the prescription.
 
+Configure the barbell weight and available plate pairs in **Settings → Preferences**. The mobile
+strength-workout HUD calculates the fewest matching plates per side from the current weight dial,
+using that inventory. When the requested load cannot be made, it shows the closest available
+load. The calculation includes the bar and excludes collars.
+
 Active-workout Slice 1 adds authenticated `/api/v1/workout-sessions` operations to start or
 resume a plan snapshot, idempotently save a set with an absolute rest deadline, read the session,
 complete it into the existing workout-log history, and remove E2E records during verified cleanup.

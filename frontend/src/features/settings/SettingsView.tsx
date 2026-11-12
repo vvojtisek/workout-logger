@@ -100,12 +100,16 @@ function PreferencesSection() {
   const { data: settings, isLoading } = useSettingsQuery();
   const [compound, setCompound] = useState("90");
   const [isolation, setIsolation] = useState("60");
+  const [barbellWeight, setBarbellWeight] = useState("20");
+  const [plateInventory, setPlateInventory] = useState<{ plate_weight_kg: number; pairs: number }[]>([]);
   const [seeded, setSeeded] = useState(false);
 
   useEffect(() => {
     if (!settings || seeded) return;
     setCompound(String(settings.default_rest_compound_seconds));
     setIsolation(String(settings.default_rest_isolation_seconds));
+    setBarbellWeight(String(settings.barbell_weight_kg));
+    setPlateInventory(settings.plate_inventory);
     setSeeded(true);
   }, [settings, seeded]);
 
@@ -117,6 +121,8 @@ function PreferencesSection() {
           units: "metric",
           default_rest_compound_seconds: Number.parseInt(compound, 10),
           default_rest_isolation_seconds: Number.parseInt(isolation, 10),
+          barbell_weight_kg: Number.parseFloat(barbellWeight),
+          plate_inventory: plateInventory,
         }),
       }),
     onSuccess: () => {
@@ -170,6 +176,49 @@ function PreferencesSection() {
             <p className="text-sm text-muted">
               Pre-fills the rest field when you add a compound or isolation
               exercise to a plan. Existing exercises are unaffected.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-[minmax(10rem,14rem)_1fr]">
+              <div>
+                <label className="field-label" htmlFor="plate-bar-weight">
+                  Barbell weight (kg)
+                </label>
+                <Input
+                  id="plate-bar-weight"
+                  type="number"
+                  min="0.25"
+                  max="100"
+                  step="0.25"
+                  value={barbellWeight}
+                  onChange={(event) => setBarbellWeight(event.target.value)}
+                />
+              </div>
+              <fieldset className="min-w-0">
+                <legend className="field-label">Plate pairs available per side</legend>
+                <div className="grid grid-cols-3 gap-x-3 gap-y-2 sm:grid-cols-5">
+                  {plateInventory.map((plate, index) => (
+                    <label key={plate.plate_weight_kg} className="flex items-center gap-2 text-sm">
+                      <span className="min-w-12">{plate.plate_weight_kg} kg</span>
+                      <Input
+                        aria-label={`${plate.plate_weight_kg} kg plate pairs`}
+                        type="number"
+                        min="0"
+                        max="20"
+                        step="1"
+                        value={plate.pairs}
+                        onChange={(event) => {
+                          const next = [...plateInventory];
+                          next[index] = { ...plate, pairs: Number.parseInt(event.target.value, 10) || 0 };
+                          setPlateInventory(next);
+                        }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+            <p className="text-sm text-muted">
+              Used by the mobile plate calculator. A pair means one matching plate on each side.
+              Inventory is saved with your account settings.
             </p>
             <div>
               <Button

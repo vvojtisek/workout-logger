@@ -554,6 +554,8 @@ export interface UserSettings {
   units: Units;
   default_rest_compound_seconds: number;
   default_rest_isolation_seconds: number;
+  barbell_weight_kg: number;
+  plate_inventory: { plate_weight_kg: number; pairs: number }[];
   created_at: string;
   updated_at: string;
 }

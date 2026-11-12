@@ -16,6 +16,7 @@ import {
   synchronizationState,
 } from "@/lib/active-workout-state";
 import type { SetOperation } from "@/lib/active-workout-state";
+import { useSettingsQuery } from "@/lib/settings-query";
 import { workoutProgress } from "@/lib/workout-utils";
 import type { GridRow } from "@/lib/workout-utils";
 import { ConfirmDialog } from "@/ui/Dialog";
@@ -81,6 +82,7 @@ function ActiveWorkoutSession({
     sessionId: session.id,
     enableFilters: isDesktop,
   });
+  const { data: settings } = useSettingsQuery();
 
   function exerciseStatsLine(exercise: SessionExercise) {
     const facts = exerciseStatsFacts(statsByName.get(exercise.exercise_name));
@@ -311,6 +313,8 @@ function ActiveWorkoutSession({
     return (
       <>
         <WorkoutHud
+          barbellWeightKg={settings?.barbell_weight_kg ?? 20}
+          plateInventory={settings?.plate_inventory ?? []}
           session={session}
           rows={hudRows}
           index={hudIndex(session, hudRows)}

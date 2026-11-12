@@ -707,6 +707,40 @@ def test_metric_standardization_migration_normalizes_only_saved_unit_preferences
     sync_engine.dispose()
 
 
+def test_plate_profile_migration_preserves_existing_settings_with_standard_defaults(
+    alembic_config, alembic_db_path
+):
+    import json
+
+    command.upgrade(alembic_config, "a7e3c9f1b5d2")
+    settings_id = str(uuid.uuid4())
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO user_settings "
+                "(id, owner_id, units, default_rest_compound_seconds, "
+                "default_rest_isolation_seconds, created_at, updated_at) "
+                "VALUES (:id, NULL, 'metric', 105, 55, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": settings_id},
+        )
+
+    command.upgrade(alembic_config, "head")
+    with sync_engine.connect() as connection:
+        row = connection.execute(
+            text(
+                "SELECT default_rest_compound_seconds, barbell_weight_kg, plate_inventory "
+                "FROM user_settings WHERE id = :id"
+            ),
+            {"id": settings_id},
+        ).one()
+    assert row.default_rest_compound_seconds == 105
+    assert row.barbell_weight_kg == 20
+    assert json.loads(row.plate_inventory)[0] == {"plate_weight_kg": 25.0, "pairs": 4}
+    sync_engine.dispose()
+
+
 def test_exercise_catalogue_seed_adds_shared_templates_and_keeps_existing(
     alembic_config, alembic_db_path
 ):

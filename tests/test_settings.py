@@ -8,6 +8,8 @@ async def test_get_settings_creates_defaults_on_first_read(client, auth_headers)
     assert body["units"] == "metric"
     assert body["default_rest_compound_seconds"] == 90
     assert body["default_rest_isolation_seconds"] == 60
+    assert body["barbell_weight_kg"] == 20
+    assert body["plate_inventory"][0] == {"plate_weight_kg": 25, "pairs": 4}
 
 
 async def test_get_settings_is_a_stable_singleton(client, auth_headers):
@@ -31,6 +33,42 @@ async def test_update_settings_persists_and_is_returned_by_get(client, auth_head
 
     refetched = await client.get(BASE, headers=auth_headers)
     assert refetched.json() == update.json()
+
+
+async def test_plate_inventory_settings_round_trip(client, auth_headers):
+    payload = {
+        "units": "metric",
+        "default_rest_compound_seconds": 90,
+        "default_rest_isolation_seconds": 60,
+        "barbell_weight_kg": 15,
+        "plate_inventory": [
+            {"plate_weight_kg": 5, "pairs": 2},
+            {"plate_weight_kg": 1.25, "pairs": 4},
+        ],
+    }
+    response = await client.put(BASE, json=payload, headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["barbell_weight_kg"] == 15
+    assert response.json()["plate_inventory"] == payload["plate_inventory"]
+
+    refetched = await client.get(BASE, headers=auth_headers)
+    assert refetched.json()["barbell_weight_kg"] == 15
+    assert refetched.json()["plate_inventory"] == payload["plate_inventory"]
+
+
+async def test_plate_inventory_rejects_invalid_counts(client, auth_headers):
+    response = await client.put(
+        BASE,
+        json={
+            "units": "metric",
+            "default_rest_compound_seconds": 90,
+            "default_rest_isolation_seconds": 60,
+            "barbell_weight_kg": 20,
+            "plate_inventory": [{"plate_weight_kg": 2.5, "pairs": -1}],
+        },
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
 
 
 async def test_update_settings_with_invalid_units_returns_422(client, auth_headers):

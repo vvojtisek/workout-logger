@@ -366,3 +366,33 @@ chooses to make changes.
   tests with three expected viewport skips; cleanup found zero rows in all nine tracked tables.
 - Browser verification recipe. Create a strength plan with Target RIR 2, choose Duplicate,
   then inspect the copy through the API and confirm the exercise still carries Target RIR 2.
+
+## Cycle 26 — Calculate barbell plate loading from configured gym equipment
+
+The mobile strength-workout HUD now calculates a symmetric per-side plate setup from the
+current weight dial. Settings store the bar weight and available plate pairs. The bounded
+combination search minimizes the number of plates, respects pair counts, and reports the closest
+achievable total when the exact request cannot be loaded. Showing the bar contribution and
+excluding collars makes the arithmetic explicit instead of asking the lifter to do it between
+sets.
+
+- The settings API now validates quarter-kilogram plate sizes, pair counts, unique sizes, and
+  bar weight. An additive migration supplies a standard starting profile while preserving
+  existing rest preferences. The Settings screen can adjust the bar and available pairs.
+- API regressions first confirmed the new fields were ignored and invalid pair counts accepted.
+  Plate math tests cover minimum-count combinations, limited inventory, unavailable targets,
+  below-bar requests, and selecting the closest load on either side.
+- The migrated-SQLite mobile browser flow configures the profile through Settings, starts a real
+  plan, and verifies the per-side setup at two loads. Cleanup found zero rows in all nine tracked
+  tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 717 tests at 82% coverage. Required Ruff rules, Ruff format, mypy, Alembic metadata
+  parity, and `git diff --check` passed. Informational full Ruff remains at the existing 151
+  findings.
+- ESLint, TypeScript, Vite build, and all 204 Vitest tests passed. Full localhost Playwright
+  passed 70 tests with four expected viewport skips; cleanup again found zero rows in all nine
+  tracked tables.
+- Browser verification recipe. In **Settings → Preferences**, set the bar weight and available
+  pairs. Start a strength workout, open **Plate calculator**, and check that each side matches
+  the loaded weight; change the weight dial and confirm the distribution updates. Unavailable
+  loads show the closest achievable total.

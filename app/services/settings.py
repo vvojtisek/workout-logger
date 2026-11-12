@@ -25,6 +25,10 @@ async def update_settings(session: AsyncSession, data: UserSettingsUpdate) -> Us
     settings.units = "metric"
     settings.default_rest_compound_seconds = data.default_rest_compound_seconds
     settings.default_rest_isolation_seconds = data.default_rest_isolation_seconds
+    if data.barbell_weight_kg is not None:
+        settings.barbell_weight_kg = data.barbell_weight_kg
+    if data.plate_inventory is not None:
+        settings.plate_inventory = [plate.model_dump() for plate in data.plate_inventory]
     await session.commit()
     await session.refresh(settings)
     return settings
