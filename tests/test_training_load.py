@@ -194,6 +194,63 @@ async def test_weekly_external_volume_is_grouped_by_primary_movement_pattern(
             assert (await client.get(url, headers=auth_headers)).status_code == 404
 
 
+async def test_weekly_rir_distribution_counts_known_and_unreported_sets(
+    migrated_client, auth_headers
+):
+    client, _ = migrated_client
+    tag = f"[TEST_RUN_ID:{uuid4()}]"
+    cleanup = []
+    try:
+        log = await client.post(
+            f"{API}/logs",
+            headers=auth_headers,
+            json={
+                "performed_at": "2026-10-19T12:00:00Z",
+                "total_time_minutes": 45,
+                "overall_feeling": 3,
+                "notes": tag,
+                "exercises": [
+                    {
+                        "exercise_name": f"{tag} Rated sets",
+                        "sets_count": 4,
+                        "weight_kg": 50,
+                        "reps_per_set": [8, 8, 8, 8],
+                        "rir_per_set": [0, 2, None, 10],
+                    },
+                    {
+                        "exercise_name": f"{tag} Unrated sets",
+                        "sets_count": 2,
+                        "weight_kg": 30,
+                        "reps_per_set": [10, 10],
+                    },
+                ],
+            },
+        )
+        assert log.status_code == 201
+        log_url = f"{API}/logs/{log.json()['id']}"
+        cleanup.append(log_url)
+
+        response = await client.get(
+            f"{API}/training-load",
+            params={"week_of": "2026-10-19", "weeks": 1, "timezone": "UTC"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        [week] = response.json()["weeks"]
+        assert week["logged_sets"] == 6
+        assert week["rir_distribution"] == [
+            {"rir": 0, "sets": 1},
+            {"rir": 2, "sets": 1},
+            {"rir": 10, "sets": 1},
+            {"rir": None, "sets": 3},
+        ]
+        assert sum(item["sets"] for item in week["rir_distribution"]) == week["logged_sets"]
+    finally:
+        for url in cleanup:
+            assert (await client.delete(url, headers=auth_headers)).status_code == 204
+            assert (await client.get(url, headers=auth_headers)).status_code == 404
+
+
 async def test_calendar_workload_ratio_uses_prior_weeks_and_requires_coverage(
     migrated_client, app_engine, auth_headers
 ):

@@ -51,6 +51,11 @@ class MovementPatternVolume(BaseModel):
     volume_kg: float
 
 
+class RirSetCount(BaseModel):
+    rir: int | None = Field(ge=0, le=10)
+    sets: int = Field(ge=1)
+
+
 class TrainingSessionEffort(BaseModel):
     logged_sessions: int = 0
     rated_sessions: int = 0
@@ -74,6 +79,7 @@ class TrainingLoadWeek(BaseModel):
     volume_kg: float = 0
     muscle_volume: list[MuscleVolume] = Field(default_factory=list)
     movement_pattern_volume: list[MovementPatternVolume] = Field(default_factory=list)
+    rir_distribution: list[RirSetCount] = Field(default_factory=list)
     session_effort: TrainingSessionEffort = Field(default_factory=TrainingSessionEffort)
     workload_ratio: WeeklyWorkloadRatio = Field(default_factory=WeeklyWorkloadRatio)
 

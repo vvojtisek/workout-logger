@@ -136,6 +136,63 @@ function MovementPatternVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
   );
 }
 
+function WeeklyRirDistributionTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  const week = weeks.find((entry) => entry.week_start === selectedWeek) ?? weeks.at(-1);
+  if (!week) return null;
+
+  return (
+    <section className="card mt-4 p-4">
+      <h3 className="font-semibold">Weekly set RIR distribution</h3>
+      <p className="my-2 text-sm text-muted">
+        Counts show reps in reserve recorded for each logged set. Sets without a recorded RIR stay
+        under Unreported.
+      </p>
+      <label className="mb-3 flex flex-col gap-1">
+        <span className="field-label">RIR distribution week</span>
+        <select
+          className="input w-fit"
+          value={week.week_start}
+          onChange={(event) => setSelectedWeek(event.target.value)}
+        >
+          {[...weeks].reverse().map((entry) => (
+            <option key={entry.week_start} value={entry.week_start}>
+              {entry.week_start}
+            </option>
+          ))}
+        </select>
+      </label>
+      {week.rir_distribution.length > 0 ? (
+        <table aria-label="Weekly set RIR distribution" className="w-full text-left text-sm">
+          <thead className="text-muted">
+            <tr>
+              <th scope="col" className="py-2">Reported RIR</th>
+              <th scope="col" className="py-2 text-right">Logged sets</th>
+            </tr>
+          </thead>
+          <tbody>
+            {week.rir_distribution.map(({ rir, sets }) => (
+              <tr
+                key={rir === null ? "unreported" : `rir-${rir}`}
+                className="border-t border-line-muted"
+              >
+                <th scope="row" className="py-2 font-medium">
+                  {rir === null ? "Unreported" : `RIR ${rir}`}
+                </th>
+                <td className="py-2 text-right" data-numeric>
+                  {sets}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p role="status" className="text-sm text-muted">No logged sets for this week.</p>
+      )}
+    </section>
+  );
+}
+
 function effortLoadLabel(effort: TrainingLoadWeek["session_effort"]): string {
   if (effort.load_au !== null) return `${NUMBER_FORMAT.format(effort.load_au)} AU`;
   return effort.logged_sessions ? "No ratings" : "No sessions";
@@ -325,6 +382,7 @@ export function TrainingLoadView() {
       ) : null}
       {data ? <MuscleVolumeTable weeks={data.weeks} /> : null}
       {data ? <MovementPatternVolumeTable weeks={data.weeks} /> : null}
+      {data ? <WeeklyRirDistributionTable weeks={data.weeks} /> : null}
       {data ? <SessionEffortTable weeks={data.weeks} /> : null}
       {data ? <WorkloadRatioCard weeks={data.weeks} /> : null}
     </section>

@@ -889,3 +889,21 @@ classified and unclassified rows sum to the same weekly external-volume total.
   movement patterns, then open **Training load**. Compare one week's pattern volumes with total
   weekly volume; select a week containing free-text exercises and confirm those loads remain under
   Unclassified.
+
+## Cycle 38 — Summarize weekly set RIR exposure
+
+Training load now includes a selectable weekly count of logged sets at each recorded RIR from 0
+through 10. Sets with missing RIR, including older records, appear in an Unreported bucket. Every
+logged gym set is counted once, so the distribution reconciles with the week's logged-set total;
+the view reports recorded effort without estimating effort for unrated sets.
+
+- Backend coverage checks RIR 0, 2, and 10, explicit null values, and sets with no RIR field, then
+  verifies that the buckets sum to all six logged sets. The real-API browser journey checks two
+  reported RIR values and the Unreported bucket on desktop and phone.
+- `uv run pytest -q` passed all 741 backend tests; `npm test` passed all 225 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips. E2E records were
+  removed, and no rows containing the unique run tag remained in the temporary SQLite database.
+- Browser verification recipe. Log sets with different RIR values, plus a workout with unreported
+  RIR, then open **Training load**. Select each week and confirm the set counts and Unreported row
+  match the workout records.

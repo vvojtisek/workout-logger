@@ -135,6 +135,7 @@ export interface TrainingLoadWeek {
     movement_pattern: MovementPattern | null;
     volume_kg: number;
   }[];
+  rir_distribution: { rir: number | null; sets: number }[];
   session_effort: {
     logged_sessions: number;
     rated_sessions: number;

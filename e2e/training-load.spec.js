@@ -22,9 +22,9 @@ test("training load reviews recorded gym work by week", async ({ page, request }
     });
     expect(exercise.status()).toBe(201);
     cleanup.push(`/api/v1/exercises/${(await exercise.json()).id}`);
-    for (const [performedAt, exerciseName] of [
-      ["2026-10-18T21:59:59Z", `${tag} Unknown press`],
-      ["2026-10-18T22:00:00Z", `${tag} Press`],
+    for (const [performedAt, exerciseName, rirPerSet] of [
+      ["2026-10-18T21:59:59Z", `${tag} Unknown press`, null],
+      ["2026-10-18T22:00:00Z", `${tag} Press`, [0, 4]],
     ]) {
       const log = await request.post("/api/v1/logs", {
         data: {
@@ -37,6 +37,7 @@ test("training load reviews recorded gym work by week", async ({ page, request }
             sets_count: 2,
             weight_per_set: [50, 25],
             reps_per_set: [3, 8],
+            rir_per_set: rirPerSet,
           }],
         },
       });
@@ -90,6 +91,12 @@ test("training load reviews recorded gym work by week", async ({ page, request }
     await expect(patternBreakdown.getByRole("row", { name: /^Unclassified/ })).toContainText(
       "350 kg",
     );
+    const rirDistribution = page.getByRole("table", { name: "Weekly set RIR distribution" });
+    await page.getByLabel("RIR distribution week").selectOption("2026-10-19");
+    await expect(rirDistribution.getByRole("row", { name: /^RIR 0/ })).toContainText("1");
+    await expect(rirDistribution.getByRole("row", { name: /^RIR 4/ })).toContainText("1");
+    await page.getByLabel("RIR distribution week").selectOption("2026-10-12");
+    await expect(rirDistribution.getByRole("row", { name: /^Unreported/ })).toContainText("2");
 
     const effort = page.getByRole("table", { name: "Weekly session effort" });
     const latestEffort = effort.getByRole("row", { name: /^2026-10-19/ });

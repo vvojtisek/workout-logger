@@ -16,6 +16,7 @@ from app.schemas.exercises import MovementPattern
 from app.schemas.training_load import (
     MuscleVolume,
     MovementPatternVolume,
+    RirSetCount,
     TrainingLoadQuery,
     TrainingLoadResponse,
     TrainingLoadWeek,
@@ -167,6 +168,15 @@ def _add_movement_pattern_volume(
         totals[movement_pattern] += round(volume_kg * 10)
 
 
+def _add_rir_distribution(
+    totals: dict[int | None, int], sets_count: int, rir_per_set: list[int | None] | None
+) -> None:
+    values = rir_per_set or []
+    for index in range(sets_count):
+        rir = values[index] if index < len(values) else None
+        totals[rir] += 1
+
+
 async def weekly_training_load(
     session: AsyncSession, query: TrainingLoadQuery
 ) -> TrainingLoadResponse:
@@ -185,6 +195,7 @@ async def weekly_training_load(
     ]
     muscle_volumes: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
     pattern_volumes: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
+    rir_counts: list[dict[int | None, int]] = [defaultdict(int) for _ in weeks]
     logs = await _workout_logs_in_range(session, date_from, date_to)
     profiles = await apply_to_logs(
         session,
@@ -212,6 +223,7 @@ async def weekly_training_load(
             _add_movement_pattern_volume(
                 pattern_volumes[index], exercise.volume_kg, profile.movement_pattern
             )
+            _add_rir_distribution(rir_counts[index], exercise.sets_count, exercise.rir_per_set)
 
     today = utcnow().astimezone(zone).date()
     for index in range(lookback, len(weeks)):
@@ -235,6 +247,12 @@ async def weekly_training_load(
                 key=lambda item: (-item[1], item[0] or "unclassified"),
             )
             if tenths
+        ]
+        week.rir_distribution = [
+            RirSetCount(rir=rir, sets=count)
+            for rir, count in sorted(
+                rir_counts[index].items(), key=lambda item: (item[0] is None, item[0] or 0)
+            )
         ]
         week.workload_ratio = _workload_ratio(
             week, weeks[max(0, index - BASELINE_WEEKS) : index], today
