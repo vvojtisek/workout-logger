@@ -374,3 +374,30 @@ response cannot replace a workout opened or updated while that request was in fl
 - Browser verification recipe. Load a workout online, disconnect, log one set, and reload.
   Reconnect to synchronize it. The browser test separately removed the active cookie before
   reconnection and verified that the queued set remained local after the server rejected the session.
+
+## Cycle 16 — Calculate symmetric barbell loads from plate stock
+
+On a strength exercise tagged for a barbell, the phone HUD can show the plate stack for the
+entered total load. The bounded solver uses integer grams, accounts for the bar and collars,
+respects available plate pairs, prefers fewer plates for an exact load, and reports the nearest
+supported loads when the requested total is unavailable. Its built-in inventory is labeled as
+the default. The calculator never changes the set's recorded weight. Session responses now carry
+the exercise's equipment tags so the HUD can hide the calculator on incompatible lifts.
+
+- Unit regressions cover a non-greedy exact stack, minimum plate count, nearest supported loads,
+  fractional collars, bare-bar cases, inventory limits, and invalid precision. The localhost
+  browser flow confirmed the default profile, live recalculation, nearest choices, saved weight,
+  and absence on a machine lift.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 708 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm test` (197 tests), and Vite build passed. The gzipped entry
+  bundle is 123.41 kB.
+- Full localhost Playwright on fresh migrated SQLite passed 69 tests with six viewport skips.
+  The existing offline reconnect test initially exposed a transient network-ready race; after
+  a transport-only retry was added to auth refresh, the focused test passed six consecutive
+  runs and the full suite passed. The cleanup check found zero rows in all nine checked tables.
+- Browser verification recipe. On a barbell set, open **Barbell plates**, raise the load by
+  2.5 kg and inspect each side. Enter 63 kg to view the closest loads, then save the set and
+  confirm that 63 kg is recorded unchanged. Start a machine set and confirm that no calculator
+  is shown.

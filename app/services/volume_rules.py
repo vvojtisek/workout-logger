@@ -20,6 +20,7 @@ from app.services.volume import DEFAULT_RULE, VolumeRule
 class CatalogueVolumeProfile:
     rule: VolumeRule
     primary_muscles: tuple[str, ...] = ()
+    equipment_any_of: tuple[tuple[str, ...], ...] = ()
 
 
 DEFAULT_PROFILE = CatalogueVolumeProfile(DEFAULT_RULE)
@@ -43,6 +44,7 @@ async def _profiles_by_name(
             Exercise.equipment_load_mode,
             Exercise.is_unilateral,
             Exercise.primary_muscles,
+            Exercise.equipment_any_of,
         )
     )
     profiles: dict[str, CatalogueVolumeProfile] = {}
@@ -52,6 +54,7 @@ async def _profiles_by_name(
         profile = CatalogueVolumeProfile(
             VolumeRule(row.equipment_load_mode, bool(row.is_unilateral)),
             tuple(row.primary_muscles or ()),
+            tuple(tuple(option) for option in row.equipment_any_of or ()),
         )
         for alias in row.aliases or []:
             if _key(alias) in wanted:
@@ -59,17 +62,6 @@ async def _profiles_by_name(
         if _key(row.name) in wanted:
             profiles[_key(row.name)] = profile
     return profiles
-
-
-async def rules_by_name(session: AsyncSession, names: Iterable[str]) -> dict[str, VolumeRule]:
-    """Rules keyed by lower-cased name; names with no match are left out."""
-    return {
-        name: profile.rule for name, profile in (await _profiles_by_name(session, names)).items()
-    }
-
-
-def rule_for(rules: dict[str, VolumeRule], name: str) -> VolumeRule:
-    return rules.get(_key(name), DEFAULT_RULE)
 
 
 def profile_for(profiles: dict[str, CatalogueVolumeProfile], name: str) -> CatalogueVolumeProfile:
@@ -87,8 +79,10 @@ async def apply_to_logs(
 
 
 async def apply_to_session(session: AsyncSession, workout_session: WorkoutSession) -> None:
-    rules = await rules_by_name(
+    profiles = await _profiles_by_name(
         session, (exercise.exercise_name for exercise in workout_session.exercises)
     )
     for exercise in workout_session.exercises:
-        exercise.volume_rule = rule_for(rules, exercise.exercise_name)
+        profile = profile_for(profiles, exercise.exercise_name)
+        exercise.volume_rule = profile.rule
+        exercise.equipment_any_of = profile.equipment_any_of

@@ -7,6 +7,7 @@ import type { CurrentUser } from "@/api/types";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "offline";
 const LAST_ACCOUNT_KEY = "workout_logger_last_verified_account";
+const RECONNECT_RETRY_MS = 250;
 
 interface AuthState {
   user: CurrentUser | null;
@@ -57,24 +58,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     const current = ++attempt.current;
-    if (!navigator.onLine) {
-      setAuth(offlineAccount());
-      return;
-    }
-    try {
-      const me = await apiFetch<CurrentUser>("/auth/me");
+    for (let check = 0; check < 2; check += 1) {
       if (current !== attempt.current) return;
-      if (readLastAccount() !== me.id) queryClient.clear();
-      writeLastAccount(me.id);
-      setAuth({ user: me, status: "authenticated", accountId: me.id });
-    } catch (error) {
-      if (current !== attempt.current) return;
-      if (error instanceof TypeError || (error instanceof ApiError && error.status >= 500)) {
+      if (!navigator.onLine) {
         setAuth(offlineAccount());
-      } else {
-        writeLastAccount(null);
-        queryClient.clear();
-        setAuth(SIGNED_OUT);
+        return;
+      }
+      try {
+        const me = await apiFetch<CurrentUser>("/auth/me");
+        if (current !== attempt.current) return;
+        if (readLastAccount() !== me.id) queryClient.clear();
+        writeLastAccount(me.id);
+        setAuth({ user: me, status: "authenticated", accountId: me.id });
+        return;
+      } catch (error) {
+        if (current !== attempt.current) return;
+        const unavailable = error instanceof TypeError || (error instanceof ApiError && error.status >= 500);
+        if (!unavailable) {
+          writeLastAccount(null);
+          queryClient.clear();
+          setAuth(SIGNED_OUT);
+          return;
+        }
+        setAuth(offlineAccount());
+        // The browser's online event can precede a usable network route.
+        if (check === 0 && navigator.onLine) {
+          await new Promise<void>((resolve) => window.setTimeout(resolve, RECONNECT_RETRY_MS));
+        }
       }
     }
   }, [queryClient]);
@@ -98,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("offline", connectionChanged);
     window.addEventListener("storage", accountChanged);
     return () => {
+      attempt.current += 1;
       window.removeEventListener("online", connectionChanged);
       window.removeEventListener("offline", connectionChanged);
       window.removeEventListener("storage", accountChanged);

@@ -286,6 +286,9 @@ capture times. Finish the workout after its queued sets synchronize.
 After the browser has loaded the live workout online, reloading `/workout` offline can resume its
 local snapshot for the last verified account. The server verifies that account again before the
 browser sends queued sets. Signing out clears the local resume snapshot.
+For barbell lifts, open **Barbell plates** below the weight field to see the exact stack for
+each side. The panel labels its default inventory and shows the nearest supported loads when
+an exact stack is unavailable. The workout saves the value in the weight field.
 
 **Download training CSV** exports the visible Training load window using the same local-week
 boundaries. The UTF-8 file has one `session` row per workout or activity with duration and

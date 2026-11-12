@@ -30,6 +30,7 @@ import {
 import type { HudRow } from "@/lib/workout-hud";
 import { ScaleSelect } from "@/ui/ScaleSelect";
 import { useRestCountdown } from "./RestOverlay";
+import { BarbellPlateCalculator } from "./BarbellPlateCalculator";
 import { EMPTY_DRAFT, FIELD_SPECS_BY_KIND, draftToValues, fieldHint } from "./SetRow";
 import type { FieldSpec, SetValues } from "./SetRow";
 
@@ -661,6 +662,10 @@ function SetPanel({
   );
   const rirSpec = specs.find((spec) => spec.draftKey === "rir");
   const bandSpec = specs.find((spec) => spec.draftKey === "band_level");
+  const equipment = row.exercise.equipment_any_of ?? [];
+  const showBarbellCalculator = kind === "strength" &&
+    (row.exercise.equipment_load_mode ?? "standard") === "standard" &&
+    (equipment.length === 0 || equipment.some((option) => option.includes("barbell")));
 
   let action: ReactNode;
   if (row.entry?.pending) {
@@ -753,6 +758,7 @@ function SetPanel({
           </div>
         ))}
       </div>
+      {showBarbellCalculator ? <BarbellPlateCalculator weight={draft.weight} /> : null}
       {rirSpec ? (
         <EffortFields draft={draft} disabled={locked} onChange={update} />
       ) : null}

@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.common import OrmModel, require_timezone_aware_utc
+from app.schemas.exercises import EquipmentTag
 from app.services.volume import LoadMode as EquipmentLoadMode
 
 
@@ -142,6 +143,7 @@ class SessionExerciseRead(OrmModel):
     # From the exercise catalogue (app/services/volume.py); volume and reps
     # count completed sets only.
     equipment_load_mode: EquipmentLoadMode = "standard"
+    equipment_any_of: list[list[EquipmentTag]] = Field(default_factory=list)
     is_unilateral: bool = False
     total_reps: int = 0
     volume_kg: float = 0.0
