@@ -14,7 +14,11 @@ def _escape_like(value: str) -> str:
 
 
 async def list_exercises(
-    session: AsyncSession, limit: int | None, offset: int, query: str | None = None
+    session: AsyncSession,
+    limit: int | None,
+    offset: int,
+    query: str | None = None,
+    movement_pattern: str | None = None,
 ) -> tuple[list[Exercise], int]:
     statement = select(Exercise)
     term = (query or "").strip().lower()
@@ -26,6 +30,10 @@ async def list_exercises(
                 func.lower(Exercise.name).like(pattern, escape="\\"),
                 func.lower(cast(Exercise.aliases, String)).like(pattern, escape="\\"),
             )
+        )
+    if movement_pattern:
+        statement = statement.where(
+            cast(Exercise.movement_patterns, String).like(f'%"{movement_pattern}"%')
         )
     total = await session.scalar(select(func.count()).select_from(statement.subquery()))
     result = await session.execute(

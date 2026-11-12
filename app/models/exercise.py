@@ -44,6 +44,9 @@ class Exercise(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     media_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     primary_muscles: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     secondary_muscles: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    movement_patterns: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default=text("'[]'")
+    )
     instructions: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     equipment: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # Alternatives: each inner list is one complete set of equipment tags

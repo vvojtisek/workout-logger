@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
-import type { CatalogExercise, EquipmentTag, MuscleTag } from "@/api/types";
-import { MUSCLE_LABELS } from "@/lib/exercise-catalogue";
-import { MUSCLE_TAGS } from "@/api/types";
+import type { CatalogExercise, EquipmentTag, MovementPattern, MuscleTag } from "@/api/types";
+import { MOVEMENT_PATTERNS, MUSCLE_TAGS } from "@/api/types";
+import { MOVEMENT_PATTERN_LABELS, MUSCLE_LABELS } from "@/lib/exercise-catalogue";
 import { MAX_EQUIPMENT_OPTIONS, toggleEquipmentTag } from "@/lib/equipment";
 import { exercisePayloadSchema } from "@/lib/exercise-schema";
 import { EQUIPMENT_LOAD_MODES, LOAD_MODE_LABELS } from "@/lib/load-rules";
@@ -43,6 +43,45 @@ function MuscleTagPicker({
               style={{ minHeight: "var(--touch)" }}
             >
               {MUSCLE_LABELS[tag]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MovementPatternPicker({
+  selected,
+  onToggle,
+}: {
+  selected: MovementPattern[];
+  onToggle: (pattern: MovementPattern) => void;
+}) {
+  return (
+    <div>
+      <span className="field-label">Movement patterns</span>
+      <p className="mb-2 text-sm text-muted">
+        Classify the exercise by its main movement demands. Leave blank when unsure.
+      </p>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Movement patterns">
+        {MOVEMENT_PATTERNS.map((pattern) => {
+          const active = selected.includes(pattern);
+          return (
+            <button
+              key={pattern}
+              type="button"
+              aria-pressed={active}
+              disabled={!active && selected.length >= 4}
+              onClick={() => onToggle(pattern)}
+              className={`rounded-full border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 ${
+                active
+                  ? "border-accent bg-accent text-on-accent"
+                  : "border-line-muted bg-surface text-muted hover:text-main"
+              }`}
+              style={{ minHeight: "var(--touch)" }}
+            >
+              {MOVEMENT_PATTERN_LABELS[pattern]}
             </button>
           );
         })}
@@ -165,6 +204,7 @@ function buildPayload(state: {
   media_url: string;
   primary_muscles: MuscleTag[];
   secondary_muscles: MuscleTag[];
+  movement_patterns: MovementPattern[];
   instructions: string[];
   equipment: string;
   equipment_any_of: EquipmentTag[][] | null;
@@ -178,6 +218,7 @@ function buildPayload(state: {
     media_url: state.media_url.trim() || null,
     primary_muscles: state.primary_muscles,
     secondary_muscles: state.secondary_muscles,
+    movement_patterns: state.movement_patterns,
     instructions: state.instructions.map((step) => step.trim()).filter((step) => step.length > 0),
     equipment: state.equipment.trim() || null,
     equipment_any_of: state.equipment_any_of,
@@ -198,6 +239,7 @@ export function ExerciseBuilder() {
   const [mediaUrl, setMediaUrl] = useState("");
   const [primaryMuscles, setPrimaryMuscles] = useState<MuscleTag[]>([]);
   const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleTag[]>([]);
+  const [movementPatterns, setMovementPatterns] = useState<MovementPattern[]>([]);
   const [instructions, setInstructions] = useState<string[]>([]);
   const [equipment, setEquipment] = useState("");
   // null: let the server read the tags from the equipment text.
@@ -225,6 +267,7 @@ export function ExerciseBuilder() {
     setMediaUrl(existing.media_url ?? "");
     setPrimaryMuscles(existing.primary_muscles);
     setSecondaryMuscles(existing.secondary_muscles);
+    setMovementPatterns(existing.movement_patterns);
     setInstructions(existing.instructions);
     setEquipment(existing.equipment ?? "");
     setEquipmentAnyOf(existing.equipment_any_of.length > 0 ? existing.equipment_any_of : null);
@@ -262,6 +305,16 @@ export function ExerciseBuilder() {
     setList(list.includes(tag) ? list.filter((t) => t !== tag) : [...list, tag]);
   }
 
+  function toggleMovementPattern(pattern: MovementPattern) {
+    setMovementPatterns((selected) =>
+      selected.includes(pattern)
+        ? selected.filter((item) => item !== pattern)
+        : selected.length < 4
+          ? [...selected, pattern]
+          : selected,
+    );
+  }
+
   function submit() {
     const payload = buildPayload({
       name,
@@ -269,6 +322,7 @@ export function ExerciseBuilder() {
       media_url: mediaUrl,
       primary_muscles: primaryMuscles,
       secondary_muscles: secondaryMuscles,
+      movement_patterns: movementPatterns,
       instructions,
       equipment,
       equipment_any_of: equipmentAnyOf,
@@ -355,6 +409,7 @@ export function ExerciseBuilder() {
           selected={primaryMuscles}
           onToggle={(tag) => toggleMuscle(primaryMuscles, setPrimaryMuscles, tag)}
         />
+        <MovementPatternPicker selected={movementPatterns} onToggle={toggleMovementPattern} />
         <MuscleTagPicker
           label="Secondary muscles"
           selected={secondaryMuscles}

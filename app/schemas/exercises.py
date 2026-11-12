@@ -48,6 +48,22 @@ EquipmentTag = Literal[
 ]
 EquipmentOption = Annotated[list[EquipmentTag], Field(min_length=1, max_length=8)]
 
+MovementPattern = Literal[
+    "horizontal_push",
+    "horizontal_pull",
+    "vertical_push",
+    "vertical_pull",
+    "squat",
+    "hinge",
+    "lunge",
+    "carry",
+    "rotation",
+    "anti_rotation",
+    "trunk_flexion",
+    "trunk_extension",
+    "locomotion",
+]
+
 Alias = Annotated[str, Field(min_length=1, max_length=150)]
 InstructionStep = Annotated[str, Field(min_length=1, max_length=1000)]
 
@@ -60,6 +76,7 @@ class ExerciseCreate(BaseModel):
     media_url: str | None = Field(default=None, max_length=2000)
     primary_muscles: list[MuscleTag] = Field(default_factory=list)
     secondary_muscles: list[MuscleTag] = Field(default_factory=list)
+    movement_patterns: list[MovementPattern] = Field(default_factory=list, max_length=4)
     instructions: list[InstructionStep] = Field(default_factory=list)
     equipment: str | None = Field(default=None, max_length=200)
     # Alternatives, each a full set of tags. Left out, it is read from the
@@ -86,6 +103,13 @@ class ExerciseCreate(BaseModel):
     @classmethod
     def instructions_not_blank(cls, value: list[str]) -> list[str]:
         return [require_non_empty(step, "instruction step") for step in value]
+
+    @field_validator("movement_patterns")
+    @classmethod
+    def movement_patterns_are_unique(cls, value: list[MovementPattern]) -> list[MovementPattern]:
+        if len(value) != len(set(value)):
+            raise ValueError("movement_patterns cannot contain duplicates")
+        return value
 
     @model_validator(mode="after")
     def fill_equipment_tags(self) -> "ExerciseCreate":
@@ -120,6 +144,7 @@ class ExerciseRead(OrmModel):
     media_url: str | None
     primary_muscles: list[str]
     secondary_muscles: list[str]
+    movement_patterns: list[str]
     instructions: list[str]
     equipment: str | None
     equipment_any_of: list[list[str]]

@@ -18,6 +18,12 @@ describe("exerciseListPath", () => {
       "/exercises?limit=100&offset=0&location_id=loc-1",
     );
   });
+
+  it("filters by a movement pattern alongside the search", () => {
+    expect(exerciseListPath(" row ", 0, "", "horizontal_pull")).toBe(
+      "/exercises?limit=100&offset=0&q=row&movement_pattern=horizontal_pull",
+    );
+  });
 });
 
 describe("fetchCatalogueNames", () => {

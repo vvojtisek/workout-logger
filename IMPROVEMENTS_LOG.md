@@ -480,3 +480,29 @@ browser lacks audio or vibration support.
 - Browser verification recipe. In Settings, leave both rest cues on and reload. Start a workout,
   complete a set with a two-second rest, and wait past its deadline. Confirm one tone and one
   vibration. Repeat with each cue disabled to verify independent preferences.
+
+## Cycle 20 — Classify and filter exercises by movement pattern
+
+Exercise catalogue entries can now carry up to four validated movement-pattern tags: horizontal
+and vertical pushes and pulls, squat, hinge, lunge, carry, rotation and anti-rotation, trunk
+flexion and extension, and locomotion. Classifications complement muscle and equipment tags and
+do not claim a joint-stress score. Existing entries migrate as unclassified until someone edits
+them. The catalogue editor and detail/list views expose the tags, and both the API and catalogue
+filter can select exercises by one movement pattern before pagination and location matching.
+
+- API tests verify round-trip and replacement, reject unknown or duplicate tags and unknown
+  filters, and confirm multi-tag matches are filtered before pagination. The migration test
+  preserves a pre-existing exercise with an empty classification and verifies downgrade removes
+  only the added column. Test-first runs showed five API failures and one frontend URL-builder
+  failure before the implementation.
+- A real localhost, migrated-SQLite Playwright journey created, read, edited, searched, filtered,
+  and deleted a tagged exercise on desktop and phone layouts. E2E cleanup confirmed zero rows in
+  all nine tracked tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 717 tests at 82% coverage. The required Ruff gate, format check, mypy, and
+  `git diff --check` passed. Informational full Ruff remains at the existing 151 findings.
+- ESLint, TypeScript, and Vite build passed; `npm test` passed all 202 tests. Full localhost
+  Playwright passed 75 tests with seven expected viewport skips.
+- Browser verification recipe. In Exercise Catalogue, create or edit an exercise and select one
+  or more movement patterns. Confirm the tags on its detail and list cards. Filter by one pattern
+  and check that matching multi-tag exercises remain; clear the filter to restore the catalogue.

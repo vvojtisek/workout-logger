@@ -213,6 +213,24 @@ export const EQUIPMENT_TAGS = [
 
 export type EquipmentTag = (typeof EQUIPMENT_TAGS)[number];
 
+export const MOVEMENT_PATTERNS = [
+  "horizontal_push",
+  "horizontal_pull",
+  "vertical_push",
+  "vertical_pull",
+  "squat",
+  "hinge",
+  "lunge",
+  "carry",
+  "rotation",
+  "anti_rotation",
+  "trunk_flexion",
+  "trunk_extension",
+  "locomotion",
+] as const;
+
+export type MovementPattern = (typeof MOVEMENT_PATTERNS)[number];
+
 export interface CatalogExercise {
   id: string;
   name: string;
@@ -220,6 +238,7 @@ export interface CatalogExercise {
   media_url: string | null;
   primary_muscles: MuscleTag[];
   secondary_muscles: MuscleTag[];
+  movement_patterns: MovementPattern[];
   instructions: string[];
   equipment: string | null;
   // Alternatives: any one option will do, and an option needs all its tags.

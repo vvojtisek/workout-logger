@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, MuscleTag } from "@/api/types";
-import { MUSCLE_LABELS } from "@/lib/exercise-catalogue";
+import { MOVEMENT_PATTERN_LABELS, MUSCLE_LABELS } from "@/lib/exercise-catalogue";
 import { ProgressionCard } from "@/features/progression/ProgressionCard";
 import { useExerciseProgression } from "@/features/progression/useExerciseProgression";
 import { describeEquipmentOptions } from "@/lib/equipment";
@@ -140,6 +140,23 @@ export function ExerciseDetailView() {
             <MuscleBadgeList title="Secondary muscles" muscles={exercise.secondary_muscles} />
           </>
         )}
+        <div>
+          <h3 className="mb-1.5 text-sm font-medium text-muted">Movement patterns</h3>
+          {exercise.movement_patterns.length === 0 ? (
+            <p className="text-sm text-muted">Unclassified</p>
+          ) : (
+            <ul className="flex flex-wrap gap-2">
+              {exercise.movement_patterns.map((pattern) => (
+                <li
+                  key={pattern}
+                  className="rounded-full bg-elevated px-3 py-1 text-sm font-medium"
+                >
+                  {MOVEMENT_PATTERN_LABELS[pattern]}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </Card>
 
       <Card className="mt-4 p-4">

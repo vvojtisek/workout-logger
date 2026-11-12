@@ -1174,3 +1174,34 @@ def test_per_set_detail_migration_backfills_from_the_finished_session(
         columns = {row[1] for row in connection.execute(text("PRAGMA table_info(exercise_logs)"))}
     assert "weight_per_set" not in columns
     sync_engine.dispose()
+
+
+def test_exercise_movement_pattern_migration_preserves_existing_catalogue_rows(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "b2c4d6e8f0a1")
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    exercise_id = str(uuid.uuid4())
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO exercises (id, name, aliases, primary_muscles, secondary_muscles, "
+                "instructions, created_at, updated_at) VALUES (:id, 'Legacy lift', '[]', '[]', "
+                "'[]', '[]', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": exercise_id},
+        )
+
+    command.upgrade(alembic_config, "head")
+    with sync_engine.connect() as connection:
+        patterns = connection.scalar(
+            text("SELECT movement_patterns FROM exercises WHERE id = :id"),
+            {"id": exercise_id},
+        )
+    assert patterns == "[]"
+
+    command.downgrade(alembic_config, "b2c4d6e8f0a1")
+    with sync_engine.connect() as connection:
+        columns = {row[1] for row in connection.execute(text("PRAGMA table_info(exercises)"))}
+    assert "movement_patterns" not in columns
+    sync_engine.dispose()

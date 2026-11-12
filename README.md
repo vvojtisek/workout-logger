@@ -240,6 +240,11 @@ The other options use sets of 1–10 reps. The estimates use logged reps as inpu
 that assume reps to failure, and each chart point shows the set behind its estimate. Older
 logs with a single weight use that weight for every set. [Reference for the equations, Table 1](https://doi.org/10.1007/s11332-024-01264-y).
 
+Exercise catalogue entries can also carry up to four movement-pattern tags (push/pull directions,
+squat, hinge, lunge, carry, trunk work, and locomotion). Use the catalogue's **Movement pattern**
+filter or `GET /api/v1/exercises?movement_pattern=hinge` to find classified exercises. Existing
+entries remain unclassified until edited; movement tags supplement muscle and equipment tags.
+
 The desktop history range can show the last 30, 90, or 365 days or all history. For a fixed
 window, pass both timezone-aware `date_from` (inclusive) and `date_to` (exclusive) to the
 exercise stats endpoint. The window applies to both the headline stats and the chart.
