@@ -92,6 +92,7 @@ export interface ExerciseSessionPoint {
 export interface RepRetentionGroup {
   weight_kg: number;
   reps_per_set: number[];
+  rir_per_set: (number | null)[];
   retention_percent: number;
 }
 

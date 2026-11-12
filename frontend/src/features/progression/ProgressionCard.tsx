@@ -131,6 +131,11 @@ export function ProgressionCard({
                 <div className="text-sm">
                   <span>{formatKg(group.weight_kg)} · {group.reps_per_set.join(" → ")}</span>
                   <span className="ml-2 text-xs text-muted">{group.retention_percent}% retained</span>
+                  {group.rir_per_set.some((rir) => rir !== null) ? (
+                    <span className="block text-xs text-muted">
+                      RIR {group.rir_per_set.map((rir) => rir ?? "—").join(" → ")}
+                    </span>
+                  ) : null}
                 </div>
                 <svg
                   role="img"

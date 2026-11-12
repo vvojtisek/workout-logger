@@ -24,7 +24,7 @@ test("catalogue progression reviews completed lifts without an active workout", 
           weight_kg: 60,
           weight_per_set: [60, 60, 50],
           reps_per_set: [6, 3, 7],
-          rir_per_set: [2, 3, 0],
+          rir_per_set: [2, null, 0],
         }],
       },
     });
@@ -36,7 +36,7 @@ test("catalogue progression reviews completed lifts without an active workout", 
     const exerciseStats = (await stats.json()).items[0];
     expect(exerciseStats.estimated_one_rep_max_kg).toBe(76);
     expect(exerciseStats.rep_retention).toEqual([
-      { weight_kg: 60, reps_per_set: [6, 3], retention_percent: 50 },
+      { weight_kg: 60, reps_per_set: [6, 3], rir_per_set: [2, null], retention_percent: 50 },
     ]);
     expect(exerciseStats.formula_agreement.reference_weight_kg).toBe(60);
     expect(exerciseStats.formula_agreement.reference_reps).toBe(6);
@@ -45,6 +45,7 @@ test("catalogue progression reviews completed lifts without an active workout", 
     const panel = page.getByTestId("progression-card");
     await expect(panel).toContainText("Best 60 kg × 6");
     await expect(panel).toContainText("60 kg · 6 → 3");
+    await expect(panel).toContainText("RIR 2 → —");
     await expect(panel).toContainText("50% retained");
     await expect(panel.getByRole("img", { name: "60 kg same-load rep curve: 6, 3 reps by set" })).toBeVisible();
     const agreement = panel.getByTestId("formula-agreement");

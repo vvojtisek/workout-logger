@@ -43,10 +43,11 @@ class ExerciseSessionPoint(BaseModel):
 
 
 class RepRetentionGroup(BaseModel):
-    """Repetition sequence from sets performed at one recorded external load."""
+    """Repetition and reported-effort sequences at one recorded external load."""
 
     weight_kg: float
     reps_per_set: list[int]
+    rir_per_set: list[int | None]
     retention_percent: float
 
 

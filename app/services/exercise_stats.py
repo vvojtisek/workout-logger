@@ -79,20 +79,23 @@ def _recent_point(
 
 
 def _same_load_rep_retention(entry: ExerciseLog) -> list[RepRetentionGroup]:
-    """Compare repetitions only across sets at a repeated recorded load."""
-    sets_by_load: dict[float, list[int]] = {}
-    for weight, reps in entry.sets_with_weights:
+    """Compare repetitions and reported RIR across sets at a repeated load."""
+    sets_by_load: dict[float, list[tuple[int, int | None]]] = {}
+    rir_by_set = entry.rir_per_set or []
+    for index, (weight, reps) in enumerate(entry.sets_with_weights):
         if weight is not None:
-            sets_by_load.setdefault(round(weight, 3), []).append(reps)
+            rir = rir_by_set[index] if index < len(rir_by_set) else None
+            sets_by_load.setdefault(round(weight, 3), []).append((reps, rir))
 
     return [
         RepRetentionGroup(
             weight_kg=weight,
-            reps_per_set=reps,
-            retention_percent=round(reps[-1] / reps[0] * 100, 1),
+            reps_per_set=[reps for reps, _ in sets],
+            rir_per_set=[rir for _, rir in sets],
+            retention_percent=round(sets[-1][0] / sets[0][0] * 100, 1),
         )
-        for weight, reps in sets_by_load.items()
-        if len(reps) >= 2 and reps[0] > 0
+        for weight, sets in sets_by_load.items()
+        if len(sets) >= 2 and sets[0][0] > 0
     ]
 
 

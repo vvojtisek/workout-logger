@@ -907,3 +907,20 @@ the view reports recorded effort without estimating effort for unrated sets.
 - Browser verification recipe. Log sets with different RIR values, plus a workout with unreported
   RIR, then open **Training load**. Select each week and confirm the set counts and Unreported row
   match the workout records.
+
+## Cycle 39 — Show effort beside same-load rep drop-off
+
+Exercise progression now shows the recorded RIR sequence next to repetitions for each repeated
+load in the latest session. The API keeps RIR aligned with its corresponding set and represents
+unknown effort as null; the card renders unknown entries as an em dash. The existing retention
+percentage remains a repetitions-only measure.
+
+- Backend coverage checks mixed reported and unreported RIR, plus older logs with no RIR field.
+  The real-API browser journey checks the repeated-load sequence on desktop and phone.
+- `uv run pytest -q` passed all 742 backend tests; `npm test` passed all 225 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips. Temporary E2E
+  rows containing the unique run tag were removed and a database scan confirmed no remaining hits.
+- Browser verification recipe. Log multiple sets at the same load with different repetitions and
+  include one set with unreported RIR. Open that exercise's progression card and confirm the RIR
+  sequence lines up with the rep sequence while the unknown set is visibly marked.
