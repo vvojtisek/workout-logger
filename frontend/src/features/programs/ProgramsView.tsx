@@ -116,6 +116,12 @@ export function ProgramsView() {
                   summary={scheduleSummaries[program.id]}
                 />
               ) : null}
+              {scheduleSummaries[program.id] ? (
+                <ProgramWeeklyStateTable
+                  program={program}
+                  weeks={scheduleSummaries[program.id].weeks}
+                />
+              ) : null}
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button onClick={() => void navigate(`/programs/${program.id}/edit`)}>Edit</Button>
@@ -209,5 +215,54 @@ function ProgramWeekScheduleSummary({
       Week {counts.week_number} · Scheduled {counts.scheduled} · In progress {counts.in_progress} ·
       {" "}Completed {counts.completed} · Skipped {counts.skipped}
     </p>
+  );
+}
+
+function ProgramWeeklyStateTable({
+  program,
+  weeks,
+}: {
+  program: Program;
+  weeks: ProgramScheduleSummary["weeks"];
+}) {
+  return (
+    <details className="mt-2 text-xs">
+      <summary className="w-fit cursor-pointer text-muted underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+        Week-by-week states
+      </summary>
+      <div className="mt-2 max-w-full overflow-x-auto">
+        {weeks.length > 0 ? (
+          <table
+            aria-label={`${program.name} weekly schedule states`}
+            className="w-full border-collapse text-left"
+          >
+            <thead>
+              <tr className="border-b border-border text-muted">
+                <th scope="col" className="py-1 pr-3 font-medium">Week</th>
+                <th scope="col" className="px-2 py-1 font-medium">Scheduled</th>
+                <th scope="col" className="px-2 py-1 font-medium">In progress</th>
+                <th scope="col" className="px-2 py-1 font-medium">Completed</th>
+                <th scope="col" className="px-2 py-1 font-medium">Skipped</th>
+              </tr>
+            </thead>
+            <tbody>
+              {weeks.map((week) => (
+                <tr key={week.week_number} className="border-b border-border/60">
+                  <th scope="row" className="py-1 pr-3 font-medium">
+                    Week {week.week_number}
+                  </th>
+                  <td className="px-2 py-1 tabular-nums">{week.scheduled}</td>
+                  <td className="px-2 py-1 tabular-nums">{week.in_progress}</td>
+                  <td className="px-2 py-1 tabular-nums">{week.completed}</td>
+                  <td className="px-2 py-1 tabular-nums">{week.skipped}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-muted">No workouts scheduled inside this block.</p>
+        )}
+      </div>
+    </details>
   );
 }

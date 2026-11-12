@@ -832,3 +832,23 @@ an inferred completion score.
   open Programs. Confirm its active week shows one Scheduled workout. Start it and check the
   count moves to In progress; cancel the workout and confirm it returns to Scheduled. A skipped
   workout should remain distinct from both scheduled and completed sessions.
+
+## Cycle 35 — Inspect schedule states across the full block
+
+Programs now expose a collapsed week-by-week table with scheduled, in-progress, completed, and
+skipped counts for every microcycle that contains a scheduled workout. The table uses the existing
+date-bounded API summary, keeps status categories separate, and leaves the current-week summary
+visible for a quick scan. This makes planned distribution and gaps across the block inspectable
+without crowding the program list or implying that unlike states combine into a completion score.
+
+- The real-API browser journey creates a second-week workout, expands the accessible table, checks
+  Week 1 and Week 2 counts, then deletes the added record and verifies its absence on desktop and
+  phone. E2E audit rows bearing this cycle's unique run IDs were also removed from the temporary
+  SQLite database and checked for absence.
+- `uv run pytest -q` passed all 739 backend tests; `npm test` passed all 225 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips.
+- Browser verification recipe. Open a program with scheduled workouts in at least two weeks and
+  expand **Week-by-week states**. Compare each row's four state counts with the Calendar; weeks
+  with no scheduled workouts are omitted, and a block with no scheduled workouts shows an empty
+  state.
