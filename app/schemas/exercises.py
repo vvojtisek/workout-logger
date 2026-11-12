@@ -136,7 +136,10 @@ class ExerciseCreate(BaseModel):
     def synchronize_primary_movement_pattern(self) -> "ExerciseCreate":
         if self.movement_pattern is None and self.movement_patterns:
             self.movement_pattern = self.movement_patterns[0]
-        elif self.movement_pattern is not None and self.movement_pattern not in self.movement_patterns:
+        elif (
+            self.movement_pattern is not None
+            and self.movement_pattern not in self.movement_patterns
+        ):
             if len(self.movement_patterns) >= 4:
                 raise ValueError(
                     "movement_pattern must be one of movement_patterns when all four are set"

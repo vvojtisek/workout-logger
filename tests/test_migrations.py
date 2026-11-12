@@ -1255,7 +1255,6 @@ def test_per_set_detail_migration_backfills_from_the_finished_session(
     sync_engine.dispose()
 
 
-
 def test_custom_progression_increment_migration_preserves_existing_exercises(
     alembic_config, alembic_db_path
 ):
