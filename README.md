@@ -267,6 +267,10 @@ vertical push/pull, squat, hinge, lunge, carry, rotation, core stability, or loc
 entries remain unclassified until someone reviews and tags them. The catalogue can filter by the
 selected pattern; movement classification complements the primary and secondary muscle tags.
 
+The plan editor also summarizes prescribed set counts by movement pattern as you change the
+exercise list. It matches catalogue names and aliases, reports free-text and ambiguous matches as
+unclassified, and keeps the counts descriptive rather than grading the plan against a fixed ratio.
+
 The desktop history range can show the last 30, 90, or 365 days or all history. For a fixed
 window, pass both timezone-aware `date_from` (inclusive) and `date_to` (exclusive) to the
 exercise stats endpoint. The window applies to both the headline stats and the chart.

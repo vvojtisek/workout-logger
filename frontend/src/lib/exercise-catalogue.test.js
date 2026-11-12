@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { exerciseListPath, fetchCatalogueNames } from "./exercise-catalogue";
+import {
+  exerciseListPath,
+  fetchCatalogueExercises,
+  fetchCatalogueNames,
+} from "./exercise-catalogue";
 
 describe("exerciseListPath", () => {
   it("lists the first page without a search", () => {
@@ -45,5 +49,40 @@ describe("fetchCatalogueNames", () => {
   it("stops on an empty page even if the total is stale", async () => {
     const names = await fetchCatalogueNames(async () => ({ items: [], total: 5 }));
     expect(names).toEqual([]);
+  });
+});
+
+describe("fetchCatalogueExercises", () => {
+  it("pages through exercise metadata for plan summaries", async () => {
+    const all = Array.from({ length: 121 }, (_, index) => ({
+      id: String(index),
+      name: `Lift ${index}`,
+      aliases: [],
+      media_url: null,
+      primary_muscles: [],
+      secondary_muscles: [],
+      instructions: [],
+      equipment: null,
+      equipment_any_of: [],
+      safety_notes: null,
+      progression_increment_kg: null,
+      equipment_load_mode: /** @type {"standard"} */ ("standard"),
+      movement_pattern: null,
+      is_unilateral: false,
+      created_at: "",
+      updated_at: "",
+    }));
+    /** @type {string[]} */
+    const paths = [];
+    const exercises = await fetchCatalogueExercises(async (path) => {
+      paths.push(path);
+      const offset = Number(/offset=(\d+)/.exec(path)?.[1]);
+      const items = all.slice(offset, offset + 100);
+      return { items, total: all.length, limit: 100, offset };
+    });
+
+    expect(paths).toEqual(["/exercises?limit=100&offset=0", "/exercises?limit=100&offset=100"]);
+    expect(exercises).toHaveLength(121);
+    expect(exercises[120]?.name).toBe("Lift 120");
   });
 });

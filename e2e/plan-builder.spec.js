@@ -10,6 +10,7 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
   const tag = `[E2E:${TEST_RUN_ID}:builder]`;
   let planId;
   let sessionId;
+  let catalogueExerciseId;
 
   try {
     page.setDefaultTimeout(5_000);
@@ -19,6 +20,12 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
     await page.goto("/");
     await openPage(page, "Plans");
     await expect(page.getByRole("heading", { name: "Workout Plans" })).toBeVisible();
+
+    const catalogueResponse = await request.post("/api/v1/exercises", {
+      data: { name: `${tag} Squat`, movement_pattern: "squat" },
+    });
+    expect(catalogueResponse.status()).toBe(201);
+    catalogueExerciseId = (await catalogueResponse.json()).id;
 
     // Build a two-exercise superset plan entirely through the UI.
     await page.getByRole("button", { name: "New program" }).click();
@@ -51,6 +58,12 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
     await rowTwo.getByLabel("Target weight (kg)").fill("20");
     await rowTwo.getByLabel("Rest seconds").fill("45");
     await rowTwo.getByLabel("Superset group").fill(`${tag} superset`);
+
+    const patternSummary = page.getByRole("region", { name: "Plan movement balance" });
+    await expect(patternSummary).toContainText("Squat");
+    await expect(patternSummary).toContainText("4 target sets");
+    await expect(patternSummary).toContainText("Unclassified");
+    await expect(patternSummary).toContainText("3 target sets");
 
     await clickAndAwaitWrite(page, page.getByRole("button", { name: "Create program" }), "POST");
     await expect(page.getByRole("heading", { name: "Workout Plans" })).toBeVisible();
@@ -173,6 +186,9 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
     if (planId) {
       await request.delete(`/api/v1/plans/${planId}`);
       expect((await request.get(`/api/v1/plans/${planId}`)).status()).toBe(404);
+    }
+    if (catalogueExerciseId) {
+      expect((await request.delete(`/api/v1/exercises/${catalogueExerciseId}`)).status()).toBe(204);
     }
   }
 });

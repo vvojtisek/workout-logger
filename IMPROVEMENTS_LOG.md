@@ -468,3 +468,25 @@ The selected profile's bar weight and inventory drive the load calculation.
 - Browser verification recipe. In **Settings → Preferences**, add a profile with a different
   bar weight and inventory. Start a strength workout, open **Plate calculator**, select that
   profile, and confirm both the displayed bar contribution and the per-side plate load update.
+
+## Cycle 30 — Review planned set exposure by movement pattern
+
+The plan editor now shows a live summary of target sets by movement pattern. It matches planned
+exercise names and aliases to the reviewed catalogue taxonomy and reports untagged, ambiguous, or
+free-text rows as unclassified. Counts describe the prescription; they do not grade it against a
+universal balance target.
+
+- A pure summary helper regression covers exact names, aliases, case-insensitive matching,
+  ambiguous aliases, unclassified catalogue entries, and invalid or blank draft rows. The
+  migrated-SQLite browser journey verifies a tagged squat and an unmatched lunge appear in their
+  respective groups while building a real superset plan; generated exercises and plans are
+  removed, and all nine tracked tables are empty after cleanup.
+- Backend coverage passed 722 tests at 82%. ESLint, TypeScript, all 211 Vitest tests, and the Vite
+  production build passed. Required Ruff rules, Ruff format, mypy, the single Alembic head check,
+  and `git diff --check` passed. Informational full Ruff remains at the existing 151 findings.
+- Full localhost Playwright passed 70 tests with four viewport-specific skips; cleanup found zero
+  rows in every tracked table.
+- Browser verification recipe. Create or edit a plan using a catalogue exercise with a reviewed
+  movement pattern alongside a free-text or unclassified exercise. Watch **Planned sets by
+  movement pattern** update as target set counts change; the unclassified bucket should remain
+  separate.

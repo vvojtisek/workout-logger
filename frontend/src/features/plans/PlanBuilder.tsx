@@ -4,7 +4,8 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, Paginated, WorkoutPlan } from "@/api/types";
-import { fetchCatalogueNames } from "@/lib/exercise-catalogue";
+import { fetchCatalogueExercises, MOVEMENT_PATTERN_LABELS } from "@/lib/exercise-catalogue";
+import { summarizePlanPatterns } from "@/lib/plan-pattern-balance";
 import { planPayloadSchema } from "@/lib/plan-schema";
 import { useSettingsQuery } from "@/lib/settings-query";
 import type { ExerciseKind } from "@/lib/workout-utils";
@@ -118,12 +119,13 @@ export function PlanBuilder() {
     enabled: isEditing,
   });
   // Suggestions only: a name outside the catalogue is still a valid plan exercise.
-  const { data: catalogueNames = [] } = useQuery({
-    queryKey: ["exercise-catalogue-names"],
+  const { data: catalogueExercises = [] } = useQuery({
+    queryKey: ["exercise-catalogue"],
     queryFn: () =>
-      fetchCatalogueNames((path) => apiFetch<Paginated<CatalogExercise>>(path)),
+      fetchCatalogueExercises((path) => apiFetch<Paginated<CatalogExercise>>(path)),
     staleTime: 5 * 60_000,
   });
+  const movementBalance = summarizePlanPatterns(rows, catalogueExercises);
 
   useEffect(() => {
     if (!existingPlan || seededPlanId.current === existingPlan.id) return;
@@ -207,8 +209,8 @@ export function PlanBuilder() {
   return (
     <section id="plan-builder-view">
       <datalist id="exercise-catalogue-names">
-        {catalogueNames.map((catalogueName) => (
-          <option key={catalogueName} value={catalogueName} />
+        {catalogueExercises.map((exercise) => (
+          <option key={exercise.id} value={exercise.name} />
         ))}
       </datalist>
       <PageHeading hint="Superset rows by giving them the same group name.">
@@ -463,6 +465,37 @@ export function PlanBuilder() {
             </div>
           ))}
         </div>
+        {movementBalance.length > 0 ? (
+          <section
+            className="mt-3 rounded-lg border border-line-muted p-3"
+            aria-label="Plan movement balance"
+            role="region"
+          >
+            <h4 className="font-medium">Planned sets by movement pattern</h4>
+            <p className="mt-1 text-xs text-muted">
+              Descriptive prescription totals. Catalogue name or alias matches determine the
+              pattern; unmatched, ambiguous, and unclassified exercises stay unclassified.
+            </p>
+            <ul className="mt-2 flex flex-col gap-1 text-sm">
+              {movementBalance.map((item) => (
+                <li
+                  key={item.movement_pattern ?? "unclassified"}
+                  className="flex justify-between gap-3"
+                >
+                  <span>
+                    {item.movement_pattern
+                      ? MOVEMENT_PATTERN_LABELS[item.movement_pattern]
+                      : "Unclassified"}
+                  </span>
+                  <span className="text-muted">
+                    {item.target_sets} target set{item.target_sets === 1 ? "" : "s"} · {item.exercise_count} exercise
+                    {item.exercise_count === 1 ? "" : "s"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
           <Button
             id="add-compound-exercise-btn"

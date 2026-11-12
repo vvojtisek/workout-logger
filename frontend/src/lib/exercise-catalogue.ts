@@ -1,4 +1,4 @@
-import type { MovementPattern, MuscleTag } from "@/api/types";
+import type { CatalogExercise, MovementPattern, MuscleTag, Paginated } from "@/api/types";
 
 export const MUSCLE_LABELS: Record<MuscleTag, string> = {
   chest: "Chest",
@@ -48,6 +48,18 @@ export function exerciseListPath(
 interface NamePage {
   items: { name: string }[];
   total: number;
+}
+
+/** Fetches catalogue metadata for local planning summaries, one page at a time. */
+export async function fetchCatalogueExercises(
+  fetchPage: (path: string) => Promise<Paginated<CatalogExercise>>,
+): Promise<CatalogExercise[]> {
+  const exercises: CatalogExercise[] = [];
+  for (;;) {
+    const page = await fetchPage(exerciseListPath("", exercises.length));
+    exercises.push(...page.items);
+    if (page.items.length === 0 || exercises.length >= page.total) return exercises;
+  }
 }
 
 /** Collects every catalogue name, one page at a time, for plan-builder suggestions. */
