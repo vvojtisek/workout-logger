@@ -192,7 +192,24 @@ async def test_calendar_workload_ratio_uses_prior_weeks_and_requires_coverage(
             [week] = response.json()["weeks"]
             return week["workload_ratio"]
 
+        async def read_running_ratio(query):
+            response = await client.get(f"{API}/training-load", params=query, headers=auth_headers)
+            assert response.status_code == 200
+            [week] = response.json()["weeks"]
+            [running] = [
+                activity
+                for activity in week["session_effort_by_activity"]
+                if activity["activity_type"] == "running"
+            ]
+            return running["workload_ratio"]
+
         assert await read_ratio(params) == {
+            "status": "ready",
+            "baseline_start": "2024-01-08",
+            "baseline_mean_au": 100,
+            "ratio": 1.8,
+        }
+        assert await read_running_ratio(params) == {
             "status": "ready",
             "baseline_start": "2024-01-08",
             "baseline_mean_au": 100,
@@ -203,15 +220,39 @@ async def test_calendar_workload_ratio_uses_prior_weeks_and_requires_coverage(
         unrated = await read_ratio(params)
         assert unrated["status"] == "missing_ratings"
         assert unrated["ratio"] is None
+        assert (await read_running_ratio(params))["status"] == "missing_ratings"
         removed = cleanup.pop(1)
         assert (await client.delete(removed, headers=auth_headers)).status_code == 204
         assert (await client.get(removed, headers=auth_headers)).status_code == 404
         missing = await read_ratio(params)
         assert missing["status"] == "missing_sessions"
         assert missing["ratio"] is None
+        assert (await read_running_ratio(params))["status"] == "missing_sessions"
         current = await read_ratio({**params, "week_of": datetime.now(UTC).date().isoformat()})
         assert current["status"] == "week_incomplete"
         assert current["ratio"] is None
+        current_log = await client.post(
+            f"{API}/logs",
+            headers=auth_headers,
+            json={
+                "performed_at": datetime.now(UTC).isoformat(),
+                "total_time_minutes": 20,
+                "overall_feeling": 3,
+                "effort_rpe": 5,
+                "activity_type": "running",
+                "notes": tag,
+            },
+        )
+        assert current_log.status_code == 201
+        cleanup.append(f"{API}/logs/{current_log.json()['id']}")
+        assert (
+            await read_running_ratio(
+                {
+                    **params,
+                    "week_of": datetime.now(UTC).date().isoformat(),
+                }
+            )
+        )["status"] == "week_incomplete"
         early = await read_ratio({**params, "week_of": "0001-01-29", "timezone": "Europe/Prague"})
         assert early["status"] == "missing_sessions"
         assert early["ratio"] is None
@@ -393,6 +434,12 @@ async def test_weekly_session_effort_is_broken_down_by_activity_type(migrated_cl
                 "rated_sessions": 1,
                 "rated_minutes": 30,
                 "load_au": 180,
+                "workload_ratio": {
+                    "status": "missing_sessions",
+                    "baseline_start": "2024-01-08",
+                    "baseline_mean_au": None,
+                    "ratio": None,
+                },
             },
             {
                 "activity_type": "cycling",
@@ -400,6 +447,12 @@ async def test_weekly_session_effort_is_broken_down_by_activity_type(migrated_cl
                 "rated_sessions": 0,
                 "rated_minutes": 0,
                 "load_au": None,
+                "workload_ratio": {
+                    "status": "missing_sessions",
+                    "baseline_start": "2024-01-08",
+                    "baseline_mean_au": None,
+                    "ratio": None,
+                },
             },
             {
                 "activity_type": "running",
@@ -407,6 +460,12 @@ async def test_weekly_session_effort_is_broken_down_by_activity_type(migrated_cl
                 "rated_sessions": 1,
                 "rated_minutes": 20,
                 "load_au": 100,
+                "workload_ratio": {
+                    "status": "missing_sessions",
+                    "baseline_start": "2024-01-08",
+                    "baseline_mean_au": None,
+                    "ratio": None,
+                },
             },
         ]
     finally:

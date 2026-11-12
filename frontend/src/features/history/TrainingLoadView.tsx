@@ -26,6 +26,13 @@ const VARIABILITY_MESSAGES = {
   missing_ratings: "Every session needs a whole-session RPE and positive duration.",
   zero_variation: "Daily loads are identical across the week, so monotony and strain are undefined.",
 };
+const ACTIVITY_RATIO_MESSAGES = {
+  ready: "Available",
+  week_incomplete: "Week open",
+  missing_sessions: "Missing sessions",
+  missing_ratings: "Missing ratings",
+  zero_baseline: "Zero baseline",
+};
 
 function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
@@ -202,7 +209,9 @@ function SessionEffortByActivityTable({ weeks }: { weeks: TrainingLoadWeek[] }) 
       </h3>
       <p className="my-2 text-sm text-muted">
         Rated loads sum to the selected week's total. Sessions without a positive duration and
-        whole-session RPE remain visible in coverage counts but do not add load.
+        whole-session RPE remain visible in coverage counts but do not add load. The ratio compares
+        each activity's closed-week load with its own preceding four-week average; it describes
+        recorded workload and is not a risk threshold.
       </p>
       <label className="mb-3 flex flex-col gap-1">
         <span className="field-label">Activity breakdown week</span>
@@ -228,6 +237,8 @@ function SessionEffortByActivityTable({ weeks }: { weeks: TrainingLoadWeek[] }) 
                 <th scope="col" className="px-2 py-2 text-right">Rated / logged</th>
                 <th scope="col" className="px-2 py-2 text-right">Rated minutes</th>
                 <th scope="col" className="py-2 text-right">Load</th>
+                <th scope="col" className="px-2 py-2 text-right">Prior 4-week mean</th>
+                <th scope="col" className="py-2 text-right">Ratio</th>
               </tr>
             </thead>
             <tbody>
@@ -245,6 +256,16 @@ function SessionEffortByActivityTable({ weeks }: { weeks: TrainingLoadWeek[] }) 
                   </td>
                   <td className="px-2 py-2 text-right">{effort.rated_minutes}</td>
                   <td className="py-2 text-right">{effortLoadLabel(effort)}</td>
+                  <td className="px-2 py-2 text-right">
+                    {effort.workload_ratio.baseline_mean_au === null
+                      ? ACTIVITY_RATIO_MESSAGES[effort.workload_ratio.status]
+                      : `${BASELINE_FORMAT.format(effort.workload_ratio.baseline_mean_au)} AU`}
+                  </td>
+                  <td className="py-2 text-right">
+                    {effort.workload_ratio.ratio === null
+                      ? "—"
+                      : `${effort.workload_ratio.ratio.toFixed(2)}×`}
+                  </td>
                 </tr>
               ))}
             </tbody>

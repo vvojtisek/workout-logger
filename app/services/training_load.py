@@ -55,6 +55,10 @@ CSV_COLUMNS = (
     "baseline_mean_au",
     "workload_ratio",
     "workload_ratio_status",
+    "activity_baseline_start",
+    "activity_baseline_mean_au",
+    "activity_workload_ratio",
+    "activity_workload_ratio_status",
 )
 
 
@@ -165,6 +169,10 @@ async def export_training_load_csv(session: AsyncSession, query: TrainingLoadQue
                     "rated_sessions": activity.rated_sessions,
                     "rated_minutes": activity.rated_minutes,
                     "load_au": activity.load_au,
+                    "activity_baseline_start": activity.workload_ratio.baseline_start,
+                    "activity_baseline_mean_au": activity.workload_ratio.baseline_mean_au,
+                    "activity_workload_ratio": activity.workload_ratio.ratio,
+                    "activity_workload_ratio_status": activity.workload_ratio.status,
                 }
             )
     return csv_buffer.getvalue().encode("utf-8-sig")
@@ -197,6 +205,52 @@ def _workload_ratio(
         return comparison
     comparison.status = "ready"
     comparison.ratio = (week.session_effort.load_au or 0) / mean
+    return comparison
+
+
+def _activity_workload_ratio(
+    week: TrainingLoadWeek,
+    activity_type: str | None,
+    baseline: list[TrainingLoadWeek],
+    today: date,
+) -> WeeklyWorkloadRatio:
+    comparison = WeeklyWorkloadRatio(
+        baseline_start=baseline[0].week_start if len(baseline) == BASELINE_WEEKS else None
+    )
+    if week.week_start + timedelta(weeks=1) > today:
+        comparison.status = "week_incomplete"
+        return comparison
+
+    efforts = [
+        next(
+            (
+                activity
+                for activity in entry.session_effort_by_activity
+                if activity.activity_type == activity_type
+            ),
+            None,
+        )
+        for entry in [*baseline, week]
+    ]
+    if len(baseline) < BASELINE_WEEKS or any(
+        effort is None or effort.logged_sessions == 0 for effort in efforts
+    ):
+        return comparison
+    rated_efforts = [effort for effort in efforts if effort is not None]
+    if any(
+        effort.rated_sessions != effort.logged_sessions or effort.load_au is None
+        for effort in rated_efforts
+    ):
+        comparison.status = "missing_ratings"
+        return comparison
+
+    mean = sum(effort.load_au or 0 for effort in rated_efforts[:-1]) / BASELINE_WEEKS
+    comparison.baseline_mean_au = mean
+    if mean <= 0:
+        comparison.status = "zero_baseline"
+        return comparison
+    comparison.status = "ready"
+    comparison.ratio = (rated_efforts[-1].load_au or 0) / mean
     return comparison
 
 
@@ -324,13 +378,20 @@ async def weekly_training_load(
             )
 
     today = utcnow().astimezone(zone).date()
+    for week, efforts in zip(weeks, activity_efforts, strict=True):
+        week.session_effort_by_activity = sorted(
+            efforts.values(),
+            key=lambda effort: (effort.activity_type is not None, effort.activity_type or ""),
+        )
+
     for index in range(lookback, len(weeks)):
         week, muscle_volume = weeks[index], muscle_volumes[index]
         week.volume_kg = sum(muscle_volume.values()) / 10
-        week.session_effort_by_activity = sorted(
-            activity_efforts[index].values(),
-            key=lambda effort: (effort.activity_type is not None, effort.activity_type or ""),
-        )
+        baseline = weeks[max(0, index - BASELINE_WEEKS) : index]
+        for activity in week.session_effort_by_activity:
+            activity.workload_ratio = _activity_workload_ratio(
+                week, activity.activity_type, baseline, today
+            )
         week.muscle_volume = [
             MuscleVolume(
                 muscle=muscle,
@@ -342,8 +403,6 @@ async def weekly_training_load(
                 key=lambda item: (-muscle_volume.get(item, 0), item or "unclassified"),
             )
         ]
-        week.workload_ratio = _workload_ratio(
-            week, weeks[max(0, index - BASELINE_WEEKS) : index], today
-        )
+        week.workload_ratio = _workload_ratio(week, baseline, today)
         week.training_variability = _training_variability(week, daily_loads[index], today)
     return TrainingLoadResponse(timezone=query.timezone, weeks=weeks[lookback:])

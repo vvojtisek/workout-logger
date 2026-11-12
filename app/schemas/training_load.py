@@ -52,10 +52,6 @@ class TrainingSessionEffort(BaseModel):
     load_au: int | None = None
 
 
-class SessionEffortByActivity(TrainingSessionEffort):
-    activity_type: str | None
-
-
 class WeeklyWorkloadRatio(BaseModel):
     status: Literal[
         "ready", "week_incomplete", "missing_sessions", "missing_ratings", "zero_baseline"
@@ -63,6 +59,11 @@ class WeeklyWorkloadRatio(BaseModel):
     baseline_start: date | None = None
     baseline_mean_au: float | None = None
     ratio: float | None = None
+
+
+class SessionEffortByActivity(TrainingSessionEffort):
+    activity_type: str | None
+    workload_ratio: WeeklyWorkloadRatio = Field(default_factory=WeeklyWorkloadRatio)
 
 
 class DailyTrainingLoad(BaseModel):

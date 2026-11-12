@@ -868,3 +868,24 @@ change.
 - Browser verification recipe. Open **Training load**, select a week with muscle-tagged work, and
   compare its set and volume changes with the prior displayed week. Select a week where a muscle
   was previously unclassified or absent to see its negative or positive change.
+
+## Cycle 47 — Compare workload ratios by activity
+
+The activity breakdown now calculates each modality's calendar workload ratio against its own
+preceding four-week average. A ratio appears only when that activity has logged sessions and
+complete ratings in all five weeks; missing sessions, missing ratings, zero baselines, and open
+weeks keep their explicit status. The weekly summary CSV carries the same activity baseline, ratio,
+and coverage status.
+
+- API coverage verifies the running-specific ratio, its baseline mean, missing-session and
+  missing-rating coverage, and open-week handling. The real-API browser journey compares running,
+  strength, and unrated cycling without blending their baselines.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The E2E auth journey used a throwaway
+  `E2E_API_KEY` matching the local server configuration.
+- Browser verification recipe. Log five consecutive weeks of fully rated running, then a rated
+  strength workout and unrated cycling in the selected week. Open **Training load → Session effort
+  by activity** and confirm running uses its own prior-four-week mean while the other categories
+  report their coverage state.
