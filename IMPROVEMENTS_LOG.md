@@ -924,3 +924,21 @@ percentage remains a repetitions-only measure.
 - Browser verification recipe. Log multiple sets at the same load with different repetitions and
   include one set with unreported RIR. Open that exercise's progression card and confirm the RIR
   sequence lines up with the rep sequence while the unknown set is visibly marked.
+
+## Cycle 40 — Count weekly sets by movement pattern
+
+The weekly movement-pattern breakdown now pairs external volume with completed set counts. Counts
+include bodyweight sets that have no external load, while free-text and otherwise unclassified
+exercises remain in Unclassified. The API count buckets reconcile exactly with each week's logged
+gym sets.
+
+- Backend coverage checks catalogue alias matching, squat and hinge patterns, a classified
+  bodyweight pull, an unclassified press, and reconciliation to all four logged sets. The real-API
+  browser journey checks the volume and set columns on desktop and phone.
+- `uv run pytest -q` passed all 742 backend tests; `npm test` passed all 225 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips. Temporary E2E
+  rows containing the unique run tag were removed and a database scan confirmed no remaining hits.
+- Browser verification recipe. Review a week with classified loaded work and a week with free-text
+  or bodyweight work. In Training load, compare set counts by pattern with the weekly total and
+  confirm that a bodyweight pattern remains visible even when external volume is zero.

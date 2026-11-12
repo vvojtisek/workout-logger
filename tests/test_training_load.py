@@ -137,6 +137,7 @@ async def test_weekly_external_volume_is_grouped_by_primary_movement_pattern(
         for name, alias, pattern in [
             (f"{tag} Back squat", f"{tag} Squat", "squat"),
             (f"{tag} Deadlift", f"{tag} Hinge", "hinge"),
+            (f"{tag} Bodyweight pull", f"{tag} BW pull", "vertical_pull"),
         ]:
             exercise = await client.post(
                 f"{API}/exercises",
@@ -150,6 +151,7 @@ async def test_weekly_external_volume_is_grouped_by_primary_movement_pattern(
             (f"{tag} Squat", 100, 5),
             (f"{tag} Hinge", 80, 3),
             (f"{tag} Unclassified press", 50, 2),
+            (f"{tag} BW pull", None, 8),
         ]:
             log = await client.post(
                 f"{API}/logs",
@@ -185,9 +187,16 @@ async def test_weekly_external_volume_is_grouped_by_primary_movement_pattern(
             {"movement_pattern": "hinge", "volume_kg": 240},
             {"movement_pattern": None, "volume_kg": 100},
         ]
+        assert week["movement_pattern_sets"] == [
+            {"movement_pattern": "hinge", "sets": 1},
+            {"movement_pattern": "squat", "sets": 1},
+            {"movement_pattern": None, "sets": 1},
+            {"movement_pattern": "vertical_pull", "sets": 1},
+        ]
         assert (
             sum(item["volume_kg"] for item in week["movement_pattern_volume"]) == week["volume_kg"]
         )
+        assert sum(item["sets"] for item in week["movement_pattern_sets"]) == week["logged_sets"]
     finally:
         for url in reversed(cleanup):
             assert (await client.delete(url, headers=auth_headers)).status_code == 204

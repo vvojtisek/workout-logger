@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiFetch, apiFetchBlob, errorMessage, triggerBlobDownload } from "@/api/client";
-import type { TrainingLoadResponse, TrainingLoadWeek } from "@/api/types";
+import type { MovementPattern, TrainingLoadResponse, TrainingLoadWeek } from "@/api/types";
 import { isIsoCalendarDate } from "@/lib/date-time-inputs";
 import { MOVEMENT_PATTERN_LABELS, MUSCLE_LABELS } from "@/lib/exercise-catalogue";
 import { formatDate } from "@/lib/format";
@@ -76,13 +76,31 @@ function MovementPatternVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
   const week = weeks.find((entry) => entry.week_start === selectedWeek) ?? weeks.at(-1);
   if (!week) return null;
+  const rowData = new Map<MovementPattern | null, { volume: number; sets: number }>();
+  for (const { movement_pattern, volume_kg } of week.movement_pattern_volume) {
+    rowData.set(movement_pattern, {
+      volume: volume_kg,
+      sets: rowData.get(movement_pattern)?.sets ?? 0,
+    });
+  }
+  for (const { movement_pattern, sets } of week.movement_pattern_sets) {
+    rowData.set(movement_pattern, {
+      volume: rowData.get(movement_pattern)?.volume ?? 0,
+      sets,
+    });
+  }
+  const rows = [...rowData].sort(([patternA, a], [patternB, b]) =>
+    b.sets - a.sets || b.volume - a.volume ||
+    (patternA ?? "unclassified").localeCompare(patternB ?? "unclassified"),
+  );
 
   return (
     <section className="card mt-4 p-4">
-      <h3 className="font-semibold">External volume by primary movement pattern</h3>
+      <h3 className="font-semibold">Work by primary movement pattern</h3>
       <p className="my-2 text-sm text-muted">
-        Each catalogue exercise contributes to its single primary movement pattern. Exercises
-        without a classification remain under Unclassified.
+        Each exercise contributes its logged sets and external volume to one primary movement
+        pattern. Bodyweight sets count even without external volume; unknown patterns remain under
+        Unclassified.
       </p>
       <label className="mb-3 flex flex-col gap-1">
         <span className="field-label">Movement pattern breakdown week</span>
@@ -98,19 +116,20 @@ function MovementPatternVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
           ))}
         </select>
       </label>
-      {week.movement_pattern_volume.length > 0 ? (
+      {rows.length > 0 ? (
         <table
-          aria-label="External volume by primary movement pattern"
+          aria-label="Work by primary movement pattern"
           className="w-full text-left text-sm"
         >
           <thead className="text-muted">
             <tr>
               <th scope="col" className="py-2">Primary movement pattern</th>
               <th scope="col" className="py-2 text-right">External volume</th>
+              <th scope="col" className="py-2 text-right">Logged sets</th>
             </tr>
           </thead>
           <tbody>
-            {week.movement_pattern_volume.map(({ movement_pattern, volume_kg }) => (
+            {rows.map(([movement_pattern, { volume, sets }]) => (
               <tr
                 key={movement_pattern ?? "unclassified"}
                 className="border-t border-line-muted"
@@ -120,16 +139,15 @@ function MovementPatternVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
                     ? "Unclassified"
                     : MOVEMENT_PATTERN_LABELS[movement_pattern] ?? movement_pattern}
                 </th>
-                <td className="py-2 text-right" data-numeric>
-                  {NUMBER_FORMAT.format(volume_kg)} kg
-                </td>
+                <td className="py-2 text-right" data-numeric>{NUMBER_FORMAT.format(volume)} kg</td>
+                <td className="py-2 text-right" data-numeric>{sets}</td>
               </tr>
             ))}
           </tbody>
         </table>
       ) : (
         <p role="status" className="text-sm text-muted">
-          No classified or unclassified external volume recorded for this week.
+          No gym sets recorded for this week.
         </p>
       )}
     </section>

@@ -81,16 +81,20 @@ test("training load reviews recorded gym work by week", async ({ page, request }
     await page.getByLabel("Muscle breakdown week").selectOption("2026-10-12");
     await expect(breakdown.getByRole("row", { name: /^Unclassified/ })).toContainText("350 kg");
     const patternBreakdown = page.getByRole("table", {
-      name: "External volume by primary movement pattern",
+      name: "Work by primary movement pattern",
     });
     await page.getByLabel("Movement pattern breakdown week").selectOption("2026-10-19");
     await expect(patternBreakdown.getByRole("row", { name: /^Horizontal push/ })).toContainText(
       "350 kg",
     );
+    await expect(patternBreakdown.getByRole("row", { name: /^Horizontal push/ })).toContainText(
+      "2",
+    );
     await page.getByLabel("Movement pattern breakdown week").selectOption("2026-10-12");
     await expect(patternBreakdown.getByRole("row", { name: /^Unclassified/ })).toContainText(
       "350 kg",
     );
+    await expect(patternBreakdown.getByRole("row", { name: /^Unclassified/ })).toContainText("2");
     const rirDistribution = page.getByRole("table", { name: "Weekly set RIR distribution" });
     await page.getByLabel("RIR distribution week").selectOption("2026-10-19");
     await expect(rirDistribution.getByRole("row", { name: /^RIR 0/ })).toContainText("1");
