@@ -89,6 +89,20 @@ export interface ExerciseSessionPoint {
   estimated_one_rep_max_kg: number | null;
 }
 
+export interface RepRetentionGroup {
+  weight_kg: number;
+  reps_per_set: number[];
+  rir_per_set: (number | null)[];
+  retention_percent: number;
+}
+
+export interface FormulaAgreement {
+  reference_weight_kg: number;
+  reference_reps: number;
+  estimates_kg: Record<OneRepMaxFormula, number>;
+  spread_percent: number;
+}
+
 export interface ExerciseStats {
   exercise_name: string;
   sessions_count: number;
@@ -99,6 +113,9 @@ export interface ExerciseStats {
   best_weight_reps: number | null;
   estimated_one_rep_max_kg: number | null;
   trend: "up" | "down" | "flat" | null;
+  formula_agreement: FormulaAgreement | null;
+  /** Repeated same-load set sequences from the latest session. */
+  rep_retention: RepRetentionGroup[];
   /** Up to the last twelve sessions, oldest first. */
   recent: ExerciseSessionPoint[];
 }
@@ -115,6 +132,12 @@ export interface TrainingLoadWeek {
   logged_sets: number;
   volume_kg: number;
   muscle_volume: { muscle: MuscleTag | null; volume_kg: number }[];
+  movement_pattern_volume: {
+    movement_pattern: MovementPattern | null;
+    volume_kg: number;
+  }[];
+  movement_pattern_sets: { movement_pattern: MovementPattern | null; sets: number }[];
+  rir_distribution: { rir: number | null; sets: number }[];
   session_effort: {
     logged_sessions: number;
     rated_sessions: number;
@@ -349,6 +372,15 @@ export interface Program {
 
 export interface ProgramScheduleSummary {
   program_id: string;
+  scheduled: number;
+  in_progress: number;
+  completed: number;
+  skipped: number;
+  weeks: ProgramWeekScheduleSummary[];
+}
+
+export interface ProgramWeekScheduleSummary {
+  week_number: number;
   scheduled: number;
   in_progress: number;
   completed: number;

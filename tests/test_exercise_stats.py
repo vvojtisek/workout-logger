@@ -57,6 +57,8 @@ async def test_stats_for_unlogged_exercise_are_empty(client, auth_headers):
                 "best_weight_reps": None,
                 "estimated_one_rep_max_kg": None,
                 "trend": None,
+                "formula_agreement": None,
+                "rep_retention": [],
                 "recent": [],
             }
         ]
@@ -187,6 +189,107 @@ async def test_stats_list_recent_sessions_oldest_first_for_charts(client, auth_h
             "estimated_one_rep_max_kg": None,
         },
     ]
+
+
+async def test_stats_summarize_same_load_rep_retention_curves(client, auth_headers):
+    await log_exercise(
+        client,
+        auth_headers,
+        "2026-10-12T08:00:00Z",
+        "Bench press",
+        70,
+        [12, 10, 8, 5],
+        weight_per_set=[70, 70, 60, 70],
+        rir_per_set=[2, None, 1, 0],
+    )
+
+    response = await client.get(STATS, params={"name": "Bench press"}, headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["rep_retention"] == [
+        {
+            "weight_kg": 70,
+            "reps_per_set": [12, 10, 5],
+            "rir_per_set": [2, None, 0],
+            "retention_percent": 41.7,
+        }
+    ]
+
+
+async def test_stats_omit_rep_retention_when_load_is_not_repeated(client, auth_headers):
+    await log_exercise(
+        client,
+        auth_headers,
+        "2026-10-12T08:00:00Z",
+        "Bench press",
+        70,
+        [12, 10],
+        weight_per_set=[70, 60],
+    )
+
+    response = await client.get(STATS, params={"name": "Bench press"}, headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["rep_retention"] == []
+
+
+async def test_stats_mark_same_load_effort_unreported_for_older_logs(client, auth_headers):
+    await log_exercise(
+        client,
+        auth_headers,
+        "2026-10-12T08:00:00Z",
+        "Bench press",
+        70,
+        [12, 10],
+    )
+
+    response = await client.get(STATS, params={"name": "Bench press"}, headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["rep_retention"] == [
+        {
+            "weight_kg": 70,
+            "reps_per_set": [12, 10],
+            "rir_per_set": [None, None],
+            "retention_percent": 83.3,
+        }
+    ]
+
+
+async def test_stats_compare_equations_on_the_same_recent_set(client, auth_headers):
+    await log_exercise(
+        client,
+        auth_headers,
+        "2026-10-12T08:00:00Z",
+        "Bench press",
+        100,
+        [10, 8],
+        weight_per_set=[100, 90],
+    )
+
+    response = await client.get(STATS, params={"name": "Bench press"}, headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["formula_agreement"] == {
+        "reference_weight_kg": 100,
+        "reference_reps": 10,
+        "estimates_kg": {
+            "epley": 133.5,
+            "brzycki": 133.5,
+            "lombardi": 126,
+            "wathen": 134.5,
+        },
+        "spread_percent": 6.4,
+    }
+
+
+async def test_stats_formula_agreement_needs_a_common_formula_rep_range(client, auth_headers):
+    await log_exercise(client, auth_headers, "2026-10-12T08:00:00Z", "Bench press", 50, [12])
+
+    response = await client.get(STATS, params={"name": "Bench press"}, headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["formula_agreement"] is None
 
 
 async def test_stats_recent_keeps_the_last_twelve_sessions(client, auth_headers):
