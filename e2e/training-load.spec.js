@@ -5,6 +5,51 @@ import { clickAndAwaitWrite } from "./support/writes.js";
 
 test.use({ timezoneId: "Europe/Prague" });
 
+test("training load separates weekly session effort by activity type", async ({ page, request }) => {
+  const tag = `[TEST_RUN_ID:${process.env.TEST_RUN_ID || "local"}:${randomUUID()}]`;
+  const cleanup = [];
+  try {
+    for (const [day, activity_type, minutes, effort_rpe] of [
+      ["2024-02-05", null, 30, 6],
+      ["2024-02-06", "running", 20, 5],
+      ["2024-02-07", "cycling", 40, null],
+    ]) {
+      const log = await request.post("/api/v1/logs", {
+        data: {
+          performed_at: `${day}T12:00:00Z`,
+          total_time_minutes: minutes,
+          overall_feeling: 3,
+          effort_rpe,
+          activity_type,
+          notes: tag,
+        },
+      });
+      expect(log.status()).toBe(201);
+      cleanup.push(`/api/v1/logs/${(await log.json()).id}`);
+    }
+
+    await page.goto("/training-load");
+    await page.getByLabel("Week containing").fill("2024-02-11");
+    await page.getByLabel("Weeks to show").selectOption("4");
+    const breakdown = page.getByRole("table", { name: "Weekly session effort by activity" });
+    await page.getByLabel("Activity breakdown week").selectOption("2024-02-05");
+    await expect(breakdown.getByRole("row", { name: /^Strength training/ }).getByRole("cell"))
+      .toHaveText(["1 / 1", "30", "180 AU"]);
+    await expect(breakdown.getByRole("row", { name: /^Running/ }).getByRole("cell"))
+      .toHaveText(["1 / 1", "20", "100 AU"]);
+    await expect(breakdown.getByRole("row", { name: /^Cycling/ }).getByRole("cell"))
+      .toHaveText(["0 / 1", "0", "No ratings"]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+      page.viewportSize()?.width,
+    );
+  } finally {
+    for (const url of cleanup) {
+      expect((await request.delete(url)).status()).toBe(204);
+      expect((await request.get(url)).status()).toBe(404);
+    }
+  }
+});
+
 test("training monotony and strain summarize seven rated local days", async ({ page, request }) => {
   const tag = `[TEST_RUN_ID:${process.env.TEST_RUN_ID || "local"}:${randomUUID()}]`;
   const cleanup = [];

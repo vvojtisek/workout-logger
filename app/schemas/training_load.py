@@ -51,6 +51,10 @@ class TrainingSessionEffort(BaseModel):
     load_au: int | None = None
 
 
+class SessionEffortByActivity(TrainingSessionEffort):
+    activity_type: str | None
+
+
 class WeeklyWorkloadRatio(BaseModel):
     status: Literal[
         "ready", "week_incomplete", "missing_sessions", "missing_ratings", "zero_baseline"
@@ -81,6 +85,7 @@ class TrainingLoadWeek(BaseModel):
     volume_kg: float = 0
     muscle_volume: list[MuscleVolume] = Field(default_factory=list)
     session_effort: TrainingSessionEffort = Field(default_factory=TrainingSessionEffort)
+    session_effort_by_activity: list[SessionEffortByActivity] = Field(default_factory=list)
     workload_ratio: WeeklyWorkloadRatio = Field(default_factory=WeeklyWorkloadRatio)
     training_variability: WeeklyTrainingVariability = Field(
         default_factory=lambda: WeeklyTrainingVariability(status="no_sessions")

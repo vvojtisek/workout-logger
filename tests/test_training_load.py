@@ -341,3 +341,70 @@ async def test_weekly_training_monotony_is_undefined_when_daily_load_never_varie
         for url in cleanup:
             assert (await client.delete(url, headers=auth_headers)).status_code == 204
             assert (await client.get(url, headers=auth_headers)).status_code == 404
+
+
+async def test_weekly_session_effort_is_broken_down_by_activity_type(migrated_client, auth_headers):
+    client, _ = migrated_client
+    tag = f"[TEST_RUN_ID:{uuid4()}]"
+    cleanup = []
+    try:
+        for day, activity_type, minutes, rating in [
+            ("2024-02-05", None, 30, 6),
+            ("2024-02-06", "running", 20, 5),
+            ("2024-02-07", "cycling", 40, None),
+        ]:
+            response = await client.post(
+                f"{API}/logs",
+                headers=auth_headers,
+                json={
+                    "performed_at": f"{day}T12:00:00Z",
+                    "total_time_minutes": minutes,
+                    "overall_feeling": 3,
+                    "effort_rpe": rating,
+                    "activity_type": activity_type,
+                    "notes": tag,
+                },
+            )
+            assert response.status_code == 201
+            cleanup.append(f"{API}/logs/{response.json()['id']}")
+
+        response = await client.get(
+            f"{API}/training-load",
+            params={"week_of": "2024-02-11", "weeks": 1, "timezone": "UTC"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        [week] = response.json()["weeks"]
+        assert week["session_effort"] == {
+            "logged_sessions": 3,
+            "rated_sessions": 2,
+            "rated_minutes": 50,
+            "load_au": 280,
+        }
+        assert week["session_effort_by_activity"] == [
+            {
+                "activity_type": None,
+                "logged_sessions": 1,
+                "rated_sessions": 1,
+                "rated_minutes": 30,
+                "load_au": 180,
+            },
+            {
+                "activity_type": "cycling",
+                "logged_sessions": 1,
+                "rated_sessions": 0,
+                "rated_minutes": 0,
+                "load_au": None,
+            },
+            {
+                "activity_type": "running",
+                "logged_sessions": 1,
+                "rated_sessions": 1,
+                "rated_minutes": 20,
+                "load_au": 100,
+            },
+        ]
+    finally:
+        for url in reversed(cleanup):
+            assert (await client.delete(url, headers=auth_headers)).status_code == 204
+            assert (await client.get(url, headers=auth_headers)).status_code == 404

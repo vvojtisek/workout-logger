@@ -789,3 +789,22 @@ as zero.
 - Browser verification recipe. Open **Training load**, select a closed week with fully rated
   sessions on two different days, and compare the seven date/load rows with the displayed daily
   mean and standard deviation. Confirm intervening rest days show 0 AU.
+
+## Cycle 43 — Break session effort down by activity
+
+Training load now separates weekly session-RPE totals into strength training and each recorded
+activity type. The selected week's table shows rated versus logged session counts, rated minutes,
+and load per category; unrated sessions remain in coverage counts without being assigned zero load.
+The category loads reconcile with the existing weekly session-effort total.
+
+- API coverage verifies strength, running, and cycling categories, the weekly sum, and an unrated
+  session. The real-API browser journey reads all three categories on desktop and phone and checks
+  that the viewport does not overflow.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The E2E auth journey used a throwaway
+  `E2E_API_KEY` matching the local server configuration.
+- Browser verification recipe. Log a rated strength workout, a rated run, and an unrated cycling
+  session in one week. Open **Training load**, choose that week in **Activity breakdown week**, and
+  confirm the category loads sum to the weekly total while cycling still shows its missing rating.

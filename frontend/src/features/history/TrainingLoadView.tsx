@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { apiFetch, apiFetchBlob, errorMessage, triggerBlobDownload } from "@/api/client";
 import type { TrainingLoadResponse, TrainingLoadWeek } from "@/api/types";
+import { activityLabel } from "@/lib/activity";
 import { isIsoCalendarDate } from "@/lib/date-time-inputs";
 import { MUSCLE_LABELS } from "@/lib/exercise-catalogue";
 import { formatDate } from "@/lib/format";
@@ -113,6 +114,74 @@ function SessionEffortTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
           </tbody>
         </table>
       </div>
+    </section>
+  );
+}
+
+function SessionEffortByActivityTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+  const latestFirst = [...weeks].reverse();
+  const week = weeks.find((entry) => entry.week_start === selectedWeek) ?? latestFirst[0];
+  if (!week) return null;
+
+  return (
+    <section className="card mt-4 p-4" aria-labelledby="session-effort-activity-heading">
+      <h3 className="font-semibold" id="session-effort-activity-heading">
+        Session effort by activity
+      </h3>
+      <p className="my-2 text-sm text-muted">
+        Rated loads sum to the selected week's total. Sessions without a positive duration and
+        whole-session RPE remain visible in coverage counts but do not add load.
+      </p>
+      <label className="mb-3 flex flex-col gap-1">
+        <span className="field-label">Activity breakdown week</span>
+        <select
+          className="input w-fit"
+          value={week.week_start}
+          onChange={(event) => setSelectedWeek(event.target.value)}
+        >
+          {latestFirst.map((entry) => (
+            <option key={entry.week_start} value={entry.week_start}>{entry.week_start}</option>
+          ))}
+        </select>
+      </label>
+      {week.session_effort_by_activity.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table
+            aria-label="Weekly session effort by activity"
+            className="w-full text-left text-sm"
+          >
+            <thead className="text-muted">
+              <tr>
+                <th scope="col" className="py-2">Activity</th>
+                <th scope="col" className="px-2 py-2 text-right">Rated / logged</th>
+                <th scope="col" className="px-2 py-2 text-right">Rated minutes</th>
+                <th scope="col" className="py-2 text-right">Load</th>
+              </tr>
+            </thead>
+            <tbody>
+              {week.session_effort_by_activity.map((effort) => (
+                <tr
+                  key={effort.activity_type ?? "strength"}
+                  className="border-t border-line-muted"
+                  data-numeric
+                >
+                  <th scope="row" className="py-2 font-medium">
+                    {effort.activity_type ? activityLabel(effort.activity_type) : "Strength training"}
+                  </th>
+                  <td className="px-2 py-2 text-right">
+                    {effort.rated_sessions} / {effort.logged_sessions}
+                  </td>
+                  <td className="px-2 py-2 text-right">{effort.rated_minutes}</td>
+                  <td className="py-2 text-right">{effortLoadLabel(effort)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p role="status" className="text-sm text-muted">No sessions were logged in this week.</p>
+      )}
     </section>
   );
 }
@@ -364,6 +433,7 @@ export function TrainingLoadView() {
       ) : null}
       {data ? <MuscleVolumeTable weeks={data.weeks} /> : null}
       {data ? <SessionEffortTable weeks={data.weeks} /> : null}
+      {data ? <SessionEffortByActivityTable weeks={data.weeks} /> : null}
       {data ? <WorkloadRatioCard weeks={data.weeks} /> : null}
       {data ? <TrainingVariabilityCard weeks={data.weeks} /> : null}
     </section>

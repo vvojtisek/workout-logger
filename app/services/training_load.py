@@ -15,6 +15,7 @@ from app.models.base import utcnow
 from app.schemas.training_load import (
     DailyTrainingLoad,
     MuscleVolume,
+    SessionEffortByActivity,
     TrainingLoadQuery,
     TrainingLoadResponse,
     TrainingLoadWeek,
@@ -219,6 +220,7 @@ async def weekly_training_load(
     ]
     daily_loads = [[0] * 7 for _ in weeks]
     muscle_volumes: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
+    activity_efforts: list[dict[str | None, SessionEffortByActivity]] = [{} for _ in weeks]
     logs = await _workout_logs_in_range(session, date_from, date_to)
     profiles = await apply_to_logs(
         session,
@@ -231,10 +233,20 @@ async def weekly_training_load(
         week = weeks[index]
         effort = week.session_effort
         effort.logged_sessions += 1
+        activity_effort = activity_efforts[index].setdefault(
+            log.activity_type,
+            SessionEffortByActivity(activity_type=log.activity_type, logged_sessions=0),
+        )
+        activity_effort.logged_sessions += 1
         if log.effort_rpe is not None and log.total_time_minutes > 0:
             effort.rated_sessions += 1
             effort.rated_minutes += log.total_time_minutes
             effort.load_au = (effort.load_au or 0) + log.effort_rpe * log.total_time_minutes
+            activity_effort.rated_sessions += 1
+            activity_effort.rated_minutes += log.total_time_minutes
+            activity_effort.load_au = (activity_effort.load_au or 0) + (
+                log.effort_rpe * log.total_time_minutes
+            )
             daily_loads[index][local_date.weekday()] += log.effort_rpe * log.total_time_minutes
 
         if index < lookback or log.activity_type is not None or not log.exercises:
@@ -249,6 +261,10 @@ async def weekly_training_load(
     for index in range(lookback, len(weeks)):
         week, muscle_volume = weeks[index], muscle_volumes[index]
         week.volume_kg = sum(muscle_volume.values()) / 10
+        week.session_effort_by_activity = sorted(
+            activity_efforts[index].values(),
+            key=lambda effort: (effort.activity_type is not None, effort.activity_type or ""),
+        )
         week.muscle_volume = [
             MuscleVolume(muscle=muscle, volume_kg=tenths / 10)
             for muscle, tenths in sorted(
