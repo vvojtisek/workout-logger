@@ -51,13 +51,16 @@ test("training load separates weekly session effort by activity type", async ({ 
     await page.getByLabel("Week containing").fill("2024-02-11");
     await page.getByLabel("Weeks to show").selectOption("4");
     const breakdown = page.getByRole("table", { name: "Weekly session effort by activity" });
-    await page.getByLabel("Activity breakdown week").selectOption("2024-02-05");
+    await page.getByLabel("Analysis week").selectOption("2024-02-05");
     await expect(breakdown.getByRole("row", { name: /^Strength training/ }).getByRole("cell"))
       .toHaveText(["1 / 1", "30", "180 AU", "Missing sessions", "—"]);
     await expect(breakdown.getByRole("row", { name: /^Running/ }).getByRole("cell"))
       .toHaveText(["1 / 1", "30", "180 AU", "100 AU", "1.80×"]);
     await expect(breakdown.getByRole("row", { name: /^Cycling/ }).getByRole("cell"))
       .toHaveText(["0 / 1", "0", "No ratings", "Missing sessions", "—"]);
+    await page.getByLabel("Analysis week").selectOption("2024-01-29");
+    await expect(breakdown.getByRole("row", { name: /^Running/ }).getByRole("cell"))
+      .toHaveText(["1 / 1", "20", "160 AU", "Missing sessions", "—"]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
       page.viewportSize()?.width,
     );
@@ -191,7 +194,7 @@ test("training load reviews recorded gym work by week", async ({ page, request }
       .toHaveText(["+4 sets", "+175 kg"]);
     await expect(changes.getByRole("row", { name: /^Unclassified/ }).getByRole("cell"))
       .toHaveText(["-2 sets", "-350 kg"]);
-    await page.getByLabel("Muscle breakdown week").selectOption("2026-10-12");
+    await page.getByLabel("Analysis week").selectOption("2026-10-12");
     await expect(breakdown.getByRole("row", { name: /^Unclassified/ }).getByRole("cell"))
       .toHaveText(["2", "350 kg"]);
 
@@ -255,7 +258,7 @@ test("workload ratio reports the selected week and its preceding baseline", asyn
     await expect(comparison).toContainText("180 AU");
     await expect(comparison).toContainText("100 AU");
     await expect(comparison).toContainText("2024-01-08");
-    await comparison.getByLabel("Comparison week").selectOption("2024-01-29");
+    await page.getByLabel("Analysis week").selectOption("2024-01-29");
     await expect(comparison).toContainText("At least one of the five weeks has no logged sessions.");
     await expect(comparison).not.toContainText("1.80×");
   } finally {

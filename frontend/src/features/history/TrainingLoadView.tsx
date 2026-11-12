@@ -34,8 +34,13 @@ const ACTIVITY_RATIO_MESSAGES = {
   zero_baseline: "Zero baseline",
 };
 
-function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
-  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+function MuscleVolumeTable({
+  weeks,
+  selectedWeek,
+}: {
+  weeks: TrainingLoadWeek[];
+  selectedWeek: string;
+}) {
   const week = weeks.find((entry) => entry.week_start === selectedWeek) ?? weeks.at(-1);
   if (!week) return null;
 
@@ -46,20 +51,6 @@ function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
         Each logged set counts for every distinct primary muscle tag, so set counts can overlap.
         External volume is divided across those tags; untagged work appears under Unclassified.
       </p>
-      <label className="mb-3 flex flex-col gap-1">
-        <span className="field-label">Muscle breakdown week</span>
-        <select
-          className="input w-fit"
-          value={week.week_start}
-          onChange={(event) => setSelectedWeek(event.target.value)}
-        >
-          {[...weeks].reverse().map((entry) => (
-            <option key={entry.week_start} value={entry.week_start}>
-              {entry.week_start}
-            </option>
-          ))}
-        </select>
-      </label>
       {week.muscle_volume.length > 0 ? (
         <table aria-label="Primary-muscle sets and external volume" className="w-full text-left text-sm">
           <thead className="text-muted">
@@ -196,8 +187,13 @@ function SessionEffortTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
   );
 }
 
-function SessionEffortByActivityTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
-  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+function SessionEffortByActivityTable({
+  weeks,
+  selectedWeek,
+}: {
+  weeks: TrainingLoadWeek[];
+  selectedWeek: string;
+}) {
   const latestFirst = [...weeks].reverse();
   const week = weeks.find((entry) => entry.week_start === selectedWeek) ?? latestFirst[0];
   if (!week) return null;
@@ -213,18 +209,6 @@ function SessionEffortByActivityTable({ weeks }: { weeks: TrainingLoadWeek[] }) 
         each activity's closed-week load with its own preceding four-week average; it describes
         recorded workload and is not a risk threshold.
       </p>
-      <label className="mb-3 flex flex-col gap-1">
-        <span className="field-label">Activity breakdown week</span>
-        <select
-          className="input w-fit"
-          value={week.week_start}
-          onChange={(event) => setSelectedWeek(event.target.value)}
-        >
-          {latestFirst.map((entry) => (
-            <option key={entry.week_start} value={entry.week_start}>{entry.week_start}</option>
-          ))}
-        </select>
-      </label>
       {week.session_effort_by_activity.length > 0 ? (
         <div className="overflow-x-auto">
           <table
@@ -278,12 +262,15 @@ function SessionEffortByActivityTable({ weeks }: { weeks: TrainingLoadWeek[] }) 
   );
 }
 
-function WorkloadRatioCard({ weeks }: { weeks: TrainingLoadWeek[] }) {
-  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+function WorkloadRatioCard({
+  weeks,
+  selectedWeek,
+}: {
+  weeks: TrainingLoadWeek[];
+  selectedWeek: string;
+}) {
   const latestFirst = [...weeks].reverse();
-  const week = weeks.find((entry) => entry.week_start === selectedWeek)
-    ?? latestFirst.find((entry) => entry.workload_ratio.status !== "week_incomplete")
-    ?? latestFirst[0];
+  const week = weeks.find((entry) => entry.week_start === selectedWeek) ?? latestFirst[0];
   if (!week) return null;
   const comparison = week.workload_ratio;
 
@@ -295,20 +282,6 @@ function WorkloadRatioCard({ weeks }: { weeks: TrainingLoadWeek[] }) {
         Monday-start weeks. This compares recorded workload. Each of the five weeks needs logged
         sessions with complete ratings, even when the weekly table shows fewer weeks.
       </p>
-      <label className="mb-3 flex flex-col gap-1">
-        <span className="field-label">Comparison week</span>
-        <select
-          className="input w-fit"
-          value={week.week_start}
-          onChange={(event) => setSelectedWeek(event.target.value)}
-        >
-          {latestFirst.map((entry) => (
-            <option key={entry.week_start} value={entry.week_start}>
-              {entry.week_start}
-            </option>
-          ))}
-        </select>
-      </label>
       {comparison.baseline_start ? (
         <p className="mb-3 text-xs text-muted">
           Baseline starts {comparison.baseline_start} and ends before the week of {week.week_start}.
@@ -336,12 +309,15 @@ function WorkloadRatioCard({ weeks }: { weeks: TrainingLoadWeek[] }) {
   );
 }
 
-function TrainingVariabilityCard({ weeks }: { weeks: TrainingLoadWeek[] }) {
-  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
+function TrainingVariabilityCard({
+  weeks,
+  selectedWeek,
+}: {
+  weeks: TrainingLoadWeek[];
+  selectedWeek: string;
+}) {
   const latestFirst = [...weeks].reverse();
-  const week = weeks.find((entry) => entry.week_start === selectedWeek)
-    ?? latestFirst.find((entry) => entry.training_variability.status !== "week_incomplete")
-    ?? latestFirst[0];
+  const week = weeks.find((entry) => entry.week_start === selectedWeek) ?? latestFirst[0];
   if (!week) return null;
   const variability = week.training_variability;
 
@@ -363,20 +339,6 @@ function TrainingVariabilityCard({ weeks }: { weeks: TrainingLoadWeek[] }) {
           Foster (1998)
         </a>.
       </p>
-      <label className="mb-3 flex flex-col gap-1">
-        <span className="field-label">Monotony week</span>
-        <select
-          className="input w-fit"
-          value={week.week_start}
-          onChange={(event) => setSelectedWeek(event.target.value)}
-        >
-          {latestFirst.map((entry) => (
-            <option key={entry.week_start} value={entry.week_start}>
-              {entry.week_start}
-            </option>
-          ))}
-        </select>
-      </label>
       {variability.status === "ready" ? (
         <dl className="grid gap-3 sm:grid-cols-4">
           <div>
@@ -436,6 +398,7 @@ function TrainingVariabilityCard({ weeks }: { weeks: TrainingLoadWeek[] }) {
 export function TrainingLoadView() {
   const [weekOf, setWeekOf] = useState(() => formatDate(new Date().toISOString()));
   const [weeks, setWeeks] = useState(8);
+  const [analysisWeekStart, setAnalysisWeekStart] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const validDate = isIsoCalendarDate(weekOf);
@@ -445,6 +408,12 @@ export function TrainingLoadView() {
     queryFn: () => apiFetch<TrainingLoadResponse>(`/training-load?${params.toString()}`),
     enabled: validDate,
   });
+  const latestClosedWeek = data
+    ? [...data.weeks].reverse().find((entry) => entry.workload_ratio.status !== "week_incomplete")
+      ?? data.weeks.at(-1)
+    : undefined;
+  const analysisWeek = data?.weeks.find((entry) => entry.week_start === analysisWeekStart)
+    ?? latestClosedWeek;
 
   async function downloadCsv() {
     setExporting(true);
@@ -523,11 +492,36 @@ export function TrainingLoadView() {
           </table>
         </div>
       ) : null}
-      {data ? <MuscleVolumeTable weeks={data.weeks} /> : null}
+      {data && analysisWeek ? (
+        <div className="mt-4">
+          <label className="flex flex-col gap-1">
+            <span className="field-label">Analysis week</span>
+            <select
+              className="input w-fit"
+              value={analysisWeek.week_start}
+              onChange={(event) => setAnalysisWeekStart(event.target.value)}
+            >
+              {[...data.weeks].reverse().map((entry) => (
+                <option key={entry.week_start} value={entry.week_start}>{entry.week_start}</option>
+              ))}
+            </select>
+          </label>
+          <p className="mt-1 text-sm text-muted">All detailed panels use this week.</p>
+        </div>
+      ) : null}
+      {data && analysisWeek ? (
+        <MuscleVolumeTable weeks={data.weeks} selectedWeek={analysisWeek.week_start} />
+      ) : null}
       {data ? <SessionEffortTable weeks={data.weeks} /> : null}
-      {data ? <SessionEffortByActivityTable weeks={data.weeks} /> : null}
-      {data ? <WorkloadRatioCard weeks={data.weeks} /> : null}
-      {data ? <TrainingVariabilityCard weeks={data.weeks} /> : null}
+      {data && analysisWeek ? (
+        <SessionEffortByActivityTable weeks={data.weeks} selectedWeek={analysisWeek.week_start} />
+      ) : null}
+      {data && analysisWeek ? (
+        <WorkloadRatioCard weeks={data.weeks} selectedWeek={analysisWeek.week_start} />
+      ) : null}
+      {data && analysisWeek ? (
+        <TrainingVariabilityCard weeks={data.weeks} selectedWeek={analysisWeek.week_start} />
+      ) : null}
     </section>
   );
 }

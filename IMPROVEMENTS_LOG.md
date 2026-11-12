@@ -889,3 +889,21 @@ and coverage status.
   strength workout and unrated cycling in the selected week. Open **Training load → Session effort
   by activity** and confirm running uses its own prior-four-week mean while the other categories
   report their coverage state.
+
+## Cycle 48 — Synchronize the analysis week
+
+Training load now has one **Analysis week** selector shared by the muscle exposure, activity
+effort, calendar workload ratio, and monotony cards. The default is the latest closed week with
+available data. Changing the week updates all detailed panels together, keeping their counts,
+baselines, and ratios aligned while reducing repeated selection.
+
+- The real-API browser flow changes the shared week and verifies activity loads and the workload
+  comparison follow it on desktop and phone. The full viewport checks pass at both sizes.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The E2E auth journey used a throwaway
+  `E2E_API_KEY` matching the local server configuration.
+- Browser verification recipe. Open **Training load** and change **Analysis week**. Confirm the
+  muscle exposure, activity breakdown, calendar workload ratio, and monotony cards all reflect
+  that same week.
