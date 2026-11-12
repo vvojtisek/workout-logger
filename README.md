@@ -240,6 +240,11 @@ The other options use sets of 1–10 reps. The estimates use logged reps as inpu
 that assume reps to failure, and each chart point shows the set behind its estimate. Older
 logs with a single weight use that weight for every set. [Reference for the equations, Table 1](https://doi.org/10.1007/s11332-024-01264-y).
 
+Exercise catalogue entries can also carry up to four movement-pattern tags (push/pull directions,
+squat, hinge, lunge, carry, trunk work, and locomotion). Use the catalogue's **Movement pattern**
+filter or `GET /api/v1/exercises?movement_pattern=hinge` to find classified exercises. Existing
+entries remain unclassified until edited; movement tags supplement muscle and equipment tags.
+
 The desktop history range can show the last 30, 90, or 365 days or all history. For a fixed
 window, pass both timezone-aware `date_from` (inclusive) and `date_to` (exclusive) to the
 exercise stats endpoint. The window applies to both the headline stats and the chart.
@@ -271,9 +276,36 @@ recorded loads. Each chart plots reps at the set numbers in workout history. The
 reps, RIR when available, and reps as a percentage of the first set at that load. Explicitly
 missing loads are excluded. Older single-weight records use that weight for each set.
 
+In a live strength workout on a phone, tap **RIR** or **RPE** to enter a set rating inline. Each
+rating is optional and recorded independently. Tap a selected rating again to clear it. **Complete
+set & start rest** still saves the prefilled weight and reps in one tap.
+Completed workout details list the recorded RPE by set. Adding or removing sets in History
+keeps the ratings with their original sets. Whole-workout effort is recorded separately.
+API clients replacing `exercises` can send a `rpe_per_set` list aligned with the new sets or
+`null` to clear it. Omitting the field keeps ratings when the ordered exercise names, repetitions,
+weights, and RIR values still match the stored log.
+During a connection interruption, completed and skipped sets remain queued in browser storage.
+The phone advances after each set is saved on the device, and its rest timer can be adjusted or
+skipped before reconnecting. Reconnecting sends the queued actions in order with their original
+capture times. Finish the workout after its queued sets synchronize.
+After the browser has loaded the live workout online, reloading `/workout` offline can resume its
+local snapshot for the last verified account. The server verifies that account again before the
+browser sends queued sets. Signing out clears the local resume snapshot.
+For barbell lifts, open **Barbell plates** below the weight field to see the exact stack for
+each side. Locations can store up to eight named bar profiles, including bar and collar weights
+plus paired plate stock. The workout starts with that location's first profile; choose another
+profile or the labeled default inventory when needed. The calculator shows the nearest supported
+loads when an exact stack is unavailable and never changes the value saved in the weight field.
+For adjustable dumbbells, open **Dumbbell plates** to calculate the symmetric stack on each
+side of one dumbbell. Named handle and plate inventories come from the selected location; the
+weight field continues to record kilograms per dumbbell.
+Rest completion plays a short tone and requests a brief vibration once per timer deadline.
+Toggle either cue in Settings; sound activates with the next completed set, and vibration depends
+on browser and device support.
+
 **Download training CSV** exports the visible Training load window using the same local-week
 boundaries. The UTF-8 file has one `session` row per workout or activity with duration and
-session RPE, and `set` rows linked by `workout_id` with exercise, weight, reps, and RIR. Blank
+session RPE, and `set` rows linked by `workout_id` with exercise, weight, reps, RIR, and `set_rpe`. Blank
 cells represent missing values. Exercise names that look like spreadsheet formulas get a
 leading apostrophe. The API uses the same filters at `GET /api/v1/training-load/export`.
 

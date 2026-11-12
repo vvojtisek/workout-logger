@@ -1,24 +1,40 @@
 "use strict";
 
-const CACHE_NAME = "workout-logger-v6";
-// Vite emits content-hashed asset names, so the shell precache lists only the
-// stable entry points. The hashed bundles under /static are picked up by the
-// cache-first runtime handler on first load.
-const APP_SHELL = ["/", "/manifest.webmanifest"];
+const CACHE_NAME = "workout-logger-v7";
+const SHELL_KEY = "/";
 
 const NEVER_CACHE_PREFIXES = ["/api/v1", "/health", "/docs", "/openapi.json"];
 
+async function cacheShell(cache, response) {
+  // Vite's generated shell names its public entry bundle and static imports.
+  // Save them before replacing the document that refers to them.
+  const html = await response.clone().text();
+  const urls = new Set(["/manifest.webmanifest"]);
+  for (const match of html.matchAll(/\b(?:href|src)="(\/static\/dist\/assets\/[^"<>]+)"/g)) {
+    const asset = new URL(match[1], self.location.origin);
+    if (asset.pathname.startsWith("/static/dist/assets/")) urls.add(asset.href);
+  }
+  const missing = await Promise.all([...urls].map(async (url) => (await cache.match(url)) ? null : url));
+  await cache.addAll(missing.filter(Boolean));
+  await cache.put(SHELL_KEY, response);
+}
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const response = await fetch(SHELL_KEY, { cache: "reload" });
+    if (!response.ok) throw new Error("Workout shell is unavailable");
+    await cacheShell(await caches.open(CACHE_NAME), response);
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys
+        .filter((key) => key.startsWith("workout-logger-") && key !== CACHE_NAME)
+        .map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -32,24 +48,24 @@ function isStaticAsset(pathname) {
 }
 
 async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
   try {
     const response = await fetch(request);
-    const cache = await caches.open(CACHE_NAME);
-    cache.put(request, response.clone());
+    if (response.ok) await cacheShell(cache, response.clone()).catch(() => undefined);
     return response;
   } catch (err) {
-    const cached = await caches.match(request);
+    const cached = await cache.match(SHELL_KEY);
     if (cached) return cached;
     throw err;
   }
 }
 
 async function cacheFirst(request) {
-  const cached = await caches.match(request);
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
   if (cached) return cached;
   const response = await fetch(request);
-  const cache = await caches.open(CACHE_NAME);
-  cache.put(request, response.clone());
+  if (response.ok) await cache.put(request, response.clone()).catch(() => undefined);
   return response;
 }
 
@@ -63,7 +79,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname === "/") {
+  if (event.request.mode === "navigate" && (url.pathname === "/" || url.pathname === "/workout")) {
     event.respondWith(networkFirst(event.request));
     return;
   }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode, TouchEvent } from "react";
 import { X } from "lucide-react";
 
-import type { ExerciseStats, WorkoutSession } from "@/api/types";
+import type { DumbbellProfile, ExerciseStats, PlateProfile, WorkoutSession } from "@/api/types";
 import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import {
   clearSetDraft,
@@ -30,11 +30,14 @@ import {
 import type { HudRow } from "@/lib/workout-hud";
 import { ScaleSelect } from "@/ui/ScaleSelect";
 import { useRestCountdown } from "./RestOverlay";
+import { BarbellPlateCalculator } from "./BarbellPlateCalculator";
+import { DumbbellPlateCalculator } from "./DumbbellPlateCalculator";
 import { EMPTY_DRAFT, FIELD_SPECS_BY_KIND, draftToValues, fieldHint } from "./SetRow";
 import type { FieldSpec, SetValues } from "./SetRow";
 
 const UNDO_WINDOW_MS = 5_000;
 const SWIPE_MIN_PX = 60;
+const RPE_VALUES = Array.from({ length: 11 }, (_, value) => String(value));
 
 /** Stepper increments for each numeric field; RIR uses pills, band is text. */
 const STEPS: Partial<
@@ -87,8 +90,9 @@ function seedDraft(row: HudRow, previous: HudRow | null): SetDraft {
     return {
       weight: (entry.weight_kg ?? "").toString(),
       reps: entry.reps.toString(),
-      // RIR is judged fresh on every set, so it is only kept for a saved one.
+      // Rate each set independently, even when weight and reps repeat.
       rir: row.entry ? (entry.rir ?? "").toString() : "",
+      rpe: row.entry ? (entry.rpe ?? "").toString() : "",
       added_weight_kg: (entry.added_weight_kg ?? "").toString(),
       band_level: entry.band_level ?? "",
       duration_seconds: (entry.duration_seconds ?? "").toString(),
@@ -123,6 +127,7 @@ export interface WorkoutHudProps {
   progress: { done: number; total: number; percent: number };
   sync: SynchronizationState;
   restWasSkipped: boolean;
+  restControlsDisabled: boolean;
   stats: Map<string, ExerciseStats>;
   statsLine: ReactNode;
   feeling: string;
@@ -137,7 +142,7 @@ export interface WorkoutHudProps {
   onSkipRest: () => void;
   onRetrySync: () => void;
   onFinish: () => void;
-  onMinimize: () => void;
+  onMinimize?: () => void;
 }
 
 /**
@@ -149,6 +154,8 @@ export function WorkoutHud(props: WorkoutHudProps) {
   const { session, rows, index, progress, sync } = props;
   const row = rows[index];
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const [selectedPlateProfileName, setSelectedPlateProfileName] = useState<string | null>(null);
+  const [selectedDumbbellProfileName, setSelectedDumbbellProfileName] = useState<string | null>(null);
 
   // A sideways swipe changes exercise. Chrome would otherwise take it as the
   // page's back/forward gesture, which is set on the document's root scroller.
@@ -177,7 +184,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
       .at(-1) ?? null;
   const allLogged = rows.every((candidate) => candidate.entry !== null);
   const prev = previousSet(rows, index);
-  const next = nextExercise(rows, index);
+  const next = nextExercise(rows, index) ?? rows[index + 1] ?? null;
 
   function onTouchStart(event: TouchEvent) {
     const touch = event.touches[0];
@@ -205,14 +212,16 @@ export function WorkoutHud(props: WorkoutHudProps) {
     >
       <header className="flex shrink-0 flex-col gap-2">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            aria-label="Minimize workout"
-            onClick={props.onMinimize}
-            className="btn btn-ghost h-11 w-11 p-0"
-          >
-            <X aria-hidden="true" size={20} />
-          </button>
+          {props.onMinimize ? (
+            <button
+              type="button"
+              aria-label="Minimize workout"
+              onClick={props.onMinimize}
+              className="btn btn-ghost h-11 w-11 p-0"
+            >
+              <X aria-hidden="true" size={20} />
+            </button>
+          ) : null}
           <p
             id="active-plan-name"
             className="min-w-0 flex-1 truncate text-sm font-semibold"
@@ -326,6 +335,16 @@ export function WorkoutHud(props: WorkoutHudProps) {
           row={row}
           previous={previousLogged}
           allLogged={allLogged}
+          plateProfiles={session.location?.plate_profiles ?? []}
+          selectedPlateProfile={selectedPlateProfileName === null
+            ? session.location?.plate_profiles[0] ?? null
+            : session.location?.plate_profiles.find((profile) => profile.name === selectedPlateProfileName) ?? null}
+          onPlateProfileChange={setSelectedPlateProfileName}
+          dumbbellProfiles={session.location?.dumbbell_profiles ?? []}
+          selectedDumbbellProfile={selectedDumbbellProfileName === null
+            ? session.location?.dumbbell_profiles[0] ?? null
+            : session.location?.dumbbell_profiles.find((profile) => profile.name === selectedDumbbellProfileName) ?? null}
+          onDumbbellProfileChange={setSelectedDumbbellProfileName}
         />
       </div>
 
@@ -344,7 +363,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
           onClick={() => next && props.onFocus(next)}
           className="btn btn-ghost h-11"
         >
-          Next Exercise →
+          {next?.exercise.id === row.exercise.id ? "Next Set →" : "Next Exercise →"}
         </button>
       </footer>
     </section>
@@ -447,7 +466,7 @@ function RirPills({
               aria-checked={active}
               disabled={disabled}
               onClick={() => onChange(active ? "" : pill.value)}
-              className={`h-10 rounded-full border font-mono text-sm font-semibold ${
+              className={`h-12 rounded-full border font-mono text-sm font-semibold ${
                 active
                   ? "border-warn bg-warn-soft text-warn"
                   : "border-line bg-elevated text-muted"
@@ -465,12 +484,71 @@ function RirPills({
   );
 }
 
+function EffortFields({ draft, disabled, onChange }: {
+  draft: SetDraft;
+  disabled: boolean;
+  onChange: (key: "rir" | "rpe", value: string) => void;
+}) {
+  const [scale, setScale] = useState<"RIR" | "RPE">("RIR");
+  return (
+    <div className="flex flex-col gap-1">
+      <div role="group" aria-label="Effort scale" className="grid grid-cols-2 gap-2">
+        {(["RIR", "RPE"] as const).map((option) => {
+          const rating = option === "RIR" ? draft.rir : draft.rpe;
+          return (
+            <button
+              key={option}
+              type="button"
+              aria-label={option}
+              aria-pressed={scale === option}
+              onClick={() => setScale(option)}
+              className={`btn h-12 ${scale === option ? "btn-secondary" : "btn-ghost"}`}
+            >
+              {option}{rating ? ` · ${rating}` : ""}
+            </button>
+          );
+        })}
+      </div>
+      {scale === "RIR" ? (
+        <RirPills value={draft.rir} disabled={disabled} onChange={(value) => onChange("rir", value)} />
+      ) : (
+        <>
+          <div role="group" aria-label="RPE" className="grid grid-cols-6 gap-1">
+            {RPE_VALUES.map((value) => {
+              const selected = value === draft.rpe;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={selected}
+                  disabled={disabled}
+                  onClick={() => onChange("rpe", selected ? "" : value)}
+                  className={`h-12 rounded-full border font-mono text-sm font-semibold ${
+                    selected
+                      ? "border-warn bg-warn-soft text-warn"
+                      : "border-line bg-elevated text-muted"
+                  }`}
+                >
+                  {value}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-center text-[11px] text-muted">Perceived exertion. Tap again to clear.</p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function RestBar({
   restEndsAt,
+  disabled,
   onAdjust,
   onSkip,
 }: {
   restEndsAt: string;
+  disabled: boolean;
   onAdjust: (seconds: number) => void;
   onSkip: () => void;
 }) {
@@ -493,6 +571,7 @@ function RestBar({
         type="button"
         id="subtract-rest-time"
         aria-label="−15 seconds"
+        disabled={disabled}
         onClick={() => onAdjust(-15)}
         className="btn btn-secondary h-10 shrink-0 px-2 font-mono text-xs"
       >
@@ -502,6 +581,7 @@ function RestBar({
         type="button"
         id="add-rest-time"
         aria-label="+15 seconds"
+        disabled={disabled}
         onClick={() => onAdjust(15)}
         className="btn btn-secondary h-10 shrink-0 px-2 font-mono text-xs"
       >
@@ -510,6 +590,7 @@ function RestBar({
       <button
         type="button"
         id="skip-rest"
+        disabled={disabled}
         onClick={onSkip}
         className="btn btn-primary h-10 shrink-0 px-2 text-xs whitespace-nowrap"
       >
@@ -525,8 +606,15 @@ function SetPanel({
   row,
   previous,
   allLogged,
+  plateProfiles,
+  selectedPlateProfile,
+  onPlateProfileChange,
+  dumbbellProfiles,
+  selectedDumbbellProfile,
+  onDumbbellProfileChange,
   session,
   restWasSkipped,
+  restControlsDisabled,
   feeling,
   onFeelingChange,
   onComplete,
@@ -540,6 +628,12 @@ function SetPanel({
   row: HudRow;
   previous: HudRow | null;
   allLogged: boolean;
+  plateProfiles: PlateProfile[];
+  selectedPlateProfile: PlateProfile | null;
+  onPlateProfileChange: (name: string) => void;
+  dumbbellProfiles: DumbbellProfile[];
+  selectedDumbbellProfile: DumbbellProfile | null;
+  onDumbbellProfileChange: (name: string) => void;
 }) {
   const kind = row.exercise.exercise_kind;
   const specs = FIELD_SPECS_BY_KIND[kind];
@@ -553,7 +647,7 @@ function SetPanel({
   // An unsaved set resumes from its local draft (IndexedDB is async).
   useEffect(() => {
     if (row.entry) {
-      void clearSetDraft(activeWorkoutStorage, draftKey);
+      if (!row.entry.pending) void clearSetDraft(activeWorkoutStorage, draftKey);
       return;
     }
     let cancelled = false;
@@ -585,7 +679,7 @@ function SetPanel({
     if (!row.entry) void saveSetDraft(activeWorkoutStorage, draftKey, next);
   }
 
-  const values = () => draftToValues(kind, draft);
+  const values = () => draftToValues(kind, { ...draft, rpe: draft.rpe ?? "" });
   const locked = !ready || (row.entry !== null && !editing);
   const resting = Boolean(session.rest_ends_at) && !expired;
   const numberSpecs = specs.filter(
@@ -593,9 +687,22 @@ function SetPanel({
   );
   const rirSpec = specs.find((spec) => spec.draftKey === "rir");
   const bandSpec = specs.find((spec) => spec.draftKey === "band_level");
+  const equipment = row.exercise.equipment_any_of ?? [];
+  const showBarbellCalculator = kind === "strength" &&
+    (row.exercise.equipment_load_mode ?? "standard") === "standard" &&
+    (equipment.length === 0 || equipment.some((option) => option.includes("barbell")));
+  const showDumbbellCalculator = kind === "strength" &&
+    (row.exercise.equipment_load_mode ?? "standard") === "standard" &&
+    equipment.some((option) => option.includes("dumbbell"));
 
   let action: ReactNode;
-  if (row.entry && !editing) {
+  if (row.entry?.pending) {
+    action = (
+      <p className="flex h-[54px] items-center text-sm font-semibold text-warn">
+        {row.state === "skipped" ? "Skip saved on this device" : "Set saved on this device"}
+      </p>
+    );
+  } else if (row.entry && !editing) {
     action = (
       <div className="flex h-[54px] items-center gap-2">
         <span
@@ -639,6 +746,7 @@ function SetPanel({
     action = (
       <RestBar
         restEndsAt={session.rest_ends_at}
+        disabled={restControlsDisabled}
         onAdjust={onAdjustRest}
         onSkip={onSkipRest}
       />
@@ -678,12 +786,24 @@ function SetPanel({
           </div>
         ))}
       </div>
-      {rirSpec ? (
-        <RirPills
-          value={draft.rir}
-          disabled={locked}
-          onChange={(value) => update("rir", value)}
+      {showBarbellCalculator ? (
+        <BarbellPlateCalculator
+          weight={draft.weight}
+          profiles={plateProfiles}
+          selectedProfile={selectedPlateProfile}
+          onProfileChange={onPlateProfileChange}
         />
+      ) : null}
+      {showDumbbellCalculator ? (
+        <DumbbellPlateCalculator
+          weight={draft.weight}
+          profiles={dumbbellProfiles}
+          selectedProfile={selectedDumbbellProfile}
+          onProfileChange={onDumbbellProfileChange}
+        />
+      ) : null}
+      {rirSpec ? (
+        <EffortFields draft={draft} disabled={locked} onChange={update} />
       ) : null}
       {bandSpec ? (
         <label className="flex items-center gap-3 text-sm text-muted">
@@ -704,6 +824,7 @@ function SetPanel({
           {resting && session.rest_ends_at ? (
             <RestBar
               restEndsAt={session.rest_ends_at}
+              disabled={restControlsDisabled}
               onAdjust={onAdjustRest}
               onSkip={onSkipRest}
             />

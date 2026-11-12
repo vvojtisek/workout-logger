@@ -70,6 +70,7 @@ class SessionExercise(UUIDPrimaryKeyMixin, Base):
 
     # Filled from the exercise catalogue by app.services.volume_rules on load.
     volume_rule = DEFAULT_RULE
+    equipment_any_of: tuple[tuple[str, ...], ...] = ()
 
     @property
     def is_unilateral(self) -> bool:

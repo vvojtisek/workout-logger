@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -9,6 +10,7 @@ from app.schemas.exercises import (
     ExerciseCreate,
     ExerciseRead,
     ExerciseReplace,
+    MovementPattern,
     PaginatedExercisesResponse,
 )
 from app.services import exercises as exercises_service
@@ -24,6 +26,7 @@ router = APIRouter(prefix="/exercises", tags=["exercises"])
     description=(
         "Returns a paginated list of exercise catalogue entries, sorted by name ascending. "
         "`q` filters by a case-insensitive substring of the name or any alias. "
+        "`movement_pattern` keeps exercises with that movement classification. "
         "`location_id` keeps only exercises that location's equipment can host."
     ),
     response_model=PaginatedExercisesResponse,
@@ -32,14 +35,19 @@ async def list_exercises(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     q: str | None = Query(default=None, max_length=150),
+    movement_pattern: Annotated[MovementPattern | None, Query()] = None,
     location_id: UUID | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> PaginatedExercisesResponse:
     if location_id is None:
-        items, total = await exercises_service.list_exercises(session, limit, offset, q)
+        items, total = await exercises_service.list_exercises(
+            session, limit, offset, q, movement_pattern
+        )
     else:
         # Equipment lives in JSON, so filter the matches here; the catalogue is small.
-        everything, _ = await exercises_service.list_exercises(session, None, 0, q)
+        everything, _ = await exercises_service.list_exercises(
+            session, None, 0, q, movement_pattern
+        )
         available = await location_fit.filter_available(session, everything, location_id)
         items, total = available[offset : offset + limit], len(available)
     return PaginatedExercisesResponse(

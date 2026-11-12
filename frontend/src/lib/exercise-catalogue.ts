@@ -1,4 +1,4 @@
-import type { MuscleTag } from "@/api/types";
+import type { MovementPattern, MuscleTag } from "@/api/types";
 
 export const MUSCLE_LABELS: Record<MuscleTag, string> = {
   chest: "Chest",
@@ -15,13 +15,35 @@ export const MUSCLE_LABELS: Record<MuscleTag, string> = {
   full_body: "Full body",
 };
 
+export const MOVEMENT_PATTERN_LABELS: Record<MovementPattern, string> = {
+  horizontal_push: "Horizontal push",
+  horizontal_pull: "Horizontal pull",
+  vertical_push: "Vertical push",
+  vertical_pull: "Vertical pull",
+  squat: "Squat",
+  hinge: "Hinge",
+  lunge: "Lunge",
+  carry: "Carry",
+  rotation: "Rotation",
+  anti_rotation: "Anti-rotation",
+  trunk_flexion: "Trunk flexion",
+  trunk_extension: "Trunk extension",
+  locomotion: "Locomotion",
+};
+
 const PAGE_SIZE = 100;
 
-export function exerciseListPath(query: string, offset = 0, locationId = ""): string {
+export function exerciseListPath(
+  query: string,
+  offset = 0,
+  locationId = "",
+  movementPattern: MovementPattern | "" = "",
+): string {
   const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
   const term = query.trim();
   if (term) params.set("q", term);
   if (locationId) params.set("location_id", locationId);
+  if (movementPattern) params.set("movement_pattern", movementPattern);
   return `/exercises?${params.toString()}`;
 }
 

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { openPage } from "./support/navigation.js";
-import { REST_RUNNING, expectRir, saveOnlySet, setRir } from "./support/workout.js";
+import { isDesktop, openPage } from "./support/navigation.js";
+import { REST_RUNNING, expectRir, readWorkoutStorage, saveOnlySet, setRir } from "./support/workout.js";
 
 test("starts, saves, resumes, completes, and cleans up a real active workout", async ({
   page,
@@ -80,10 +80,32 @@ test("starts, saves, resumes, completes, and cleans up a real active workout", a
     sessionId = active.id;
     expect(active.source_plan_id).toBe(planId);
 
+    const mobile = !isDesktop(page);
+    const showRpe = page.getByRole("button", { name: "RPE", exact: true });
+    const rpeZero = page.getByRole("group", { name: "RPE", exact: true })
+      .getByRole("button", { name: "0", exact: true });
     await setRir(page, "2");
+    if (mobile) {
+      await showRpe.click();
+      await rpeZero.click();
+      const draftKey = `workout_logger_active_draft:${sessionId}:${active.exercises[0].id}:1`;
+      await expect.poll(async () => {
+        const savedDraft = await readWorkoutStorage(page, draftKey);
+        return typeof savedDraft === "string" ? JSON.parse(savedDraft).rpe : null;
+      }).toBe("0");
+      await page.reload();
+      await showRpe.click();
+      await expect(rpeZero).toHaveAttribute("aria-pressed", "true");
+    }
     await saveOnlySet(page);
     await expect(page.getByText("Saved", { exact: true })).toBeVisible();
     await expect(page.getByRole("timer")).toContainText(REST_RUNNING);
+    const savedResponse = await request.get(`/api/v1/workout-sessions/${sessionId}`);
+    expect(savedResponse.status()).toBe(200);
+    expect((await savedResponse.json()).exercises[0].set_entries[0]).toMatchObject({
+      rir: 2,
+      rpe: mobile ? 0 : null,
+    });
 
     await page.reload();
     await expect(page.getByRole("heading", { name: `${tag} Bench Press` })).toBeVisible();
@@ -94,6 +116,20 @@ test("starts, saves, resumes, completes, and cleans up a real active workout", a
     await expect(page.getByRole("timer")).toContainText(REST_RUNNING);
 
     await expect(page.locator("#rir-hint")).toContainText("reps in reserve");
+    if (mobile) {
+      await showRpe.click();
+      await expect(rpeZero).toHaveAttribute("aria-pressed", "true");
+      await page.getByRole("button", { name: "Edit", exact: true }).click();
+      await rpeZero.click();
+      await page.getByRole("button", { name: "Save correction" }).click();
+      await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+      const corrected = await request.get(`/api/v1/workout-sessions/${sessionId}`);
+      expect(corrected.status()).toBe(200);
+      expect((await corrected.json()).exercises[0].set_entries[0]).toMatchObject({
+        rir: 2,
+        rpe: null,
+      });
+    }
     await expect(page.locator("#active-feeling option:checked")).toHaveText("3 · OK");
     await page.locator("#active-feeling").selectOption("4");
     await page.getByRole("button", { name: "Finish workout" }).click();

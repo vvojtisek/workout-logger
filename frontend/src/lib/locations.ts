@@ -1,4 +1,4 @@
-import type { EquipmentTag, Location, LocationKind } from "@/api/types";
+import type { DumbbellProfile, EquipmentTag, Location, LocationKind, PlateProfile } from "@/api/types";
 
 export const LOCATION_KIND_LABELS: Record<LocationKind, string> = {
   home: "Home",
@@ -12,13 +12,29 @@ export interface LocationPayload {
   kind: LocationKind;
   equipment: EquipmentTag[];
   default_minutes: number | null;
+  plate_profiles: PlateProfile[];
+  dumbbell_profiles: DumbbellProfile[];
+}
+
+export interface PlateProfileDraft {
+  name: string;
+  bar: string;
+  collars: string;
+  plates: Array<{ weight: string; pairs: string }>;
+}
+
+export interface DumbbellProfileDraft {
+  name: string;
+  handle: string;
+  collars: string;
+  plates: Array<{ weight: string; pairs: string }>;
 }
 
 /** Created empty; you tick what each place has. */
 export const DEFAULT_LOCATIONS: LocationPayload[] = [
-  { name: "Office", kind: "office", equipment: [], default_minutes: null },
-  { name: "Gym", kind: "gym", equipment: [], default_minutes: null },
-  { name: "Home", kind: "home", equipment: [], default_minutes: null },
+  { name: "Office", kind: "office", equipment: [], default_minutes: null, plate_profiles: [], dumbbell_profiles: [] },
+  { name: "Gym", kind: "gym", equipment: [], default_minutes: null, plate_profiles: [], dumbbell_profiles: [] },
+  { name: "Home", kind: "home", equipment: [], default_minutes: null, plate_profiles: [], dumbbell_profiles: [] },
 ];
 
 /** The editable form of a location: minutes stay text while typing. */
@@ -27,10 +43,12 @@ export interface LocationDraft {
   kind: LocationKind;
   equipment: EquipmentTag[];
   minutes: string;
+  plateProfiles: PlateProfileDraft[];
+  dumbbellProfiles: DumbbellProfileDraft[];
 }
 
 export function emptyDraft(): LocationDraft {
-  return { name: "", kind: "home", equipment: [], minutes: "" };
+  return { name: "", kind: "home", equipment: [], minutes: "", plateProfiles: [], dumbbellProfiles: [] };
 }
 
 export function draftFromLocation(location: Location): LocationDraft {
@@ -39,6 +57,24 @@ export function draftFromLocation(location: Location): LocationDraft {
     kind: location.kind,
     equipment: [...location.equipment],
     minutes: location.default_minutes === null ? "" : String(location.default_minutes),
+    plateProfiles: (location.plate_profiles ?? []).map((profile) => ({
+      name: profile.name,
+      bar: String(profile.bar_kg),
+      collars: String(profile.collars_kg),
+      plates: profile.plates.map((plate) => ({
+        weight: String(plate.weight_kg),
+        pairs: String(plate.pairs),
+      })),
+    })),
+    dumbbellProfiles: (location.dumbbell_profiles ?? []).map((profile) => ({
+      name: profile.name,
+      handle: String(profile.handle_kg),
+      collars: String(profile.collars_kg),
+      plates: profile.plates.map((plate) => ({
+        weight: String(plate.weight_kg),
+        pairs: String(plate.pairs),
+      })),
+    })),
   };
 }
 
@@ -56,6 +92,74 @@ export function draftToPayload(
       return { ok: false, error: "Session length is a whole number from 5 to 240 minutes." };
     }
   }
+  const plateProfiles: PlateProfile[] = [];
+  const names = new Set<string>();
+  for (const profile of draft.plateProfiles) {
+    const name = profile.name.trim();
+    if (!name || name.length > 60 || names.has(name.toLocaleLowerCase())) {
+      return { ok: false, error: "Bar profile names must be unique and at most 60 characters." };
+    }
+    names.add(name.toLocaleLowerCase());
+    const bar = Number(profile.bar);
+    const collars = Number(profile.collars);
+    if (!validLoad(bar, 0, 100) || !validLoad(collars, 0, 10) || bar === 0) {
+      return { ok: false, error: "Bar and collar weights must use up to three decimals." };
+    }
+    const plates: PlateProfile["plates"] = [];
+    const weights = new Set<number>();
+    for (const plate of profile.plates) {
+      const weight = Number(plate.weight);
+      const pairs = Number(plate.pairs);
+      if (!validLoad(weight, 0, 100) || weight === 0 ||
+          !Number.isInteger(pairs) || pairs < 1 || pairs > 30 || weights.has(weight)) {
+        return { ok: false, error: "Plate weights must be unique to three decimals with 1–30 pairs." };
+      }
+      weights.add(weight);
+      plates.push({ weight_kg: weight, pairs });
+    }
+    if (!plates.length || plates.length > 20) {
+      return { ok: false, error: "Add between 1 and 20 plate sizes to each bar profile." };
+    }
+    plates.sort((left, right) => right.weight_kg - left.weight_kg);
+    plateProfiles.push({ name, bar_kg: bar, collars_kg: collars, plates });
+  }
+  if (plateProfiles.length > 8) {
+    return { ok: false, error: "A location can have at most 8 bar profiles." };
+  }
+  const dumbbellProfiles: DumbbellProfile[] = [];
+  const dumbbellNames = new Set<string>();
+  for (const profile of draft.dumbbellProfiles) {
+    const profileName = profile.name.trim();
+    if (!profileName || profileName.length > 60 || dumbbellNames.has(profileName.toLocaleLowerCase())) {
+      return { ok: false, error: "Dumbbell profile names must be unique and at most 60 characters." };
+    }
+    dumbbellNames.add(profileName.toLocaleLowerCase());
+    const handle = Number(profile.handle);
+    const collars = Number(profile.collars);
+    if (!validLoad(handle, 0, 30) || handle === 0 || !validLoad(collars, 0, 10)) {
+      return { ok: false, error: "Handle and collar weights must use up to three decimals." };
+    }
+    const plates: DumbbellProfile["plates"] = [];
+    const weights = new Set<number>();
+    for (const plate of profile.plates) {
+      const weight = Number(plate.weight);
+      const pairs = Number(plate.pairs);
+      if (!validLoad(weight, 0, 100) || weight === 0 ||
+          !Number.isInteger(pairs) || pairs < 1 || pairs > 30 || weights.has(weight)) {
+        return { ok: false, error: "Plate weights must be unique to three decimals with 1–30 pairs." };
+      }
+      weights.add(weight);
+      plates.push({ weight_kg: weight, pairs });
+    }
+    if (!plates.length || plates.length > 20) {
+      return { ok: false, error: "Add between 1 and 20 plate sizes to each dumbbell profile." };
+    }
+    plates.sort((left, right) => right.weight_kg - left.weight_kg);
+    dumbbellProfiles.push({ name: profileName, handle_kg: handle, collars_kg: collars, plates });
+  }
+  if (dumbbellProfiles.length > 8) {
+    return { ok: false, error: "A location can have at most 8 dumbbell profiles." };
+  }
   return {
     ok: true,
     payload: {
@@ -63,6 +167,8 @@ export function draftToPayload(
       kind: draft.kind,
       equipment: [...new Set(draft.equipment)].sort(),
       default_minutes: minutes,
+      plate_profiles: plateProfiles,
+      dumbbell_profiles: dumbbellProfiles,
     },
   };
 }
@@ -76,7 +182,14 @@ export function draftIsDirty(draft: LocationDraft, saved: Location): boolean {
     payload.kind !== saved.kind ||
     payload.default_minutes !== saved.default_minutes ||
     payload.equipment.join() !== [...saved.equipment].sort().join()
+    || JSON.stringify(payload.plate_profiles) !== JSON.stringify(saved.plate_profiles ?? [])
+    || JSON.stringify(payload.dumbbell_profiles) !== JSON.stringify(saved.dumbbell_profiles ?? [])
   );
+}
+
+function validLoad(value: number, minimum: number, maximum: number): boolean {
+  return Number.isFinite(value) && value >= minimum && value <= maximum &&
+    Math.abs(value * 1000 - Math.round(value * 1000)) < 0.000001;
 }
 
 const TRAINING_LOCATION_KEY = "workout_logger_training_location";

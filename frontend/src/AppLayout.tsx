@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import type { ReactNode } from "react";
@@ -25,7 +26,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Link, Outlet, useLocation, useMatches, useNavigate } from "react-router-dom";
 
-import { apiFetch } from "@/api/client";
+import { ApiError, apiFetch } from "@/api/client";
 import { isFullBleed } from "@/app/MasterDetail";
 import { LogSheet } from "@/features/today/LogSheet";
 import type { WorkoutSession } from "@/api/types";
@@ -46,9 +47,11 @@ import {
 import type { NavIcon, NavSection } from "@/lib/navigation";
 import { useTheme, useThemePreference } from "@/lib/theme";
 import { useIsDesktop } from "@/lib/use-media-query";
+import { clearWorkoutSnapshot, loadWorkoutSnapshot, saveWorkoutSnapshot } from "@/lib/active-workout-storage";
 
 interface AppContextValue {
   session: WorkoutSession | null;
+  sessionReady: boolean;
   online: boolean;
   openSession: (session: WorkoutSession) => void;
   updateSession: (session: WorkoutSession) => void;
@@ -104,47 +107,72 @@ function useBuildLabel(online: boolean): BuildLabel | null {
 export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const online = useOnlineStatus();
-  const buildLabel = useBuildLabel(online);
-  const { logout } = useAuth();
+  const networkOnline = useOnlineStatus();
+  const { logout, accountId, status: authStatus } = useAuth();
+  const [loadedMode, setLoadedMode] = useState<typeof authStatus | null>(null);
   const [session, setSession] = useState<WorkoutSession | null>(null);
+  const sessionRevision = useRef(0);
+  const sessionReady = loadedMode === authStatus;
+  const online = networkOnline && authStatus === "authenticated" && sessionReady;
+  const buildLabel = useBuildLabel(online);
 
   const handleLogout = useCallback(() => {
+    if (accountId) void clearWorkoutSnapshot(accountId).catch(() => undefined);
     void logout().then(() => navigate("/login"));
-  }, [logout, navigate]);
+  }, [accountId, logout, navigate]);
+
+  const updateSession = useCallback((next: WorkoutSession) => {
+    if (!accountId || next.owner_id !== accountId) return false;
+    sessionRevision.current += 1;
+    setSession((current) => current?.id === next.id && current.version > next.version ? current : next);
+    void saveWorkoutSnapshot(accountId, next).catch(() => undefined);
+    return true;
+  }, [accountId]);
 
   const openSession = useCallback(
     (next: WorkoutSession) => {
-      setSession(next);
-      void navigate("/workout");
+      if (updateSession(next)) void navigate("/workout");
     },
-    [navigate],
+    [navigate, updateSession],
   );
 
   const finishSession = useCallback(() => {
+    sessionRevision.current += 1;
     setSession(null);
+    if (accountId) void clearWorkoutSnapshot(accountId).catch(() => undefined);
     void navigate("/history");
-  }, [navigate]);
-
-  const updateSession = useCallback((next: WorkoutSession) => {
-    setSession(next);
-  }, []);
+  }, [accountId, navigate]);
 
   useEffect(() => {
+    if (!accountId) return;
     let cancelled = false;
-    apiFetch<WorkoutSession>("/workout-sessions/active")
+    const revision = sessionRevision.current;
+    const activeSession = authStatus === "offline"
+      ? loadWorkoutSnapshot(accountId)
+      : apiFetch<WorkoutSession>("/workout-sessions/active");
+    activeSession
       .then((active) => {
-        if (!cancelled) openSession(active);
+        if (cancelled || sessionRevision.current !== revision || !active) return;
+        if (authStatus === "offline") setSession((current) => current ?? active);
+        else openSession(active);
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        if (cancelled || sessionRevision.current !== revision || !(error instanceof ApiError) || error.status !== 404) return;
+        setSession(null);
+        void clearWorkoutSnapshot(accountId).catch(() => undefined);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadedMode(authStatus);
+      });
     return () => {
       cancelled = true;
     };
-  }, [openSession]);
+  }, [accountId, authStatus, openSession]);
 
   const isDesktop = useIsDesktop();
   const ctx: AppContextValue = {
     session,
+    sessionReady,
     online,
     openSession,
     updateSession,

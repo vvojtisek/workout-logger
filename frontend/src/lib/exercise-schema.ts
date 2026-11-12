@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { EQUIPMENT_TAGS, MUSCLE_TAGS } from "@/api/types";
+import { EQUIPMENT_TAGS, MUSCLE_TAGS, MOVEMENT_PATTERNS } from "@/api/types";
 import { equipmentOptionsError } from "@/lib/equipment";
 import { EQUIPMENT_LOAD_MODES } from "@/lib/load-rules";
 
@@ -25,6 +25,10 @@ export const exercisePayloadSchema = z.object({
     .nullable(),
   primary_muscles: z.array(muscleTagSchema),
   secondary_muscles: z.array(muscleTagSchema),
+  movement_patterns: z
+    .array(z.enum(MOVEMENT_PATTERNS))
+    .max(4, "Choose at most four movement patterns")
+    .refine((patterns) => new Set(patterns).size === patterns.length, "Remove duplicate patterns"),
   instructions: z.array(
     z.string().trim().min(1, "Step cannot be blank").max(1000, "Max 1000 characters"),
   ),

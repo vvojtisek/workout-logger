@@ -7,7 +7,11 @@ import type { StatsRange } from "@/lib/exercise-stats";
 
 export function useExerciseProgression(
   exerciseNames: string[],
-  { sessionId, enableFilters = true }: { sessionId?: string; enableFilters?: boolean } = {},
+  { sessionId, enableFilters = true, enabled = true }: {
+    sessionId?: string;
+    enableFilters?: boolean;
+    enabled?: boolean;
+  } = {},
 ) {
   const [formula, setFormula] = useState<OneRepMaxFormula>("epley");
   const [historyRange, setHistoryRange] = useState<{
@@ -29,7 +33,7 @@ export function useExerciseProgression(
       }
       return apiFetch<ExerciseStatsResponse>(`/exercise-stats?${params.toString()}`);
     },
-    enabled: exerciseNames.length > 0,
+    enabled: enabled && exerciseNames.length > 0,
     staleTime: sessionId ? Infinity : 0,
     retry: false,
   });

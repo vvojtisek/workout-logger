@@ -36,6 +36,10 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
       .getByRole("group", { name: "Secondary muscles" })
       .getByRole("button", { name: "Triceps" })
       .click();
+    await page
+      .getByRole("group", { name: "Movement patterns" })
+      .getByRole("button", { name: "Horizontal push" })
+      .click();
 
     await page.getByRole("button", { name: "+ Add step" }).click();
     await page.getByRole("button", { name: "+ Add step" }).click();
@@ -85,6 +89,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
         ["bench", "dumbbell"],
       ],
       safety_notes: "Use a spotter.",
+      movement_patterns: ["horizontal_push"],
     });
 
     // The detail view (guide) landed here after creation; verify it renders
@@ -97,6 +102,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     );
     await expect(page.getByText("Chest", { exact: true })).toBeVisible();
     await expect(page.getByText("Triceps", { exact: true })).toBeVisible();
+    await expect(detailPane(page).getByText("Horizontal push", { exact: true })).toBeVisible();
     await expect(page.getByText(`${tag} Lie on the bench.`)).toBeVisible();
     await expect(page.getByText(`${tag} Press the bar up.`)).toBeVisible();
     await expect(detailPane(page).getByText("Barbell", { exact: true })).toBeVisible();
@@ -136,10 +142,15 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     expect(await updated.json()).toMatchObject({
       equipment: "Barbell, bench",
       equipment_any_of: [["barbell", "bench"]],
+      movement_patterns: ["horizontal_push"],
     });
 
     // Delete through the GUI and prove it is gone.
     await openPage(page, "Exercises");
+    await page.getByLabel("Search exercises").fill("");
+    await page.getByLabel("Movement pattern").selectOption("horizontal_push");
+    await expect(page.locator("#exercises-list")).toContainText(`${tag} Bench Press`);
+    await page.getByLabel("Movement pattern").selectOption("");
     await page.getByLabel("Search exercises").fill(tag);
     await page
       .getByRole("listitem")

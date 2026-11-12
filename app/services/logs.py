@@ -13,6 +13,13 @@ from app.schemas.logs import WorkoutLogCreate, WorkoutLogPatch, WorkoutLogRead, 
 from app.services.volume_rules import apply_to_logs
 
 _LOAD_EXERCISES = selectinload(WorkoutLog.exercises)
+_SET_IDENTITY_FIELDS = (
+    "exercise_name",
+    "reps_per_set",
+    "weight_kg",
+    "weight_per_set",
+    "rir_per_set",
+)
 
 
 async def list_logs(
@@ -94,6 +101,15 @@ async def replace_log(session: AsyncSession, log_id: UUID, data: WorkoutLogRepla
     log = await get_log(session, log_id)
     source_plan_name = await _resolve_source_plan_name(session, data.source_plan_id)
 
+    # Older clients can replace exercises without knowing about RPE. Keep the
+    # ratings only when the complete ordered layout still identifies the same sets.
+    stored_rpes = []
+    if len(log.exercises) == len(data.exercises) and all(
+        all(getattr(current, field) == getattr(new, field) for field in _SET_IDENTITY_FIELDS)
+        for current, new in zip(log.exercises, data.exercises, strict=True)
+    ):
+        stored_rpes = [exercise.rpe_per_set for exercise in log.exercises]
+
     log.source_plan_id = data.source_plan_id
     log.source_plan_name = source_plan_name
     log.performed_at = data.performed_at
@@ -107,7 +123,10 @@ async def replace_log(session: AsyncSession, log_id: UUID, data: WorkoutLogRepla
     log.exercises.clear()
     await session.flush()
     for index, exercise in enumerate(data.exercises):
-        log.exercises.append(ExerciseLog(sort_order=index, **exercise.model_dump()))
+        values = exercise.model_dump()
+        if stored_rpes and "rpe_per_set" not in exercise.model_fields_set:
+            values["rpe_per_set"] = stored_rpes[index]
+        log.exercises.append(ExerciseLog(sort_order=index, **values))
     await session.commit()
     return await get_log(session, log_id)
 

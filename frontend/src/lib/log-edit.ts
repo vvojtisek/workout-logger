@@ -9,6 +9,7 @@ export interface SetDraft {
   weight: string;
   reps: string;
   rir: string;
+  rpe: number | null;
 }
 
 export interface ExerciseDraft {
@@ -37,7 +38,7 @@ function text(value: number | null | undefined): string {
 }
 
 function emptySet(): SetDraft {
-  return { key: crypto.randomUUID(), weight: "", reps: "", rir: "" };
+  return { key: crypto.randomUUID(), weight: "", reps: "", rir: "", rpe: null };
 }
 
 export function logToDraft(log: WorkoutLog): LogDraft {
@@ -56,6 +57,7 @@ export function logToDraft(log: WorkoutLog): LogDraft {
         weight: text(exercise.weight_per_set ? exercise.weight_per_set[index] : exercise.weight_kg),
         reps: String(reps),
         rir: text(exercise.rir_per_set?.[index]),
+        rpe: exercise.rpe_per_set?.[index] ?? null,
       })),
     })),
   };
@@ -68,7 +70,7 @@ export function newExercise(): ExerciseDraft {
 /** Appends a copy of the last set (weight and reps), so repeating a set is one tap. */
 export function addSet(exercise: ExerciseDraft): ExerciseDraft {
   const last = exercise.sets.at(-1);
-  const next = last ? { ...last, key: crypto.randomUUID(), rir: "" } : emptySet();
+  const next = last ? { ...last, key: crypto.randomUUID(), rir: "", rpe: null } : emptySet();
   return { ...exercise, sets: [...exercise.sets, next] };
 }
 
@@ -117,6 +119,7 @@ function exercisePayload(exercise: ExerciseDraft): Record<string, unknown> | str
     weight_kg: loaded.at(-1) ?? null,
     weight_per_set: weights,
     rir_per_set: rirs,
+    ...(exercise.original?.rpe_per_set ? { rpe_per_set: exercise.sets.map((set) => set.rpe) } : {}),
   };
 }
 

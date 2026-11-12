@@ -17,6 +17,7 @@ export interface SetEntry {
   state: string;
   completed_at?: string;
   client_operation_id?: string;
+  pending?: boolean;
 }
 
 export interface GridExercise {
@@ -36,6 +37,7 @@ export interface GridExercise {
   // From the exercise catalogue: what the weight input means, and whether a
   // set's reps are per side. Absent counts as a plain barbell/machine lift.
   equipment_load_mode?: EquipmentLoadMode;
+  equipment_any_of?: string[][];
   is_unilateral?: boolean;
 }
 

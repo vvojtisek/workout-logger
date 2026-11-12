@@ -25,6 +25,7 @@ async def test_training_load_export_preserves_logged_values_in_selected_local_we
                         "reps_per_set": [8, 6, 4],
                         "weight_per_set": [60, None, 0],
                         "rir_per_set": [0, None, 1],
+                        "rpe_per_set": [0, None, 9],
                     },
                     {
                         "exercise_name": "\u200b +Legacy row",
@@ -77,6 +78,7 @@ async def test_training_load_export_preserves_logged_values_in_selected_local_we
         assert [row["weight_kg"] for row in rows[1:6]] == ["60.0", "", "0.0", "20.0", "20.0"]
         assert [row["reps"] for row in rows[1:6]] == ["8", "6", "4", "12", "9"]
         assert [row["rir"] for row in rows[1:6]] == ["0", "", "1", "", ""]
+        assert [row["set_rpe"] for row in rows] == ["", "0", "", "9", "", "", "", ""]
         assert {row["activity_type"] for row in rows[-2:]} == {"running", "swimming"}
     finally:
         for log_id in ids:

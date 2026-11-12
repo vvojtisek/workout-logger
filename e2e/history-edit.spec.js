@@ -25,6 +25,7 @@ test("edits a past workout's date, notes, exercises and sets from its history pa
             reps_per_set: [8, 8],
             weight_per_set: [60, 60],
             rir_per_set: [3, 2],
+            rpe_per_set: [0, 9],
           },
           { exercise_name: "Plank", sets_count: 1, reps_per_set: [1] },
         ],
@@ -35,6 +36,7 @@ test("edits a past workout's date, notes, exercises and sets from its history pa
 
     await page.goto(`/history/${logId}`);
     await expect(page.locator("#detail-content")).toContainText("Bench press: 8, 8 reps @ 60kg");
+    await expect(page.locator("#detail-content")).toContainText("RPE by set: 0, 9");
     await page.locator("#edit-log-btn").click();
     await expect(page.getByRole("heading", { name: "Edit Workout", exact: true })).toBeVisible();
 
@@ -72,6 +74,7 @@ test("edits a past workout's date, notes, exercises and sets from its history pa
     await expect(page.locator("#detail-content")).toContainText(
       "Bench press: 60 kg × 8, 62.5 kg × 6, 62.5 kg × 5"
     );
+    await expect(page.locator("#detail-content")).toContainText("RPE by set: 0, 9, —");
     await expect(page.locator("#detail-content")).toContainText("Seated row: 12 reps @ 45kg");
     await expect(page.locator("#detail-content")).not.toContainText("Plank");
 
@@ -87,12 +90,20 @@ test("edits a past workout's date, notes, exercises and sets from its history pa
           reps_per_set: [8, 6, 5],
           weight_per_set: [60, 62.5, 62.5],
           rir_per_set: [null, 2, 0],
+          rpe_per_set: [0, 9, null],
           weight_kg: 62.5,
         },
         { exercise_name: "Seated row", reps_per_set: [12], weight_per_set: [45], weight_kg: 45 },
       ],
     });
     expect(new Date(stored.performed_at).getTime()).toBe(new Date(2033, 2, 11, 18, 15).getTime());
+
+    await page.locator("#edit-log-btn").click();
+    await page.getByRole("button", { name: "Remove Bench press set 1" }).click();
+    await clickAndAwaitWrite(page, page.locator("#save-log-btn"), "PATCH");
+    await expect(page.locator("#detail-content")).toContainText("RPE by set: 9, —");
+    const shortened = await (await request.get(`/api/v1/logs/${logId}`)).json();
+    expect(shortened.exercises[0].rpe_per_set).toEqual([9, null]);
   } finally {
     if (logId) {
       await request.delete(`/api/v1/logs/${logId}`);

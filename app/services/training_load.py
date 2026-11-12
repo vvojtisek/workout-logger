@@ -37,6 +37,7 @@ CSV_COLUMNS = (
     "weight_kg",
     "reps",
     "rir",
+    "set_rpe",
 )
 
 
@@ -96,6 +97,7 @@ async def export_training_load_csv(session: AsyncSession, query: TrainingLoadQue
         )
         for exercise in log.exercises:
             rirs = exercise.rir_per_set or []
+            rpes = exercise.rpe_per_set or []
             for index, (weight, reps) in enumerate(exercise.sets_with_weights):
                 writer.writerow(
                     {
@@ -107,6 +109,7 @@ async def export_training_load_csv(session: AsyncSession, query: TrainingLoadQue
                         "weight_kg": weight,
                         "reps": reps,
                         "rir": rirs[index] if index < len(rirs) else None,
+                        "set_rpe": rpes[index] if index < len(rpes) else None,
                     }
                 )
     return csv_buffer.getvalue().encode("utf-8-sig")
