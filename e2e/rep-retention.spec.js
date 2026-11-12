@@ -30,15 +30,19 @@ test("past workout compares repetitions at the same recorded load", async ({ pag
     const reveal = page.getByText("Rep retention at the same weight", { exact: true });
     await expect(reveal).toBeVisible();
     await reveal.click();
-    await expect(page.getByText(/set number in workout history/)).toBeVisible();
+    await expect(page.getByText(/chart plots recorded reps/)).toBeVisible();
     await expect(page.getByRole("img", { name: "Rep retention at 60 kg" })).toBeVisible();
     const heavy = page.getByRole("table", { name: "Sets at 60 kg" });
     await expect(heavy.getByRole("row", { name: /^3 / }).getByRole("cell")).toHaveText([
-      "6", "1", "75%",
+      "6", "1", "7", "75%", "70%",
     ]);
+    await page.getByLabel("Chart measure for 60 kg").selectOption("reps_at_failure");
+    await expect(
+      page.getByRole("img", { name: "Estimated reps at failure at 60 kg" }),
+    ).toBeVisible();
     const light = page.getByRole("table", { name: "Sets at 50 kg" });
     await expect(light.getByRole("row", { name: /^4 / }).getByRole("cell")).toHaveText([
-      "12", "0", "120%",
+      "12", "0", "12", "120%", "100%",
     ]);
     await expect(page.getByRole("table", { name: "Sets at 70 kg" })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(

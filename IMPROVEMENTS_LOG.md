@@ -396,3 +396,27 @@ sets.
   pairs. Start a strength workout, open **Plate calculator**, and check that each side matches
   the loaded weight; change the weight dial and confirm the distribution updates. Unavailable
   loads show the closest achievable total.
+
+## Cycle 27 — Plot RIR-adjusted performance across repeated loads
+
+Past-workout rep-retention charts can now switch from recorded reps to estimated reps at failure
+for sets at the same load. The estimate is recorded reps + recorded RIR; sets without an RIR stay
+missing from that curve. The table keeps actual reps, RIR, the estimate, and both retention
+percentages separate, so a change in reported reserve is visible alongside rep dropoff without
+presenting the estimate as a directly measured failure threshold.
+
+- The unit regression first failed because the baseline had no estimated-at-failure values. It
+  now verifies the first rated set as its own baseline and preserves unknown RIR as missing.
+- The migrated-SQLite browser flow records alternating loads and mixed RIR, then checks the
+  estimate and retention values on desktop and phone. It verifies the chart selector and confirms
+  the document does not overflow the phone viewport. Cleanup found zero rows in all nine tracked
+  tables.
+- Full Python coverage passed 717 tests at 82%. ESLint, TypeScript, all 204 Vitest tests, Vite
+  build, required Ruff rules, Ruff format, mypy, and `git diff --check` passed. Informational full
+  Ruff remains at the existing 151 findings.
+- Full localhost Playwright passed 70 tests with four expected viewport skips; cleanup found
+  zero rows in all nine tracked tables.
+- Browser verification recipe. Log multiple sets at the same weight with RIR on at least two.
+  In the past workout, expand **Rep retention at the same weight** and switch its chart measure
+  to **Estimated reps at failure**. Compare the estimated values with actual reps and RIR in the
+  adjacent table; unrated sets should not appear in the curve.

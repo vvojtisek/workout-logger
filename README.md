@@ -291,6 +291,9 @@ In a past workout, expand **Rep retention at the same weight** when an exercise 
 recorded loads. Each chart plots reps at the set numbers in workout history. The table shows recorded
 reps, RIR when available, and reps as a percentage of the first set at that load. Explicitly
 missing loads are excluded. Older single-weight records use that weight for each set.
+When at least two same-load sets include RIR, the chart can also plot estimated reps at failure
+(recorded reps + RIR); sets without RIR are omitted from that estimate. This helps separate actual
+rep dropoff from a change in reported reserve.
 
 **Download training CSV** exports the visible Training load window using the same local-week
 boundaries. The UTF-8 file has one `session` row per workout or activity with duration and
