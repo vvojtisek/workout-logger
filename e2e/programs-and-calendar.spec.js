@@ -34,6 +34,8 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
   /** @type {string | undefined} */
   let secondScheduledId;
   /** @type {string | undefined} */
+  let fourthWeekScheduledId;
+  /** @type {string | undefined} */
   let sessionId;
 
   try {
@@ -131,6 +133,15 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     });
     expect(nextWeekResponse.status()).toBe(201);
     secondScheduledId = (await nextWeekResponse.json()).id;
+    const fourthWeekResponse = await request.post("/api/v1/scheduled-workouts", {
+      data: {
+        program_id: programId,
+        workout_plan_id: planId,
+        scheduled_date: addUtcDays(today, 21),
+      },
+    });
+    expect(fourthWeekResponse.status()).toBe(201);
+    fourthWeekScheduledId = (await fourthWeekResponse.json()).id;
     await page.reload();
     const refreshedProgramCard = page
       .locator("#programs-list")
@@ -140,14 +151,21 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     const weeklyStates = refreshedProgramCard.getByRole("table", {
       name: `${tag} program weekly schedule states`,
     });
-    await expect(weeklyStates.getByRole("row")).toHaveCount(3);
+    await expect(weeklyStates.getByRole("row")).toHaveCount(5);
     const weekOne = weeklyStates.getByRole("row", { name: /Week 1/ });
     await expect(weekOne.getByRole("cell")).toHaveText(["1", "0", "0", "0"]);
     const weekTwo = weeklyStates.getByRole("row", { name: /Week 2/ });
     await expect(weekTwo.getByRole("cell")).toHaveText(["1", "0", "0", "0"]);
+    const weekThree = weeklyStates.getByRole("row", { name: /Week 3/ });
+    await expect(weekThree.getByRole("cell")).toHaveText(["0", "0", "0", "0"]);
+    const weekFour = weeklyStates.getByRole("row", { name: /Week 4/ });
+    await expect(weekFour.getByRole("cell")).toHaveText(["1", "0", "0", "0"]);
     await request.delete(`/api/v1/scheduled-workouts/${secondScheduledId}`);
     expect((await request.get(`/api/v1/scheduled-workouts/${secondScheduledId}`)).status()).toBe(404);
     secondScheduledId = undefined;
+    await request.delete(`/api/v1/scheduled-workouts/${fourthWeekScheduledId}`);
+    expect((await request.get(`/api/v1/scheduled-workouts/${fourthWeekScheduledId}`)).status()).toBe(404);
+    fourthWeekScheduledId = undefined;
     await page.reload();
 
     // Reschedule: move it one day into the future, then back to today.
@@ -257,6 +275,10 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     if (secondScheduledId) {
       await request.delete(`/api/v1/scheduled-workouts/${secondScheduledId}`);
       expect((await request.get(`/api/v1/scheduled-workouts/${secondScheduledId}`)).status()).toBe(404);
+    }
+    if (fourthWeekScheduledId) {
+      await request.delete(`/api/v1/scheduled-workouts/${fourthWeekScheduledId}`);
+      expect((await request.get(`/api/v1/scheduled-workouts/${fourthWeekScheduledId}`)).status()).toBe(404);
     }
     if (programId) {
       await request.delete(`/api/v1/programs/${programId}`);

@@ -852,3 +852,20 @@ without crowding the program list or implying that unlike states combine into a 
   expand **Week-by-week states**. Compare each row's four state counts with the Calendar; weeks
   with no scheduled workouts are omitted, and a block with no scheduled workouts shows an empty
   state.
+
+## Cycle 36 — Make empty training weeks explicit
+
+The weekly state table now covers the full finite program block, plus the current and furthest
+scheduled week for open-ended programs. Consecutive weeks with no scheduled workouts appear as a
+single labeled range with zero counts in all four state columns. This makes a gap explicit for
+review without inferring whether it was intentional, while keeping long empty stretches compact.
+
+- The real-API browser journey schedules workouts in Weeks 1, 2, and 4 of a four-week block and
+  confirms Week 3 appears with zero counts on desktop and phone. Temporary schedules and audit
+  rows were removed, and the unique run tag was verified absent from the SQLite database.
+- `uv run pytest -q` passed all 739 backend tests; `npm test` passed all 225 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 78 tests with eight expected viewport skips.
+- Browser verification recipe. Create a four-week program, schedule workouts in Weeks 1, 2, and
+  4, then expand **Week-by-week states**. Confirm Week 3 is present as a zero-count gap; also
+  confirm the current week and final block week remain visible when they have no scheduled work.

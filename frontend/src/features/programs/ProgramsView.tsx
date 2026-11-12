@@ -225,13 +225,43 @@ function ProgramWeeklyStateTable({
   program: Program;
   weeks: ProgramScheduleSummary["weeks"];
 }) {
+  const progress = programWeekProgress(
+    program.start_date,
+    program.end_date,
+    localIsoDate(new Date()),
+  );
+  const scheduledWeeks = [...weeks].sort((left, right) => left.week_number - right.week_number);
+  const finalWeek = Math.max(
+    progress.totalWeeks ?? progress.week,
+    scheduledWeeks.at(-1)?.week_number ?? 0,
+  );
+  const rows: Array<
+    | { kind: "scheduled"; week: (typeof scheduledWeeks)[number] }
+    | { kind: "empty"; firstWeek: number; lastWeek: number }
+  > = [];
+  let nextWeek = 1;
+  for (const week of scheduledWeeks) {
+    if (week.week_number > nextWeek) {
+      rows.push({
+        kind: "empty",
+        firstWeek: nextWeek,
+        lastWeek: week.week_number - 1,
+      });
+    }
+    rows.push({ kind: "scheduled", week });
+    nextWeek = week.week_number + 1;
+  }
+  if (nextWeek <= finalWeek) {
+    rows.push({ kind: "empty", firstWeek: nextWeek, lastWeek: finalWeek });
+  }
+
   return (
     <details className="mt-2 text-xs">
       <summary className="w-fit cursor-pointer text-muted underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
         Week-by-week states
       </summary>
       <div className="mt-2 max-w-full overflow-x-auto">
-        {weeks.length > 0 ? (
+        {rows.length > 0 ? (
           <table
             aria-label={`${program.name} weekly schedule states`}
             className="w-full border-collapse text-left"
@@ -246,17 +276,41 @@ function ProgramWeeklyStateTable({
               </tr>
             </thead>
             <tbody>
-              {weeks.map((week) => (
-                <tr key={week.week_number} className="border-b border-border/60">
-                  <th scope="row" className="py-1 pr-3 font-medium">
-                    Week {week.week_number}
-                  </th>
-                  <td className="px-2 py-1 tabular-nums">{week.scheduled}</td>
-                  <td className="px-2 py-1 tabular-nums">{week.in_progress}</td>
-                  <td className="px-2 py-1 tabular-nums">{week.completed}</td>
-                  <td className="px-2 py-1 tabular-nums">{week.skipped}</td>
-                </tr>
-              ))}
+              {rows.map((row) => {
+                if (row.kind === "scheduled") {
+                  const { week } = row;
+                  return (
+                    <tr key={`week-${week.week_number}`} className="border-b border-border/60">
+                      <th scope="row" className="py-1 pr-3 font-medium">
+                        Week {week.week_number}
+                      </th>
+                      <td className="px-2 py-1 tabular-nums">{week.scheduled}</td>
+                      <td className="px-2 py-1 tabular-nums">{week.in_progress}</td>
+                      <td className="px-2 py-1 tabular-nums">{week.completed}</td>
+                      <td className="px-2 py-1 tabular-nums">{week.skipped}</td>
+                    </tr>
+                  );
+                }
+
+                const weekLabel =
+                  row.firstWeek === row.lastWeek
+                    ? `Week ${row.firstWeek}`
+                    : `Weeks ${row.firstWeek}–${row.lastWeek}`;
+                return (
+                  <tr
+                    key={`empty-${row.firstWeek}-${row.lastWeek}`}
+                    className="border-b border-border/60 text-muted"
+                  >
+                    <th scope="row" className="py-1 pr-3 font-medium">
+                      {weekLabel} · No scheduled workouts
+                    </th>
+                    <td className="px-2 py-1 tabular-nums">0</td>
+                    <td className="px-2 py-1 tabular-nums">0</td>
+                    <td className="px-2 py-1 tabular-nums">0</td>
+                    <td className="px-2 py-1 tabular-nums">0</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         ) : (
