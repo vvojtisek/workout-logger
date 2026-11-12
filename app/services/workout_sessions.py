@@ -209,6 +209,13 @@ async def save_set(
     if any(entry.set_number == data.set_number for entry in exercise.set_entries):
         raise ConflictError("Set has already been completed", code="SET_ALREADY_COMPLETED")
 
+    now = utcnow()
+    completed_at = min(now, max(workout_session.started_at, data.client_completed_at or now))
+    starts_rest = data.state == "completed" and not any(
+        entry.state == "completed" and entry.completed_at > completed_at
+        for item in workout_session.exercises
+        for entry in item.set_entries
+    )
     exercise.set_entries.append(
         SetEntry(
             set_number=data.set_number,
@@ -222,11 +229,17 @@ async def save_set(
             incline_percent=data.incline_percent,
             rpe=data.rpe,
             state=data.state,
+            completed_at=completed_at,
             client_operation_id=data.client_operation_id,
         )
     )
-    if data.state == "completed":
-        workout_session.rest_ends_at = utcnow() + timedelta(seconds=exercise.rest_time_seconds)
+    if starts_rest:
+        rest_seconds = data.client_rest_seconds
+        workout_session.rest_ends_at = (
+            None
+            if rest_seconds == 0
+            else completed_at + timedelta(seconds=rest_seconds or exercise.rest_time_seconds)
+        )
     _focus_next_incomplete(workout_session)
     workout_session.version += 1
     await session.commit()
@@ -261,7 +274,8 @@ async def update_set(
     entry.duration_seconds = data.duration_seconds
     entry.distance_km = data.distance_km
     entry.incline_percent = data.incline_percent
-    entry.rpe = data.rpe
+    if "rpe" in data.model_fields_set:
+        entry.rpe = data.rpe
     workout_session.version += 1
     await session.commit()
     return await get_session(session, workout_session.id)
@@ -397,6 +411,7 @@ async def complete_session(
                 weight_kg=entries[-1].weight_kg,
                 weight_per_set=[entry.weight_kg for entry in entries],
                 rir_per_set=[entry.rir for entry in entries],
+                rpe_per_set=[entry.rpe for entry in entries],
                 rest_time_seconds=exercise.rest_time_seconds,
                 notes=exercise.notes,
             )

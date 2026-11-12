@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  SET_QUEUE_STORAGE_KEY,
   adjustedRemainingSeconds,
   clearSetDraft,
   draftStorageKey,
@@ -28,7 +29,13 @@ function memoryStorage() {
   async function removeItem(key) {
     values.delete(key);
   }
-  return { getItem, setItem, removeItem };
+  /** @template T @param {string} key @param {(stored: string | null) => {value: string, result: T}} update */
+  async function updateItem(key, update) {
+    const change = update(values.get(key) ?? null);
+    values.set(key, change.value);
+    return change.result;
+  }
+  return { getItem, setItem, removeItem, updateItem };
 }
 
 describe("absolute rest timer state", () => {
@@ -103,5 +110,16 @@ describe("active set synchronization queue", () => {
       status: "synchronized",
       label: "Synchronized",
     });
+  });
+
+  it("keeps an unreadable queue for recovery instead of overwriting it", async () => {
+    const storage = memoryStorage();
+    await storage.setItem(SET_QUEUE_STORAGE_KEY, "{unreadable");
+    await expect(enqueueSetOperation(storage, {
+      client_operation_id: "operation-a",
+      session_id: "session-a",
+      payload: { set_number: 2, weight_kg: 82.75, reps: 7, rir: 1 },
+    })).rejects.toThrow();
+    expect(await storage.getItem(SET_QUEUE_STORAGE_KEY)).toBe("{unreadable");
   });
 });

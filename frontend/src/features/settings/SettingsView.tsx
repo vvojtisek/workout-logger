@@ -24,6 +24,12 @@ import {
   describeParams,
 } from "@/lib/audit-events";
 import { formatDateTime } from "@/lib/format";
+import {
+  readRestAlertPreferences,
+  unlockRestAlertAudio,
+  writeRestAlertPreferences,
+} from "@/lib/rest-alerts";
+import type { RestAlertPreferences } from "@/lib/rest-alerts";
 import { SETTINGS_QUERY_KEY, useSettingsQuery } from "@/lib/settings-query";
 import { THEME_PREFERENCES, useThemePreference } from "@/lib/theme";
 import { Button, Card, Input, PageHeading } from "@/ui";
@@ -91,6 +97,45 @@ function AppearanceSection() {
         <p className="text-sm text-muted">
           System follows your device. Saved on this device only.
         </p>
+      </Card>
+    </div>
+  );
+}
+
+function WorkoutAlertsSection() {
+  const [preferences, setPreferences] = useState(readRestAlertPreferences);
+
+  function toggle(key: keyof RestAlertPreferences) {
+    const next = { ...preferences, [key]: !preferences[key] };
+    writeRestAlertPreferences(next);
+    setPreferences(next);
+    if (key === "sound" && next.sound) unlockRestAlertAudio();
+  }
+
+  return (
+    <div className="mb-6">
+      <SectionHeading>Workout alerts</SectionHeading>
+      <Card className="flex flex-col gap-3 p-4">
+        <p className="text-sm text-muted">
+          Rest completion cues are stored on this device. Sound unlocks when you complete a set;
+          vibration depends on browser and device support.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            id="rest-alert-sound"
+            aria-pressed={preferences.sound}
+            onClick={() => toggle("sound")}
+          >
+            Rest sound: {preferences.sound ? "On" : "Off"}
+          </Button>
+          <Button
+            id="rest-alert-vibration"
+            aria-pressed={preferences.vibration}
+            onClick={() => toggle("vibration")}
+          >
+            Rest vibration: {preferences.vibration ? "On" : "Off"}
+          </Button>
+        </div>
       </Card>
     </div>
   );
@@ -648,6 +693,7 @@ export function SettingsView() {
       <PageHeading>Settings</PageHeading>
       <AccountSection />
       <AppearanceSection />
+      <WorkoutAlertsSection />
       <PreferencesSection />
       <CoachingPrinciplesSection />
       <McpSection />

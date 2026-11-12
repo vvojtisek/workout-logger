@@ -212,11 +212,12 @@ def per_set_exercise(name: str = "Bench Press") -> dict:
         "reps_per_set": [10, 9, 8],
         "weight_per_set": [60, 62.5, 65],
         "rir_per_set": [3, 2, None],
+        "rpe_per_set": [0, None, 10],
         "rest_time_seconds": 90,
     }
 
 
-async def test_replace_log_keeps_per_set_weight_and_rir(client, auth_headers):
+async def test_replace_log_keeps_per_set_values(client, auth_headers):
     created = await client.post(
         LOGS, json=make_log_payload(exercises=[make_exercise_log()]), headers=auth_headers
     )
@@ -232,6 +233,7 @@ async def test_replace_log_keeps_per_set_weight_and_rir(client, auth_headers):
     exercise = response.json()["exercises"][0]
     assert exercise["weight_per_set"] == [60, 62.5, 65]
     assert exercise["rir_per_set"] == [3, 2, None]
+    assert exercise["rpe_per_set"] == [0, None, 10]
     # The working weight that progression and stats read is the last set's.
     assert exercise["weight_kg"] == 65
 
@@ -243,7 +245,46 @@ async def test_log_without_per_set_values_reads_them_as_null(client, auth_header
     exercise = created.json()["exercises"][0]
     assert exercise["weight_per_set"] is None
     assert exercise["rir_per_set"] is None
+    assert exercise["rpe_per_set"] is None
     assert exercise["weight_kg"] == 80
+
+
+async def test_legacy_replacement_keeps_rpe_when_the_ordered_sets_match(client, auth_headers):
+    created = await client.post(
+        LOGS, json=make_log_payload(exercises=[per_set_exercise()]), headers=auth_headers
+    )
+    assert created.status_code == 201
+    url = f"{LOGS}/{created.json()['id']}"
+    legacy_exercise = per_set_exercise()
+    del legacy_exercise["rpe_per_set"]
+
+    for method, payload in (
+        ("PUT", make_log_payload(notes="changed", exercises=[legacy_exercise])),
+        ("PATCH", {"notes": "changed again", "exercises": [legacy_exercise]}),
+    ):
+        updated = await client.request(method, url, json=payload, headers=auth_headers)
+        assert updated.status_code == 200
+        assert updated.json()["exercises"][0]["rpe_per_set"] == [0, None, 10]
+
+    replaced = await client.patch(
+        url,
+        json={"exercises": [{**legacy_exercise, "reps_per_set": [9, 10, 8]}]},
+        headers=auth_headers,
+    )
+    assert replaced.status_code == 200
+    assert replaced.json()["exercises"][0]["rpe_per_set"] is None
+
+    restored = await client.patch(
+        url, json={"exercises": [per_set_exercise()]}, headers=auth_headers
+    )
+    assert restored.status_code == 200
+    cleared = await client.patch(
+        url,
+        json={"exercises": [{**legacy_exercise, "rpe_per_set": None}]},
+        headers=auth_headers,
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["exercises"][0]["rpe_per_set"] is None
 
 
 async def test_per_set_lists_must_match_sets_count(client, auth_headers):
@@ -261,6 +302,13 @@ async def test_per_set_lists_must_match_sets_count(client, auth_headers):
     )
     assert response.status_code == 422
 
+    exercise = per_set_exercise()
+    exercise["rpe_per_set"] = [9, 8]
+    response = await client.post(
+        LOGS, json=make_log_payload(exercises=[exercise]), headers=auth_headers
+    )
+    assert response.status_code == 422
+
 
 async def test_per_set_values_are_range_checked(client, auth_headers):
     exercise = per_set_exercise()
@@ -272,6 +320,13 @@ async def test_per_set_values_are_range_checked(client, auth_headers):
 
     exercise = per_set_exercise()
     exercise["rir_per_set"] = [1, 11, 2]
+    response = await client.post(
+        LOGS, json=make_log_payload(exercises=[exercise]), headers=auth_headers
+    )
+    assert response.status_code == 422
+
+    exercise = per_set_exercise()
+    exercise["rpe_per_set"] = [8, 11, None]
     response = await client.post(
         LOGS, json=make_log_payload(exercises=[exercise]), headers=auth_headers
     )
@@ -298,6 +353,7 @@ async def test_patch_log_changes_only_the_fields_sent(client, auth_headers):
     assert body["performed_at"].startswith("2026-06-02T07:30:00")
     assert body["total_time_minutes"] == 45
     assert body["exercises"][0]["weight_per_set"] == [60, 62.5, 65]
+    assert body["exercises"][0]["rpe_per_set"] == [0, None, 10]
 
 
 async def test_patch_log_can_clear_notes_and_replace_exercises(client, auth_headers):

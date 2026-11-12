@@ -26,7 +26,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     await expect(page.getByRole("heading", { name: "New Exercise" })).toBeVisible();
 
     await page.getByLabel("Name").fill(`${tag} Bench Press`);
-    await detailPane(page).getByLabel("Movement pattern").selectOption("horizontal_push");
+    await page.getByLabel("Primary movement pattern").selectOption("horizontal_push");
 
     await page.getByRole("button", { name: "+ Add alias" }).click();
     await page.getByLabel("Aliases 1", { exact: true }).fill(`${tag} Flat Bench`);
@@ -39,6 +39,10 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     await page
       .getByRole("group", { name: "Secondary muscles" })
       .getByRole("button", { name: "Triceps" })
+      .click();
+    await page
+      .getByRole("group", { name: "Movement patterns" })
+      .getByRole("button", { name: "Horizontal push" })
       .click();
 
     await page.getByRole("button", { name: "+ Add step" }).click();
@@ -92,6 +96,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
       safety_notes: "Use a spotter.",
       progression_increment_kg: 0.25,
       movement_pattern: "horizontal_push",
+      movement_patterns: ["horizontal_push"],
     });
 
     // The detail view (guide) landed here after creation; verify it renders
@@ -103,7 +108,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
       "https://example.com/videos/bench-press.mp4",
     );
     await expect(page.getByText("Chest", { exact: true })).toBeVisible();
-    await expect(detailPane(page).getByText("Horizontal push", { exact: true })).toBeVisible();
+    await expect(detailPane(page).getByText("Horizontal push", { exact: true })).toHaveCount(2);
     await expect(page.getByText("Triceps", { exact: true })).toBeVisible();
     await expect(page.getByText(`${tag} Lie on the bench.`)).toBeVisible();
     await expect(page.getByText(`${tag} Press the bar up.`)).toBeVisible();
@@ -164,11 +169,11 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     // Creating a second exercise with the same name must surface the 409
     // inline, never as a native alert.
     await openPage(page, "Exercises");
-    await page.getByLabel("Movement pattern").selectOption("horizontal_push");
+    await page.locator("#exercise-movement-pattern-filter").selectOption("horizontal_push");
     await page.getByLabel("Search exercises").fill(tag);
     await expect(page.locator("#exercises-list").getByRole("listitem")).toHaveCount(1);
     await expect(page.locator("#exercises-list")).toContainText(`${tag} Bench Press`);
-    await page.getByLabel("Movement pattern").selectOption("");
+    await page.locator("#exercise-movement-pattern-filter").selectOption("");
     await page.getByRole("button", { name: "New exercise" }).click();
     await page.getByLabel("Name").fill(`${tag} Bench Press`);
     await page.getByRole("button", { name: "Create exercise" }).click();
@@ -198,10 +203,15 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
       equipment: "Barbell, bench",
       equipment_any_of: [["barbell", "bench"]],
       progression_increment_kg: 0.25,
+      movement_patterns: ["horizontal_push"],
     });
 
     // Delete through the GUI and prove it is gone.
     await openPage(page, "Exercises");
+    await page.getByLabel("Search exercises").fill("");
+    await page.locator("#exercise-movement-pattern-filter").selectOption("horizontal_push");
+    await expect(page.locator("#exercises-list")).toContainText(`${tag} Bench Press`);
+    await page.locator("#exercise-movement-pattern-filter").selectOption("");
     await page.getByLabel("Search exercises").fill(tag);
     await page
       .getByRole("listitem")

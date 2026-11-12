@@ -140,6 +140,9 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
         )
         assert started.status_code == 201
         session_id = started.json()["id"]
+        owner = await client.get("/api/v1/auth/me", headers=owner_cookies)
+        assert owner.status_code == 200
+        assert started.json()["owner_id"] == owner.json()["id"]
         other_session = await client.get(
             f"/api/v1/workout-sessions/{session_id}", headers=other_cookies
         )
@@ -662,10 +665,32 @@ async def test_locations_are_private_per_invited_account(migrated_client, auth_h
         )
         created = await client.post(
             "/api/v1/locations",
-            json={"name": "Office", "kind": "office", "equipment": ["dumbbell"]},
+            json={
+                "name": "Office",
+                "kind": "office",
+                "equipment": ["dumbbell"],
+                "plate_profiles": [
+                    {
+                        "name": "Private bar",
+                        "bar_kg": 20,
+                        "collars_kg": 0,
+                        "plates": [{"weight_kg": 2.5, "pairs": 1}],
+                    }
+                ],
+                "dumbbell_profiles": [
+                    {
+                        "name": "Private adjustable pair",
+                        "handle_kg": 2,
+                        "collars_kg": 0,
+                        "plates": [{"weight_kg": 1.25, "pairs": 2}],
+                    }
+                ],
+            },
             headers=owner_cookies,
         )
         assert created.status_code == 201
+        assert created.json()["plate_profiles"][0]["name"] == "Private bar"
+        assert created.json()["dumbbell_profiles"][0]["name"] == "Private adjustable pair"
         location_id = created.json()["id"]
 
         # The same name is free for another account.

@@ -15,8 +15,6 @@ export const MUSCLE_LABELS: Record<MuscleTag, string> = {
   full_body: "Full body",
 };
 
-const PAGE_SIZE = 100;
-
 export const MOVEMENT_PATTERN_LABELS: Record<MovementPattern, string> = {
   horizontal_push: "Horizontal push",
   horizontal_pull: "Horizontal pull",
@@ -28,14 +26,19 @@ export const MOVEMENT_PATTERN_LABELS: Record<MovementPattern, string> = {
   carry: "Carry",
   rotation: "Rotation",
   core_stability: "Core stability",
+  anti_rotation: "Anti-rotation",
+  trunk_flexion: "Trunk flexion",
+  trunk_extension: "Trunk extension",
   locomotion: "Locomotion",
 };
+
+const PAGE_SIZE = 100;
 
 export function exerciseListPath(
   query: string,
   offset = 0,
   locationId = "",
-  movementPattern = "",
+  movementPattern: MovementPattern | "" = "",
 ): string {
   const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
   const term = query.trim();

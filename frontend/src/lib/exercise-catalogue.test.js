@@ -23,9 +23,9 @@ describe("exerciseListPath", () => {
     );
   });
 
-  it("filters by a movement pattern", () => {
-    expect(exerciseListPath("", 0, "", "horizontal_push")).toBe(
-      "/exercises?limit=100&offset=0&movement_pattern=horizontal_push",
+  it("filters by a movement pattern alongside the search", () => {
+    expect(exerciseListPath(" row ", 0, "", "horizontal_pull")).toBe(
+      "/exercises?limit=100&offset=0&q=row&movement_pattern=horizontal_pull",
     );
   });
 });
@@ -68,6 +68,7 @@ describe("fetchCatalogueExercises", () => {
       progression_increment_kg: null,
       equipment_load_mode: /** @type {"standard"} */ ("standard"),
       movement_pattern: null,
+      movement_patterns: [],
       is_unilateral: false,
       created_at: "",
       updated_at: "",

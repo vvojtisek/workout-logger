@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { isDesktop, openPage } from "./support/navigation.js";
+import { readWorkoutStorage } from "./support/workout.js";
 
 /**
  * Drags a finger across the HUD through Chromium's touch input, so the swipe
@@ -273,5 +274,206 @@ test("logs a superset workout one-handed on the phone HUD", async ({
     }
     if (logId)
       expect((await request.get(`/api/v1/logs/${logId}`)).status()).toBe(404);
+  }
+});
+
+test("advances the phone HUD offline and replays the original rest deadline", async ({
+  context, page, request,
+}) => {
+  test.skip(isDesktop(page), "The queued workout progression is shown on the phone HUD");
+  const tag = `[E2E:${process.env.TEST_RUN_ID || `hud-${Date.now()}`}:hud-offline]`;
+  let planId;
+  let sessionId;
+
+  try {
+    page.setDefaultTimeout(5_000);
+    const plan = await request.post("/api/v1/plans", {
+      data: {
+        name: `${tag} plan`,
+        exercises: [{
+          exercise_name: `${tag} Press`,
+          target_sets: 3,
+          target_reps_min: 8,
+          target_reps_max: 10,
+          target_weight_kg: 20,
+          rest_time_seconds: 30,
+        }],
+      },
+    });
+    expect(plan.status()).toBe(201);
+    planId = (await plan.json()).id;
+    const started = await request.post("/api/v1/workout-sessions", {
+      data: { source_plan_id: planId },
+    });
+    expect(started.status()).toBe(201);
+    sessionId = (await started.json()).id;
+    await page.goto("/workout");
+
+    const position = page.locator("#hud-position");
+    const sync = page.locator("#active-sync-status");
+    const complete = page.getByRole("button", { name: "Complete set & start rest" });
+    const timer = page.getByRole("timer");
+    /** @type {string[]} */
+    const serverOnlyRequests = [];
+    page.on("request", (request) => {
+      if (request.method() === "PATCH" && /\/(focus|rest)$/.test(request.url())) {
+        serverOnlyRequests.push(request.url());
+      }
+    });
+    await expect(position).toHaveText("EXERCISE 1 OF 1 • SET 1 OF 3");
+    await expect(complete).toBeEnabled();
+    await context.setOffline(true);
+    await page.getByRole("button", { name: "+2.5" }).click();
+    await complete.click();
+    await expect(sync).toHaveText("Pending synchronization");
+    await expect(position).toHaveText("EXERCISE 1 OF 1 • SET 2 OF 3");
+    await expect(timer).toHaveText(/^RESTING — 00:(29|30)$/);
+    await expect(page.getByLabel("Weight (kg)")).toHaveValue("22.5");
+    await page.getByRole("button", { name: "← Prev Set" }).click();
+    await expect(page.getByText("Set saved on this device")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Next Set →" }).click();
+
+    await page.getByRole("button", { name: "+15 seconds" }).click();
+    await expect(timer).toHaveText(/^RESTING — 00:4[2-5]$/);
+    await page.getByRole("button", { name: "Skip Rest" }).click();
+    await expect(complete).toBeVisible();
+    await complete.click();
+    await expect(position).toHaveText("EXERCISE 1 OF 1 • SET 3 OF 3");
+    await expect(timer).toHaveText(/^RESTING — 00:(29|30)$/);
+    const offline = await request.get(`/api/v1/workout-sessions/${sessionId}`);
+    expect(offline.status()).toBe(200);
+    expect((await offline.json()).exercises[0].set_entries).toHaveLength(0);
+    await page.getByRole("button", { name: "Finish", exact: true }).click();
+    await expect(page.getByText("Synchronize queued sets before finishing.")).toBeVisible();
+    expect(serverOnlyRequests).toEqual([]);
+
+    const queued = await readWorkoutStorage(page, "workout_logger_active_set_queue");
+    if (typeof queued !== "string") throw new Error("The pending sets must be in IndexedDB");
+    /** @type {import("../frontend/src/lib/active-workout-state").SetOperation[]} */
+    const operations = JSON.parse(queued);
+    expect(operations.map((operation) => operation.payload.set_number)).toEqual([1, 2]);
+    expect(operations[0].payload.client_rest_seconds).toBe(0);
+    const secondTap = Date.parse(operations[1].payload.client_completed_at ?? "");
+    await context.setOffline(false);
+    await expect(sync).toHaveText("Synchronized");
+    await expect(position).toHaveText("EXERCISE 1 OF 1 • SET 3 OF 3");
+
+    const replayed = await request.get(`/api/v1/workout-sessions/${sessionId}`);
+    expect(replayed.status()).toBe(200);
+    const body = await replayed.json();
+    expect(body.exercises[0].set_entries).toMatchObject([
+      { set_number: 1, weight_kg: 22.5, client_operation_id: operations[0].client_operation_id },
+      { set_number: 2, weight_kg: 22.5, client_operation_id: operations[1].client_operation_id },
+    ]);
+    expect(Date.parse(body.rest_ends_at)).toBe(secondTap + 30_000);
+  } finally {
+    await context.setOffline(false);
+    if (sessionId) {
+      await request.delete(`/api/v1/workout-sessions/${sessionId}`);
+      expect((await request.get(`/api/v1/workout-sessions/${sessionId}`)).status()).toBe(404);
+    }
+    if (planId) {
+      await request.delete(`/api/v1/plans/${planId}`);
+      expect((await request.get(`/api/v1/plans/${planId}`)).status()).toBe(404);
+    }
+  }
+});
+
+test("recovers the phone workout offline and verifies the account before replay", async ({
+  context, page, request,
+}) => {
+  test.skip(isDesktop(page), "The offline resume journey uses the phone HUD");
+  const tag = `[E2E:${process.env.TEST_RUN_ID || `hud-${Date.now()}`}:offline-resume]`;
+  let planId;
+  let sessionId;
+  let replayRequests = 0;
+
+  try {
+    page.setDefaultTimeout(5_000);
+    const plan = await request.post("/api/v1/plans", {
+      data: {
+        name: `${tag} plan`,
+        exercises: [{
+          exercise_name: `${tag} Row`,
+          target_sets: 3,
+          target_reps_min: 8,
+          target_reps_max: 10,
+          target_weight_kg: 20,
+          rest_time_seconds: 60,
+        }],
+      },
+    });
+    expect(plan.status()).toBe(201);
+    planId = (await plan.json()).id;
+    const started = await request.post("/api/v1/workout-sessions", {
+      data: { source_plan_id: planId },
+    });
+    expect(started.status()).toBe(201);
+    sessionId = (await started.json()).id;
+    const sessionPath = `/api/v1/workout-sessions/${sessionId}`;
+    page.on("request", (request) => {
+      if (request.method() === "POST" && new URL(request.url()).pathname === `${sessionPath}/sets`) {
+        replayRequests += 1;
+      }
+    });
+    await page.goto("/workout");
+
+    const position = page.locator("#hud-position");
+    const sync = page.locator("#active-sync-status");
+    const complete = page.getByRole("button", { name: "Complete set & start rest" });
+    await expect(position).toHaveText("EXERCISE 1 OF 1 • SET 1 OF 3");
+    await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+    await context.setOffline(true);
+    await complete.click();
+    await expect(sync).toHaveText("Pending synchronization");
+    await expect(position).toHaveText("EXERCISE 1 OF 1 • SET 2 OF 3");
+    await page.reload();
+    await expect(page.getByRole("heading", { name: `${tag} Row` })).toBeVisible();
+    await expect(position).toHaveText("EXERCISE 1 OF 1 • SET 2 OF 3");
+    await expect(sync).toHaveText("Pending synchronization");
+    await expect(page.getByRole("timer")).toHaveText(/RESTING — 00:\d\d/);
+    const cachedApiPaths = await page.evaluate(async () => {
+      const entries = await Promise.all((await caches.keys()).map(async (key) => (await caches.open(key)).keys()));
+      return entries.flat().map((entry) => new URL(entry.url).pathname).filter((path) => path.startsWith("/api/"));
+    });
+    expect(cachedApiPaths).toEqual([]);
+
+    await context.setOffline(false);
+    await expect(sync).toHaveText("Synchronized");
+    expect(replayRequests).toBe(1);
+    await page.getByRole("button", { name: "Skip Rest" }).click();
+    await expect(complete).toBeVisible();
+
+    await context.setOffline(true);
+    await complete.click();
+    await expect(sync).toHaveText("Pending synchronization");
+    await expect(position).toHaveText("EXERCISE 1 OF 1 • SET 3 OF 3");
+    await context.clearCookies();
+    await context.setOffline(false);
+    await expect(page).toHaveURL(/\/login$/);
+    expect(replayRequests).toBe(1);
+    const current = await request.get(sessionPath);
+    expect(current.status()).toBe(200);
+    expect((await current.json()).exercises[0].set_entries).toHaveLength(1);
+
+    await context.setOffline(true);
+    await page.goto("/workout");
+    await expect(page.getByText("Reconnect to sign in.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: `${tag} Row` })).toHaveCount(0);
+    const pending = await readWorkoutStorage(page, "workout_logger_active_set_queue");
+    expect(typeof pending === "string" ? JSON.parse(pending) : null).toMatchObject([
+      { session_id: sessionId, payload: { set_number: 2 } },
+    ]);
+  } finally {
+    await context.setOffline(false);
+    if (sessionId) {
+      await request.delete(`/api/v1/workout-sessions/${sessionId}`);
+      expect((await request.get(`/api/v1/workout-sessions/${sessionId}`)).status()).toBe(404);
+    }
+    if (planId) {
+      await request.delete(`/api/v1/plans/${planId}`);
+      expect((await request.get(`/api/v1/plans/${planId}`)).status()).toBe(404);
+    }
   }
 });

@@ -247,6 +247,266 @@ are quoted and prefixed with an apostrophe. [Spreadsheet formula text handling](
   load. Playwright read the actual bytes and verified the range filename, one included workout,
   and exclusion of an earlier workout in the ratio lookback on both desktop and phone.
 
+## Cycle 11 — Record RPE and RIR independently in the phone HUD
+
+Strength sets offer inline RIR and RPE controls. The RPE scale accepts every integer from
+0 through 10. Ratings start blank on each new set, and the completion button still records
+the prefilled set in one tap. Cached drafts can include RPE and older drafts still load.
+A correction that omits RPE preserves the stored rating. A phone correction can clear it
+by sending null.
+
+- The migrated API regression initially returned null after a correction omitted the saved
+  RPE of 9. The phone browser regression reached the HUD and failed on the missing RPE control.
+- The first full browser run showed that an immediate reload can interrupt an in-flight
+  IndexedDB draft write. The final test waits for the actual committed draft, then reloads
+  and checks it in the HUD. The targeted run and full rerun passed.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 705 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm test` (192 tests), and Vite build passed.
+- Full localhost Playwright on a fresh migrated SQLite database passed 66 tests with three
+  existing viewport skips. The cleanup check found zero rows in all nine checked tables.
+- Browser verification recipe. On a phone, select RIR 2 and RPE 0, reload after the draft
+  is stored, and complete the set. Playwright verified both ratings and the rest timer,
+  then cleared RPE in the HUD and verified that RIR remained 2 through the real API.
+
+## Cycle 12 — Preserve and export completed per-set RPE
+
+Completed strength sets carry their individual RPE into History and the Training load CSV.
+History keeps ratings attached to the set when an athlete adds, edits, or removes rows. The
+CSV adds `set_rpe` after the existing columns, preserving zero and leaving missing values
+blank. Whole-workout `effort_rpe` remains a separate field.
+
+The additive migration copies ratings from a linked completed session only when ownership,
+exercise identity and order, and the recorded set values match. Older replacement clients
+keep stored RPE when the ordered exercise and set values match. For a changed layout, clients
+can send aligned `rpe_per_set` values. Explicit null clears the field.
+
+- The migrated API and upgrade regressions first failed on the missing field and column.
+  The phone browser reached History but could not find the set ratings. Separate API tests
+  reproduced RPE loss on a legacy replacement and the missing CSV column before both fixes.
+- Focused regressions passed for migrated completion, backfill, downgrade and re-upgrade,
+  legacy PUT and PATCH, and CSV zero and blank values. The history test preserved ratings
+  during an unrelated edit, left a new set unrated, and removed the rating with its set.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 706 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. The new migration passed all Ruff rules. Full Ruff stayed at 151 baseline findings.
+- `npm ci`, ESLint, TypeScript, `npm test` (192 tests), and Vite build passed.
+- Full localhost Playwright on fresh migrated SQLite passed 66 tests with three existing
+  viewport skips. The cleanup check found zero rows in all nine checked tables.
+- Browser verification recipe. Open a completed workout with RPE 0 and 9, add a set,
+  and remove the first set. Playwright verified the displayed and stored order, then
+  separately verified the exported set rating in the downloaded CSV on desktop and phone.
+
+## Cycle 13 — Commit offline set queue changes atomically
+
+Set enqueues and removals now read and update the IndexedDB queue in one transaction. The UI
+acknowledges queued actions after the transaction commits. Synchronization drains in order and
+checks again if another set was logged during a replay. Local write failures leave the set
+available to retry and surface an error. An unreadable queue stays available for recovery.
+
+- The baseline browser ran two set actions in one task while offline. Only one operation
+  remained in IndexedDB. The updated test saw both operations after their commits, then
+  verified each operation ID and value through the real server after reconnection.
+- The browser also verified that a standalone skip leaves rest inactive. A frontend test
+  verified that an unreadable queue is preserved when a new action is attempted.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 706 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm test` (193 tests), and Vite build passed.
+- Full localhost Playwright on fresh migrated SQLite passed 66 tests with three existing
+  viewport skips. The cleanup check found zero rows in all nine checked tables.
+- Browser verification recipe. Disconnect while a workout is active, complete one set
+  and skip another in quick succession, then reconnect. Playwright verified the two
+  distinct operations, one server entry per set, and an empty local queue after replay.
+
+## Cycle 14 — Advance the phone workout and run rest offline
+
+The phone HUD advances after IndexedDB commits a set. It prefills the next set from the
+local entry, distinguishes pending entries, and locks server corrections until replay.
+The athlete can navigate the sets and adjust or skip the pending set's rest without a
+network request. Finishing waits for queued sets to synchronize.
+
+The set API accepts a capture timestamp and an optional adjusted rest duration for queued
+completions. It bounds the timestamp by workout start and server receipt. Replay keeps the
+original rest deadline, and a late replay preserves the timer from a newer completed set.
+Requests without capture metadata retain server-time logging.
+
+- The original phone HUD stayed on set 1 after the offline completion. API regressions
+  reproduced discarded capture time and a late replay overwriting a newer rest deadline.
+- The two focused migrated API tests passed for original timestamps, offline skip, future
+  clock bounds, and a newer timer preserved after a late replay. Focused phone tests passed.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 708 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm test` (193 tests), and Vite build passed.
+- Full localhost Playwright on fresh migrated SQLite passed 67 tests with four
+  viewport skips, including the new phone-only scenario. The cleanup check found zero rows
+  in all nine checked tables.
+- Browser verification recipe. Disconnect, complete a set, add 15 seconds, skip rest, and
+  complete the next set. Playwright verified local focus and timer controls, the finish
+  guard, zero server focus or rest requests while offline, and both original operation IDs
+  and the last capture deadline after reconnection.
+
+## Cycle 15 — Recover an owned workout after an offline reload
+
+The service worker can load the public workout shell and its required assets offline. The
+browser restores the last verified account's active workout from IndexedDB and reapplies its
+committed queue. Offline authorization exposes only the workout route. It cannot send queued
+actions until the server verifies the current cookie and the active session's owner. A server
+denial removes the local account pointer. Sign-out clears the resume snapshot. A stale session
+response cannot replace a workout opened or updated while that request was in flight.
+
+- The baseline phone browser could queue a set but could not hard-reload `/workout` offline.
+  The migrated account-isolation regression initially lacked the session's owner identifier.
+- The final browser test resumed a pending set and its timer after hard reload. It verified
+  there were no personalized API responses in Cache Storage, then reconnected and recorded
+  exactly one replay. Removing the session cookie before a second reconnect produced zero
+  additional POSTs, left the pending set in IndexedDB, and hid the old workout on offline reload.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 708 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm test` (193 tests), and Vite build passed. Making the workout
+  route part of the shell increased the gzipped entry bundle from 106.00 to 122.27 kB.
+- Full localhost Playwright on fresh migrated SQLite passed 68 tests with five viewport
+  skips, including the new phone-only scenario. The cleanup check found zero rows in all nine
+  checked tables. The full browser suite also passed after the stale-response guard was added.
+- Browser verification recipe. Load a workout online, disconnect, log one set, and reload.
+  Reconnect to synchronize it. The browser test separately removed the active cookie before
+  reconnection and verified that the queued set remained local after the server rejected the session.
+
+## Cycle 16 — Calculate symmetric barbell loads from plate stock
+
+On a strength exercise tagged for a barbell, the phone HUD can show the plate stack for the
+entered total load. The bounded solver uses integer grams, accounts for the bar and collars,
+respects available plate pairs, prefers fewer plates for an exact load, and reports the nearest
+supported loads when the requested total is unavailable. Its built-in inventory is labeled as
+the default. The calculator never changes the set's recorded weight. Session responses now carry
+the exercise's equipment tags so the HUD can hide the calculator on incompatible lifts.
+
+- Unit regressions cover a non-greedy exact stack, minimum plate count, nearest supported loads,
+  fractional collars, bare-bar cases, inventory limits, and invalid precision. The localhost
+  browser flow confirmed the default profile, live recalculation, nearest choices, saved weight,
+  and absence on a machine lift.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 708 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. Informational Ruff stayed at the existing 151 findings.
+- `npm ci`, ESLint, TypeScript, `npm test` (197 tests), and Vite build passed. The gzipped entry
+  bundle is 123.41 kB.
+- Full localhost Playwright on fresh migrated SQLite passed 69 tests with six viewport skips.
+  The existing offline reconnect test initially exposed a transient network-ready race; after
+  a transport-only retry was added to auth refresh, the focused test passed six consecutive
+  runs and the full suite passed. The cleanup check found zero rows in all nine checked tables.
+- Browser verification recipe. On a barbell set, open **Barbell plates**, raise the load by
+  2.5 kg and inspect each side. Enter 63 kg to view the closest loads, then save the set and
+  confirm that 63 kg is recorded unchanged. Start a machine set and confirm that no calculator
+  is shown.
+
+## Cycle 17 — Configure named barbell profiles per location
+
+Gym equipment differs by bar, collars, and available plates. Locations now store up to eight
+named profiles, each with its bar mass, collar mass, and bounded paired plate stock. Profile
+weights are limited to gram precision and plate sizes are unique. A location editor supports
+adding and removing profiles and plate sizes. Starting a workout includes that location's
+profiles in its session response, so the phone can switch bars while calculating a load. The
+profile only informs the calculation; it never changes the weight submitted with a set. The
+existing location-check response remains unchanged.
+
+- An additive migration gives existing locations an empty profile list. API coverage verifies
+  create, read, replacement, normalized plate ordering, precision and stock limits, duplicate
+  profile rejection, and session profile delivery. Account isolation verifies that another
+  account cannot read the configured location.
+- The mobile browser configured a 25 kg safety bar and a 15 kg technique bar in a real location,
+  selected each in the active workout, verified symmetric per-side stacks, switched to the
+  default inventory, and confirmed the session retained both saved profiles.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 711 tests at 82% coverage. The required Ruff gate, changed-file format check, full Ruff
+  on the new migration, mypy, and `git diff --check` passed. Informational full Ruff remains at
+  the repository's existing 151 findings.
+- `npm test` passed 198 tests; ESLint, TypeScript, and Vite build passed. Full localhost
+  Playwright on fresh migrated SQLite passed 70 tests with seven viewport skips. Cleanup found
+  zero rows in all nine checked tables.
+- Browser verification recipe. In Locations, add a safety squat bar and a technique bar with
+  their actual weights and paired plates. Start a barbell workout at that location, open
+  **Barbell plates**, compare the same set under each profile, then select **Default inventory**.
+  Save a set and confirm its recorded load did not change when switching profiles.
+
+## Cycle 18 — Calculate adjustable dumbbell loads per hand
+
+The weight field records the load of one dumbbell. Locations can now store up to eight named
+adjustable-dumbbell profiles with handle and collar mass and symmetric plate-pair stock. The
+same bounded integer-gram solver computes the stack on each side of one dumbbell, while the HUD
+labels the resulting load per dumbbell. The location editor validates and persists inventories,
+and the active session response carries them into the workout and its offline snapshot. Choosing
+a different profile never changes the saved set weight.
+
+- API regressions cover profile round-trip, gram precision, and delivery to started and active
+  sessions. Account-isolation coverage includes the new inventory field. Existing location-check
+  responses retain their original shape.
+- The mobile browser configured an adjustable pair at a training location, logged a barbell set,
+  moved to a dumbbell exercise, and verified a 10 kg per-dumbbell load uses one 4 kg plate on
+  each side of a 2 kg handle.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 712 tests at 82% coverage. Required Ruff checks, format, full Ruff on the new migration,
+  mypy, and `git diff --check` passed. Informational full Ruff remains at 151 repository findings.
+- `npm test` passed 198 tests; ESLint, TypeScript, and Vite build passed. Full localhost
+  Playwright on fresh migrated SQLite passed 70 tests with seven viewport skips. Cleanup found
+  zero rows in all nine checked tables.
+- Browser verification recipe. In Locations, add an adjustable-dumbbell profile with its handle
+  mass and plate stock. Start a workout at that location, advance to a dumbbell exercise, open
+  **Dumbbell plates**, and compare the calculated per-hand stack with the entered load. Save a
+  set and verify the set weight is unchanged.
+
+## Cycle 19 — Alert once when a rest timer expires
+
+The active workout now plays one short tone and requests a brief vibration when a rest deadline
+expires. Sound and vibration have independent, device-local controls in Settings and default on.
+Sound is prepared by the athlete's completed-set action to meet browser audio gesture rules.
+The absolute rest deadline is claimed in persistent and in-memory guards so parallel timer views,
+remounts, and reloads do not repeat a cue. The visible timer remains the completion signal when a
+browser lacks audio or vibration support.
+
+- Unit coverage verifies device preference persistence, independent choices, one claim per
+  deadline, and graceful behavior when local storage is blocked.
+- A real localhost workout with a two-second rest verified exactly one audio oscillator and one
+  vibration pattern in both desktop and phone browser projects. The Settings flow switched both
+  preferences off and verified they stayed off after reload.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 712 tests at 82% coverage. The required Ruff gate, `git diff --check`, and mypy passed.
+  Informational full Ruff remains at 151 repository findings.
+- `npm test` passed 201 tests; ESLint, TypeScript, and Vite build passed. Full localhost
+  Playwright on fresh migrated SQLite passed 74 tests with seven viewport skips. Cleanup found
+  zero rows in all nine checked tables.
+- Browser verification recipe. In Settings, leave both rest cues on and reload. Start a workout,
+  complete a set with a two-second rest, and wait past its deadline. Confirm one tone and one
+  vibration. Repeat with each cue disabled to verify independent preferences.
+
+## Cycle 20 — Classify and filter exercises by movement pattern
+
+Exercise catalogue entries can now carry up to four validated movement-pattern tags: horizontal
+and vertical pushes and pulls, squat, hinge, lunge, carry, rotation and anti-rotation, trunk
+flexion and extension, and locomotion. Classifications complement muscle and equipment tags and
+do not claim a joint-stress score. Existing entries migrate as unclassified until someone edits
+them. The catalogue editor and detail/list views expose the tags, and both the API and catalogue
+filter can select exercises by one movement pattern before pagination and location matching.
+
+- API tests verify round-trip and replacement, reject unknown or duplicate tags and unknown
+  filters, and confirm multi-tag matches are filtered before pagination. The migration test
+  preserves a pre-existing exercise with an empty classification and verifies downgrade removes
+  only the added column. Test-first runs showed five API failures and one frontend URL-builder
+  failure before the implementation.
+- A real localhost, migrated-SQLite Playwright journey created, read, edited, searched, filtered,
+  and deleted a tagged exercise on desktop and phone layouts. E2E cleanup confirmed zero rows in
+  all nine tracked tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 717 tests at 82% coverage. The required Ruff gate, format check, mypy, and
+  `git diff --check` passed. Informational full Ruff remains at the existing 151 findings.
+- ESLint, TypeScript, and Vite build passed; `npm test` passed all 202 tests. Full localhost
+  Playwright passed 75 tests with seven expected viewport skips.
+- Browser verification recipe. In Exercise Catalogue, create or edit an exercise and select one
+  or more movement patterns. Confirm the tags on its detail and list cards. Filter by one pattern
+  and check that matching multi-tag exercises remain; clear the filter to restore the catalogue.
+
 ## Cycle 21 — Configure the progression increment per exercise
 
 The exercise catalogue can override the double-progression load increase with a user-set value

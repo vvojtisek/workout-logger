@@ -6,6 +6,7 @@ function payload(overrides = {}) {
   return {
     name: "Cable row",
     aliases: [],
+    movement_patterns: [],
     media_url: null,
     primary_muscles: [],
     secondary_muscles: [],
@@ -42,6 +43,13 @@ describe("movement-pattern classification", () => {
   it("keeps a controlled movement pattern in the validated payload", () => {
     expect(exercisePayloadSchema.parse(payload({ movement_pattern: "horizontal_push" })).movement_pattern)
       .toBe("horizontal_push");
+  });
+
+  it("keeps movement-pattern tags alongside the primary pattern", () => {
+    expect(
+      exercisePayloadSchema.parse(payload({ movement_patterns: ["horizontal_push", "core_stability"] }))
+        .movement_patterns,
+    ).toEqual(["horizontal_push", "core_stability"]);
   });
 
   it("allows an exercise to remain unclassified", () => {

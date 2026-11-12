@@ -159,7 +159,7 @@ test("training load downloads a CSV for only the visible weeks", async ({ page, 
           overall_feeling: 3,
           effort_rpe: 7,
           notes: tag,
-          exercises: [{ exercise_name: `${tag} Press`, sets_count: 1, weight_kg: 60, reps_per_set: [8] }],
+          exercises: [{ exercise_name: `${tag} Press`, sets_count: 1, weight_kg: 60, reps_per_set: [8], rpe_per_set: [9] }],
         },
       });
       expect(log.status()).toBe(201);
@@ -179,6 +179,8 @@ test("training load downloads a CSV for only the visible weeks", async ({ page, 
     expect(content).toContain(ids[1]);
     expect(content).toContain(`${tag} Press`);
     expect(content).not.toContain(ids[0]);
+    expect(content.split("\r\n")[0]).toMatch(/,"set_rpe"$/);
+    expect(content.split("\r\n").find((line) => line.startsWith('"set",'))).toMatch(/,"9"$/);
   } finally {
     for (const id of ids) {
       const url = `/api/v1/logs/${id}`;

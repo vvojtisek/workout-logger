@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import GUID, Base, UTCDateTime, UUIDPrimaryKeyMixin, utcnow
 
 if TYPE_CHECKING:
+    from app.models.location import Location
     from app.models.session_exercise import SessionExercise
 
 
@@ -46,6 +47,7 @@ class WorkoutSession(UUIDPrimaryKeyMixin, Base):
         nullable=True,
         index=True,
     )
+    location: Mapped["Location | None"] = relationship(lazy="selectin")
     workout_log_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID(), ForeignKey("workout_logs.id", ondelete="SET NULL"), nullable=True, unique=True
     )

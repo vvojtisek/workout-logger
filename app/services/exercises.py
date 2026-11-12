@@ -21,8 +21,6 @@ async def list_exercises(
     movement_pattern: MovementPattern | None = None,
 ) -> tuple[list[Exercise], int]:
     statement = select(Exercise)
-    if movement_pattern is not None:
-        statement = statement.where(Exercise.movement_pattern == movement_pattern)
     term = (query or "").strip().lower()
     if term:
         pattern = f"%{_escape_like(term)}%"
@@ -32,6 +30,10 @@ async def list_exercises(
                 func.lower(Exercise.name).like(pattern, escape="\\"),
                 func.lower(cast(Exercise.aliases, String)).like(pattern, escape="\\"),
             )
+        )
+    if movement_pattern is not None:
+        statement = statement.where(
+            cast(Exercise.movement_patterns, String).like(f'%"{movement_pattern}"%')
         )
     total = await session.scalar(select(func.count()).select_from(statement.subquery()))
     result = await session.execute(

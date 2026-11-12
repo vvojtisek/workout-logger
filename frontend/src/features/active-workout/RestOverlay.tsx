@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { restTimerState } from "@/lib/active-workout-state";
 import { remainingTimeSeconds } from "@/lib/workout-utils";
 import type { SynchronizationState } from "@/lib/active-workout-state";
+import { alertRestComplete } from "@/lib/rest-alerts";
 
 /** Ticks once a second while mounted. Remaining time is always derived from
  * the server's absolute `rest_ends_at`, so backgrounding, reloading, or a slow
@@ -21,6 +22,10 @@ export function useRestCountdown(restEndsAt: string | null) {
   }, [restEndsAt]);
 
   const state = restTimerState(restEndsAt, now);
+  useEffect(() => {
+    if (restEndsAt && state.status === "expired") alertRestComplete(restEndsAt);
+  }, [restEndsAt, state.status]);
+
   return {
     state,
     expired: state.status === "expired",

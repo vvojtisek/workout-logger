@@ -5,6 +5,7 @@ Revises: a9c6e2f1b4d8
 Create Date: 2026-11-12 12:00:00
 """
 
+import json
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -24,8 +25,20 @@ def upgrade() -> None:
             "ck_exercises_movement_pattern",
             "movement_pattern IS NULL OR movement_pattern IN "
             "('horizontal_push', 'horizontal_pull', 'vertical_push', 'vertical_pull', "
-            "'squat', 'hinge', 'lunge', 'carry', 'rotation', 'core_stability', 'locomotion')",
+            "'squat', 'hinge', 'lunge', 'carry', 'rotation', 'core_stability', "
+            "'anti_rotation', 'trunk_flexion', 'trunk_extension', 'locomotion')",
         )
+
+    connection = op.get_bind()
+    for row in connection.execute(sa.text("SELECT id, movement_patterns FROM exercises")):
+        patterns = row.movement_patterns
+        if isinstance(patterns, str):
+            patterns = json.loads(patterns)
+        if patterns:
+            connection.execute(
+                sa.text("UPDATE exercises SET movement_pattern = :pattern WHERE id = :id"),
+                {"pattern": patterns[0], "id": row.id},
+            )
 
 
 def downgrade() -> None:

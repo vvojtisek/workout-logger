@@ -97,6 +97,11 @@ export function LogDetailView() {
                       · Volume {formatVolumeKg(exercise.volume_kg)}
                     </span>
                   ) : null}
+                  {exercise.rpe_per_set?.some((rating) => rating != null) ? (
+                    <p className="mt-1 text-xs text-muted" data-numeric>
+                      RPE by set: {exercise.rpe_per_set.map((rating) => rating ?? "—").join(", ")}
+                    </p>
+                  ) : null}
                   <RepRetention exercise={exercise} />
                 </li>
               ))}

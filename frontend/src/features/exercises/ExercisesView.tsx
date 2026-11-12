@@ -144,7 +144,7 @@ export function ExercisesView() {
               title={query.trim() || locationId || movementPattern ? "No matching exercises" : "No exercises yet"}
               description={
                 query.trim() || locationId || movementPattern
-                  ? "Try another search or movement pattern, or add it with 'New exercise'."
+                  ? "Try another name, alias, or movement pattern, or add it with 'New exercise'."
                   : "Tap 'New exercise' to add your first catalogue entry."
               }
             />
@@ -166,11 +166,13 @@ export function ExercisesView() {
                   ))}
                 </p>
               ) : null}
-              {exercise.movement_pattern ? (
-                <p className="mt-1 text-xs text-muted">
-                  <span className="rounded-full bg-elevated px-2 py-0.5">
-                    {MOVEMENT_PATTERN_LABELS[exercise.movement_pattern]}
-                  </span>
+              {exercise.movement_patterns.length > 0 ? (
+                <p className="mt-1 flex flex-wrap gap-1 text-xs text-accent">
+                  {exercise.movement_patterns.map((pattern) => (
+                    <span key={pattern} className="rounded-full bg-elevated px-2 py-0.5">
+                      {MOVEMENT_PATTERN_LABELS[pattern]}
+                    </span>
+                  ))}
                 </p>
               ) : null}
             </div>

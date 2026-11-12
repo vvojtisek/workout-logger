@@ -21,7 +21,10 @@ function openDb(): Promise<IDBDatabase> {
       }
     };
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error as Error);
+    request.onerror = () => {
+      dbPromise = null;
+      reject(request.error as Error);
+    };
   });
   return dbPromise;
 }
@@ -30,6 +33,13 @@ function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error as Error);
+  });
+}
+
+function transactionDone(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onabort = () => reject(transaction.error ?? new Error("Local storage write aborted."));
   });
 }
 
@@ -50,12 +60,44 @@ export function createIndexedDbStorage(namespace: string): AsyncStorageLike {
     async setItem(key: string, value: string): Promise<void> {
       const db = await openDb();
       const tx = db.transaction(STORE_NAME, "readwrite");
-      await requestToPromise(tx.objectStore(STORE_NAME).put(value, scopedKey(key)));
+      tx.objectStore(STORE_NAME).put(value, scopedKey(key));
+      await transactionDone(tx);
     },
     async removeItem(key: string): Promise<void> {
       const db = await openDb();
       const tx = db.transaction(STORE_NAME, "readwrite");
-      await requestToPromise(tx.objectStore(STORE_NAME).delete(scopedKey(key)));
+      tx.objectStore(STORE_NAME).delete(scopedKey(key));
+      await transactionDone(tx);
+    },
+    async updateItem<T>(
+      key: string,
+      update: (stored: string | null) => { value: string; result: T },
+    ): Promise<T> {
+      const db = await openDb();
+      const tx = db.transaction(STORE_NAME, "readwrite", { durability: "strict" });
+      const store = tx.objectStore(STORE_NAME);
+      const storageKey = scopedKey(key);
+      let result: T;
+      let updateError: unknown;
+      const request = store.get(storageKey);
+      request.onsuccess = () => {
+        // Schedule the write while the readwrite transaction is still active.
+        try {
+          const stored = (request.result as string | undefined) ?? null;
+          const change = update(stored);
+          result = change.result;
+          if (change.value !== stored) store.put(change.value, storageKey);
+        } catch (error) {
+          updateError = error;
+          tx.abort();
+        }
+      };
+      try {
+        await transactionDone(tx);
+      } catch (error) {
+        throw updateError ?? error;
+      }
+      return result!;
     },
   };
 }

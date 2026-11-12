@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -25,6 +26,7 @@ router = APIRouter(prefix="/exercises", tags=["exercises"])
     description=(
         "Returns a paginated list of exercise catalogue entries, sorted by name ascending. "
         "`q` filters by a case-insensitive substring of the name or any alias. "
+        "`movement_pattern` keeps exercises with that movement classification. "
         "`location_id` keeps only exercises that location's equipment can host."
     ),
     response_model=PaginatedExercisesResponse,
@@ -33,7 +35,7 @@ async def list_exercises(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     q: str | None = Query(default=None, max_length=150),
-    movement_pattern: MovementPattern | None = None,
+    movement_pattern: Annotated[MovementPattern | None, Query()] = None,
     location_id: UUID | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> PaginatedExercisesResponse:

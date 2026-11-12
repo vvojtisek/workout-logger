@@ -61,9 +61,16 @@ export interface SessionExercise extends GridExercise {
 
 export interface WorkoutSession extends GridSession {
   id: string;
+  owner_id: string | null;
   source_plan_id: string | null;
   source_plan_name: string;
   location_id: string | null;
+  location: {
+    id: string;
+    name: string;
+    plate_profiles: PlateProfile[];
+    dumbbell_profiles: DumbbellProfile[];
+  } | null;
   workout_log_id: string | null;
   status: string;
   started_at: string;
@@ -137,6 +144,7 @@ export interface ExerciseLog {
   /** One entry per set; null on logs saved with a single weight (weight_kg). */
   weight_per_set?: (number | null)[] | null;
   rir_per_set?: (number | null)[] | null;
+  rpe_per_set?: (number | null)[] | null;
   rest_time_seconds: number;
   notes: string | null;
   equipment_load_mode?: EquipmentLoadMode;
@@ -217,6 +225,9 @@ export const MOVEMENT_PATTERNS = [
   "lunge",
   "carry",
   "rotation",
+  "anti_rotation",
+  "trunk_flexion",
+  "trunk_extension",
   "core_stability",
   "locomotion",
 ] as const;
@@ -230,6 +241,7 @@ export interface CatalogExercise {
   media_url: string | null;
   primary_muscles: MuscleTag[];
   secondary_muscles: MuscleTag[];
+  movement_patterns: MovementPattern[];
   instructions: string[];
   equipment: string | null;
   movement_pattern: MovementPattern | null;
@@ -248,6 +260,20 @@ export const LOCATION_KINDS = ["home", "office", "gym", "travel"] as const;
 
 export type LocationKind = (typeof LOCATION_KINDS)[number];
 
+export interface PlateProfile {
+  name: string;
+  bar_kg: number;
+  collars_kg: number;
+  plates: Array<{ weight_kg: number; pairs: number }>;
+}
+
+export interface DumbbellProfile {
+  name: string;
+  handle_kg: number;
+  collars_kg: number;
+  plates: Array<{ weight_kg: number; pairs: number }>;
+}
+
 export interface Location {
   id: string;
   name: string;
@@ -255,6 +281,8 @@ export interface Location {
   // What the place has; bodyweight is implied everywhere.
   equipment: EquipmentTag[];
   default_minutes: number | null;
+  plate_profiles: PlateProfile[];
+  dumbbell_profiles: DumbbellProfile[];
   created_at: string;
   updated_at: string;
 }

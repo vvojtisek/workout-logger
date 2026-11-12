@@ -21,7 +21,8 @@ class Exercise(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint(
             "movement_pattern IS NULL OR movement_pattern IN "
             "('horizontal_push', 'horizontal_pull', 'vertical_push', 'vertical_pull', "
-            "'squat', 'hinge', 'lunge', 'carry', 'rotation', 'core_stability', 'locomotion')",
+            "'squat', 'hinge', 'lunge', 'carry', 'rotation', 'core_stability', "
+            "'anti_rotation', 'trunk_flexion', 'trunk_extension', 'locomotion')",
             name="ck_exercises_movement_pattern",
         ),
         Index(
@@ -50,6 +51,9 @@ class Exercise(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     media_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     primary_muscles: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     secondary_muscles: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    movement_patterns: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default=text("'[]'")
+    )
     instructions: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     equipment: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # Alternatives: each inner list is one complete set of equipment tags

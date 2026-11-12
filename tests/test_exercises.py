@@ -14,6 +14,7 @@ def make_exercise_payload(**overrides) -> dict:
         "equipment": "Barbell",
         "safety_notes": "Use a spotter for heavy sets.",
         "progression_increment_kg": 0.25,
+        "movement_patterns": ["horizontal_push"],
     }
     payload.update(overrides)
     return payload
@@ -32,6 +33,7 @@ async def test_create_exercise_with_full_fields(client, auth_headers):
     assert body["primary_muscles"] == ["chest", "triceps"]
     assert body["progression_increment_kg"] == 0.25
     assert body["movement_pattern"] == "horizontal_push"
+    assert body["movement_patterns"] == ["horizontal_push"]
     assert "Location" in response.headers
     assert response.headers["Location"] == f"{BASE}/{body['id']}"
 
@@ -46,6 +48,8 @@ async def test_create_exercise_with_minimal_fields(client, auth_headers):
         instructions=[],
         equipment=None,
         safety_notes=None,
+        movement_patterns=[],
+        movement_pattern=None,
     )
     response = await client.post(BASE, json=payload, headers=auth_headers)
     assert response.status_code == 201
@@ -113,6 +117,24 @@ async def test_create_exercise_rejects_invalid_progression_increment(client, aut
         assert response.status_code == 422, increment
 
 
+async def test_create_exercise_rejects_unknown_movement_patterns(client, auth_headers):
+    response = await client.post(
+        BASE,
+        json=make_exercise_payload(movement_patterns=["push_day"]),
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
+
+
+async def test_create_exercise_rejects_duplicate_movement_patterns(client, auth_headers):
+    response = await client.post(
+        BASE,
+        json=make_exercise_payload(movement_patterns=["hinge", "hinge"]),
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
+
+
 async def test_create_exercise_with_blank_alias_returns_422(client, auth_headers):
     payload = make_exercise_payload(aliases=["  "])
     response = await client.post(BASE, json=payload, headers=auth_headers)
@@ -161,6 +183,45 @@ async def test_list_exercises_pagination_and_ordering(client, auth_headers):
 
     response2 = await client.get(f"{BASE}?limit=2&offset=2", headers=auth_headers)
     assert [e["name"] for e in response2.json()["items"]] == ["Charlie Curl"]
+
+
+async def test_list_exercises_filters_by_movement_pattern_before_pagination(client, auth_headers):
+    for name, patterns in [
+        ("A Hinge", ["hinge"]),
+        ("B Squat", ["squat"]),
+        ("C Hinge and brace", ["hinge", "anti_rotation"]),
+    ]:
+        response = await client.post(
+            BASE,
+            json=make_exercise_payload(name=name, movement_patterns=patterns),
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
+
+    response = await client.get(
+        f"{BASE}?movement_pattern=hinge&limit=1&offset=1", headers=auth_headers
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 2
+    assert [item["name"] for item in body["items"]] == ["C Hinge and brace"]
+
+
+async def test_list_exercises_rejects_unknown_movement_pattern(client, auth_headers):
+    response = await client.get(f"{BASE}?movement_pattern=push_day", headers=auth_headers)
+    assert response.status_code == 422
+
+
+async def test_replace_exercise_updates_movement_patterns(client, auth_headers):
+    created = await client.post(BASE, json=make_exercise_payload(), headers=auth_headers)
+    exercise_id = created.json()["id"]
+    response = await client.put(
+        f"{BASE}/{exercise_id}",
+        json=make_exercise_payload(movement_patterns=["vertical_push", "anti_rotation"]),
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["movement_patterns"] == ["vertical_push", "anti_rotation"]
 
 
 async def test_replace_exercise_updates_fields(client, auth_headers):
