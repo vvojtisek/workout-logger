@@ -828,3 +828,23 @@ Existing session and set rows keep their original values and identifiers.
 - Browser verification recipe. Download **Training load** CSV for a date range containing a
   rated strength workout and rated activities. Filter by `weekly_summary` to inspect totals and
   `weekly_activity_summary` to compare modalities; session and set rows remain available alongside.
+
+## Cycle 45 — Count primary-muscle set exposure
+
+The weekly muscle table now reports logged sets alongside external-load volume. Each set counts
+for every distinct primary muscle tag, so multi-tag set counts intentionally overlap; external
+volume continues to be split across tags. Zero-load bodyweight sets appear in the tagged muscle
+rows, and untagged sets remain visible under Unclassified.
+
+- API coverage checks loaded and zero-load sets, alias matching, duplicate tags, and unclassified
+  work. The real-API browser journey confirms bodyweight sets appear in both primary-muscle rows
+  while the split external-volume values remain unchanged.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, required Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the temporary
+  database scan found zero application rows after cleanup. The E2E auth journey used a throwaway
+  `E2E_API_KEY` matching the local server configuration.
+- Browser verification recipe. Open **Training load** for a week containing a loaded multi-tag
+  lift and a bodyweight set of that exercise. The set count should include both; external volume
+  should still be divided between the tags. Switch to a week with unclassified work to review its
+  separate row.

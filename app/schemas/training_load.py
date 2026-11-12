@@ -41,6 +41,7 @@ class TrainingLoadQuery(BaseModel):
 
 class MuscleVolume(BaseModel):
     muscle: str | None
+    set_count: int
     volume_kg: float
 
 

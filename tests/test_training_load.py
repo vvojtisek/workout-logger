@@ -16,7 +16,7 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
             headers=auth_headers,
             json={
                 "name": f"{tag} Split squat",
-                "aliases": [f"{tag} Lunge"],
+                "aliases": [f"{tag} Lunge", f"{tag} Bodyweight lunge"],
                 "primary_muscles": ["quads", "glutes", "glutes"],
                 "secondary_muscles": ["hamstrings"],
                 "equipment_load_mode": "pair_db",
@@ -40,7 +40,11 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
             (
                 "2026-10-18T22:00:00Z",
                 None,
-                [lifted("Lunge", [8, 6], weights=[5, 7.5125]), lifted("Push-up", [12])],
+                [
+                    lifted("Lunge", [8, 6], weights=[5, 7.5125]),
+                    lifted("Push-up", [12]),
+                    lifted("Bodyweight lunge", [12, 10], weights=[0, 0]),
+                ],
             ),
             ("2026-10-21T12:00:00Z", "running", []),
             ("2026-10-25T23:00:00Z", None, [lifted("Row", [8], weight=100)]),
@@ -93,7 +97,7 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                     "gym_sessions": 1,
                     "logged_sets": 1,
                     "volume_kg": 120,
-                    "muscle_volume": [{"muscle": None, "volume_kg": 120}],
+                    "muscle_volume": [{"muscle": None, "set_count": 1, "volume_kg": 120}],
                     "session_effort": {
                         "logged_sessions": 1,
                         "rated_sessions": 0,
@@ -112,11 +116,12 @@ async def test_weekly_external_volume_uses_real_sets_and_local_week_boundaries(
                 {
                     "week_start": "2026-10-19",
                     "gym_sessions": 1,
-                    "logged_sets": 3,
+                    "logged_sets": 5,
                     "volume_kg": 340.3,
                     "muscle_volume": [
-                        {"muscle": "glutes", "volume_kg": 170.2},
-                        {"muscle": "quads", "volume_kg": 170.1},
+                        {"muscle": "glutes", "set_count": 4, "volume_kg": 170.2},
+                        {"muscle": "quads", "set_count": 4, "volume_kg": 170.1},
+                        {"muscle": None, "set_count": 1, "volume_kg": 0},
                     ],
                     "session_effort": {
                         "logged_sessions": 2,

@@ -114,7 +114,7 @@ export interface TrainingLoadWeek {
   gym_sessions: number;
   logged_sets: number;
   volume_kg: number;
-  muscle_volume: { muscle: MuscleTag | null; volume_kg: number }[];
+  muscle_volume: { muscle: MuscleTag | null; set_count: number; volume_kg: number }[];
   session_effort: {
     logged_sessions: number;
     rated_sessions: number;

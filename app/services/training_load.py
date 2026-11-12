@@ -242,11 +242,19 @@ def _training_variability(
 
 
 def _add_muscle_volume(
-    totals: dict[str | None, int], volume_kg: float, primary_muscles: tuple[str, ...]
+    totals: dict[str | None, int],
+    set_totals: dict[str | None, int],
+    set_count: int,
+    volume_kg: float,
+    primary_muscles: tuple[str, ...],
 ) -> None:
-    if volume_kg <= 0:
+    if set_count <= 0:
         return
     muscles: tuple[str | None, ...] = tuple(sorted(set(primary_muscles))) or (None,)
+    for muscle in muscles:
+        set_totals[muscle] += set_count
+    if volume_kg <= 0:
+        return
     # Split whole tenths to preserve the recorded exercise's volume exactly.
     share, remainder = divmod(round(volume_kg * 10), len(muscles))
     for index, muscle in enumerate(muscles):
@@ -271,6 +279,7 @@ async def weekly_training_load(
     ]
     daily_loads = [[0] * 7 for _ in weeks]
     muscle_volumes: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
+    muscle_sets: list[dict[str | None, int]] = [defaultdict(int) for _ in weeks]
     activity_efforts: list[dict[str | None, SessionEffortByActivity]] = [{} for _ in weeks]
     logs = await _workout_logs_in_range(session, date_from, date_to)
     profiles = await apply_to_logs(
@@ -306,7 +315,13 @@ async def weekly_training_load(
         week.logged_sets += sum(exercise.sets_count for exercise in log.exercises)
         for exercise in log.exercises:
             profile = profile_for(profiles, exercise.exercise_name)
-            _add_muscle_volume(muscle_volumes[index], exercise.volume_kg, profile.primary_muscles)
+            _add_muscle_volume(
+                muscle_volumes[index],
+                muscle_sets[index],
+                exercise.sets_count,
+                exercise.volume_kg,
+                profile.primary_muscles,
+            )
 
     today = utcnow().astimezone(zone).date()
     for index in range(lookback, len(weeks)):
@@ -317,11 +332,15 @@ async def weekly_training_load(
             key=lambda effort: (effort.activity_type is not None, effort.activity_type or ""),
         )
         week.muscle_volume = [
-            MuscleVolume(muscle=muscle, volume_kg=tenths / 10)
-            for muscle, tenths in sorted(
-                muscle_volume.items(), key=lambda item: (-item[1], item[0] or "unclassified")
+            MuscleVolume(
+                muscle=muscle,
+                set_count=muscle_sets[index][muscle],
+                volume_kg=muscle_volume.get(muscle, 0) / 10,
             )
-            if tenths
+            for muscle in sorted(
+                set(muscle_sets[index]) | set(muscle_volume),
+                key=lambda item: (-muscle_volume.get(item, 0), item or "unclassified"),
+            )
         ]
         week.workload_ratio = _workload_ratio(
             week, weeks[max(0, index - BASELINE_WEEKS) : index], today

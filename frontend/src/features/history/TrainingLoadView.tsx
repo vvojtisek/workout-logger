@@ -34,10 +34,10 @@ function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
 
   return (
     <section className="card mt-4 p-4">
-      <h3 className="font-semibold">External volume by primary muscle</h3>
+      <h3 className="font-semibold">Primary-muscle set exposure and volume</h3>
       <p className="my-2 text-sm text-muted">
-        Volume is divided across each exercise's distinct primary tags. Untagged volume appears
-        under Unclassified.
+        Each logged set counts for every distinct primary muscle tag, so set counts can overlap.
+        External volume is divided across those tags; untagged work appears under Unclassified.
       </p>
       <label className="mb-3 flex flex-col gap-1">
         <span className="field-label">Muscle breakdown week</span>
@@ -54,19 +54,21 @@ function MuscleVolumeTable({ weeks }: { weeks: TrainingLoadWeek[] }) {
         </select>
       </label>
       {week.muscle_volume.length > 0 ? (
-        <table aria-label="External volume by primary muscle" className="w-full text-left text-sm">
+        <table aria-label="Primary-muscle sets and external volume" className="w-full text-left text-sm">
           <thead className="text-muted">
             <tr>
               <th scope="col" className="py-2">Muscle</th>
+              <th scope="col" className="px-2 py-2 text-right">Logged sets</th>
               <th scope="col" className="py-2 text-right">External volume</th>
             </tr>
           </thead>
           <tbody>
-            {week.muscle_volume.map(({ muscle, volume_kg }) => (
+            {week.muscle_volume.map(({ muscle, set_count, volume_kg }) => (
               <tr key={muscle ?? "unclassified"} className="border-t border-line-muted">
                 <th scope="row" className="py-2 font-medium">
                   {muscle === null ? "Unclassified" : MUSCLE_LABELS[muscle] ?? muscle}
                 </th>
+                <td className="px-2 py-2 text-right" data-numeric>{set_count}</td>
                 <td className="py-2 text-right" data-numeric>{NUMBER_FORMAT.format(volume_kg)} kg</td>
               </tr>
             ))}

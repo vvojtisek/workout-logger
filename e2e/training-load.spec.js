@@ -113,6 +113,7 @@ test("training load reviews recorded gym work by week", async ({ page, request }
       ["2026-10-18T21:59:59Z", `${tag} Unknown press`],
       ["2026-10-18T22:00:00Z", `${tag} Press`],
     ]) {
+      const isClassified = exerciseName === `${tag} Press`;
       const log = await request.post("/api/v1/logs", {
         data: {
           performed_at: performedAt,
@@ -121,9 +122,9 @@ test("training load reviews recorded gym work by week", async ({ page, request }
           notes: tag,
           exercises: [{
             exercise_name: exerciseName,
-            sets_count: 2,
-            weight_per_set: [50, 25],
-            reps_per_set: [3, 8],
+            sets_count: isClassified ? 4 : 2,
+            weight_per_set: isClassified ? [50, 25, 0, 0] : [50, 25],
+            reps_per_set: isClassified ? [3, 8, 10, 8] : [3, 8],
           }],
         },
       });
@@ -155,17 +156,20 @@ test("training load reviews recorded gym work by week", async ({ page, request }
 
     const table = page.getByRole("table", { name: "Weekly gym work" });
     const latest = table.getByRole("row", { name: /^2026-10-19/ });
-    await expect(latest.getByRole("cell")).toHaveText(["1", "2", "350 kg"]);
+    await expect(latest.getByRole("cell")).toHaveText(["1", "4", "350 kg"]);
     await expect(table.getByRole("row", { name: /^2026-10-12/ }).getByRole("cell")).toHaveText([
       "1", "2", "350 kg",
     ]);
     await expect(table.getByRole("row")).toHaveCount(5);
-    const breakdown = page.getByRole("table", { name: "External volume by primary muscle" });
-    await expect(breakdown.getByRole("row", { name: /^Chest/ })).toContainText("175 kg");
-    await expect(breakdown.getByRole("row", { name: /^Triceps/ })).toContainText("175 kg");
+    const breakdown = page.getByRole("table", { name: "Primary-muscle sets and external volume" });
+    await expect(breakdown.getByRole("row", { name: /^Chest/ }).getByRole("cell"))
+      .toHaveText(["4", "175 kg"]);
+    await expect(breakdown.getByRole("row", { name: /^Triceps/ }).getByRole("cell"))
+      .toHaveText(["4", "175 kg"]);
     await expect(breakdown.getByRole("row", { name: /^Shoulders/ })).toHaveCount(0);
     await page.getByLabel("Muscle breakdown week").selectOption("2026-10-12");
-    await expect(breakdown.getByRole("row", { name: /^Unclassified/ })).toContainText("350 kg");
+    await expect(breakdown.getByRole("row", { name: /^Unclassified/ }).getByRole("cell"))
+      .toHaveText(["2", "350 kg"]);
 
     const effort = page.getByRole("table", { name: "Weekly session effort" });
     const latestEffort = effort.getByRole("row", { name: /^2026-10-19/ });
