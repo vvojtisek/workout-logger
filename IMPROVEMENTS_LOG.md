@@ -907,3 +907,20 @@ baselines, and ratios aligned while reducing repeated selection.
 - Browser verification recipe. Open **Training load** and change **Analysis week**. Confirm the
   muscle exposure, activity breakdown, calendar workload ratio, and monotony cards all reflect
   that same week.
+
+## Cycle 49 — Inspect session-level effort
+
+The selected Analysis week now includes a session-by-session effort table with local date and time,
+activity, duration, whole-session RPE, and calculated AU. Unrated sessions remain visible with no
+load, and the timestamp keeps multiple workouts recorded on the same local date distinguishable.
+
+- API and browser coverage verify rated strength and running sessions alongside an unrated cycling
+  session, including local-time display and load values. The shared week selector controls the new
+  table, and desktop and phone layouts remain within the viewport.
+- `uv run pytest -q` passed all 738 backend tests; `npm test` passed all 221 frontend tests.
+  ESLint, TypeScript, Vite build, focused Ruff, Ruff format, mypy, and `git diff --check` passed.
+  Full localhost Playwright passed 82 tests with eight expected viewport skips; the isolated
+  temporary database scan found zero application rows after cleanup. Full Ruff reports 151
+  existing repository-wide findings; all changed Python files pass Ruff.
+- Browser verification recipe. Open **Training load**, select a week with several activities, and
+  compare each session's local time, duration, rating, and AU with the weekly and activity totals.

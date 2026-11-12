@@ -121,6 +121,14 @@ export interface TrainingLoadWeek {
     rated_minutes: number;
     load_au: number | null;
   };
+  session_effort_sessions: {
+    performed_at_utc: string;
+    local_date: string;
+    activity_type: ActivityType | null;
+    duration_minutes: number;
+    effort_rpe: number | null;
+    load_au: number | null;
+  }[];
   session_effort_by_activity: {
     activity_type: ActivityType | null;
     logged_sessions: number;

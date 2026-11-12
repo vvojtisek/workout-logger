@@ -427,6 +427,32 @@ async def test_weekly_session_effort_is_broken_down_by_activity_type(migrated_cl
             "rated_minutes": 50,
             "load_au": 280,
         }
+        assert week["session_effort_sessions"] == [
+            {
+                "performed_at_utc": "2024-02-05T12:00:00Z",
+                "local_date": "2024-02-05",
+                "activity_type": None,
+                "duration_minutes": 30,
+                "effort_rpe": 6,
+                "load_au": 180,
+            },
+            {
+                "performed_at_utc": "2024-02-06T12:00:00Z",
+                "local_date": "2024-02-06",
+                "activity_type": "running",
+                "duration_minutes": 20,
+                "effort_rpe": 5,
+                "load_au": 100,
+            },
+            {
+                "performed_at_utc": "2024-02-07T12:00:00Z",
+                "local_date": "2024-02-07",
+                "activity_type": "cycling",
+                "duration_minutes": 40,
+                "effort_rpe": None,
+                "load_au": None,
+            },
+        ]
         assert week["session_effort_by_activity"] == [
             {
                 "activity_type": None,

@@ -6,7 +6,7 @@ import type { TrainingLoadResponse, TrainingLoadWeek } from "@/api/types";
 import { activityLabel } from "@/lib/activity";
 import { isIsoCalendarDate } from "@/lib/date-time-inputs";
 import { MUSCLE_LABELS } from "@/lib/exercise-catalogue";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { Button, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
 
@@ -249,6 +249,69 @@ function SessionEffortByActivityTable({
                     {effort.workload_ratio.ratio === null
                       ? "—"
                       : `${effort.workload_ratio.ratio.toFixed(2)}×`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p role="status" className="text-sm text-muted">No sessions were logged in this week.</p>
+      )}
+    </section>
+  );
+}
+
+function SessionEffortDetailsTable({
+  weeks,
+  selectedWeek,
+}: {
+  weeks: TrainingLoadWeek[];
+  selectedWeek: string;
+}) {
+  const week = weeks.find((entry) => entry.week_start === selectedWeek) ?? weeks.at(-1);
+  if (!week) return null;
+
+  return (
+    <section className="card mt-4 p-4">
+      <h3 className="font-semibold">Session effort details</h3>
+      <p className="my-2 text-sm text-muted">
+        Individual workouts and activities for this week. Unrated sessions stay visible and do not
+        contribute to the load total.
+      </p>
+      {week.session_effort_sessions.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table aria-label="Weekly session effort details" className="w-full text-left text-sm">
+            <thead className="text-muted">
+              <tr>
+                <th scope="col" className="py-2">Local date and time</th>
+                <th scope="col" className="px-2 py-2">Activity</th>
+                <th scope="col" className="px-2 py-2 text-right">Duration</th>
+                <th scope="col" className="px-2 py-2 text-right">RPE</th>
+                <th scope="col" className="py-2 text-right">Load</th>
+              </tr>
+            </thead>
+            <tbody>
+              {week.session_effort_sessions.map((detail) => (
+                <tr
+                  key={`${detail.performed_at_utc}-${detail.activity_type ?? "strength"}`}
+                  className="border-t border-line-muted"
+                  data-numeric
+                >
+                  <th scope="row" className="py-2 font-medium">
+                    <time dateTime={detail.performed_at_utc}>
+                      {formatDateTime(detail.performed_at_utc)}
+                    </time>
+                  </th>
+                  <td className="px-2 py-2">
+                    {detail.activity_type ? activityLabel(detail.activity_type) : "Strength training"}
+                  </td>
+                  <td className="px-2 py-2 text-right">{detail.duration_minutes} min</td>
+                  <td className="px-2 py-2 text-right">
+                    {detail.effort_rpe === null ? "Unrated" : detail.effort_rpe}
+                  </td>
+                  <td className="py-2 text-right">
+                    {detail.load_au === null ? "No load" : `${NUMBER_FORMAT.format(detail.load_au)} AU`}
                   </td>
                 </tr>
               ))}
@@ -515,6 +578,9 @@ export function TrainingLoadView() {
       {data ? <SessionEffortTable weeks={data.weeks} /> : null}
       {data && analysisWeek ? (
         <SessionEffortByActivityTable weeks={data.weeks} selectedWeek={analysisWeek.week_start} />
+      ) : null}
+      {data && analysisWeek ? (
+        <SessionEffortDetailsTable weeks={data.weeks} selectedWeek={analysisWeek.week_start} />
       ) : null}
       {data && analysisWeek ? (
         <WorkloadRatioCard weeks={data.weeks} selectedWeek={analysisWeek.week_start} />

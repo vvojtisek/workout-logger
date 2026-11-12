@@ -16,6 +16,7 @@ from app.schemas.training_load import (
     DailyTrainingLoad,
     MuscleVolume,
     SessionEffortByActivity,
+    SessionEffortDetail,
     TrainingLoadQuery,
     TrainingLoadResponse,
     TrainingLoadWeek,
@@ -347,6 +348,21 @@ async def weekly_training_load(
         week = weeks[index]
         effort = week.session_effort
         effort.logged_sessions += 1
+        session_load = (
+            log.effort_rpe * log.total_time_minutes
+            if log.effort_rpe is not None and log.total_time_minutes > 0
+            else None
+        )
+        week.session_effort_sessions.append(
+            SessionEffortDetail(
+                performed_at_utc=log.performed_at,
+                local_date=local_date,
+                activity_type=log.activity_type,
+                duration_minutes=log.total_time_minutes,
+                effort_rpe=log.effort_rpe,
+                load_au=session_load,
+            )
+        )
         activity_effort = activity_efforts[index].setdefault(
             log.activity_type,
             SessionEffortByActivity(activity_type=log.activity_type, logged_sessions=0),

@@ -58,6 +58,19 @@ test("training load separates weekly session effort by activity type", async ({ 
       .toHaveText(["1 / 1", "30", "180 AU", "100 AU", "1.80×"]);
     await expect(breakdown.getByRole("row", { name: /^Cycling/ }).getByRole("cell"))
       .toHaveText(["0 / 1", "0", "No ratings", "Missing sessions", "—"]);
+    const sessionDetails = page.getByRole("table", { name: "Weekly session effort details" });
+    await expect(sessionDetails.getByRole("row", { name: /2024-02-05 13:00 Strength training/ }))
+      .toContainText("30 min");
+    await expect(sessionDetails.getByRole("row", { name: /2024-02-05 13:00 Strength training/ }))
+      .toContainText("6");
+    await expect(sessionDetails.getByRole("row", { name: /2024-02-05 13:00 Strength training/ }))
+      .toContainText("180 AU");
+    await expect(sessionDetails.getByRole("row", { name: /2024-02-05 13:00 Running/ }))
+      .toContainText("180 AU");
+    await expect(sessionDetails.getByRole("row", { name: /2024-02-06 13:00 Cycling/ }))
+      .toContainText("Unrated");
+    await expect(sessionDetails.getByRole("row", { name: /2024-02-06 13:00 Cycling/ }))
+      .toContainText("No load");
     await page.getByLabel("Analysis week").selectOption("2024-01-29");
     await expect(breakdown.getByRole("row", { name: /^Running/ }).getByRole("cell"))
       .toHaveText(["1 / 1", "20", "160 AU", "Missing sessions", "—"]);
@@ -198,7 +211,7 @@ test("training load reviews recorded gym work by week", async ({ page, request }
     await expect(breakdown.getByRole("row", { name: /^Unclassified/ }).getByRole("cell"))
       .toHaveText(["2", "350 kg"]);
 
-    const effort = page.getByRole("table", { name: "Weekly session effort" });
+    const effort = page.getByRole("table", { name: "Weekly session effort", exact: true });
     const latestEffort = effort.getByRole("row", { name: /^2026-10-19/ });
     await expect(latestEffort.getByRole("cell")).toHaveText(["1 / 2", "40", "160 AU"]);
     await expect(effort.getByRole("row", { name: /^2026-10-12/ })).toContainText("No ratings");
