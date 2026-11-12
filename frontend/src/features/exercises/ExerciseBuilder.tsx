@@ -169,6 +169,7 @@ function buildPayload(state: {
   equipment: string;
   equipment_any_of: EquipmentTag[][] | null;
   safety_notes: string;
+  progression_increment_kg: string;
   equipment_load_mode: EquipmentLoadMode;
   is_unilateral: boolean;
 }) {
@@ -182,6 +183,9 @@ function buildPayload(state: {
     equipment: state.equipment.trim() || null,
     equipment_any_of: state.equipment_any_of,
     safety_notes: state.safety_notes.trim() || null,
+    progression_increment_kg: state.progression_increment_kg.trim()
+      ? Number(state.progression_increment_kg)
+      : null,
     equipment_load_mode: state.equipment_load_mode,
     is_unilateral: state.is_unilateral,
   };
@@ -206,6 +210,7 @@ export function ExerciseBuilder() {
   // follow the text, so editing "barbell" to "dumbbell" retags the exercise.
   const [tagsTouched, setTagsTouched] = useState(false);
   const [safetyNotes, setSafetyNotes] = useState("");
+  const [progressionIncrement, setProgressionIncrement] = useState("");
   const [loadMode, setLoadMode] = useState<EquipmentLoadMode>("standard");
   const [unilateral, setUnilateral] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -229,6 +234,7 @@ export function ExerciseBuilder() {
     setEquipment(existing.equipment ?? "");
     setEquipmentAnyOf(existing.equipment_any_of.length > 0 ? existing.equipment_any_of : null);
     setSafetyNotes(existing.safety_notes ?? "");
+    setProgressionIncrement(existing.progression_increment_kg?.toString() ?? "");
     setLoadMode(existing.equipment_load_mode);
     setUnilateral(existing.is_unilateral);
   }, [existing]);
@@ -273,6 +279,7 @@ export function ExerciseBuilder() {
       equipment,
       equipment_any_of: equipmentAnyOf,
       safety_notes: safetyNotes,
+      progression_increment_kg: progressionIncrement,
       equipment_load_mode: loadMode,
       is_unilateral: unilateral,
     });
@@ -409,6 +416,30 @@ export function ExerciseBuilder() {
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="field-label" htmlFor="exercise-progression-increment">
+            Progression increment (kg)
+          </label>
+          <Input
+            id="exercise-progression-increment"
+            type="number"
+            min="0.05"
+            max="20"
+            step="0.01"
+            inputMode="decimal"
+            placeholder="Automatic"
+            value={progressionIncrement}
+            onChange={(event) => setProgressionIncrement(event.target.value)}
+          />
+          <p className="mt-1 text-sm text-muted">
+            Optional override for the load increase after all sets reach the top of the rep range.
+            Leave blank to use the automatic equipment-based increment.
+          </p>
+          {errors.progression_increment_kg ? (
+            <p className="mt-1 text-sm text-danger">{errors.progression_increment_kg}</p>
+          ) : null}
         </div>
 
         <label className="flex items-center gap-3 text-sm">

@@ -1156,3 +1156,34 @@ def test_per_set_detail_migration_backfills_from_the_finished_session(
         columns = {row[1] for row in connection.execute(text("PRAGMA table_info(exercise_logs)"))}
     assert "weight_per_set" not in columns
     sync_engine.dispose()
+
+
+def test_custom_progression_increment_migration_preserves_existing_exercises(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "c4e8a2f6d1b3")
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    exercise_id = str(uuid.uuid4())
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO exercises (id, name, aliases, primary_muscles, secondary_muscles, "
+                "instructions, created_at, updated_at) VALUES (:id, 'Legacy increment', '[]', "
+                "'[]', '[]', '[]', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": exercise_id},
+        )
+
+    command.upgrade(alembic_config, "head")
+    with sync_engine.connect() as connection:
+        increment = connection.scalar(
+            text("SELECT progression_increment_kg FROM exercises WHERE id = :id"),
+            {"id": exercise_id},
+        )
+    assert increment is None
+
+    command.downgrade(alembic_config, "c4e8a2f6d1b3")
+    with sync_engine.connect() as connection:
+        columns = {row[1] for row in connection.execute(text("PRAGMA table_info(exercises)"))}
+    assert "progression_increment_kg" not in columns
+    sync_engine.dispose()

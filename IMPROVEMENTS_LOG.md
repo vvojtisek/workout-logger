@@ -225,6 +225,33 @@ saved set numbers when other loads intervene.
   50 kg for 10 and 12 reps at sets 2 and 4. Playwright verified the 75% and 120% values,
   the actual set indices, and the absence of a single-load comparison for a 70 kg set.
 
+## Cycle 21 — Configure the progression increment per exercise
+
+The exercise catalogue can override the double-progression load increase with a user-set value
+from 0.05 to 20 kg in 0.01 kg steps. The next-session engine uses the override when every set
+reaches the top of its rep range with reserve. An unset value preserves the existing
+equipment-based 1 kg or 2.5 kg rule. An additive migration after the exercise volume-rule
+revision adds the nullable field, so legacy exercises keep automatic progression.
+
+- API tests verify create, replacement, clearing, range and precision validation. A migrated
+  database test confirms a pre-existing exercise remains automatic and verifies downgrade. The
+  next-session regression logs a completed dumbbell row at 22 kg and verifies the configured
+  increment suggests 22.25 kg. Four API assertions failed against the baseline before
+  implementation because the field was ignored or absent.
+- The exercise editor persists the override on desktop and phone. A real migrated-SQLite browser
+  flow then creates a plan, records three top-of-range sets, starts the next session through the
+  real API, and verifies the 20.25 kg suggestion. E2E cleanup found zero rows in all nine
+  tracked tables.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed 709 tests at 82% coverage. Required Ruff rules, format, mypy, and `git diff --check`
+  passed. Informational full Ruff remains at the existing 151 findings.
+- ESLint, TypeScript, Vite build, and all 197 Vitest tests passed. Full localhost Playwright
+  passed 67 tests with three expected viewport skips.
+- Browser verification recipe. Edit an exercise and set **Progression increment (kg)** to
+  0.25. Record all sets at the top of the plan's rep range, then start the plan again. Confirm
+  the suggested load is previous load + 0.25 kg. Clear the override to restore the automatic
+  equipment-based step.
+
 ## Cycle 10 — Export the selected training weeks as session and set data
 
 The Training load view downloads UTF-8 CSV for its selected local weeks. Session rows hold

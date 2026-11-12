@@ -218,6 +218,7 @@ export interface CatalogExercise {
   // Empty means the exercise is not tagged.
   equipment_any_of: EquipmentTag[][];
   safety_notes: string | null;
+  progression_increment_kg: number | null;
   equipment_load_mode: EquipmentLoadMode;
   is_unilateral: boolean;
   created_at: string;

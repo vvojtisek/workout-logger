@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, ForeignKey, Index, String, Text, text
+from sqlalchemy import JSON, Boolean, CheckConstraint, Float, ForeignKey, Index, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import GUID, Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -52,6 +52,9 @@ class Exercise(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         JSON, nullable=False, default=list, server_default="[]"
     )
     safety_notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    # Overrides the equipment-based progression increment when an exercise is
+    # ready to add load. None keeps the existing automatic rule.
+    progression_increment_kg: Mapped[float | None] = mapped_column(Float(), nullable=True)
     # How logged weight and reps become volume (see app/services/volume.py).
     # The typed weight is always one dumbbell; "pair_db" counts two of them.
     equipment_load_mode: Mapped[str] = mapped_column(

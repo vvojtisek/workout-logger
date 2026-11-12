@@ -13,6 +13,7 @@ def make_exercise_payload(**overrides) -> dict:
         "instructions": ["Lie on the bench.", "Lower the bar to the chest.", "Press up."],
         "equipment": "Barbell",
         "safety_notes": "Use a spotter for heavy sets.",
+        "progression_increment_kg": 0.25,
     }
     payload.update(overrides)
     return payload
@@ -25,6 +26,7 @@ async def test_create_exercise_with_full_fields(client, auth_headers):
     assert body["name"] == "Barbell Bench Press"
     assert body["aliases"] == ["Bench Press", "Flat Bench"]
     assert body["primary_muscles"] == ["chest", "triceps"]
+    assert body["progression_increment_kg"] == 0.25
     assert "Location" in response.headers
     assert response.headers["Location"] == f"{BASE}/{body['id']}"
 
@@ -63,6 +65,16 @@ async def test_create_exercise_with_invalid_muscle_tag_returns_422(client, auth_
     payload = make_exercise_payload(primary_muscles=["abs"])
     response = await client.post(BASE, json=payload, headers=auth_headers)
     assert response.status_code == 422
+
+
+async def test_create_exercise_rejects_invalid_progression_increment(client, auth_headers):
+    for increment in (0, 0.01, 20.01, 0.125):
+        response = await client.post(
+            BASE,
+            json=make_exercise_payload(progression_increment_kg=increment),
+            headers=auth_headers,
+        )
+        assert response.status_code == 422, increment
 
 
 async def test_create_exercise_with_blank_alias_returns_422(client, auth_headers):
@@ -127,6 +139,15 @@ async def test_replace_exercise_updates_fields(client, auth_headers):
     body = response.json()
     assert body["name"] == "New Name"
     assert body["equipment"] == "Dumbbell"
+
+
+async def test_replace_exercise_can_clear_custom_progression_increment(client, auth_headers):
+    created = await client.post(BASE, json=make_exercise_payload(), headers=auth_headers)
+    exercise_id = created.json()["id"]
+    payload = make_exercise_payload(progression_increment_kg=None)
+    response = await client.put(f"{BASE}/{exercise_id}", json=payload, headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["progression_increment_kg"] is None
 
 
 async def test_replace_exercise_with_name_taken_by_another_returns_409(client, auth_headers):
