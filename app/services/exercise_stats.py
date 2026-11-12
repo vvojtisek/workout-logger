@@ -11,6 +11,7 @@ from app.models import ExerciseLog, WorkoutLog
 from app.schemas.exercise_stats import (
     ExerciseSessionPoint,
     ExerciseStatsRead,
+    FormulaAgreement,
     OneRepMaxFormula,
     RepRetentionGroup,
 )
@@ -18,6 +19,7 @@ from app.schemas.exercise_stats import (
 # Sessions returned for progression charts.
 RECENT_SESSIONS = 12
 ALTERNATE_FORMULA_MAX_REPS = 10
+ALL_FORMULAS: tuple[OneRepMaxFormula, ...] = ("epley", "brzycki", "lombardi", "wathen")
 
 
 def _normalize(name: str) -> str:
@@ -90,6 +92,28 @@ def _same_load_rep_retention(entry: ExerciseLog) -> list[RepRetentionGroup]:
     ]
 
 
+def _formula_agreement(entry: ExerciseLog) -> FormulaAgreement | None:
+    """Compare equations on the same heaviest set in their shared 1–10 rep range."""
+    eligible = [
+        (weight, reps)
+        for weight, reps in entry.sets_with_weights
+        if weight is not None and weight > 0 and 1 <= reps <= ALTERNATE_FORMULA_MAX_REPS
+    ]
+    if not eligible:
+        return None
+
+    weight, reps = max(eligible)
+    estimates = {formula: _estimated_one_rep_max(weight, reps, formula) for formula in ALL_FORMULAS}
+    mean = sum(estimates.values()) / len(estimates)
+    spread_percent = (max(estimates.values()) - min(estimates.values())) / mean * 100
+    return FormulaAgreement(
+        reference_weight_kg=weight,
+        reference_reps=reps,
+        estimates_kg=estimates,
+        spread_percent=round(spread_percent, 1),
+    )
+
+
 def _summarize(
     name: str, history: list[tuple[datetime, ExerciseLog]], formula: OneRepMaxFormula
 ) -> ExerciseStatsRead:
@@ -104,6 +128,7 @@ def _summarize(
             best_weight_reps=None,
             estimated_one_rep_max_kg=None,
             trend=None,
+            formula_agreement=None,
             rep_retention=[],
         )
 
@@ -147,6 +172,7 @@ def _summarize(
         best_weight_reps=best_weight_reps,
         estimated_one_rep_max_kg=best_estimated_set[0] if best_estimated_set else None,
         trend=trend,
+        formula_agreement=_formula_agreement(last),
         rep_retention=_same_load_rep_retention(last),
     )
 

@@ -37,6 +37,8 @@ test("catalogue progression reviews completed lifts without an active workout", 
     expect(exerciseStats.rep_retention).toEqual([
       { weight_kg: 60, reps_per_set: [6, 3], retention_percent: 50 },
     ]);
+    expect(exerciseStats.formula_agreement.reference_weight_kg).toBe(60);
+    expect(exerciseStats.formula_agreement.reference_reps).toBe(6);
     await page.goto(`/exercises/${id}`);
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
     const panel = page.getByTestId("progression-card");
@@ -44,6 +46,14 @@ test("catalogue progression reviews completed lifts without an active workout", 
     await expect(panel).toContainText("60 kg · 6 → 3");
     await expect(panel).toContainText("50% retained");
     await expect(panel.getByRole("img", { name: "60 kg same-load rep curve: 6, 3 reps by set" })).toBeVisible();
+    const agreement = panel.getByTestId("formula-agreement");
+    await expect(agreement).toContainText("Same-set equation spread");
+    await expect(agreement).toContainText("60 kg × 6");
+    await agreement.getByText("View all four estimates").click();
+    await expect(agreement).toContainText("Epley:");
+    await expect(agreement).toContainText("Brzycki:");
+    await expect(agreement).toContainText("Lombardi:");
+    await expect(agreement).toContainText("Wathen:");
     await expect(panel).toContainText("e1RM 72 kg");
     await panel.getByRole("combobox", { name: "History range" }).selectOption("30");
     await panel.getByRole("combobox", { name: "1RM formula" }).selectOption("brzycki");

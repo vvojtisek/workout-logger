@@ -527,3 +527,23 @@ velocity or a failure estimate.
 - Browser verification recipe. Open a catalogued exercise with a recent logged session that has
   two sets at the same weight and another set at a different weight. Confirm the same-load curve
   includes only the repeated weight, follows set order, and reports final-to-first rep retention.
+
+## Cycle 32 — Compare one-rep-max equation sensitivity
+
+Exercise progression now reports the estimate range produced by Epley, Brzycki, Lombardi, and
+Wathen on one shared reference set: the latest session's heaviest set in the common 1–10 rep
+range. The API also returns each rounded equation estimate and the range as a percentage of their
+mean. The UI keeps the four values expandable beneath the compact spread summary. This exposes
+equation sensitivity without describing it as statistical model fit; sessions without a common
+reference set show no spread.
+
+- API tests verify all four results, the spread calculation, and the empty state outside the
+  shared rep range. The browser journey checks the response and all four visible equation labels.
+- `uv run --python 3.11 --extra dev --with pytest-cov pytest --cov=app --cov-report=term-missing`
+  passed all 722 tests at 82% coverage. Required Ruff, format, mypy, frontend tests, ESLint,
+  TypeScript, Vite build, and `git diff --check` passed. Full localhost Playwright on fresh
+  migrated SQLite passed 75 tests with seven expected viewport skips; all nine cleanup tables
+  were empty.
+- Browser verification recipe. Open an exercise with a recent 1–10 rep loaded set. Read the
+  same-set equation spread, expand **View all four estimates**, and compare each value. Record a
+  session containing only sets above ten reps to confirm the spread is omitted.

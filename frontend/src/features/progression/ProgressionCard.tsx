@@ -51,6 +51,10 @@ export function ProgressionCard({
   const id = useId();
   const facts = showSummary ? exerciseStatsFacts(stats) : [];
   const recent = stats?.recent ?? [];
+  const agreement = stats?.formula_agreement;
+  const agreementEntries = agreement
+    ? (Object.entries(agreement.estimates_kg) as [OneRepMaxFormula, number][])
+    : [];
   const chart = progressionChart(recent, CHART_WIDTH, CHART_HEIGHT);
   const best = [...recent]
     .filter((point) => point.estimated_one_rep_max_kg !== null)
@@ -101,6 +105,22 @@ export function ProgressionCard({
         logged reps. {formula === "epley" ? "Epley uses all logged rep counts." : "Uses sets of 1–10 reps."}{" "}
         These equations assume reps to failure.
       </p>
+      {agreement ? (
+        <section data-testid="formula-agreement">
+          <h4 className="mb-1 text-sm font-medium">Same-set equation spread</h4>
+          <p className="text-sm" data-numeric>
+            {formatKg(agreement.reference_weight_kg)} × {agreement.reference_reps}: {formatKg(Math.min(...Object.values(agreement.estimates_kg)))}–{formatKg(Math.max(...Object.values(agreement.estimates_kg)))} e1RM · {agreement.spread_percent}% of mean
+          </p>
+          <details className="mt-1 text-xs text-muted">
+            <summary className="cursor-pointer">View all four estimates</summary>
+            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1" data-numeric>
+              {agreementEntries.map(([key, value]) => (
+                <li key={key}>{ESTIMATE_FORMULAS[key].label}: {formatKg(value)}</li>
+              ))}
+            </ul>
+          </details>
+        </section>
+      ) : null}
       {stats?.rep_retention.length ? (
         <div>
           <h4 className="mb-1 text-sm font-medium">Last session · same-load reps</h4>

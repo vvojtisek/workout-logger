@@ -93,6 +93,13 @@ export interface RepRetentionGroup {
   retention_percent: number;
 }
 
+export interface FormulaAgreement {
+  reference_weight_kg: number;
+  reference_reps: number;
+  estimates_kg: Record<OneRepMaxFormula, number>;
+  spread_percent: number;
+}
+
 export interface ExerciseStats {
   exercise_name: string;
   sessions_count: number;
@@ -103,6 +110,7 @@ export interface ExerciseStats {
   best_weight_reps: number | null;
   estimated_one_rep_max_kg: number | null;
   trend: "up" | "down" | "flat" | null;
+  formula_agreement: FormulaAgreement | null;
   /** Repeated same-load set sequences from the latest session. */
   rep_retention: RepRetentionGroup[];
   /** Up to the last twelve sessions, oldest first. */
