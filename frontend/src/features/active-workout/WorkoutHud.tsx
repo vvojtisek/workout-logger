@@ -24,7 +24,9 @@ import {
   previousExercise,
   previousSet,
   rirPillValue,
+  setTrail,
   stepValue,
+  upNextText,
 } from "@/lib/workout-hud";
 import type { HudRow } from "@/lib/workout-hud";
 import { ScaleSelect } from "@/ui/ScaleSelect";
@@ -174,6 +176,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
   const allLogged = rows.every((candidate) => candidate.entry !== null);
   const prev = previousSet(rows, index);
   const next = nextExercise(rows, index);
+  const upNext = upNextText(next);
 
   function onTouchStart(event: TouchEvent) {
     const touch = event.touches[0];
@@ -307,6 +310,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
             ) : null;
           })()}
           {props.statsLine}
+          <SetTrail rows={rows} exerciseId={row.exercise.id} currentSet={row.setNumber} />
           {/* Only a coaching note ("Same load, aim for 8 reps") earns a line; the
               plain "suggested from plan / repeating set" provenance is noise. */}
           {row.entry || previousLogged || !row.exercise.suggestion_note ? null : (
@@ -316,13 +320,25 @@ export function WorkoutHud(props: WorkoutHudProps) {
           )}
         </div>
 
-        <SetPanel
-          key={`${row.exercise.id}:${row.setNumber}:${row.entry?.id ?? "draft"}`}
-          {...props}
-          row={row}
-          previous={previousLogged}
-          allLogged={allLogged}
-        />
+        <div className="mt-auto flex flex-col gap-3">
+          {upNext ? (
+            <p
+              id="hud-up-next"
+              className="text-center text-sm text-balance text-muted"
+              data-numeric
+            >
+              <span className="text-dim">Next </span>
+              {upNext}
+            </p>
+          ) : null}
+          <SetPanel
+            key={`${row.exercise.id}:${row.setNumber}:${row.entry?.id ?? "draft"}`}
+            {...props}
+            row={row}
+            previous={previousLogged}
+            allLogged={allLogged}
+          />
+        </div>
       </div>
 
       <footer className="flex shrink-0 justify-between pt-2">
@@ -344,6 +360,46 @@ export function WorkoutHud(props: WorkoutHudProps) {
         </button>
       </footer>
     </section>
+  );
+}
+
+const TRAIL_STYLE = {
+  done: "border-success text-success",
+  skipped: "border-warn text-warn",
+  current: "border-accent text-main",
+  todo: "border-line-muted text-dim",
+} as const;
+
+/** What was logged for each set of the shown exercise, and where you are. */
+function SetTrail({
+  rows,
+  exerciseId,
+  currentSet,
+}: {
+  rows: HudRow[];
+  exerciseId: string;
+  currentSet: number;
+}) {
+  const trail = setTrail(rows, exerciseId, currentSet);
+  if (trail.length < 2 && !trail.some((item) => item.text)) return null;
+  return (
+    <ol
+      aria-label="Sets of this exercise"
+      className="flex flex-wrap justify-center gap-2 pt-2"
+    >
+      {trail.map((item) => (
+        <li
+          key={item.setNumber}
+          data-state={item.state}
+          aria-current={item.state === "current" ? "step" : undefined}
+          className={`rounded-full border px-3 py-1 font-mono text-xs ${TRAIL_STYLE[item.state]}`}
+          data-numeric
+        >
+          <span className="text-dim">{item.setNumber}</span>{" "}
+          {item.text ?? (item.state === "current" ? "now" : "·")}
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -590,7 +646,7 @@ function SetPanel({
   }
 
   return (
-    <div className="mt-auto flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3">
         {numberSpecs.map((spec, specIndex) => (
           <div
