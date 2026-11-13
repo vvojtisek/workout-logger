@@ -162,6 +162,15 @@ test("logs a superset workout one-handed on the phone HUD", async ({
       "false",
     );
 
+    // The screen updates before the write lands, so wait for the server.
+    await expect
+      .poll(async () => {
+        const latest = await (
+          await request.get(`/api/v1/workout-sessions/${sessionId}`)
+        ).json();
+        return latest.exercises[0].set_entries.length;
+      })
+      .toBeGreaterThan(0);
     let body = await (
       await request.get(`/api/v1/workout-sessions/${sessionId}`)
     ).json();
