@@ -22,6 +22,7 @@ const MOBILE_SPECS = [
   "coaching-principles.spec.js",
   "food-catalog.spec.js",
   "today.spec.js",
+  "today-layout.spec.js",
 ];
 
 export default defineConfig({

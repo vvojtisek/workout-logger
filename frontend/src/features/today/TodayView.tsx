@@ -51,7 +51,7 @@ import {
 import type { RepeatableMeal } from "@/lib/today";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { toast } from "@/ui/Toast";
-import { Button, Card } from "@/ui";
+import { Button } from "@/ui";
 
 interface CalendarWindow {
   items: ScheduledWorkout[];
@@ -67,17 +67,34 @@ function addDays(date: Date, days: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
-function TodayCard({ title, aside, children, testId }: { title: string; aside?: ReactNode; children: ReactNode; testId: string }) {
+/** One block of Today. Flat: a hairline and spacing group it, instead of a
+ * bordered box around every block. `lead` is the first block, which needs
+ * neither. */
+function TodayCard({
+  title,
+  aside,
+  children,
+  testId,
+  lead = false,
+}: {
+  title: string;
+  aside?: ReactNode;
+  children: ReactNode;
+  testId: string;
+  lead?: boolean;
+}) {
   return (
-    <Card className="flex flex-col gap-3 p-4">
-      <section aria-label={title} data-testid={testId} className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <h3 className="text-xs font-semibold tracking-wide text-muted uppercase">{title}</h3>
-          {aside ? <span className="text-xs text-dim">{aside}</span> : null}
-        </div>
-        {children}
-      </section>
-    </Card>
+    <section
+      aria-label={title}
+      data-testid={testId}
+      className={`flex flex-col gap-3 ${lead ? "" : "border-t border-line-muted pt-5"}`}
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-xs font-semibold tracking-wide text-muted uppercase">{title}</h3>
+        {aside ? <span className="text-xs text-dim">{aside}</span> : null}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -171,7 +188,7 @@ export function TodayView() {
   const weight = body.data?.latest?.weight_kg;
 
   const main = (
-    <div id="today-main" className="flex min-w-0 flex-col gap-3">
+    <div id="today-main" className="flex min-w-0 flex-col gap-5">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-xl font-semibold tracking-tight">{dayHeading(now)}</h2>
         <span data-numeric className="text-xs text-muted">
@@ -179,16 +196,19 @@ export function TodayView() {
         </span>
       </div>
 
-      <dl className="grid grid-cols-3 gap-2" aria-label="At a glance">
-        <Glance label="Sleep" value={latestSleep ? formatSleepDuration(latestSleep.time_in_bed_seconds) : "–"} />
-        <Glance label="Weight" value={weight != null ? `${weight} kg` : "–"} />
-        <Glance label="Next sport" value={next ? next.when : "None"} />
-      </dl>
-
       <CoachCard now={now} calendar={calendar.data} onChange={refresh} />
       <HockeyCards now={now} occurrences={occurrences} logs={logs.data?.items ?? []} onChange={refresh} />
       <SleepCard now={now} entries={sleep.data?.items} onChange={refresh} />
       <FoodCard now={now} onChange={refresh} />
+
+      <dl
+        aria-label="At a glance"
+        className="flex flex-wrap gap-x-5 gap-y-1 border-t border-line-muted pt-5 text-xs"
+      >
+        <Glance label="Sleep" value={latestSleep ? formatSleepDuration(latestSleep.time_in_bed_seconds) : "–"} />
+        <Glance label="Weight" value={weight != null ? `${weight} kg` : "–"} />
+        <Glance label="Next sport" value={next ? next.when : "None"} />
+      </dl>
     </div>
   );
 
@@ -223,9 +243,9 @@ export function TodayView() {
 
 function Glance({ label, value }: { label: string; value: string }) {
   return (
-    <div className="card min-w-0 px-2.5 py-2">
-      <dt className="text-[11px] text-muted">{label}</dt>
-      <dd data-numeric className="truncate text-sm font-semibold">
+    <div className="flex min-w-0 items-baseline gap-1.5">
+      <dt className="text-muted">{label}</dt>
+      <dd data-numeric className="truncate font-semibold">
         {value}
       </dd>
     </div>
@@ -364,7 +384,7 @@ function CoachCard({ now, calendar, onChange }: { now: Date; calendar: CalendarW
   }
 
   return (
-    <TodayCard title="Coach · today" testId="today-coach">
+    <TodayCard title="Coach · today" testId="today-coach" lead>
       {content}
       {pendingCheck ? (
         <LocationCheckDialog
