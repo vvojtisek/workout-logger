@@ -330,7 +330,6 @@ function ActiveWorkoutSession({
           index={hudIndex(session, hudRows)}
           progress={progress}
           sync={sync}
-          restWasSkipped={restWasSkipped}
           stats={statsByName}
           statsLine={shown ? exerciseStatsLine(shown.exercise as SessionExercise) : null}
           feeling={feeling}
@@ -340,8 +339,6 @@ function ActiveWorkoutSession({
           onCorrect={correctSet}
           onUndo={(target) => void undoSet(target)}
           onFocus={(target) => void focusSet(target)}
-          onAdjustRest={(seconds) => void updateRest({ adjustment_seconds: seconds })}
-          onSkipRest={() => void updateRest({ skip: true })}
           onRetrySync={() => void flushSetQueue()}
           onFinish={finishWorkout}
           onMinimize={() => void navigate("/")}

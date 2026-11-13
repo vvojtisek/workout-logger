@@ -19,7 +19,6 @@ import { suggestionLabel } from "@/lib/workout-utils";
 import {
   RIR_PILLS,
   exercisePosition,
-  formatCountdown,
   formatElapsed,
   nextExercise,
   previousExercise,
@@ -122,7 +121,6 @@ export interface WorkoutHudProps {
   index: number;
   progress: { done: number; total: number; percent: number };
   sync: SynchronizationState;
-  restWasSkipped: boolean;
   stats: Map<string, ExerciseStats>;
   statsLine: ReactNode;
   feeling: string;
@@ -133,8 +131,6 @@ export interface WorkoutHudProps {
   onCorrect: (row: HudRow, values: SetValues) => Promise<boolean>;
   onUndo: (row: HudRow) => void;
   onFocus: (row: HudRow) => void;
-  onAdjustRest: (seconds: number) => void;
-  onSkipRest: () => void;
   onRetrySync: () => void;
   onFinish: () => void;
   onMinimize: () => void;
@@ -201,7 +197,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
     <section
       id="active-workout-view"
       data-layout="hud"
-      className="flex h-dvh flex-col overflow-hidden overscroll-none bg-[image:var(--hud-gradient)] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      className="flex h-full flex-col overflow-hidden overscroll-none bg-[image:var(--hud-gradient)] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
     >
       <header className="flex shrink-0 flex-col gap-2">
         <div className="flex items-center gap-3">
@@ -468,60 +464,6 @@ function RirPills({
   );
 }
 
-function RestBar({
-  restEndsAt,
-  onAdjust,
-  onSkip,
-}: {
-  restEndsAt: string;
-  onAdjust: (seconds: number) => void;
-  onSkip: () => void;
-}) {
-  const { remainingSeconds } = useRestCountdown(restEndsAt);
-  return (
-    <div
-      id="active-rest-overlay"
-      className="flex h-[54px] items-center gap-2 rounded-[var(--radius-md)] border border-accent bg-accent-soft px-3"
-    >
-      <p
-        id="active-rest-timer"
-        role="timer"
-        aria-live="polite"
-        className="min-w-0 flex-1 font-mono text-[15px] font-bold whitespace-nowrap"
-        data-numeric
-      >
-        RESTING — {formatCountdown(remainingSeconds)}
-      </p>
-      <button
-        type="button"
-        id="subtract-rest-time"
-        aria-label="−15 seconds"
-        onClick={() => onAdjust(-15)}
-        className="btn btn-secondary h-11 min-w-12 shrink-0 px-2 font-mono text-xs"
-      >
-        −15s
-      </button>
-      <button
-        type="button"
-        id="add-rest-time"
-        aria-label="+15 seconds"
-        onClick={() => onAdjust(15)}
-        className="btn btn-secondary h-11 min-w-12 shrink-0 px-2 font-mono text-xs"
-      >
-        +15s
-      </button>
-      <button
-        type="button"
-        id="skip-rest"
-        onClick={onSkip}
-        className="btn btn-primary h-11 shrink-0 px-3 text-xs whitespace-nowrap"
-      >
-        Skip Rest
-      </button>
-    </div>
-  );
-}
-
 /** The thumb zone for one set. Remounted (via key) whenever the shown set or
  * its saved entry changes, so its values always start from the right source. */
 function SetPanel({
@@ -529,15 +471,12 @@ function SetPanel({
   previous,
   allLogged,
   session,
-  restWasSkipped,
   feeling,
   onFeelingChange,
   onComplete,
   onSkip,
   onCorrect,
   onUndo,
-  onAdjustRest,
-  onSkipRest,
   onFinish,
 }: WorkoutHudProps & {
   row: HudRow;
@@ -590,7 +529,6 @@ function SetPanel({
 
   const values = () => draftToValues(kind, draft);
   const locked = !ready || (row.entry !== null && !editing);
-  const resting = Boolean(session.rest_ends_at) && !expired;
   const numberSpecs = specs.filter(
     (spec) => spec.draftKey !== "rir" && spec.draftKey !== "band_level",
   );
@@ -637,14 +575,6 @@ function SetPanel({
       >
         Save correction
       </button>
-    );
-  } else if (resting && session.rest_ends_at) {
-    action = (
-      <RestBar
-        restEndsAt={session.rest_ends_at}
-        onAdjust={onAdjustRest}
-        onSkip={onSkipRest}
-      />
     );
   } else {
     action = (
@@ -703,13 +633,6 @@ function SetPanel({
 
       {allLogged ? (
         <div className="flex flex-col gap-2">
-          {resting && session.rest_ends_at ? (
-            <RestBar
-              restEndsAt={session.rest_ends_at}
-              onAdjust={onAdjustRest}
-              onSkip={onSkipRest}
-            />
-          ) : null}
           {row.entry && !editing ? action : null}
           {editing ? action : null}
           <label className="field-label mb-0" htmlFor="active-feeling">
@@ -740,11 +663,6 @@ function SetPanel({
               className="text-center text-sm font-semibold text-success"
             >
               Rest complete
-            </p>
-          ) : null}
-          {restWasSkipped && !session.rest_ends_at && !row.entry ? (
-            <p role="status" className="text-center text-xs text-muted">
-              Rest skipped
             </p>
           ) : null}
           {action}

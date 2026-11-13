@@ -46,6 +46,7 @@ import {
 import type { NavIcon, NavSection } from "@/lib/navigation";
 import { useTheme, useThemePreference } from "@/lib/theme";
 import { useIsDesktop } from "@/lib/use-media-query";
+import { GlobalRestBar } from "@/features/active-workout/GlobalRestBar";
 
 interface AppContextValue {
   session: WorkoutSession | null;
@@ -187,6 +188,13 @@ export function AppLayout() {
           sessionActive={session !== null}
           status={status}
           logoutButton={logoutButton}
+          restBar={
+            <GlobalRestBar
+              session={session}
+              onSessionChange={updateSession}
+              reserveSpace={location.pathname === WORKOUT_PATH}
+            />
+          }
         />
       )}
       <Toaster />
@@ -247,6 +255,8 @@ interface ShellProps {
   sessionActive: boolean;
   status: ReactNode;
   logoutButton: ReactNode;
+  /** The phone's persistent rest timer; the desktop workout docks its own. */
+  restBar?: ReactNode;
 }
 
 /** Pulses beside the workout entry while a session is live. */
@@ -423,16 +433,21 @@ function MobileShell({
   sessionActive,
   status,
   logoutButton,
+  restBar,
 }: ShellProps) {
   const current = sectionForPath(MOBILE_SECTIONS, pathname);
   const inWorkout = pathname === WORKOUT_PATH;
   const [logOpen, setLogOpen] = useState(false);
-  // The live workout is a full-screen HUD: no top bar, no tabs.
+  // The live workout is a full-screen HUD: no top bar, no tabs. The rest
+  // timer sits under it, so it is visible without moving the Log button.
   if (inWorkout) {
     return (
-      <main className="h-dvh overflow-hidden">
-        <Outlet />
-      </main>
+      <div className="flex h-dvh flex-col">
+        <main className="min-h-0 flex-1 overflow-hidden">
+          <Outlet />
+        </main>
+        {restBar}
+      </div>
     );
   }
   return (
@@ -456,6 +471,7 @@ function MobileShell({
       >
         <Outlet />
       </main>
+      {restBar}
       {inWorkout ? null : (
         <nav
           aria-label="Main navigation"
