@@ -27,6 +27,14 @@ test("desktop Today is a two-column dashboard and History shows what each sessio
             weight_kg: 100,
             rest_time_seconds: 90,
           },
+          {
+            // In the shared catalogue: primary muscle is triceps, nothing assists.
+            exercise_name: "Triceps pushdown",
+            sets_count: 4,
+            reps_per_set: [10, 10, 10, 10],
+            weight_kg: 30,
+            rest_time_seconds: 60,
+          },
         ],
       },
     });
@@ -45,16 +53,28 @@ test("desktop Today is a two-column dashboard and History shows what each sessio
     expect((analysisBox?.x ?? 0)).toBeGreaterThan((mainBox?.x ?? 0) + (mainBox?.width ?? 0));
     await expect(analysis.getByRole("heading", { name: "Recent sessions" })).toBeVisible();
     await expect(
-      analysis.getByTestId("session-metrics").filter({ hasText: "1,400 kg" }),
-    ).toHaveText("3 sets · 1,400 kg · Best 100 kg × 5");
+      analysis.getByTestId("session-metrics").filter({ hasText: "2,600 kg" }),
+    ).toHaveText("7 sets · 2,600 kg · Best 100 kg × 5");
+
+    // This week's bar holds at least this session's tonnage, and the split
+    // credits the triceps with its four sets.
+    const lastBar = analysis.getByTestId("volume-chart").locator("g").last();
+    expect(Number(await lastBar.getAttribute("data-value"))).toBeGreaterThanOrEqual(2600);
+    await analysis.getByRole("button", { name: "Sets", exact: true }).click();
+    expect(Number(await lastBar.getAttribute("data-value"))).toBeGreaterThanOrEqual(7);
+    const triceps = analysis.getByTestId("muscle-split").locator('[data-muscle="triceps"]');
+    await expect(triceps).toBeVisible();
+    expect(Number(await triceps.getAttribute("data-sets"))).toBeGreaterThanOrEqual(4);
+    await analysis.getByRole("button", { name: "28 days", exact: true }).click();
+    expect(Number(await triceps.getAttribute("data-sets"))).toBeGreaterThanOrEqual(4);
 
     // History rows carry the same numbers, and the range filter narrows the list.
     await openPage(page, "History");
     const list = page.locator("#history-list");
-    const ours = list.getByTestId("session-metrics").filter({ hasText: "1,400 kg" });
-    await expect(ours).toHaveText("3 sets · 1,400 kg · Best 100 kg × 5");
+    const ours = list.getByTestId("session-metrics").filter({ hasText: "2,600 kg" });
+    await expect(ours).toHaveText("7 sets · 2,600 kg · Best 100 kg × 5");
     await page.getByLabel("Date range").selectOption("7");
-    await expect(ours).toHaveText("3 sets · 1,400 kg · Best 100 kg × 5");
+    await expect(ours).toHaveText("7 sets · 2,600 kg · Best 100 kg × 5");
     await page.getByLabel("Date range").selectOption("");
   } finally {
     if (logId) {

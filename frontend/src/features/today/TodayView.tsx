@@ -21,7 +21,9 @@ import type {
   WorkoutSession,
 } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
+import { MuscleSplit } from "@/features/dashboard/MuscleSplit";
 import { RecentSessions } from "@/features/dashboard/RecentSessions";
+import { VolumeChart } from "@/features/dashboard/VolumeChart";
 import { LocationCheckDialog } from "@/features/locations/LocationCheckDialog";
 import { LOAD_EVENT_KIND_LABELS, clockTime, loadWarningMessage } from "@/lib/load-events";
 import { readTrainingLocation, writeTrainingLocation } from "@/lib/locations";
@@ -205,7 +207,14 @@ export function TodayView() {
       className="grid grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)] items-start gap-x-10"
     >
       {main}
-      <aside aria-label="Training analysis" className="flex min-w-0 flex-col gap-8">
+      <aside
+        aria-label="Training analysis"
+        className="grid min-w-0 grid-cols-1 gap-x-10 gap-y-8 xl:grid-cols-2"
+      >
+        <div className="xl:col-span-2">
+          <VolumeChart logs={logs.data?.items ?? []} />
+        </div>
+        <MuscleSplit logs={logs.data?.items ?? []} />
         <RecentSessions logs={logs.data?.items ?? []} />
       </aside>
     </section>

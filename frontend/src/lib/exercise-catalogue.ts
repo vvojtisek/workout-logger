@@ -24,3 +24,20 @@ export async function fetchCatalogueNames(
     if (page.items.length === 0 || names.length >= page.total) return names;
   }
 }
+
+interface EntryPage<T> {
+  items: T[];
+  total: number;
+}
+
+/** Collects every catalogue entry, one page at a time. */
+export async function fetchCatalogue<T>(
+  fetchPage: (path: string) => Promise<EntryPage<T>>,
+): Promise<T[]> {
+  const entries: T[] = [];
+  for (;;) {
+    const page = await fetchPage(exerciseListPath("", entries.length));
+    entries.push(...page.items);
+    if (page.items.length === 0 || entries.length >= page.total) return entries;
+  }
+}
