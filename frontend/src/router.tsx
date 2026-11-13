@@ -11,13 +11,19 @@ import { useIsDesktop } from "@/lib/use-media-query";
 function masterDetail(
   base: string,
   placeholder: string,
-  loadList: () => Promise<ComponentType>
+  loadList: () => Promise<ComponentType>,
+  detailWidth?: string
 ): () => Promise<{ Component: ComponentType }> {
   return async () => {
     const List = await loadList();
     return {
       Component: function ListWithDetail() {
-        return <MasterDetail base={base} list={<List />} placeholder={placeholder} />;
+        return <MasterDetail
+            base={base}
+            list={<List />}
+            placeholder={placeholder}
+            detailWidth={detailWidth}
+          />;
       },
     };
   };
@@ -88,8 +94,9 @@ export const router = createBrowserRouter([
               path: "plans",
               handle: FULL_BLEED,
               lazy: masterDetail("/plans", "Pick a plan to edit, or start a new one.", () =>
-                import("@/features/plans/PlansView").then((m) => m.PlansView)
-              ),
+                import("@/features/plans/PlansView").then((m) => m.PlansView),
+              "max-w-5xl"
+            ),
               children: [
                 { index: true },
                 {

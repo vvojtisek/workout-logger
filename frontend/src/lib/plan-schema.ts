@@ -27,6 +27,13 @@ const exercisePayloadSchema = z
       .int("Whole number only")
       .min(0, "At least 0")
       .max(3600, "At most 3600"),
+    target_rir: z
+      .number()
+      .int("Whole number only")
+      .min(0, "At least 0")
+      .max(10, "At most 10")
+      .nullable(),
+    laterality: z.enum(["bilateral", "per_side", "single_limb"]),
     notes: z.string().max(4000, "Max 4000 characters").nullable(),
     group_key: z.string().min(1).max(100, "Max 100 characters").nullable(),
     group_order: z.number().int().min(0).nullable(),

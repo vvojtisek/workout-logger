@@ -21,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   volume, a muscle-group split and recent sessions; History rows show sets,
   volume and best set, with date and plan filters.
 - The desktop rest timer reads `Rest: 01:30` instead of `Rest: 90s`.
+- Plans: on desktop the plan list sits beside an inline-editing exercise table
+  (sets, reps, weight, RIR, rest, laterality, superset group, notes) with a
+  running exercise/set total and an "Unsaved changes" flag; saving keeps the plan
+  open. On a phone each exercise is a flat block with 44 px controls and
+  tabular numerals. Every `.btn` and `.input` is now at least 44 px tall.
+
+### Added
+
+- Plan exercises carry a target RIR (`target_rir`, 0-10, optional) and a
+  `laterality` (`bilateral`, `per_side`, `single_limb`; default `bilateral`),
+  through the REST API, MCP and the plan editor. They are stored and shown;
+  the live workout does not yet split logging per side.
 
 ### Fixed
 

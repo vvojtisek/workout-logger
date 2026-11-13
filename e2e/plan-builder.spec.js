@@ -97,6 +97,9 @@ test("builds, edits, and deletes a real superset plan through the GUI", async ({
     // Creating a second plan with the same name must surface the 409 inline,
     // never as a native alert.
     await page.getByRole("button", { name: "New program" }).click();
+    // On desktop the saved plan stays open beside the list, so wait for the
+    // blank editor to replace it before typing.
+    await expect(page.getByRole("heading", { name: "New Program" })).toBeVisible();
     await page.getByLabel("Plan name").fill(`${tag} plan`);
     await page.getByRole("button", { name: "Create program" }).click();
     await expect(page.getByText(/already exists/i)).toBeVisible();

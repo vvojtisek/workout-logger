@@ -20,6 +20,8 @@ export interface CurrentUser {
   updated_at: string;
 }
 
+export type Laterality = "bilateral" | "per_side" | "single_limb";
+
 export interface PlanExercise {
   id: string;
   sort_order: number;
@@ -30,6 +32,8 @@ export interface PlanExercise {
   target_reps_max: number;
   target_weight_kg: number | null;
   rest_time_seconds: number;
+  target_rir: number | null;
+  laterality: Laterality;
   notes: string | null;
   group_key: string | null;
   group_order: number | null;

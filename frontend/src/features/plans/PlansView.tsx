@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useMatch, useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type {
@@ -20,9 +20,7 @@ import { Button, EmptyState, PageHeading } from "@/ui";
 export function PlansView() {
   const { openSession } = useAppContext();
   const navigate = useNavigate();
-  const [plans, setPlans] = useState<WorkoutPlan[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const selectedId = useMatch("/plans/:planId/edit")?.params.planId ?? null;
   const [deleteTarget, setDeleteTarget] = useState<WorkoutPlan | null>(null);
   const [pickedLocation, setPickedLocation] = useState<string | null>(null);
   const [pendingCheck, setPendingCheck] = useState<{
@@ -47,22 +45,18 @@ export function PlansView() {
     writeTrainingLocation(window.localStorage, id);
   }
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await apiFetch<Paginated<WorkoutPlan>>("/plans?limit=100");
-      setPlans(data.items);
-      setError(null);
-    } catch (err) {
-      setError(`Failed to load plans: ${errorMessage(err)}`);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const {
+    data: planData,
+    error: loadError,
+    isLoading: loading,
+    refetch,
+  } = useQuery({
+    queryKey: ["plans"],
+    queryFn: () => apiFetch<Paginated<WorkoutPlan>>("/plans?limit=100"),
+  });
+  const plans = planData?.items ?? [];
+  const error = loadError ? `Failed to load plans: ${errorMessage(loadError)}` : null;
+  const load = () => void refetch();
 
   async function startWorkout(planId: string) {
     try {
@@ -90,7 +84,7 @@ export function PlansView() {
     try {
       await apiFetch(`/plans/${plan.id}`, { method: "DELETE" });
       toast.success(`Deleted "${plan.name}"`);
-      void load();
+      load();
     } catch (err) {
       toast.error(`Failed to delete plan: ${errorMessage(err)}`);
     }
@@ -107,6 +101,8 @@ export function PlansView() {
         target_reps_max: ex.target_reps_max,
         target_weight_kg: ex.target_weight_kg,
         rest_time_seconds: ex.rest_time_seconds,
+        target_rir: ex.target_rir,
+        laterality: ex.laterality,
         notes: ex.notes,
         group_key: ex.group_key,
         group_order: ex.group_order,
@@ -120,7 +116,7 @@ export function PlansView() {
         }),
       });
       toast.success(`Created "${copy.name}"`);
-      void load();
+      load();
     } catch (err) {
       toast.error(`Failed to duplicate plan: ${errorMessage(err)}`);
     }
@@ -156,7 +152,7 @@ export function PlansView() {
           </select>
         </div>
       ) : null}
-      <ul id="plans-list" className="flex flex-col gap-3">
+      <ul id="plans-list" className="flex flex-col">
         {error ? <li className="text-sm text-danger">{error}</li> : null}
         {!error && !loading && plans.length === 0 ? (
           <li>
@@ -166,36 +162,50 @@ export function PlansView() {
             />
           </li>
         ) : null}
-        {plans.map((plan) => (
-          <li
-            key={plan.id}
-            className="card flex flex-wrap items-center justify-between gap-3 p-4"
-          >
-            <div className="min-w-0">
-              <p className="font-medium">{plan.name}</p>
+        {plans.map((plan) => {
+          const sets = plan.exercises.reduce((total, ex) => total + ex.target_sets, 0);
+          return (
+            <li
+              key={plan.id}
+              aria-current={plan.id === selectedId ? "true" : undefined}
+              className={`border-b border-line-muted py-3 ${
+                plan.id === selectedId ? "-mx-2 rounded-md bg-accent-soft px-2" : ""
+              }`}
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="min-w-0 truncate font-medium">{plan.name}</p>
+                <p className="shrink-0 font-mono text-xs text-muted" data-numeric>
+                  {plan.exercises.length} ex · {sets} sets
+                </p>
+              </div>
               {plan.description ? (
-                <p className="mt-0.5 text-sm text-muted">{plan.description}</p>
+                <p className="mt-0.5 truncate text-sm text-muted">{plan.description}</p>
               ) : null}
-              <p className="mt-1 text-xs text-muted">
-                {plan.exercises.length} exercise{plan.exercises.length === 1 ? "" : "s"}
-              </p>
-            </div>
-            <div className="flex min-w-0 flex-wrap gap-2">
-              <Button variant="primary" onClick={() => void startWorkout(plan.id)}>
-                Start workout
-              </Button>
-              <Button onClick={() => void navigate(`/plans/${plan.id}/edit`)}>
-                Edit
-              </Button>
-              <Button onClick={() => void duplicatePlan(plan)}>
-                Duplicate
-              </Button>
-              <Button variant="ghost" onClick={() => setDeleteTarget(plan)}>
-                Delete
-              </Button>
-            </div>
-          </li>
-        ))}
+              <div className="mt-2 flex flex-wrap items-center gap-1">
+                <Button
+                  variant="primary"
+                  className="px-3"
+                  aria-label="Start workout"
+                  onClick={() => void startWorkout(plan.id)}
+                >
+                  <span className="lg:hidden">Start workout</span>
+                  <span aria-hidden="true" className="hidden lg:inline">
+                    Start
+                  </span>
+                </Button>
+                <Button variant="ghost" className="px-2.5" onClick={() => void navigate(`/plans/${plan.id}/edit`)}>
+                  Edit
+                </Button>
+                <Button variant="ghost" className="px-2.5" onClick={() => void duplicatePlan(plan)}>
+                  Duplicate
+                </Button>
+                <Button variant="ghost" className="px-2.5" onClick={() => setDeleteTarget(plan)}>
+                  Delete
+                </Button>
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
       {pendingCheck ? (

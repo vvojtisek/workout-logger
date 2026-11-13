@@ -40,11 +40,14 @@ export function MasterDetail({
   base,
   list,
   placeholder,
+  detailWidth = "max-w-3xl",
 }: {
   /** The list's own path, e.g. "/history"; anything below it is detail. */
   base: string;
   list: ReactNode;
   placeholder: string;
+  /** Tailwind max-width class for the detail pane's content. */
+  detailWidth?: string;
 }) {
   const isDesktop = useIsDesktop();
   const atList = useMatch({ path: base, end: true }) !== null;
@@ -72,7 +75,7 @@ export function MasterDetail({
         {atList ? (
           <p className="pt-16 text-center text-sm text-muted">{placeholder}</p>
         ) : (
-          <div className="max-w-3xl">{detail}</div>
+          <div className={detailWidth}>{detail}</div>
         )}
       </div>
     </div>

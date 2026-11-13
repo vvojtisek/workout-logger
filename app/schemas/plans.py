@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.schemas.common import OrmModel, PaginatedResponse, require_non_empty
 
 ExerciseKind = Literal["strength", "bodyweight", "cardio"]
+Laterality = Literal["bilateral", "per_side", "single_limb"]
 
 
 class PlanExerciseCreate(BaseModel):
@@ -17,6 +18,8 @@ class PlanExerciseCreate(BaseModel):
     target_reps_max: int = Field(ge=1, le=1000)
     target_weight_kg: float | None = Field(default=None, ge=0)
     rest_time_seconds: int = Field(default=60, ge=0, le=3600)
+    target_rir: int | None = Field(default=None, ge=0, le=10)
+    laterality: Laterality = "bilateral"
     notes: str | None = Field(default=None, max_length=4000)
     group_key: str | None = Field(default=None, min_length=1, max_length=100)
     group_order: int | None = Field(default=None, ge=0)
