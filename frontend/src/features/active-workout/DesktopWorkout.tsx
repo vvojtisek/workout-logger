@@ -32,7 +32,7 @@ import { ElapsedClock } from "./WorkoutHud";
 
 const PILL_CLASS: Record<ExerciseSummary["status"], string> = {
   done: "bg-success-soft text-success",
-  partial: "bg-accent-soft text-accent",
+  partial: "bg-accent-soft text-accent-ink",
   todo: "bg-warn-soft text-warn",
 };
 

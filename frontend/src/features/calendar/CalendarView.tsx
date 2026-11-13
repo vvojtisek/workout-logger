@@ -444,7 +444,7 @@ export function CalendarView() {
                 <button
                   type="button"
                   aria-label={`Schedule a workout on ${dateStr}`}
-                  className="rounded-full px-1.5 text-sm font-medium text-muted hover:text-accent"
+                  className="rounded-full px-1.5 text-sm font-medium text-muted hover:text-accent-ink"
                   style={{ minHeight: "var(--touch)", minWidth: "var(--touch)" }}
                   onClick={() => setScheduleDate(dateStr)}
                 >
@@ -457,7 +457,7 @@ export function CalendarView() {
                     key={`${load.event_id}:${load.start_time}`}
                     data-testid="calendar-load-event"
                     title={`${load.name}, ${clockTime(load.start_time)}, ${load.duration_minutes} min`}
-                    className="overflow-hidden whitespace-nowrap rounded-md border border-dashed border-accent py-0.5 text-center text-[0.6rem] tracking-tighter text-accent sm:truncate sm:px-1.5 sm:text-left sm:text-xs sm:tracking-normal"
+                    className="overflow-hidden whitespace-nowrap rounded-md border border-dashed border-accent py-0.5 text-center text-[0.6rem] tracking-tighter text-accent-ink sm:truncate sm:px-1.5 sm:text-left sm:text-xs sm:tracking-normal"
                   >
                     {/* Phone cells only fit the time; the kind joins it on wider screens. */}
                     <span className="hidden sm:inline">{LOAD_EVENT_KIND_LABELS[load.kind]} </span>

@@ -504,7 +504,7 @@ function MobileShell({
                 to={sectionTarget(section, sessionActive)}
                 aria-current={active ? "page" : undefined}
                 className={`relative flex flex-col items-center justify-center gap-0.5 text-xs font-medium ${
-                  active ? "text-accent" : "text-muted"
+                  active ? "text-accent-ink" : "text-muted"
                 }`}
               >
                 <SectionIcon section={section} size={20} />
