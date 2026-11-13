@@ -26,7 +26,7 @@ import type { LucideIcon } from "lucide-react";
 import { Link, Outlet, useLocation, useMatches, useNavigate } from "react-router-dom";
 
 import { apiFetch } from "@/api/client";
-import { isFullBleed } from "@/app/MasterDetail";
+import { isFullBleed, isWide } from "@/app/MasterDetail";
 import { LogSheet } from "@/features/today/LogSheet";
 import type { WorkoutSession } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
@@ -364,7 +364,9 @@ function DesktopShell({
 }: ShellProps) {
   const sections = [...DESKTOP_SECTIONS, ...DESKTOP_FOOTER_SECTIONS];
   const current = sectionForPath(sections, pathname);
-  const fullBleed = useMatches().some((match) => isFullBleed(match.handle));
+  const matches = useMatches();
+  const fullBleed = matches.some((match) => isFullBleed(match.handle));
+  const wide = matches.some((match) => isWide(match.handle));
   return (
     <div className="grid h-dvh w-full grid-cols-[220px_1fr] overflow-hidden">
       <aside className="flex min-h-0 flex-col border-r border-line-muted bg-canvas">
@@ -415,7 +417,7 @@ function DesktopShell({
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="max-w-5xl px-8 pt-6 pb-16">
+            <div className={`${wide ? "" : "max-w-5xl"} px-8 pt-6 pb-16`}>
               <Outlet />
             </div>
           </div>

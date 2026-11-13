@@ -8,6 +8,18 @@ import { useIsDesktop } from "@/lib/use-media-query";
  * because the page lays out its own panes. */
 export const FULL_BLEED = { fullBleed: true } as const;
 
+/** Route handle for a page that wants the desktop's full width but still
+ * scrolls as one page (a dashboard), instead of the capped reading column. */
+export const WIDE = { wide: true } as const;
+
+export function isWide(handle: unknown): boolean {
+  return (
+    typeof handle === "object" &&
+    handle !== null &&
+    (handle as { wide?: unknown }).wide === true
+  );
+}
+
 export function isFullBleed(handle: unknown): boolean {
   return (
     typeof handle === "object" &&

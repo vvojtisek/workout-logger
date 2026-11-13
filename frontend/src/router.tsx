@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { AppLayout } from "@/AppLayout";
-import { FULL_BLEED, MasterDetail } from "@/app/MasterDetail";
+import { FULL_BLEED, MasterDetail, WIDE } from "@/app/MasterDetail";
 import { RouteErrorBoundary } from "@/app/RouteErrorBoundary";
 import { RequireAuth } from "@/auth/RequireAuth";
 import { useIsDesktop } from "@/lib/use-media-query";
@@ -50,6 +50,7 @@ export const router = createBrowserRouter([
           { index: true, element: <HomeRedirect /> },
           {
             path: "today",
+            handle: WIDE,
             lazy: () => import("@/features/today/TodayView").then((m) => ({ Component: m.TodayView })),
           },
           {

@@ -15,11 +15,13 @@ import type {
   Paginated,
   ScheduledWorkout,
   SleepEntry,
+  WorkoutLog,
   WorkoutLogSummary,
   WorkoutPlan,
   WorkoutSession,
 } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
+import { RecentSessions } from "@/features/dashboard/RecentSessions";
 import { LocationCheckDialog } from "@/features/locations/LocationCheckDialog";
 import { LOAD_EVENT_KIND_LABELS, clockTime, loadWarningMessage } from "@/lib/load-events";
 import { readTrainingLocation, writeTrainingLocation } from "@/lib/locations";
@@ -45,6 +47,7 @@ import {
   writeSkippedEvent,
 } from "@/lib/today";
 import type { RepeatableMeal } from "@/lib/today";
+import { useIsDesktop } from "@/lib/use-media-query";
 import { toast } from "@/ui/Toast";
 import { Button, Card } from "@/ui";
 
@@ -154,16 +157,19 @@ export function TodayView() {
   const logs = useQuery({
     queryKey: [...TODAY_KEY, "logs"],
     ...FRESH,
-    queryFn: () => apiFetch<Paginated<WorkoutLogSummary>>("/logs?limit=20"),
+    // Set-level data rides along on every log, so the dashboard panels can
+    // aggregate on the client without a new endpoint.
+    queryFn: () => apiFetch<Paginated<WorkoutLog>>("/logs?limit=100"),
   });
+  const isDesktop = useIsDesktop();
 
   const occurrences = calendar.data?.load_events ?? [];
   const next = nextSportEvent(occurrences, now);
   const latestSleep = sleep.data?.items[0] ?? null;
   const weight = body.data?.latest?.weight_kg;
 
-  return (
-    <section id="today-view" className="flex flex-col gap-3">
+  const main = (
+    <div id="today-main" className="flex min-w-0 flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-xl font-semibold tracking-tight">{dayHeading(now)}</h2>
         <span data-numeric className="text-xs text-muted">
@@ -181,6 +187,27 @@ export function TodayView() {
       <HockeyCards now={now} occurrences={occurrences} logs={logs.data?.items ?? []} onChange={refresh} />
       <SleepCard now={now} entries={sleep.data?.items} onChange={refresh} />
       <FoodCard now={now} onChange={refresh} />
+    </div>
+  );
+
+  // Phone: the one column above. Desktop: the same column beside the analysis
+  // panels, which use the width instead of stretching the column.
+  if (!isDesktop) {
+    return (
+      <section id="today-view" className="flex flex-col gap-3">
+        {main}
+      </section>
+    );
+  }
+  return (
+    <section
+      id="today-view"
+      className="grid grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)] items-start gap-x-10"
+    >
+      {main}
+      <aside aria-label="Training analysis" className="flex min-w-0 flex-col gap-8">
+        <RecentSessions logs={logs.data?.items ?? []} />
+      </aside>
     </section>
   );
 }
