@@ -135,12 +135,17 @@ test("shows live barbell plate counts on the phone without changing the recorded
     await page.getByRole("button", { name: "Complete set & start rest" }).click();
     await expect(page.getByRole("heading", { name: machineName })).toBeVisible();
     await expect(page.getByText("Barbell plates", { exact: true })).toHaveCount(0);
-    const saved = await request.get(`/api/v1/workout-sessions/${sessionId}`);
-    expect(saved.status()).toBe(200);
-    expect((await saved.json()).exercises[0]).toMatchObject({
-      equipment_any_of: [["barbell"]],
-      set_entries: [{ weight_kg: 63, reps: 8 }],
-    });
+    // The screen updates before the write lands, so wait for the server.
+    await expect
+      .poll(async () => {
+        const saved = await request.get(`/api/v1/workout-sessions/${sessionId}`);
+        if (saved.status() !== 200) return null;
+        return (await saved.json()).exercises[0];
+      })
+      .toMatchObject({
+        equipment_any_of: [["barbell"]],
+        set_entries: [{ weight_kg: 63, reps: 8 }],
+      });
   } finally {
     if (sessionId) {
       await request.delete(`/api/v1/workout-sessions/${sessionId}`);
