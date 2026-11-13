@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { exerciseStatsFacts } from "./exercise-stats";
+import { exerciseStatsFacts, previousSetText } from "./exercise-stats";
 
 /** @type {import("@/api/types").ExerciseStats} */
 const base = {
@@ -40,5 +40,23 @@ describe("exerciseStatsFacts", () => {
     });
     expect(facts).toHaveLength(1);
     expect(facts[0]).toMatch(/: 6\/10 reps$/);
+  });
+});
+
+describe("previousSetText", () => {
+  it("is what the same set weighed and managed last time", () => {
+    expect(previousSetText(base, 1)).toBe("30 kg × 15");
+    expect(previousSetText(base, 2)).toBe("30 kg × 12");
+  });
+
+  it("has nothing for a set beyond last session's count, or without history", () => {
+    expect(previousSetText(base, 3)).toBeNull();
+    expect(previousSetText(undefined, 1)).toBeNull();
+    expect(previousSetText({ ...base, sessions_count: 0, last_reps_per_set: null }, 1)).toBeNull();
+  });
+
+  it("shows reps alone for an unloaded exercise and trims decimals", () => {
+    expect(previousSetText({ ...base, last_weight_kg: null }, 1)).toBe("15 reps");
+    expect(previousSetText({ ...base, last_weight_kg: 62.5 }, 1)).toBe("62.5 kg × 15");
   });
 });

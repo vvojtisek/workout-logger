@@ -114,7 +114,7 @@ test("desktop workout: exercise list, progression chart, copy, add set and swap"
 
     // The rest card is docked beside or below the table, never over a set.
     const rest = page.locator("#active-rest-overlay");
-    await expect(rest.getByRole("timer")).toContainText(/Rest: \d+s/);
+    await expect(rest.getByRole("timer")).toContainText(/Rest: \d\d:\d\d/);
     expect(overlaps(await rest.boundingBox(), await row(2).boundingBox())).toBe(false);
 
     // Copy Last Set fills the next set with what was just logged, RIR blank.

@@ -8,6 +8,7 @@ import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import { draftStorageKey, saveSetDraft } from "@/lib/active-workout-state";
 import type { SynchronizationState } from "@/lib/active-workout-state";
 import { fetchCatalogueNames } from "@/lib/exercise-catalogue";
+import { previousSetText } from "@/lib/exercise-stats";
 import { formatDate } from "@/lib/format";
 import { FEELING_SCALE, RIR_HINT } from "@/lib/scales";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@/lib/workout-desktop";
 import type { ExerciseSummary } from "@/lib/workout-desktop";
 import type { HudRow } from "@/lib/workout-hud";
+import { suggestionLabel } from "@/lib/workout-utils";
 import type { ExerciseKind, GridRow } from "@/lib/workout-utils";
 import { Dialog } from "@/ui/Dialog";
 import { ScaleSelect } from "@/ui/ScaleSelect";
@@ -103,10 +105,21 @@ export function DesktopWorkout(props: DesktopWorkoutProps) {
           ))}
         </ol>
       </nav>
-      <div className="@container min-h-0 overflow-y-auto px-6 pt-5 pb-16">
-        {exercise && shown ? (
-          <ExercisePane {...props} exercise={exercise} badge={shown.badge} />
-        ) : null}
+      <div className="flex min-h-0 flex-col">
+        <div className="@container min-h-0 flex-1 overflow-y-auto px-6 pt-5 pb-6">
+          {exercise && shown ? (
+            <ExercisePane {...props} exercise={exercise} badge={shown.badge} />
+          ) : null}
+        </div>
+        {/* Docked under the sets, so the countdown is never below the fold. */}
+        <RestOverlay
+          restEndsAt={session.rest_ends_at}
+          restWasSkipped={props.restWasSkipped}
+          sync={props.sync}
+          onAdjust={props.onAdjustRest}
+          onSkip={props.onSkipRest}
+          onRetrySync={props.onRetrySync}
+        />
       </div>
     </section>
   );
@@ -214,6 +227,13 @@ function ExercisePane({
             <h2 className="text-2xl font-semibold tracking-tight break-words">{exercise.exercise_name}</h2>
           </div>
           {props.statsLine(exercise)}
+          {/* The coaching note ("Same load, aim for 8 reps") applies to every
+              set, so it is said once here rather than on each row. */}
+          {exercise.suggestion_note ? (
+            <p className="mt-1 text-sm text-muted">
+              {suggestionLabel(exercise.suggestion_source, exercise.suggestion_note)}
+            </p>
+          ) : null}
         </div>
         <button
           type="button"
@@ -256,6 +276,10 @@ function ExercisePane({
                 row={row}
                 sessionId={session.id}
                 totalSets={props.progress.total}
+                previousText={previousSetText(
+                  props.stats.get(exercise.exercise_name),
+                  row.setNumber,
+                )}
                 onComplete={props.onComplete}
                 onSkip={props.onSkip}
                 onCorrect={props.onCorrect}
@@ -280,14 +304,6 @@ function ExercisePane({
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
-          <RestOverlay
-            restEndsAt={session.rest_ends_at}
-            restWasSkipped={props.restWasSkipped}
-            sync={props.sync}
-            onAdjust={props.onAdjustRest}
-            onSkip={props.onSkipRest}
-            onRetrySync={props.onRetrySync}
-          />
           <div className="card p-4">
             <label className="field-label" htmlFor="active-feeling">
               Overall feeling

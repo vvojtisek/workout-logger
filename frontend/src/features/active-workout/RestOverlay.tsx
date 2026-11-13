@@ -29,7 +29,7 @@ export function useRestCountdown(restEndsAt: string | null) {
 }
 
 /**
- * The desktop rest card, docked beside the set table. It owns its own
+ * The desktop rest bar, docked under the set table. It owns its own
  * one-second tick so that ticking re-renders only this card, never the set
  * table. Remaining time is
  * always derived from the server's absolute `rest_ends_at`, so backgrounding,
@@ -58,85 +58,83 @@ export function RestOverlay({
     <aside
       id="active-rest-overlay"
       aria-label="Rest timer"
-      className="card flex flex-col gap-3 p-4"
+      className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-t border-line bg-subtle px-6 py-3"
     >
-      <div className="flex flex-col gap-3">
-        <div>
-          <p
-            id="active-rest-timer"
-            role="timer"
-            aria-live="polite"
-            className={`font-mono text-[32px] leading-none font-semibold ${expired ? "text-success" : ""}`}
-            data-numeric
-          >
-            {expired ? "Rest: 0s" : label}
-          </p>
-          <p
-            id="active-rest-expired"
-            role="status"
-            aria-live="assertive"
-            className="mt-1 text-sm font-semibold text-success"
-            hidden={!expired}
-          >
-            Rest complete
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            id="subtract-rest-time"
-            aria-label="−15 seconds"
-            disabled={!canAdjust}
-            onClick={() => onAdjust(-15)}
-            className="btn btn-secondary btn-touch"
-          >
-            −15s
-          </button>
-          <button
-            type="button"
-            id="add-rest-time"
-            aria-label="+15 seconds"
-            disabled={!canAdjust}
-            onClick={() => onAdjust(15)}
-            className="btn btn-secondary btn-touch"
-          >
-            +15s
-          </button>
-          <button
-            type="button"
-            id="skip-rest"
-            disabled={!canAdjust}
-            onClick={onSkip}
-            className="btn btn-secondary btn-touch"
-          >
-            Skip rest
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          <p
-            id="active-sync-status"
-            aria-live="polite"
-            data-state={sync.status}
-            className={`flex-1 text-sm ${
-              sync.status === "failed"
-                ? "text-danger"
-                : sync.status === "pending"
-                  ? "text-warn"
-                  : "text-muted"
-            }`}
-          >
-            {sync.label}
-          </p>
-          <button
-            type="button"
-            id="retry-active-sync"
-            hidden={sync.status !== "failed"}
-            onClick={onRetrySync}
-            className="btn btn-secondary btn-touch"
-          >
-            Retry synchronization
-          </button>
-        </div>
+      <div className="flex min-w-0 items-baseline gap-3">
+        <p
+          id="active-rest-timer"
+          role="timer"
+          aria-live="off"
+          className={`font-mono text-[28px] leading-none font-semibold ${expired ? "text-success" : ""}`}
+          data-numeric
+        >
+          {expired ? "Rest: 00:00" : label}
+        </p>
+        <p
+          id="active-rest-expired"
+          role="status"
+          aria-live="assertive"
+          className="text-sm font-semibold text-success"
+          hidden={!expired}
+        >
+          Rest complete
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          id="subtract-rest-time"
+          aria-label="−15 seconds"
+          disabled={!canAdjust}
+          onClick={() => onAdjust(-15)}
+          className="btn btn-secondary btn-touch"
+        >
+          −15s
+        </button>
+        <button
+          type="button"
+          id="add-rest-time"
+          aria-label="+15 seconds"
+          disabled={!canAdjust}
+          onClick={() => onAdjust(15)}
+          className="btn btn-secondary btn-touch"
+        >
+          +15s
+        </button>
+        <button
+          type="button"
+          id="skip-rest"
+          disabled={!canAdjust}
+          onClick={onSkip}
+          className="btn btn-secondary btn-touch"
+        >
+          Skip rest
+        </button>
+      </div>
+      <div className="ml-auto flex items-center gap-2">
+        <p
+          id="active-sync-status"
+          aria-live="polite"
+          data-state={sync.status}
+          className={`text-sm ${
+            sync.status === "failed"
+              ? "text-danger"
+              : sync.status === "pending"
+                ? "text-warn"
+                : "text-muted"
+          }`}
+        >
+          {sync.label}
+        </p>
+        <button
+          type="button"
+          id="retry-active-sync"
+          hidden={sync.status !== "failed"}
+          onClick={onRetrySync}
+          className="btn btn-secondary btn-touch"
+        >
+          Retry synchronization
+        </button>
       </div>
     </aside>
   );
