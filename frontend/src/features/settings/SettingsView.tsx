@@ -32,7 +32,7 @@ import {
 import type { RestAlertPreferences } from "@/lib/rest-alerts";
 import { SETTINGS_QUERY_KEY, useSettingsQuery } from "@/lib/settings-query";
 import { THEME_PREFERENCES, useThemePreference } from "@/lib/theme";
-import { Button, Card, Input, PageHeading } from "@/ui";
+import { Block, Button, Card, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
 
 function SectionHeading({ children }: { children: string }) {
@@ -45,14 +45,14 @@ function AccountSection() {
   return (
     <div className="mb-6">
       <SectionHeading>Account</SectionHeading>
-      <Card className="p-4">
+      <Block className="py-4">
         <p className="text-sm">
           Logged in as <span className="font-medium">{user.email}</span>
           <span className="ml-2 rounded-full bg-elevated px-2.5 py-0.5 text-xs font-medium text-muted">
             {user.role}
           </span>
         </p>
-      </Card>
+      </Block>
     </div>
   );
 }
@@ -64,7 +64,7 @@ function AppearanceSection() {
   return (
     <div className="mb-6">
       <SectionHeading>Appearance</SectionHeading>
-      <Card className="flex flex-col gap-2 p-4">
+      <Block className="flex flex-col gap-2 py-4">
         <p className="field-label" id="theme-label">
           Theme
         </p>
@@ -83,7 +83,7 @@ function AppearanceSection() {
                 role="radio"
                 aria-checked={selected}
                 onClick={() => setPreference(option.value)}
-                className={`min-w-20 rounded-[var(--radius-sm)] px-4 py-2 text-sm font-medium transition-colors ${
+                className={`min-h-11 min-w-20 rounded-[var(--radius-sm)] px-4 py-2 text-sm font-medium transition-colors ${
                   selected
                     ? "bg-elevated text-main shadow-sm"
                     : "text-muted hover:text-main"
@@ -97,7 +97,7 @@ function AppearanceSection() {
         <p className="text-sm text-muted">
           System follows your device. Saved on this device only.
         </p>
-      </Card>
+      </Block>
     </div>
   );
 }
@@ -188,7 +188,7 @@ function PreferencesSection() {
   return (
     <div className="mb-6">
       <SectionHeading>Preferences</SectionHeading>
-      <Card className="flex flex-col gap-4 p-4">
+      <Block className="flex flex-col gap-4 py-4">
         {isLoading ? (
           <p className="text-sm text-muted">Loading…</p>
         ) : (
@@ -365,7 +365,7 @@ function PreferencesSection() {
             </div>
           </>
         )}
-      </Card>
+      </Block>
     </div>
   );
 }
@@ -408,7 +408,7 @@ function CoachingPrinciplesSection() {
   return (
     <div className="mb-6">
       <SectionHeading>Coaching principles</SectionHeading>
-      <Card className="flex flex-col gap-3 p-4">
+      <Block className="flex flex-col gap-3 py-4">
         <p className="text-sm text-muted">
           Your training beliefs and preferences, in your own words. An assistant
           connected over MCP reads them when it designs or reviews a training
@@ -470,7 +470,7 @@ function CoachingPrinciplesSection() {
             </p>
           )
         ) : null}
-      </Card>
+      </Block>
     </div>
   );
 }
@@ -486,7 +486,7 @@ function McpSection() {
   return (
     <div className="mb-6">
       <SectionHeading>MCP Server</SectionHeading>
-      <Card className="flex flex-col gap-3 p-4">
+      <Block className="flex flex-col gap-3 py-4">
         {isLoading ? <p className="text-sm text-muted">Loading…</p> : null}
         {error ? (
           <p className="text-sm text-danger">
@@ -521,7 +521,7 @@ function McpSection() {
             </p>
           </>
         ) : null}
-      </Card>
+      </Block>
     </div>
   );
 }
@@ -544,7 +544,7 @@ function ActionLogSection() {
   return (
     <div className="mb-6">
       <SectionHeading>Action log</SectionHeading>
-      <Card className="flex flex-col gap-3 p-4">
+      <Block className="flex flex-col gap-3 py-4">
         <p className="text-sm text-muted">
           Every change made in the app or through the API, and every MCP tool
           call, from the last {data?.retention_hours ?? 72} hours. Weights,
@@ -632,7 +632,7 @@ function ActionLogSection() {
             Showing the newest {data.items.length} of {data.total}.
           </p>
         ) : null}
-      </Card>
+      </Block>
     </div>
   );
 }
@@ -660,7 +660,7 @@ function ExportSection() {
   return (
     <div className="mb-6">
       <SectionHeading>Export Data</SectionHeading>
-      <Card className="flex flex-col gap-3 p-4">
+      <Block className="flex flex-col gap-3 py-4">
         <p className="text-sm text-muted">
           Every logged domain — plans, exercises, programs, scheduled workouts,
           sessions, body metrics, foods, nutrition plans, meal entries, sleep
@@ -682,7 +682,7 @@ function ExportSection() {
             Export as CSV
           </Button>
         </div>
-      </Card>
+      </Block>
     </div>
   );
 }

@@ -20,15 +20,17 @@ import { suggestionLabel } from "@/lib/workout-utils";
 import {
   RIR_PILLS,
   exercisePosition,
-  formatCountdown,
   formatElapsed,
   nextExercise,
   previousExercise,
   previousSet,
   rirPillValue,
+  setTrail,
   stepValue,
+  upNextText,
 } from "@/lib/workout-hud";
 import type { HudRow } from "@/lib/workout-hud";
+import { isPendingEntry } from "@/lib/optimistic-session";
 import { ScaleSelect } from "@/ui/ScaleSelect";
 import { useRestCountdown } from "./RestOverlay";
 import { BarbellPlateCalculator } from "./BarbellPlateCalculator";
@@ -129,8 +131,6 @@ export interface WorkoutHudProps {
   index: number;
   progress: { done: number; total: number; percent: number };
   sync: SynchronizationState;
-  restWasSkipped: boolean;
-  restControlsDisabled: boolean;
   stats: Map<string, ExerciseStats>;
   statsLine: ReactNode;
   feeling: string;
@@ -141,8 +141,6 @@ export interface WorkoutHudProps {
   onCorrect: (row: HudRow, values: SetValues) => Promise<boolean>;
   onUndo: (row: HudRow) => void;
   onFocus: (row: HudRow) => void;
-  onAdjustRest: (seconds: number) => void;
-  onSkipRest: () => void;
   onRetrySync: () => void;
   onFinish: () => void;
   onMinimize?: () => void;
@@ -193,6 +191,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
   const allLogged = rows.every((candidate) => candidate.entry !== null);
   const prev = previousSet(rows, index);
   const next = nextExercise(rows, index) ?? rows[index + 1] ?? null;
+  const upNext = upNextText(next);
 
   function onTouchStart(event: TouchEvent) {
     const touch = event.touches[0];
@@ -216,7 +215,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
     <section
       id="active-workout-view"
       data-layout="hud"
-      className="flex h-dvh flex-col overflow-hidden overscroll-none bg-[image:var(--hud-gradient)] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      className="flex h-full flex-col overflow-hidden overscroll-none bg-[image:var(--hud-gradient)] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
     >
       <header className="flex shrink-0 flex-col gap-2">
         <div className="flex items-center gap-3">
@@ -293,7 +292,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
         <div className="flex flex-col items-center gap-1 pt-4 pb-3 text-center">
           <p
             id="hud-position"
-            className="text-[11px] font-semibold tracking-widest text-muted"
+            className="text-xs font-semibold tracking-widest text-muted"
             data-numeric
           >
             EXERCISE {position.index} OF {position.total} • SET {row.setNumber}{" "}
@@ -328,34 +327,47 @@ export function WorkoutHud(props: WorkoutHudProps) {
             ) : null;
           })()}
           {props.statsLine}
-          {row.entry ? null : (
-            <p className="text-xs text-warn">
-              {previousLogged
-                ? `Repeating set ${previousLogged.setNumber} · not saved`
-                : suggestionLabel(row.exercise.suggestion_source, row.exercise.suggestion_note)}
+          <SetTrail rows={rows} exerciseId={row.exercise.id} currentSet={row.setNumber} />
+          {/* Only a coaching note ("Same load, aim for 8 reps") earns a line; the
+              plain "suggested from plan / repeating set" provenance is noise. */}
+          {row.entry || previousLogged || !row.exercise.suggestion_note ? null : (
+            <p className="text-xs text-muted" id="hud-suggestion">
+              {suggestionLabel(row.exercise.suggestion_source, row.exercise.suggestion_note)}
             </p>
           )}
         </div>
 
-        <SetPanel
-          key={`${row.exercise.id}:${row.setNumber}:${row.entry?.id ?? "draft"}`}
-          {...props}
-          onEquipmentProfileChange={setEquipmentProfileId}
-          selectedEquipmentProfileId={equipmentProfileId}
-          row={row}
-          previous={previousLogged}
-          allLogged={allLogged}
-          plateProfiles={session.location?.plate_profiles ?? []}
-          selectedPlateProfile={selectedPlateProfileName === null
-            ? session.location?.plate_profiles[0] ?? null
-            : session.location?.plate_profiles.find((profile) => profile.name === selectedPlateProfileName) ?? null}
-          onPlateProfileChange={setSelectedPlateProfileName}
-          dumbbellProfiles={session.location?.dumbbell_profiles ?? []}
-          selectedDumbbellProfile={selectedDumbbellProfileName === null
-            ? session.location?.dumbbell_profiles[0] ?? null
-            : session.location?.dumbbell_profiles.find((profile) => profile.name === selectedDumbbellProfileName) ?? null}
-          onDumbbellProfileChange={setSelectedDumbbellProfileName}
-        />
+        <div className="mt-auto flex flex-col gap-3">
+          {upNext ? (
+            <p
+              id="hud-up-next"
+              className="text-center text-sm text-balance text-muted"
+              data-numeric
+            >
+              <span className="text-dim">Next </span>
+              {upNext}
+            </p>
+          ) : null}
+          <SetPanel
+            key={`${row.exercise.id}:${row.setNumber}:${row.entry?.id ?? "draft"}`}
+            {...props}
+            onEquipmentProfileChange={setEquipmentProfileId}
+            selectedEquipmentProfileId={equipmentProfileId}
+            row={row}
+            previous={previousLogged}
+            allLogged={allLogged}
+            plateProfiles={session.location?.plate_profiles ?? []}
+            selectedPlateProfile={selectedPlateProfileName === null
+              ? session.location?.plate_profiles[0] ?? null
+              : session.location?.plate_profiles.find((profile) => profile.name === selectedPlateProfileName) ?? null}
+            onPlateProfileChange={setSelectedPlateProfileName}
+            dumbbellProfiles={session.location?.dumbbell_profiles ?? []}
+            selectedDumbbellProfile={selectedDumbbellProfileName === null
+              ? session.location?.dumbbell_profiles[0] ?? null
+              : session.location?.dumbbell_profiles.find((profile) => profile.name === selectedDumbbellProfileName) ?? null}
+            onDumbbellProfileChange={setSelectedDumbbellProfileName}
+          />
+        </div>
       </div>
 
       <footer className="flex shrink-0 justify-between pt-2">
@@ -380,6 +392,46 @@ export function WorkoutHud(props: WorkoutHudProps) {
   );
 }
 
+const TRAIL_STYLE = {
+  done: "border-success text-success",
+  skipped: "border-warn text-warn",
+  current: "border-accent text-main",
+  todo: "border-line-muted text-dim",
+} as const;
+
+/** What was logged for each set of the shown exercise, and where you are. */
+function SetTrail({
+  rows,
+  exerciseId,
+  currentSet,
+}: {
+  rows: HudRow[];
+  exerciseId: string;
+  currentSet: number;
+}) {
+  const trail = setTrail(rows, exerciseId, currentSet);
+  if (trail.length < 2 && !trail.some((item) => item.text)) return null;
+  return (
+    <ol
+      aria-label="Sets of this exercise"
+      className="flex flex-wrap justify-center gap-2 pt-2"
+    >
+      {trail.map((item) => (
+        <li
+          key={item.setNumber}
+          data-state={item.state}
+          aria-current={item.state === "current" ? "step" : undefined}
+          className={`rounded-full border px-3 py-1 font-mono text-xs ${TRAIL_STYLE[item.state]}`}
+          data-numeric
+        >
+          <span className="text-dim">{item.setNumber}</span>{" "}
+          {item.text ?? (item.state === "current" ? "now" : "·")}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function Dial({
   spec,
   value,
@@ -401,7 +453,7 @@ function Dial({
     <div className="card flex flex-col gap-2 p-3">
       <label
         htmlFor={id}
-        className="text-center text-[11px] font-semibold tracking-wider text-muted uppercase"
+        className="text-center text-xs font-semibold tracking-wider text-muted uppercase"
       >
         <span className="sr-only">{spec.label}</span>
         <span aria-hidden="true">{CAPTIONS[spec.draftKey] ?? spec.label}</span>
@@ -423,7 +475,7 @@ function Dial({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full bg-transparent text-center font-mono text-[32px] leading-tight font-bold disabled:text-muted"
+        className="min-h-12 w-full bg-transparent text-center font-mono text-[32px] leading-tight font-bold disabled:text-muted"
       />
       {step ? (
         <div className="grid grid-cols-2 gap-2">
@@ -431,7 +483,7 @@ function Dial({
             type="button"
             disabled={disabled}
             onClick={() => onChange(stepValue(value, -step.delta, step.min))}
-            className="btn btn-secondary h-11 font-mono"
+            className="btn btn-secondary h-14 font-mono text-base"
           >
             −{step.delta}
           </button>
@@ -439,7 +491,7 @@ function Dial({
             type="button"
             disabled={disabled}
             onClick={() => onChange(stepValue(value, step.delta, step.min))}
-            className="btn btn-secondary h-11 font-mono"
+            className="btn btn-secondary h-14 font-mono text-base"
           >
             +{step.delta}
           </button>
@@ -459,35 +511,48 @@ function RirPills({
   onChange: (value: string) => void;
 }) {
   const selected = rirPillValue(value);
+  const [hintOpen, setHintOpen] = useState(false);
   return (
     <div className="flex flex-col gap-1">
-      <div
-        role="radiogroup"
-        aria-label="RIR"
-        className="grid grid-cols-5 gap-2"
-      >
-        {RIR_PILLS.map((pill) => {
-          const active = pill.value === selected;
-          return (
-            <button
-              key={pill.value}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              disabled={disabled}
-              onClick={() => onChange(active ? "" : pill.value)}
-              className={`h-12 rounded-full border font-mono text-sm font-semibold ${
-                active
-                  ? "border-warn bg-warn-soft text-warn"
-                  : "border-line bg-elevated text-muted"
-              }`}
-            >
-              {pill.label}
-            </button>
-          );
-        })}
+      <div className="flex items-center gap-2">
+        <div
+          role="radiogroup"
+          aria-label="RIR"
+          className="grid flex-1 grid-cols-5 gap-2"
+        >
+          {RIR_PILLS.map((pill) => {
+            const active = pill.value === selected;
+            return (
+              <button
+                key={pill.value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                disabled={disabled}
+                onClick={() => onChange(active ? "" : pill.value)}
+                className={`h-12 rounded-full border font-mono text-sm font-semibold ${
+                  active
+                    ? "border-warn bg-warn-soft text-warn"
+                    : "border-line bg-elevated text-muted"
+                }`}
+              >
+                {pill.label}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          aria-label="What is RIR?"
+          aria-expanded={hintOpen}
+          aria-controls="rir-hint"
+          onClick={() => setHintOpen((open) => !open)}
+          className="btn btn-ghost h-12 w-12 shrink-0 rounded-full p-0 font-mono"
+        >
+          ?
+        </button>
       </div>
-      <p id="rir-hint" className="text-center text-[11px] text-muted">
+      <p id="rir-hint" hidden={!hintOpen} className="text-center text-xs text-muted">
         {RIR_HINT}
       </p>
     </div>
@@ -547,65 +612,6 @@ function EffortFields({ draft, disabled, onChange }: {
           <p className="text-center text-[11px] text-muted">Perceived exertion. Tap again to clear.</p>
         </>
       )}
-    </div>
-  );
-}
-
-function RestBar({
-  restEndsAt,
-  disabled,
-  onAdjust,
-  onSkip,
-}: {
-  restEndsAt: string;
-  disabled: boolean;
-  onAdjust: (seconds: number) => void;
-  onSkip: () => void;
-}) {
-  const { remainingSeconds } = useRestCountdown(restEndsAt);
-  return (
-    <div
-      id="active-rest-overlay"
-      className="flex h-[54px] items-center gap-2 rounded-[var(--radius-md)] border border-accent bg-accent-soft px-3"
-    >
-      <p
-        id="active-rest-timer"
-        role="timer"
-        aria-live="polite"
-        className="min-w-0 flex-1 font-mono text-[15px] font-bold whitespace-nowrap"
-        data-numeric
-      >
-        RESTING — {formatCountdown(remainingSeconds)}
-      </p>
-      <button
-        type="button"
-        id="subtract-rest-time"
-        aria-label="−15 seconds"
-        disabled={disabled}
-        onClick={() => onAdjust(-15)}
-        className="btn btn-secondary h-10 shrink-0 px-2 font-mono text-xs"
-      >
-        −15s
-      </button>
-      <button
-        type="button"
-        id="add-rest-time"
-        aria-label="+15 seconds"
-        disabled={disabled}
-        onClick={() => onAdjust(15)}
-        className="btn btn-secondary h-10 shrink-0 px-2 font-mono text-xs"
-      >
-        +15s
-      </button>
-      <button
-        type="button"
-        id="skip-rest"
-        disabled={disabled}
-        onClick={onSkip}
-        className="btn btn-primary h-10 shrink-0 px-2 text-xs whitespace-nowrap"
-      >
-        Skip Rest
-      </button>
     </div>
   );
 }
@@ -697,16 +703,12 @@ function SetPanel({
   equipmentProfiles,
   onEquipmentProfileChange,
   selectedEquipmentProfileId,
-  restWasSkipped,
-  restControlsDisabled,
   feeling,
   onFeelingChange,
   onComplete,
   onSkip,
   onCorrect,
   onUndo,
-  onAdjustRest,
-  onSkipRest,
   onFinish,
 }: WorkoutHudProps & {
   row: HudRow;
@@ -767,7 +769,6 @@ function SetPanel({
 
   const values = () => draftToValues(kind, { ...draft, rpe: draft.rpe ?? "" });
   const locked = !ready || (row.entry !== null && !editing);
-  const resting = Boolean(session.rest_ends_at) && !expired;
   const numberSpecs = specs.filter(
     (spec) => spec.draftKey !== "rir" && spec.draftKey !== "band_level",
   );
@@ -782,7 +783,7 @@ function SetPanel({
     equipment.some((option) => option.includes("dumbbell"));
 
   let action: ReactNode;
-  if (row.entry?.pending) {
+  if (row.entry && (row.entry.pending || isPendingEntry(row.entry))) {
     action = (
       <p className="flex h-[54px] items-center text-sm font-semibold text-warn">
         {row.state === "skipped" ? "Skip saved on this device" : "Set saved on this device"}
@@ -828,15 +829,6 @@ function SetPanel({
         Save correction
       </button>
     );
-  } else if (resting && session.rest_ends_at) {
-    action = (
-      <RestBar
-        restEndsAt={session.rest_ends_at}
-        disabled={restControlsDisabled}
-        onAdjust={onAdjustRest}
-        onSkip={onSkipRest}
-      />
-    );
   } else {
     action = (
       <button
@@ -851,7 +843,7 @@ function SetPanel({
   }
 
   return (
-    <div className="mt-auto flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3">
         {numberSpecs.map((spec, specIndex) => (
           <div
@@ -922,14 +914,6 @@ function SetPanel({
 
       {allLogged ? (
         <div className="flex flex-col gap-2">
-          {resting && session.rest_ends_at ? (
-            <RestBar
-              restEndsAt={session.rest_ends_at}
-              disabled={restControlsDisabled}
-              onAdjust={onAdjustRest}
-              onSkip={onSkipRest}
-            />
-          ) : null}
           {row.entry && !editing ? action : null}
           {editing ? action : null}
           <label className="field-label mb-0" htmlFor="active-feeling">
@@ -952,7 +936,9 @@ function SetPanel({
           </button>
         </div>
       ) : (
-        <>
+        // Pinned to the bottom of the scroll area, so the Log button stays put no
+        // matter how many controls sit above it on a short screen.
+        <div className="sticky bottom-0 z-10 -mx-1 flex flex-col gap-3 bg-canvas px-1 pt-2 pb-1">
           {expired && !row.entry ? (
             <p
               id="active-rest-expired"
@@ -962,22 +948,17 @@ function SetPanel({
               Rest complete
             </p>
           ) : null}
-          {restWasSkipped && !session.rest_ends_at && !row.entry ? (
-            <p role="status" className="text-center text-xs text-muted">
-              Rest skipped
-            </p>
-          ) : null}
           {action}
           {!row.entry ? (
             <button
               type="button"
-              className="btn btn-ghost h-9 self-center text-xs"
+              className="btn btn-ghost h-11 self-center px-4 text-xs"
               onClick={() => onSkip(row, values())}
             >
               Skip set
             </button>
           ) : null}
-        </>
+        </div>
       )}
     </div>
   );

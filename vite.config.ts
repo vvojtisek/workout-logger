@@ -21,6 +21,10 @@ export default defineConfig({
     // Production bundles ship inside the container image and are served
     // publicly; source maps would expose the full frontend source with them.
     sourcemap: false,
+    // The CSP allows fonts only from 'self' (no `data:`), so a font must never
+    // be inlined as a data URI. Everything else keeps Vite's default 4 KiB rule.
+    assetsInlineLimit: (filePath, content) =>
+      /\.(woff2?|ttf|otf)$/i.test(filePath) ? false : content.length < 4096,
   },
   server: {
     proxy: {

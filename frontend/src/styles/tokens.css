@@ -33,13 +33,14 @@
   /* Typography */
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --text-dim: #7a899f;
   --text-on-accent: #ffffff;
 
   /* Accents and status */
-  --accent-primary: #3b82f6;
-  --accent-primary-hover: #60a5fa;
-  --accent-primary-soft: rgba(59, 130, 246, 0.16);
+  --accent-primary: #2563eb; /* white on it: 5.2:1 */
+  --accent-primary-hover: #1d4ed8;
+  --accent-primary-ink: #60a5fa; /* blue TEXT on dark surfaces */
+  --accent-primary-soft: rgba(37, 99, 235, 0.22);
   --accent-success: #10b981;
   --accent-success-soft: rgba(16, 185, 129, 0.14);
   --accent-success-text: #042f2e;
@@ -49,6 +50,8 @@
   --accent-purple-soft: rgba(139, 92, 246, 0.16);
   --accent-danger: #ef4444;
   --accent-danger-hover: #f87171;
+  --accent-danger-solid: #dc2626; /* button fill: white on it 4.8:1 */
+  --accent-danger-solid-hover: #b91c1c;
   --accent-danger-soft: rgba(239, 68, 68, 0.14);
 
   /* Geometry and type. The fonts are bundled (see main.tsx) because the CSP
@@ -82,21 +85,24 @@
   /* Typography */
   --text-main: #0f172a;
   --text-muted: #475569;
-  --text-dim: #94a3b8;
+  --text-dim: #556377;
   --text-on-accent: #ffffff;
 
   /* Accents and status */
   --accent-primary: #2563eb;
   --accent-primary-hover: #1d4ed8;
+  --accent-primary-ink: #1d4ed8;
   --accent-primary-soft: rgba(37, 99, 235, 0.12);
-  --accent-success: #059669;
+  --accent-success: #036a4d;
   --accent-success-soft: rgba(5, 150, 105, 0.12);
   --accent-success-text: #ffffff;
-  --accent-warn: #d97706;
+  --accent-warn: #92400e;
   --accent-warn-soft: rgba(217, 119, 6, 0.14);
   --accent-purple: #7c3aed;
   --accent-purple-soft: rgba(124, 58, 237, 0.12);
-  --accent-danger: #dc2626;
+  --accent-danger: #c21f1f;
+  --accent-danger-solid: #dc2626;
+  --accent-danger-solid-hover: #b91c1c;
   --accent-danger-hover: #b91c1c;
   --accent-danger-soft: rgba(220, 38, 38, 0.1);
 
@@ -120,6 +126,7 @@
   --color-dim: var(--text-dim);
   --color-on-accent: var(--text-on-accent);
   --color-accent: var(--accent-primary);
+  --color-accent-ink: var(--accent-primary-ink);
   --color-accent-soft: var(--accent-primary-soft);
   --color-success: var(--accent-success);
   --color-success-soft: var(--accent-success-soft);
@@ -174,6 +181,7 @@
     gap: 0.5rem;
     border-radius: var(--radius-sm);
     border: 1px solid transparent;
+    min-height: 2.75rem; /* 44px: a touch target on every screen */
     padding: 0.55rem 0.95rem;
     font-size: 0.875rem;
     font-weight: 550;
@@ -210,12 +218,12 @@
   }
 
   .btn-danger {
-    background-color: var(--accent-danger);
+    background-color: var(--accent-danger-solid);
     color: var(--text-on-accent);
   }
 
   .btn-danger:hover:not(:disabled) {
-    background-color: var(--accent-danger-hover);
+    background-color: var(--accent-danger-solid-hover);
   }
 
   .btn-ghost {
@@ -240,14 +248,33 @@
     border-radius: var(--radius-md);
   }
 
+  /* Tabular numbers are the monospace face (one UI sans, one mono). */
+  .tabular-nums {
+    font-family: var(--font-mono);
+  }
+
+  /* The flat counterpart of .card: a hairline rule and no box. */
+  .block-flat {
+    border-top: 1px solid var(--border-muted);
+  }
+
   .input {
     width: 100%;
     background-color: var(--bg-input);
     color: var(--text-main);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
+    min-height: 2.75rem;
     padding: 0.55rem 0.7rem;
     font-size: 0.9375rem;
+  }
+
+  /* Numbers in form fields line up in columns. */
+  .input[type="number"],
+  .input[inputmode="numeric"],
+  .input[inputmode="decimal"] {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
 
   .input:focus {

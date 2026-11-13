@@ -5,8 +5,8 @@ import { expect } from "@playwright/test";
 
 import { isDesktop } from "./navigation.js";
 
-/** Matches the rest countdown in either layout ("Rest: 59s" or "RESTING — 00:59"). */
-export const REST_RUNNING = /Rest: \d+s|RESTING — \d{2}:\d{2}/;
+/** Matches the rest countdown in either layout ("Rest: 00:59" or "RESTING — 00:59"). */
+export const REST_RUNNING = /Rest: \d{2}:\d{2}|RESTING — \d{2}:\d{2}/;
 
 /** @param {import("@playwright/test").Page} page @param {string} value */
 export async function setRir(page, value) {

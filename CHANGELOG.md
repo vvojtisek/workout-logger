@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Workout UI/UX overhaul (see SPEC-UX.md). Phone: every control on the workout
+  screen is at least 44 px, steppers 56 px; the rest timer is a persistent bar
+  that stays visible after minimizing and on every page, and never takes the
+  Log button's place; the top of the screen shows each set's logged result and
+  the next exercise; logging a set updates the screen, starts rest and moves to
+  the next set instantly, even offline, and syncs afterwards; Today leads with
+  the workout and drops the boxes. Desktop: workout set rows are an even
+  height, "Previous" shows what the set managed last session, and the rest
+  timer is docked under the sets in mm:ss; Today becomes a dashboard with weekly
+  volume, a muscle-group split and recent sessions; History rows show sets,
+  volume and best set, with date and plan filters.
+- The desktop rest timer reads `Rest: 01:30` instead of `Rest: 90s`.
+- Plans: on desktop the plan list sits beside an inline-editing exercise table
+  (sets, reps, weight, RIR, rest, superset group, notes) with a
+  running exercise/set total and an "Unsaved changes" flag; saving keeps the plan
+  open. On a phone each exercise is a flat block with 44 px controls and
+  tabular numerals. Every `.btn` and `.input` is now at least 44 px tall.
+- Calendar, Nutrition, Sleep, Biometrics and Settings follow the same system:
+  hairline sections instead of boxed cards, 44 px controls (calendar entries,
+  the theme switch, the repeat-meal chips) and JetBrains Mono for every
+  tabular number. The calendar uses the full desktop width.
+
 ### Fixed
 
 - MCP over Auth0: clients that log in now get the `read` and `log` scopes and
@@ -14,9 +38,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   registering for `read log`, and handed out tokens that saw no tools. Auth0 is
   also asked for `offline_access`, so clients refresh instead of logging in
   again every day. The OAuth consent page keeps its styling.
+- JetBrains Mono never loaded: the build inlined it as a `data:` URI that the
+  Content-Security-Policy blocks, so weights, reps and timers used a fallback
+  font and every page load logged a CSP error. Fonts are now emitted as files.
+- Reloading or deep-linking to another page while a workout was active jumped
+  back to the workout. The live workout is now reached from Today, or by
+  tapping the rest bar, instead.
 
 ### Added
 
+- `GET /api/v1/workout-sessions/active?optional=true` answers 204 instead of
+  404 when no workout is active, so the app's start-up check leaves nothing
+  in the browser console. Without the parameter the endpoint is unchanged.
 - Per-side and dumbbell volume rules. Exercises carry `equipment_load_mode`
   (`standard`, `single_db`, `pair_db`) and `is_unilateral`. The weight you type
   is always one dumbbell; `pair_db` counts it twice, and a per-side exercise

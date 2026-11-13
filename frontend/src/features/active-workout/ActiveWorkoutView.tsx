@@ -19,6 +19,11 @@ import {
 } from "@/lib/active-workout-state";
 import type { SetOperation } from "@/lib/active-workout-state";
 import { useSettingsQuery } from "@/lib/settings-query";
+import {
+  applyOptimisticSet,
+  applyPendingSets,
+  isPendingEntry,
+} from "@/lib/optimistic-session";
 import { workoutProgress } from "@/lib/workout-utils";
 import type { GridRow } from "@/lib/workout-utils";
 import { ConfirmDialog } from "@/ui/Dialog";
@@ -195,6 +200,18 @@ function ActiveWorkoutSession({
     return () => window.cancelAnimationFrame(handle);
   }, [session]);
 
+  // After a reload (or a crash) with sets still queued, show them as logged
+  // again instead of waiting for the network to confirm them.
+  const restoredFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (restoredFor.current === session.id) return;
+    restoredFor.current = session.id;
+    void getSetQueue(activeWorkoutStorage).then((all) => {
+      const mine = all.filter((operation) => operation.session_id === session.id);
+      if (mine.length > 0) onSessionChange(applyPendingSets(session, mine));
+    });
+  }, [session, onSessionChange]);
+
   const persistSet = useCallback(
     async (row: GridRow, values: SetValues, state: "completed" | "skipped") => {
       if (state === "completed") unlockRestAlertAudio();
@@ -203,12 +220,7 @@ function ActiveWorkoutSession({
       pendingWrites.current.add(draftKey);
       try {
         const operationId = crypto.randomUUID();
-        await enqueueSetOperation(activeWorkoutStorage, {
-          client_operation_id: operationId,
-          session_id: session.id,
-          draft_key: draftKey,
-          captured_offline: !replayAllowed.current || !navigator.onLine || replayOffline,
-          payload: {
+        const payload = {
             session_exercise_id: row.exercise.id,
             set_number: row.setNumber,
             weight_kg: values.weight,
@@ -223,26 +235,39 @@ function ActiveWorkoutSession({
             state,
             client_operation_id: operationId,
             client_completed_at: new Date().toISOString(),
-          },
+        };
+        // Optimistic: the set, the rest timer and the next set's focus all update
+        // in this frame. Durability and the network follow, never gate the UI.
+        onSessionChange(applyOptimisticSet(session, payload));
+        await enqueueSetOperation(activeWorkoutStorage, {
+          client_operation_id: operationId,
+          session_id: session.id,
+          draft_key: draftKey,
+          captured_offline: !replayAllowed.current || !navigator.onLine || replayOffline,
+          payload,
         });
         setLocalFocus(null);
-        if (state === "completed") setRestWasSkipped(false);
         setSyncError(null);
         await refreshQueue();
         await flushSetQueue();
       } catch (error) {
+        onSessionChange(session);
         setSyncError(errorMessage(error));
         toast.error("This device could not save the set. Try logging it again.");
       } finally {
         pendingWrites.current.delete(draftKey);
       }
     },
-    [session.id, flushSetQueue, refreshQueue, replayOffline]
+    [session, onSessionChange, flushSetQueue, refreshQueue, replayOffline]
   );
 
   const correctSet = useCallback(
     async (row: GridRow, values: SetValues): Promise<boolean> => {
       if (!row.entry) return false;
+      if (isPendingEntry(row.entry)) {
+        toast.error("This set is still saving. Try again in a moment.");
+        return false;
+      }
       if (!replayAllowed.current) {
         toast.error("Reconnect to correct a synchronized set.");
         return false;
@@ -281,7 +306,7 @@ function ActiveWorkoutSession({
 
   const undoSet = useCallback(
     async (row: GridRow) => {
-      if (!row.entry) return;
+      if (!row.entry || isPendingEntry(row.entry)) return;
       if (!replayAllowed.current) {
         toast.error("Reconnect to undo a synchronized set.");
         return;
@@ -334,6 +359,15 @@ function ActiveWorkoutSession({
           );
           if (updated) setRestWasSkipped(data.skip === true);
           await refreshQueue();
+          // The persistent rest bar reads the app-level session, so hand it the
+          // adjusted queued timer too.
+          const queued = (await getSetQueue(activeWorkoutStorage)).filter(
+            (operation) => operation.session_id === session.id,
+          );
+          onSessionChange({
+            ...session,
+            rest_ends_at: projectQueuedSets(session, queued).session.rest_ends_at,
+          });
           return;
         }
         if (!replayAllowed.current) return;
@@ -347,8 +381,18 @@ function ActiveWorkoutSession({
         toast.error(`Failed to update rest timer: ${errorMessage(err)}`);
       }
     },
-    [session.id, session.version, onSessionChange, projected.rest, refreshQueue]
+    [session, onSessionChange, projected.rest, refreshQueue]
   );
+
+  // The persistent rest bar lives in the app shell; it drives the timer through
+  // this, so queued (offline) rest adjustments keep working from the bar.
+  const { restControls } = useAppContext();
+  useEffect(() => {
+    restControls.current = updateRest;
+    return () => {
+      if (restControls.current === updateRest) restControls.current = null;
+    };
+  }, [restControls, updateRest]);
 
   async function completeWorkout() {
     try {
@@ -409,10 +453,6 @@ function ActiveWorkoutSession({
           index={hudPosition}
           progress={progress}
           sync={sync}
-          restWasSkipped={restWasSkipped}
-          restControlsDisabled={projected.rest
-            ? online && (!replayOffline || syncInProgress.current)
-            : !online}
           stats={statsByName}
           statsLine={shown ? exerciseStatsLine(shown.exercise as SessionExercise) : null}
           feeling={feeling}
@@ -422,8 +462,6 @@ function ActiveWorkoutSession({
           onCorrect={correctSet}
           onUndo={(target) => void undoSet(target)}
           onFocus={(target) => void focusSet(target)}
-          onAdjustRest={(seconds) => void updateRest({ adjustment_seconds: seconds })}
-          onSkipRest={() => void updateRest({ skip: true })}
           onRetrySync={() => void flushSetQueue()}
           onFinish={finishWorkout}
           onMinimize={online ? () => void navigate("/") : undefined}

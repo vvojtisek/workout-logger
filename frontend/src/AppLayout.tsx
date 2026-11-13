@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ReactNode } from "react";
+import type { MutableRefObject, ReactNode } from "react";
 import {
   Activity,
   CalendarDays,
@@ -26,8 +26,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Link, Outlet, useLocation, useMatches, useNavigate } from "react-router-dom";
 
-import { ApiError, apiFetch } from "@/api/client";
-import { isFullBleed } from "@/app/MasterDetail";
+import { apiFetch } from "@/api/client";
+import { isFullBleed, isWide } from "@/app/MasterDetail";
 import { LogSheet } from "@/features/today/LogSheet";
 import type { WorkoutSession } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
@@ -47,10 +47,20 @@ import {
 import type { NavIcon, NavSection } from "@/lib/navigation";
 import { useTheme, useThemePreference } from "@/lib/theme";
 import { useIsDesktop } from "@/lib/use-media-query";
+import { GlobalRestBar } from "@/features/active-workout/GlobalRestBar";
 import { clearWorkoutSnapshot, loadWorkoutSnapshot, saveWorkoutSnapshot } from "@/lib/active-workout-storage";
 
+/** Adjusts or skips the running rest; the live workout registers it. */
+export type RestControls = (data: {
+  adjustment_seconds?: number;
+  skip?: boolean;
+}) => Promise<void>;
+
 interface AppContextValue {
+  /** Set by the live workout while it is mounted. */
+  restControls: MutableRefObject<RestControls | null>;
   session: WorkoutSession | null;
+  /** False until the first look for an already-active session has answered. */
   sessionReady: boolean;
   online: boolean;
   openSession: (session: WorkoutSession) => void;
@@ -112,6 +122,7 @@ export function AppLayout() {
   const [loadedMode, setLoadedMode] = useState<typeof authStatus | null>(null);
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const sessionRevision = useRef(0);
+  const restControls = useRef<RestControls | null>(null);
   const sessionReady = loadedMode === authStatus;
   const online = networkOnline && authStatus === "authenticated" && sessionReady;
   const buildLabel = useBuildLabel(online);
@@ -147,32 +158,40 @@ export function AppLayout() {
     if (!accountId) return;
     let cancelled = false;
     const revision = sessionRevision.current;
+    // `optional=true` answers 204 when nothing is active, so a normal cold load
+    // leaves no red 404 in the console.
     const activeSession = authStatus === "offline"
       ? loadWorkoutSnapshot(accountId)
-      : apiFetch<WorkoutSession>("/workout-sessions/active");
+      : apiFetch<WorkoutSession | null>("/workout-sessions/active?optional=true");
     activeSession
       .then((active) => {
-        if (cancelled || sessionRevision.current !== revision || !active) return;
+        if (cancelled || sessionRevision.current !== revision) return;
+        if (!active) {
+          if (authStatus !== "offline") {
+            setSession(null);
+            void clearWorkoutSnapshot(accountId).catch(() => undefined);
+          }
+          return;
+        }
         if (authStatus === "offline") setSession((current) => current ?? active);
-        else openSession(active);
+        // Restoring a session never navigates: the rest bar is the way back, so
+        // a deep link such as /history stays put.
+        else updateSession(active);
       })
-      .catch((error) => {
-        if (cancelled || sessionRevision.current !== revision || !(error instanceof ApiError) || error.status !== 404) return;
-        setSession(null);
-        void clearWorkoutSnapshot(accountId).catch(() => undefined);
-      })
+      .catch(() => undefined)
       .finally(() => {
         if (!cancelled) setLoadedMode(authStatus);
       });
     return () => {
       cancelled = true;
     };
-  }, [accountId, authStatus, openSession]);
+  }, [accountId, authStatus, updateSession]);
 
   const isDesktop = useIsDesktop();
   const ctx: AppContextValue = {
     session,
     sessionReady,
+    restControls,
     online,
     openSession,
     updateSession,
@@ -184,7 +203,7 @@ export function AppLayout() {
       id="logout-btn"
       type="button"
       onClick={handleLogout}
-      className="whitespace-nowrap text-xs font-medium text-muted hover:text-main"
+      className="inline-flex min-h-11 items-center whitespace-nowrap px-2 text-xs font-medium text-muted hover:text-main"
     >
       Log out
     </button>
@@ -205,6 +224,14 @@ export function AppLayout() {
           sessionActive={session !== null}
           status={status}
           logoutButton={logoutButton}
+          restBar={
+            <GlobalRestBar
+              session={session}
+              onSessionChange={updateSession}
+              reserveSpace={location.pathname === WORKOUT_PATH}
+              controls={restControls}
+            />
+          }
         />
       )}
       <Toaster />
@@ -265,6 +292,8 @@ interface ShellProps {
   sessionActive: boolean;
   status: ReactNode;
   logoutButton: ReactNode;
+  /** The phone's persistent rest timer; the desktop workout docks its own. */
+  restBar?: ReactNode;
 }
 
 /** Pulses beside the workout entry while a session is live. */
@@ -301,7 +330,7 @@ function SectionPages({
             key={page.path}
             to={page.path}
             aria-current={active ? "page" : undefined}
-            className={`-mb-px shrink-0 border-b-2 px-3 py-2.5 text-sm font-medium ${
+            className={`-mb-px shrink-0 border-b-2 px-3 min-h-11 inline-flex items-center text-sm font-medium ${
               active
                 ? "border-accent text-main"
                 : "border-transparent text-muted hover:text-main"
@@ -329,7 +358,7 @@ function RailLink({
     <Link
       to={sectionTarget(section, sessionActive)}
       aria-current={active ? "page" : undefined}
-      className={`flex items-center gap-3 border-l-[3px] px-4 py-2.5 text-sm font-medium ${
+      className={`flex items-center gap-3 border-l-[3px] px-4 min-h-11 text-sm font-medium ${
         active
           ? "border-accent bg-elevated text-main"
           : "border-transparent text-muted hover:bg-elevated/60 hover:text-main"
@@ -352,7 +381,7 @@ function ThemeToggle() {
       onClick={() => setPreference(next)}
       aria-label={`Switch to ${next} theme`}
       title={`Switch to ${next} theme`}
-      className="rounded-[var(--radius-sm)] px-2 py-1 text-sm text-muted hover:bg-elevated hover:text-main"
+      className="rounded-[var(--radius-sm)] inline-flex h-11 w-11 items-center justify-center text-sm text-muted hover:bg-elevated hover:text-main"
     >
       {theme === "dark" ? (
         <Moon aria-hidden="true" size={16} strokeWidth={1.75} />
@@ -372,7 +401,9 @@ function DesktopShell({
 }: ShellProps) {
   const sections = [...DESKTOP_SECTIONS, ...DESKTOP_FOOTER_SECTIONS];
   const current = sectionForPath(sections, pathname);
-  const fullBleed = useMatches().some((match) => isFullBleed(match.handle));
+  const matches = useMatches();
+  const fullBleed = matches.some((match) => isFullBleed(match.handle));
+  const wide = matches.some((match) => isWide(match.handle));
   return (
     <div className="grid h-dvh w-full grid-cols-[220px_1fr] overflow-hidden">
       <aside className="flex min-h-0 flex-col border-r border-line-muted bg-canvas">
@@ -423,7 +454,7 @@ function DesktopShell({
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="max-w-5xl px-8 pt-6 pb-16">
+            <div className={`${wide ? "" : "max-w-5xl"} px-8 pt-6 pb-16`}>
               <Outlet />
             </div>
           </div>
@@ -441,16 +472,21 @@ function MobileShell({
   sessionActive,
   status,
   logoutButton,
+  restBar,
 }: ShellProps) {
   const current = sectionForPath(MOBILE_SECTIONS, pathname);
   const inWorkout = pathname === WORKOUT_PATH;
   const [logOpen, setLogOpen] = useState(false);
-  // The live workout is a full-screen HUD: no top bar, no tabs.
+  // The live workout is a full-screen HUD: no top bar, no tabs. The rest
+  // timer sits under it, so it is visible without moving the Log button.
   if (inWorkout) {
     return (
-      <main className="h-dvh overflow-hidden">
-        <Outlet />
-      </main>
+      <div className="flex h-dvh flex-col">
+        <main className="min-h-0 flex-1 overflow-hidden">
+          <Outlet />
+        </main>
+        {restBar}
+      </div>
     );
   }
   return (
@@ -474,6 +510,7 @@ function MobileShell({
       >
         <Outlet />
       </main>
+      {restBar}
       {inWorkout ? null : (
         <nav
           aria-label="Main navigation"
@@ -504,7 +541,7 @@ function MobileShell({
                 to={sectionTarget(section, sessionActive)}
                 aria-current={active ? "page" : undefined}
                 className={`relative flex flex-col items-center justify-center gap-0.5 text-xs font-medium ${
-                  active ? "text-accent" : "text-muted"
+                  active ? "text-accent-ink" : "text-muted"
                 }`}
               >
                 <SectionIcon section={section} size={20} />

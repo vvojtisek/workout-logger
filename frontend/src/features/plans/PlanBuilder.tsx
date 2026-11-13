@@ -1,113 +1,46 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, Paginated, WorkoutPlan } from "@/api/types";
 import { fetchCatalogueExercises, MOVEMENT_PATTERN_LABELS } from "@/lib/exercise-catalogue";
+import {
+  buildPayload,
+  emptyRow,
+  planSummary,
+  rowFromExercise,
+  supersetLabels,
+  type ExerciseRowState,
+} from "@/lib/plan-draft";
 import { summarizePlanPatterns } from "@/lib/plan-pattern-balance";
 import { planPayloadSchema } from "@/lib/plan-schema";
 import { useSettingsQuery } from "@/lib/settings-query";
-import type { ExerciseKind } from "@/lib/workout-utils";
-import { Button, Card, Input, PageHeading } from "@/ui";
+import { useIsDesktop } from "@/lib/use-media-query";
+import { Button, Input } from "@/ui";
 import { toast } from "@/ui/Toast";
+import { PlanExerciseRow, PlanTableHeader } from "./PlanExerciseRow";
 
-const EXERCISE_KIND_LABELS: Record<ExerciseKind, string> = {
-  strength: "Strength (weight, reps, RIR)",
-  bodyweight: "Bodyweight (added weight, reps, band)",
-  cardio: "Cardio (duration, distance, incline)",
-};
-
-interface ExerciseRowState {
-  key: string;
-  exercise_name: string;
-  exercise_kind: ExerciseKind;
-  target_sets: string;
-  target_reps_min: string;
-  target_reps_max: string;
-  target_rir: string;
-  target_weight_kg: string;
-  rest_time_seconds: string;
-  notes: string;
-  group_key: string;
-}
-
-function emptyRow(restSeconds = 60): ExerciseRowState {
-  return {
-    key: crypto.randomUUID(),
-    exercise_name: "",
-    exercise_kind: "strength",
-    target_sets: "3",
-    target_reps_min: "8",
-    target_reps_max: "12",
-    target_rir: "",
-    target_weight_kg: "",
-    rest_time_seconds: String(restSeconds),
-    notes: "",
-    group_key: "",
-  };
-}
-
-function rowFromExercise(exercise: WorkoutPlan["exercises"][number]): ExerciseRowState {
-  return {
-    key: exercise.id,
-    exercise_name: exercise.exercise_name,
-    exercise_kind: exercise.exercise_kind,
-    target_sets: String(exercise.target_sets),
-    target_reps_min: String(exercise.target_reps_min),
-    target_reps_max: String(exercise.target_reps_max),
-    target_rir: exercise.target_rir != null ? String(exercise.target_rir) : "",
-    target_weight_kg: exercise.target_weight_kg != null ? String(exercise.target_weight_kg) : "",
-    rest_time_seconds: String(exercise.rest_time_seconds),
-    notes: exercise.notes ?? "",
-    group_key: exercise.group_key ?? "",
-  };
-}
-
-function buildPayload(name: string, description: string, rows: ExerciseRowState[]) {
-  const groupCounters = new Map<string, number>();
-  const exercises = rows.map((row) => {
-    const groupKey = row.group_key.trim() || null;
-    let groupOrder: number | null = null;
-    if (groupKey) {
-      const count = groupCounters.get(groupKey) ?? 0;
-      groupOrder = count;
-      groupCounters.set(groupKey, count + 1);
-    }
-    return {
-      exercise_name: row.exercise_name.trim(),
-      exercise_kind: row.exercise_kind,
-      target_sets: Number.parseInt(row.target_sets, 10),
-      target_reps_min: Number.parseInt(row.target_reps_min, 10),
-      target_reps_max: Number.parseInt(row.target_reps_max, 10),
-      target_rir:
-        row.exercise_kind === "strength" && row.target_rir.trim()
-          ? Number.parseInt(row.target_rir, 10)
-          : null,
-      target_weight_kg: row.target_weight_kg.trim()
-        ? Number.parseFloat(row.target_weight_kg)
-        : null,
-      rest_time_seconds: row.rest_time_seconds.trim()
-        ? Number.parseInt(row.rest_time_seconds, 10)
-        : 60,
-      notes: row.notes.trim() || null,
-      group_key: groupKey,
-      group_order: groupOrder,
-    };
-  });
-  return { name: name.trim(), description: description.trim() || null, exercises };
-}
-
+/** Remounts the editor per plan, so switching plans in the list never leaks state. */
 export function PlanBuilder() {
   const { planId } = useParams<{ planId: string }>();
+  return <PlanEditor key={planId ?? "new"} planId={planId} />;
+}
+
+function PlanEditor({ planId }: { planId: string | undefined }) {
   const isEditing = Boolean(planId);
   const navigate = useNavigate();
+  const isDesktop = useIsDesktop();
   const queryClient = useQueryClient();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [rows, setRows] = useState<ExerciseRowState[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // What the server has, as a payload string, to tell whether there is anything to save.
+  const [saved, setSaved] = useState(() =>
+    JSON.stringify(buildPayload("", "", [])),
+  );
   const seededPlanId = useRef<string | null>(null);
   const { data: settings } = useSettingsQuery();
   const compoundRestSeconds = settings?.default_rest_compound_seconds ?? 90;
@@ -130,10 +63,17 @@ export function PlanBuilder() {
   useEffect(() => {
     if (!existingPlan || seededPlanId.current === existingPlan.id) return;
     seededPlanId.current = existingPlan.id;
+    const seeded = existingPlan.exercises.map(rowFromExercise);
     setName(existingPlan.name);
     setDescription(existingPlan.description ?? "");
-    setRows(existingPlan.exercises.map(rowFromExercise));
+    setRows(seeded);
+    setSaved(JSON.stringify(buildPayload(existingPlan.name, existingPlan.description ?? "", seeded)));
   }, [existingPlan]);
+
+  const current = useMemo(() => buildPayload(name, description, rows), [name, description, rows]);
+  const dirty = JSON.stringify(current) !== saved;
+  const summary = planSummary(rows);
+  const letters = supersetLabels(rows);
 
   const mutation = useMutation({
     mutationFn: (payload: ReturnType<typeof buildPayload>) =>
@@ -143,10 +83,14 @@ export function PlanBuilder() {
             body: JSON.stringify(payload),
           })
         : apiFetch<WorkoutPlan>("/plans", { method: "POST", body: JSON.stringify(payload) }),
-    onSuccess: (plan) => {
+    onSuccess: (plan, payload) => {
       void queryClient.invalidateQueries({ queryKey: ["plans"] });
+      void queryClient.invalidateQueries({ queryKey: ["plan", plan.id] });
       toast.success(isEditing ? `Updated "${plan.name}"` : `Created "${plan.name}"`);
-      void navigate("/plans");
+      setSaved(JSON.stringify(payload));
+      // Beside the list, stay on the plan so edits keep flowing; on a phone the
+      // list is a separate screen, so go back to it.
+      void navigate(isDesktop ? `/plans/${plan.id}/edit` : "/plans");
     },
     onError: (err: unknown) => {
       if (err instanceof ApiError && err.code === "PLAN_NAME_CONFLICT") {
@@ -158,18 +102,18 @@ export function PlanBuilder() {
   });
 
   function updateRow(key: string, patch: Partial<ExerciseRowState>) {
-    setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+    setRows((list) => list.map((row) => (row.key === key ? { ...row, ...patch } : row)));
   }
 
   function removeRow(key: string) {
-    setRows((current) => current.filter((row) => row.key !== key));
+    setRows((list) => list.filter((row) => row.key !== key));
   }
 
   function moveRow(index: number, direction: -1 | 1) {
-    setRows((current) => {
+    setRows((list) => {
       const target = index + direction;
-      if (target < 0 || target >= current.length) return current;
-      const next = [...current];
+      if (target < 0 || target >= list.length) return list;
+      const next = [...list];
       const [moved] = next.splice(index, 1);
       next.splice(target, 0, moved);
       return next;
@@ -200,24 +144,30 @@ export function PlanBuilder() {
   if (isEditing && isLoading) {
     return (
       <section id="plan-builder-view">
-        <PageHeading>{isEditing ? "Edit Program" : "New Program"}</PageHeading>
-        <p className="text-sm text-muted">Loading plan…</p>
+        <h2 className="text-xl font-semibold tracking-tight">Edit Program</h2>
+        <p className="mt-2 text-sm text-muted">Loading plan…</p>
       </section>
     );
   }
 
   return (
-    <section id="plan-builder-view">
+    <section id="plan-builder-view" className="pb-24">
       <datalist id="exercise-catalogue-names">
         {catalogueExercises.map((exercise) => (
           <option key={exercise.id} value={exercise.name} />
         ))}
       </datalist>
-      <PageHeading hint="Superset rows by giving them the same group name.">
-        {isEditing ? "Edit Program" : "New Program"}
-      </PageHeading>
 
-      <Card className="flex flex-col gap-3 p-4">
+      <div className="mb-4 flex items-baseline justify-between gap-3">
+        <h2 className="text-xl font-semibold tracking-tight">
+          {isEditing ? "Edit Program" : "New Program"}
+        </h2>
+        <p className="font-mono text-sm text-muted" data-numeric data-testid="plan-summary">
+          {summary.exercises} exercise{summary.exercises === 1 ? "" : "s"} · {summary.sets} sets
+        </p>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <div>
           <label className="field-label" htmlFor="plan-name">
             Plan name
@@ -234,10 +184,8 @@ export function PlanBuilder() {
           <label className="field-label" htmlFor="plan-description">
             Description
           </label>
-          <textarea
+          <Input
             id="plan-description"
-            className="input"
-            rows={2}
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
@@ -245,291 +193,96 @@ export function PlanBuilder() {
             <p className="mt-1 text-sm text-danger">{errors.description}</p>
           ) : null}
         </div>
-      </Card>
-
-      <div className="mt-4">
-        <h3 className="mb-2 font-medium">Exercises</h3>
-        <div id="plan-exercises-list" className="flex flex-col gap-3">
-          {rows.map((row, index) => (
-            <div key={row.key} className="plan-exercise-row card flex flex-col gap-2 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-medium">Exercise {index + 1}</span>
-                <div className="flex gap-1">
-                  <Button
-                    aria-label={`Move ${row.exercise_name || `exercise ${index + 1}`} up`}
-                    disabled={index === 0}
-                    onClick={() => moveRow(index, -1)}
-                  >
-                    ↑
-                  </Button>
-                  <Button
-                    aria-label={`Move ${row.exercise_name || `exercise ${index + 1}`} down`}
-                    disabled={index === rows.length - 1}
-                    onClick={() => moveRow(index, 1)}
-                  >
-                    ↓
-                  </Button>
-                  <Button
-                    variant="danger"
-                    aria-label={`Remove ${row.exercise_name || `exercise ${index + 1}`}`}
-                    onClick={() => removeRow(row.key)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <label className="field-label" htmlFor={`exercise-name-${row.key}`}>
-                  Exercise name
-                </label>
-                <Input
-                  id={`exercise-name-${row.key}`}
-                  list="exercise-catalogue-names"
-                  autoComplete="off"
-                  value={row.exercise_name}
-                  onChange={(event) => updateRow(row.key, { exercise_name: event.target.value })}
-                />
-                {errors[`${index}.exercise_name`] ? (
-                  <p className="mt-1 text-sm text-danger">{errors[`${index}.exercise_name`]}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label className="field-label" htmlFor={`exercise-kind-${row.key}`}>
-                  Exercise type
-                </label>
-                <select
-                  id={`exercise-kind-${row.key}`}
-                  className="input"
-                  value={row.exercise_kind}
-                  onChange={(event) =>
-                    updateRow(row.key, { exercise_kind: event.target.value as ExerciseKind })
-                  }
-                >
-                  {(Object.keys(EXERCISE_KIND_LABELS) as ExerciseKind[]).map((kind) => (
-                    <option key={kind} value={kind}>
-                      {EXERCISE_KIND_LABELS[kind]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="field-label" htmlFor={`exercise-sets-${row.key}`}>
-                    Target sets
-                  </label>
-                  <Input
-                    id={`exercise-sets-${row.key}`}
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={row.target_sets}
-                    onChange={(event) => updateRow(row.key, { target_sets: event.target.value })}
-                  />
-                  {errors[`${index}.target_sets`] ? (
-                    <p className="mt-1 text-sm text-danger">{errors[`${index}.target_sets`]}</p>
-                  ) : null}
-                </div>
-                <div>
-                  <label className="field-label" htmlFor={`exercise-weight-${row.key}`}>
-                    Target weight (kg)
-                  </label>
-                  <Input
-                    id={`exercise-weight-${row.key}`}
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={row.target_weight_kg}
-                    onChange={(event) =>
-                      updateRow(row.key, { target_weight_kg: event.target.value })
-                    }
-                  />
-                  {errors[`${index}.target_weight_kg`] ? (
-                    <p className="mt-1 text-sm text-danger">
-                      {errors[`${index}.target_weight_kg`]}
-                    </p>
-                  ) : null}
-                </div>
-                <div>
-                  <label className="field-label" htmlFor={`exercise-reps-min-${row.key}`}>
-                    Min reps
-                  </label>
-                  <Input
-                    id={`exercise-reps-min-${row.key}`}
-                    type="number"
-                    min="1"
-                    max="1000"
-                    value={row.target_reps_min}
-                    onChange={(event) =>
-                      updateRow(row.key, { target_reps_min: event.target.value })
-                    }
-                  />
-                  {errors[`${index}.target_reps_min`] ? (
-                    <p className="mt-1 text-sm text-danger">
-                      {errors[`${index}.target_reps_min`]}
-                    </p>
-                  ) : null}
-                </div>
-                <div>
-                  <label className="field-label" htmlFor={`exercise-reps-max-${row.key}`}>
-                    Max reps
-                  </label>
-                  <Input
-                    id={`exercise-reps-max-${row.key}`}
-                    type="number"
-                    min="1"
-                    max="1000"
-                    value={row.target_reps_max}
-                    onChange={(event) =>
-                      updateRow(row.key, { target_reps_max: event.target.value })
-                    }
-                  />
-                  {errors[`${index}.target_reps_max`] ? (
-                    <p className="mt-1 text-sm text-danger">
-                      {errors[`${index}.target_reps_max`]}
-                    </p>
-                  ) : null}
-                </div>
-                {row.exercise_kind === "strength" ? (
-                  <div>
-                    <label className="field-label" htmlFor={`exercise-target-rir-${row.key}`}>
-                      Target RIR (optional)
-                    </label>
-                    <Input
-                      id={`exercise-target-rir-${row.key}`}
-                      type="number"
-                      min="0"
-                      max="10"
-                      value={row.target_rir}
-                      onChange={(event) =>
-                        updateRow(row.key, { target_rir: event.target.value })
-                      }
-                    />
-                    {errors[`${index}.target_rir`] ? (
-                      <p className="mt-1 text-sm text-danger">
-                        {errors[`${index}.target_rir`]}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-                <div>
-                  <label className="field-label" htmlFor={`exercise-rest-${row.key}`}>
-                    Rest seconds
-                  </label>
-                  <Input
-                    id={`exercise-rest-${row.key}`}
-                    type="number"
-                    min="0"
-                    max="3600"
-                    value={row.rest_time_seconds}
-                    onChange={(event) =>
-                      updateRow(row.key, { rest_time_seconds: event.target.value })
-                    }
-                  />
-                  {errors[`${index}.rest_time_seconds`] ? (
-                    <p className="mt-1 text-sm text-danger">
-                      {errors[`${index}.rest_time_seconds`]}
-                    </p>
-                  ) : null}
-                </div>
-                <div>
-                  <label className="field-label" htmlFor={`exercise-group-${row.key}`}>
-                    Superset group
-                  </label>
-                  <Input
-                    id={`exercise-group-${row.key}`}
-                    placeholder="e.g. A"
-                    value={row.group_key}
-                    onChange={(event) => updateRow(row.key, { group_key: event.target.value })}
-                  />
-                  {errors[`${index}.group_key`] ? (
-                    <p className="mt-1 text-sm text-danger">{errors[`${index}.group_key`]}</p>
-                  ) : null}
-                </div>
-              </div>
-
-              <div>
-                <label className="field-label" htmlFor={`exercise-notes-${row.key}`}>
-                  Notes
-                </label>
-                <textarea
-                  id={`exercise-notes-${row.key}`}
-                  className="input"
-                  rows={2}
-                  value={row.notes}
-                  onChange={(event) => updateRow(row.key, { notes: event.target.value })}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-        {movementBalance.length > 0 ? (
-          <section
-            className="mt-3 rounded-lg border border-line-muted p-3"
-            aria-label="Plan movement balance"
-            role="region"
-          >
-            <h4 className="font-medium">Planned sets by movement pattern</h4>
-            <p className="mt-1 text-xs text-muted">
-              Descriptive prescription totals. Catalogue name or alias matches determine the
-              pattern; unmatched, ambiguous, and unclassified exercises stay unclassified.
-            </p>
-            <ul className="mt-2 flex flex-col gap-1 text-sm">
-              {movementBalance.map((item) => (
-                <li
-                  key={item.movement_pattern ?? "unclassified"}
-                  className="flex justify-between gap-3"
-                >
-                  <span>
-                    {item.movement_pattern
-                      ? MOVEMENT_PATTERN_LABELS[item.movement_pattern]
-                      : "Unclassified"}
-                  </span>
-                  <span className="text-muted">
-                    {item.target_sets} target set{item.target_sets === 1 ? "" : "s"} · {item.exercise_count} exercise
-                    {item.exercise_count === 1 ? "" : "s"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button
-            id="add-compound-exercise-btn"
-            onClick={() =>
-              setRows((current) => [...current, emptyRow(compoundRestSeconds)])
-            }
-          >
-            + Add compound exercise
-          </Button>
-          <Button
-            id="add-isolation-exercise-btn"
-            onClick={() =>
-              setRows((current) => [...current, emptyRow(isolationRestSeconds)])
-            }
-          >
-            + Add isolation exercise
-          </Button>
-        </div>
-        <p className="mt-1 text-xs text-muted">
-          Pre-fills rest seconds from your Settings defaults ({compoundRestSeconds}s compound,{" "}
-          {isolationRestSeconds}s isolation) — change it per exercise as needed.
-        </p>
       </div>
 
-      <div className="mt-5 flex gap-2">
-        <Button
-          id="save-plan-btn"
-          variant="primary"
-          disabled={mutation.isPending}
-          onClick={submit}
+      <h3 className="mt-6 mb-1 font-medium">Exercises</h3>
+      <p className="mb-2 text-sm text-muted">
+        Superset rows by giving them the same group name. RIR is reps left in reserve.
+      </p>
+      <PlanTableHeader />
+      <div id="plan-exercises-list" className="flex flex-col">
+        {rows.map((row, index) => (
+          <PlanExerciseRow
+            key={row.key}
+            row={row}
+            index={index}
+            count={rows.length}
+            superset={letters[index]}
+            errors={errors}
+            onChange={(patch) => updateRow(row.key, patch)}
+            onMove={(direction) => moveRow(index, direction)}
+            onRemove={() => removeRow(row.key)}
+          />
+        ))}
+      </div>
+      {movementBalance.length > 0 ? (
+        <section
+          className="mt-4 border-t border-line-muted pt-3"
+          aria-label="Plan movement balance"
+          role="region"
         >
+          <h4 className="font-medium">Planned sets by movement pattern</h4>
+          <p className="mt-1 text-xs text-muted">
+            Descriptive prescription totals. Catalogue name or alias matches determine the
+            pattern; unmatched, ambiguous, and unclassified exercises stay unclassified.
+          </p>
+          <ul className="mt-2 flex flex-col gap-1 text-sm">
+            {movementBalance.map((item) => (
+              <li
+                key={item.movement_pattern ?? "unclassified"}
+                className="flex justify-between gap-3"
+              >
+                <span>
+                  {item.movement_pattern
+                    ? MOVEMENT_PATTERN_LABELS[item.movement_pattern]
+                    : "Unclassified"}
+                </span>
+                <span className="font-mono text-muted" data-numeric>
+                  {item.target_sets} target set{item.target_sets === 1 ? "" : "s"} ·{" "}
+                  {item.exercise_count} exercise{item.exercise_count === 1 ? "" : "s"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {rows.length === 0 ? (
+        <p className="border-b border-line-muted py-6 text-center text-sm text-muted">
+          No exercises yet. Add one below.
+        </p>
+      ) : null}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          id="add-compound-exercise-btn"
+          onClick={() => setRows((list) => [...list, emptyRow(compoundRestSeconds)])}
+        >
+          + Add compound exercise
+        </Button>
+        <Button
+          id="add-isolation-exercise-btn"
+          onClick={() => setRows((list) => [...list, emptyRow(isolationRestSeconds)])}
+        >
+          + Add isolation exercise
+        </Button>
+      </div>
+      <p className="mt-2 text-xs text-muted">
+        Pre-fills rest seconds from your Settings defaults ({compoundRestSeconds}s compound,{" "}
+        {isolationRestSeconds}s isolation) — change it per exercise as needed.
+      </p>
+
+      <div
+        data-testid="plan-actions"
+        className="sticky -bottom-8 lg:-bottom-16 -mx-4 mt-6 flex items-center gap-2 border-t border-line bg-canvas px-4 py-3 lg:-mx-0 lg:px-0"
+      >
+        <Button id="save-plan-btn" variant="primary" disabled={mutation.isPending} onClick={submit}>
           {isEditing ? "Save changes" : "Create program"}
         </Button>
         <Button onClick={() => void navigate("/plans")}>Cancel</Button>
+        {dirty ? (
+          <span role="status" className="ml-auto text-sm text-warn">
+            Unsaved changes
+          </span>
+        ) : null}
       </div>
     </section>
   );

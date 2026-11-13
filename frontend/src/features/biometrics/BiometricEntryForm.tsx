@@ -10,7 +10,7 @@ import {
   nowAsLocalDateTimeInput,
   toLocalDateTimeInput,
 } from "@/lib/date-time-inputs";
-import { Button, Card, Input, PageHeading } from "@/ui";
+import { Button, Block, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
 
 const CIRCUMFERENCE_FIELDS = [
@@ -150,7 +150,7 @@ export function BiometricEntryForm() {
     <section id="biometric-form-view">
       <PageHeading>{isEditing ? "Edit Entry" : "Log Biometrics"}</PageHeading>
 
-      <Card className="flex flex-col gap-4 p-4">
+      <Block className="flex flex-col gap-4 py-4">
         <div>
           <label className="field-label" htmlFor="metric-measured-at">
             Date and time
@@ -225,7 +225,7 @@ export function BiometricEntryForm() {
             ))}
           </div>
         </div>
-      </Card>
+      </Block>
 
       <div className="mt-5 flex gap-2">
         <Button

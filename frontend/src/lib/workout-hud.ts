@@ -3,7 +3,7 @@ import {
   buildWorkoutGrid,
   groupSessionExercises,
 } from "./workout-utils";
-import type { GridRow, GridSession } from "./workout-utils";
+import type { ExerciseKind, GridRow, GridSession, SetEntry } from "./workout-utils";
 import type { WorkoutSession } from "@/api/types";
 import type { SetOperation } from "./active-workout-state";
 
@@ -66,9 +66,16 @@ export function projectQueuedSets(
   queue: SetOperation[],
 ): { session: WorkoutSession; rest: QueuedRest | null } {
   if (queue.length === 0) return { session, rest: null };
+  // Optimistic placeholders ("pending-" ids, see optimistic-session.ts) stand in
+  // for queued sets until the server answers. Derive them from the queue again
+  // here instead, so the queue stays the single source for pending sets, rest
+  // and focus.
   const projected = {
     ...session,
-    exercises: session.exercises.map((exercise) => ({ ...exercise, set_entries: [...exercise.set_entries] })),
+    exercises: session.exercises.map((exercise) => ({
+      ...exercise,
+      set_entries: exercise.set_entries.filter((entry) => !String(entry.id).startsWith("pending-")),
+    })),
   };
   let rest: QueuedRest | null = null;
   let restStarted = session.exercises.flatMap((exercise) => exercise.set_entries)
@@ -208,4 +215,70 @@ export function rirPillValue(raw: string): string {
   const value = Number.parseInt(raw, 10);
   if (!Number.isFinite(value)) return "";
   return String(Math.min(4, Math.max(0, value)));
+}
+
+/** 105 -> "105", 62.5 -> "62.5": no trailing zeros, tabular-friendly. */
+function plain(value: number): string {
+  return String(Number(value.toFixed(2)));
+}
+
+/** One logged set as a short, glanceable string: "105×8", "+10×6", "25:00". */
+export function setSummary(
+  kind: ExerciseKind,
+  entry: Partial<SetEntry> & { state: string },
+): string {
+  if (entry.state === "skipped") return "skipped";
+  if (kind === "cardio") {
+    const seconds = entry.duration_seconds ?? 0;
+    return `${pad(Math.floor(seconds / 60))}:${pad(seconds % 60)}`;
+  }
+  const reps = entry.reps ?? 0;
+  const load = kind === "bodyweight" ? entry.added_weight_kg : entry.weight_kg;
+  if (!load) return `${reps} reps`;
+  return `${kind === "bodyweight" ? "+" : ""}${plain(load)}×${reps}`;
+}
+
+export interface TrailItem {
+  setNumber: number;
+  state: "done" | "skipped" | "current" | "todo";
+  /** What was logged; null until the set is done. */
+  text: string | null;
+}
+
+/** The sets of one exercise as a trail: what was logged, which set is on, and
+ * what is still to come. Gives the top of the phone HUD something to read. */
+export function setTrail(
+  rows: HudRow[],
+  exerciseId: string,
+  currentSet: number,
+): TrailItem[] {
+  return rows
+    .filter((row) => row.exercise.id === exerciseId)
+    .map((row) => {
+      if (row.entry) {
+        const skipped = row.entry.state === "skipped";
+        return {
+          setNumber: row.setNumber,
+          state: skipped ? "skipped" : "done",
+          text: setSummary(row.exercise.exercise_kind, row.entry),
+        } as const;
+      }
+      return {
+        setNumber: row.setNumber,
+        state: row.setNumber === currentSet ? "current" : "todo",
+        text: null,
+      } as const;
+    });
+}
+
+/** "Incline Press · 3 sets · 30 kg × 8" for the next exercise, or null. */
+export function upNextText(row: HudRow | null): string | null {
+  if (!row) return null;
+  const { exercise } = row;
+  const sets = `${exercise.target_sets} ${exercise.target_sets === 1 ? "set" : "sets"}`;
+  const load =
+    exercise.exercise_kind === "strength" && exercise.suggested_weight_kg
+      ? ` · ${plain(exercise.suggested_weight_kg)} kg × ${exercise.suggested_reps}`
+      : "";
+  return `${exercise.exercise_name} · ${sets}${load}`;
 }

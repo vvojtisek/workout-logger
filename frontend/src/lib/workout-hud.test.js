@@ -10,7 +10,10 @@ import {
   previousExercise,
   previousSet,
   rirPillValue,
+  setSummary,
+  setTrail,
   stepValue,
+  upNextText,
 } from "./workout-hud";
 
 /**
@@ -139,5 +142,46 @@ describe("formatting and steppers", () => {
     expect(rirPillValue("2")).toBe("2");
     expect(rirPillValue("7")).toBe("4");
     expect(rirPillValue("")).toBe("");
+  });
+});
+
+describe("setSummary", () => {
+  it("prints weight x reps for strength, trimming trailing zeros", () => {
+    expect(setSummary("strength", { weight_kg: 105, reps: 8, state: "completed" })).toBe("105×8");
+    expect(setSummary("strength", { weight_kg: 62.5, reps: 10, state: "completed" })).toBe("62.5×10");
+  });
+
+  it("falls back to reps alone without a weight, and marks added load on bodyweight", () => {
+    expect(setSummary("strength", { weight_kg: null, reps: 12, state: "completed" })).toBe("12 reps");
+    expect(setSummary("bodyweight", { added_weight_kg: 10, reps: 6, state: "completed" })).toBe("+10×6");
+    expect(setSummary("bodyweight", { added_weight_kg: null, reps: 15, state: "completed" })).toBe("15 reps");
+  });
+
+  it("prints duration for cardio and a dash for a skipped set", () => {
+    expect(setSummary("cardio", { duration_seconds: 1500, state: "completed" })).toBe("25:00");
+    expect(setSummary("strength", { weight_kg: 80, reps: 5, state: "skipped" })).toBe("skipped");
+  });
+});
+
+describe("setTrail", () => {
+  it("lists every set of the shown exercise with its state and what was logged", () => {
+    const squat = exercise("squat", 0, 3, { done: [1] });
+    const rows = performanceOrder(session([squat, exercise("row", 1, 1)], "squat", 2));
+    expect(setTrail(rows, "squat", 2)).toEqual([
+      { setNumber: 1, state: "done", text: "50×8" },
+      { setNumber: 2, state: "current", text: null },
+      { setNumber: 3, state: "todo", text: null },
+    ]);
+  });
+});
+
+describe("upNextText", () => {
+  it("names the next exercise with its sets and suggested load", () => {
+    const rows = performanceOrder(session([exercise("squat", 0, 2), exercise("row", 1, 3)], "squat", 1));
+    expect(upNextText(nextExercise(rows, 0))).toBe("row · 3 sets · 50 kg × 8");
+  });
+
+  it("is null at the end of the workout", () => {
+    expect(upNextText(null)).toBeNull();
   });
 });

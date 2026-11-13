@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { NutritionDailySummary } from "@/api/types";
-import { Button, Card, PageHeading } from "@/ui";
+import { Button, Block, PageHeading } from "@/ui";
 import { formatDate } from "@/lib/format";
 
 function pad(value: number): string {
@@ -60,7 +60,7 @@ export function NutritionDashboardView() {
 
   return (
     <section id="nutrition-dashboard-view">
-      <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between [&_h2+p]:max-w-prose">
         <PageHeading hint="Daily energy and macro totals against your current target.">
           Nutrition
         </PageHeading>
@@ -88,7 +88,7 @@ export function NutritionDashboardView() {
       ) : null}
 
       {!error && !isLoading && data ? (
-        <Card className="flex flex-col gap-4 p-4">
+        <Block className="flex flex-col gap-4 py-4">
           {data.target ? (
             <p className="text-xs text-muted">Target: {data.target.name}</p>
           ) : (
@@ -126,7 +126,7 @@ export function NutritionDashboardView() {
             target={data.target?.fiber_target_g ?? null}
             unit="g"
           />
-        </Card>
+        </Block>
       ) : null}
 
       <div className="mt-4">

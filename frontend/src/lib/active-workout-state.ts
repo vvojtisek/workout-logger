@@ -30,7 +30,9 @@ export function restTimerState(restEndsAt: string | null, now: Date = new Date()
   if (remainingSeconds === 0) {
     return { status: "expired", remainingSeconds: 0, label: "Rest complete" };
   }
-  return { status: "active", remainingSeconds, label: `Rest: ${remainingSeconds}s` };
+  const minutes = String(Math.floor(remainingSeconds / 60)).padStart(2, "0");
+  const seconds = String(remainingSeconds % 60).padStart(2, "0");
+  return { status: "active", remainingSeconds, label: `Rest: ${minutes}:${seconds}` };
 }
 
 export function adjustedRemainingSeconds(

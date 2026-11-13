@@ -62,7 +62,7 @@ test("rest timer and an offline set retry recover against the real server", asyn
 
     const restOverlay = page.locator("#active-rest-overlay");
     await expect(restOverlay).toBeVisible();
-    await expect(restOverlay.getByRole("timer")).toContainText(/Rest: (59|60)s/);
+    await expect(restOverlay.getByRole("timer")).toContainText(/Rest: 0(0:59|1:00)/);
     await expect(row(1).getByRole("button", { name: "Edit" })).toBeVisible();
     await expect(row(1).getByRole("button", { name: "Undo" })).toBeVisible();
     const overlayBox = await restOverlay.boundingBox();
@@ -117,7 +117,7 @@ test("rest timer and an offline set retry recover against the real server", asyn
     await expect(row(2).getByLabel("Repetitions")).toHaveValue("8");
     await expect(row(2).getByLabel("RIR")).toHaveValue("1");
     await page.reload();
-    await expect(restOverlay.getByRole("timer")).toContainText(/Rest: (59|60)s/);
+    await expect(restOverlay.getByRole("timer")).toContainText(/Rest: 0(0:59|1:00)/);
     await expect(row(2).getByLabel("Weight (kg)")).toHaveValue("62.75");
     await expect(row(2).getByLabel("Repetitions")).toHaveValue("8");
     await expect(row(2).getByLabel("RIR")).toHaveValue("1");
@@ -186,6 +186,15 @@ test("rest timer and an offline set retry recover against the real server", asyn
 
     await row(4).getByRole("button", { name: `Skip ${tag} Deadlift set 4` }).click();
     await expect(row(4)).toHaveAttribute("data-state", "skipped");
+    // The screen updates before the write reaches the server, so wait for it.
+    await expect
+      .poll(async () => {
+        const body = await (
+          await request.get(`/api/v1/workout-sessions/${sessionId}`)
+        ).json();
+        return body.exercises[0].set_entries.length;
+      })
+      .toBe(4);
     const skippedSet = await (
       await request.get(`/api/v1/workout-sessions/${sessionId}`)
     ).json();

@@ -15,11 +15,15 @@ import type {
   Paginated,
   ScheduledWorkout,
   SleepEntry,
+  WorkoutLog,
   WorkoutLogSummary,
   WorkoutPlan,
   WorkoutSession,
 } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
+import { MuscleSplit } from "@/features/dashboard/MuscleSplit";
+import { RecentSessions } from "@/features/dashboard/RecentSessions";
+import { VolumeChart } from "@/features/dashboard/VolumeChart";
 import { LocationCheckDialog } from "@/features/locations/LocationCheckDialog";
 import { DrinkQuickAdd, useQuickAddPresets } from "@/features/nutrition/DrinkQuickAdd";
 import { isPresetEntry } from "@/lib/quick-add";
@@ -47,8 +51,9 @@ import {
   writeSkippedEvent,
 } from "@/lib/today";
 import type { RepeatableMeal } from "@/lib/today";
+import { useIsDesktop } from "@/lib/use-media-query";
 import { toast } from "@/ui/Toast";
-import { Button, Card } from "@/ui";
+import { Button } from "@/ui";
 
 interface CalendarWindow {
   items: ScheduledWorkout[];
@@ -64,17 +69,34 @@ function addDays(date: Date, days: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
-function TodayCard({ title, aside, children, testId }: { title: string; aside?: ReactNode; children: ReactNode; testId: string }) {
+/** One block of Today. Flat: a hairline and spacing group it, instead of a
+ * bordered box around every block. `lead` is the first block, which needs
+ * neither. */
+function TodayCard({
+  title,
+  aside,
+  children,
+  testId,
+  lead = false,
+}: {
+  title: string;
+  aside?: ReactNode;
+  children: ReactNode;
+  testId: string;
+  lead?: boolean;
+}) {
   return (
-    <Card className="flex flex-col gap-3 p-4">
-      <section aria-label={title} data-testid={testId} className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <h3 className="text-xs font-semibold tracking-wide text-muted uppercase">{title}</h3>
-          {aside ? <span className="text-xs text-dim">{aside}</span> : null}
-        </div>
-        {children}
-      </section>
-    </Card>
+    <section
+      aria-label={title}
+      data-testid={testId}
+      className={`flex flex-col gap-3 ${lead ? "" : "border-t border-line-muted pt-5"}`}
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-xs font-semibold tracking-wide text-muted uppercase">{title}</h3>
+        {aside ? <span className="text-xs text-dim">{aside}</span> : null}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -156,16 +178,19 @@ export function TodayView() {
   const logs = useQuery({
     queryKey: [...TODAY_KEY, "logs"],
     ...FRESH,
-    queryFn: () => apiFetch<Paginated<WorkoutLogSummary>>("/logs?limit=20"),
+    // Set-level data rides along on every log, so the dashboard panels can
+    // aggregate on the client without a new endpoint.
+    queryFn: () => apiFetch<Paginated<WorkoutLog>>("/logs?limit=100"),
   });
+  const isDesktop = useIsDesktop();
 
   const occurrences = calendar.data?.load_events ?? [];
   const next = nextSportEvent(occurrences, now);
   const latestSleep = sleep.data?.items[0] ?? null;
   const weight = body.data?.latest?.weight_kg;
 
-  return (
-    <section id="today-view" className="flex flex-col gap-3">
+  const main = (
+    <div id="today-main" className="flex min-w-0 flex-col gap-5">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-xl font-semibold tracking-tight">{dayHeading(now)}</h2>
         <span data-numeric className="text-xs text-muted">
@@ -173,25 +198,56 @@ export function TodayView() {
         </span>
       </div>
 
-      <dl className="grid grid-cols-3 gap-2" aria-label="At a glance">
-        <Glance label="Sleep" value={latestSleep ? formatSleepDuration(latestSleep.time_in_bed_seconds) : "–"} />
-        <Glance label="Weight" value={weight != null ? `${weight} kg` : "–"} />
-        <Glance label="Next sport" value={next ? next.when : "None"} />
-      </dl>
-
       <CoachCard now={now} calendar={calendar.data} onChange={refresh} />
       <HockeyCards now={now} occurrences={occurrences} logs={logs.data?.items ?? []} onChange={refresh} />
       <SleepCard now={now} entries={sleep.data?.items} onChange={refresh} />
       <FoodCard now={now} onChange={refresh} />
+
+      <dl
+        aria-label="At a glance"
+        className="flex flex-wrap gap-x-5 gap-y-1 border-t border-line-muted pt-5 text-xs"
+      >
+        <Glance label="Sleep" value={latestSleep ? formatSleepDuration(latestSleep.time_in_bed_seconds) : "–"} />
+        <Glance label="Weight" value={weight != null ? `${weight} kg` : "–"} />
+        <Glance label="Next sport" value={next ? next.when : "None"} />
+      </dl>
+    </div>
+  );
+
+  // Phone: the one column above. Desktop: the same column beside the analysis
+  // panels, which use the width instead of stretching the column.
+  if (!isDesktop) {
+    return (
+      <section id="today-view" className="flex flex-col gap-3">
+        {main}
+      </section>
+    );
+  }
+  return (
+    <section
+      id="today-view"
+      className="grid grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)] items-start gap-x-10"
+    >
+      {main}
+      <aside
+        aria-label="Training analysis"
+        className="grid min-w-0 grid-cols-1 gap-x-10 gap-y-8 xl:grid-cols-2"
+      >
+        <div className="xl:col-span-2">
+          <VolumeChart logs={logs.data?.items ?? []} />
+        </div>
+        <MuscleSplit logs={logs.data?.items ?? []} />
+        <RecentSessions logs={logs.data?.items ?? []} />
+      </aside>
     </section>
   );
 }
 
 function Glance({ label, value }: { label: string; value: string }) {
   return (
-    <div className="card min-w-0 px-2.5 py-2">
-      <dt className="text-[11px] text-muted">{label}</dt>
-      <dd data-numeric className="truncate text-sm font-semibold">
+    <div className="flex min-w-0 items-baseline gap-1.5">
+      <dt className="text-muted">{label}</dt>
+      <dd data-numeric className="truncate font-semibold">
         {value}
       </dd>
     </div>
@@ -330,7 +386,7 @@ function CoachCard({ now, calendar, onChange }: { now: Date; calendar: CalendarW
   }
 
   return (
-    <TodayCard title="Coach · today" testId="today-coach">
+    <TodayCard title="Coach · today" testId="today-coach" lead>
       {content}
       {pendingCheck ? (
         <LocationCheckDialog
@@ -510,10 +566,10 @@ function FoodCard({ now, onChange }: { now: Date; onChange: () => void }) {
                 type="button"
                 disabled={repeat.isPending}
                 onClick={() => repeat.mutate(meal)}
-                className="min-h-9 max-w-full truncate rounded-full border border-line bg-elevated px-3 py-1.5 text-left text-sm disabled:opacity-50"
+                className="min-h-11 max-w-full truncate rounded-full border border-line bg-elevated px-3 py-1.5 text-left text-sm disabled:opacity-50"
               >
                 {meal.label}
-                <span data-numeric className="ml-1 text-muted">
+                <span data-numeric className="ml-1 font-mono text-muted">
                   {meal.energyKcal} kcal
                 </span>
               </button>

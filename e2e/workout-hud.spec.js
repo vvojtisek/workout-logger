@@ -146,12 +146,12 @@ test("logs a superset workout one-handed on the phone HUD", async ({
       expect(box?.height).toBeGreaterThanOrEqual(44);
     }
 
-    // Completing turns the action into the rest bar and moves to set 2 with
-    // the values just logged.
+    // Completing starts the rest bar below the HUD and moves to set 2 with
+    // the values just logged. The Log button stays where it was.
     await complete.click();
     const timer = page.getByRole("timer");
     await expect(timer).toHaveText(/^RESTING — 00:(29|30)$/);
-    await expect(complete).toHaveCount(0);
+    await expect(complete).toBeVisible();
     await expect(page.locator("#hud-position")).toHaveText(
       "EXERCISE 1 OF 3 • SET 2 OF 2",
     );

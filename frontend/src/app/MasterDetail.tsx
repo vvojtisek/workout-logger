@@ -8,6 +8,18 @@ import { useIsDesktop } from "@/lib/use-media-query";
  * because the page lays out its own panes. */
 export const FULL_BLEED = { fullBleed: true } as const;
 
+/** Route handle for a page that wants the desktop's full width but still
+ * scrolls as one page (a dashboard), instead of the capped reading column. */
+export const WIDE = { wide: true } as const;
+
+export function isWide(handle: unknown): boolean {
+  return (
+    typeof handle === "object" &&
+    handle !== null &&
+    (handle as { wide?: unknown }).wide === true
+  );
+}
+
 export function isFullBleed(handle: unknown): boolean {
   return (
     typeof handle === "object" &&
@@ -42,11 +54,14 @@ export function MasterDetail({
   base,
   list,
   placeholder,
+  detailWidth = "max-w-3xl",
 }: {
   /** The list's own path, e.g. "/history"; anything below it is detail. */
   base: string;
   list: ReactNode;
   placeholder: string;
+  /** Tailwind max-width class for the detail pane's content. */
+  detailWidth?: string;
 }) {
   const isDesktop = useIsDesktop();
   const atList = useMatch({ path: base, end: true }) !== null;
@@ -78,7 +93,7 @@ export function MasterDetail({
         {atList ? (
           <p className="pt-16 text-center text-sm text-muted">{placeholder}</p>
         ) : (
-          <div className="max-w-3xl">{detail}</div>
+          <div className={detailWidth}>{detail}</div>
         )}
       </div>
     </div>

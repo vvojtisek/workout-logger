@@ -316,7 +316,7 @@ export function MealEntryForm() {
                     ) : null}
                     <button
                       type="button"
-                      className="mt-1 text-sm text-accent underline"
+                      className="mt-1 inline-flex min-h-11 items-center text-sm text-accent-ink underline"
                       aria-expanded={catalogRowKey === row.key}
                       onClick={() => setCatalogRowKey(catalogRowKey === row.key ? null : row.key)}
                     >

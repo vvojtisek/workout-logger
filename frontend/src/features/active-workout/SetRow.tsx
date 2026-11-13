@@ -9,6 +9,7 @@ import {
   saveSetDraft,
 } from "@/lib/active-workout-state";
 import type { SetDraft } from "@/lib/active-workout-state";
+import { isPendingEntry } from "@/lib/optimistic-session";
 import { repsHint, weightHint } from "@/lib/load-rules";
 import type { LoadRule } from "@/lib/load-rules";
 import { resolveSetDisplayState } from "@/lib/workout-utils";
@@ -44,7 +45,7 @@ export const EMPTY_DRAFT: SetDraft = {
 // flexible (1fr/auto) its track width would depend on that row's own content -
 // for example a longer exercise name growing the action column - and rows would
 // stop lining up with the header and with each other.
-export const ROW_GRID = "grid grid-cols-[3.5rem_6rem_5.5rem_5.5rem_5.5rem_12rem] gap-2 min-w-[38rem]";
+export const ROW_GRID = "grid grid-cols-[3rem_6rem_5rem_5rem_5rem_16rem] gap-2 min-w-[42rem]";
 
 /** The three input cells shown for each exercise kind, in column order. Every
  *  kind gets exactly three, matching the grid's three middle columns. */
@@ -211,6 +212,7 @@ export function SetRow({
   sessionId,
   totalSets,
   roundLabel,
+  previousText,
   onComplete,
   onSkip,
   onCorrect,
@@ -223,6 +225,8 @@ export function SetRow({
   /** Compact "1A"/"1B" style label shown instead of the plain set number when
    *  this row is part of an interleaved superset round. */
   roundLabel?: string | null;
+  /** What this set managed in the last logged session, e.g. "30 kg × 12". */
+  previousText?: string | null;
   onComplete: (row: GridRow, values: SetValues) => void;
   onSkip: (row: GridRow, values: SetValues) => void;
   /** Resolves true once the correction is saved, which ends editing. */
@@ -377,13 +381,13 @@ export function SetRow({
       data-set-number={String(row.setNumber)}
       data-state={row.state}
       onSubmit={submit}
-      className={`${ROW_GRID} items-end border-t border-line-muted py-2 ${stateClass}`}
+      className={`${ROW_GRID} items-center border-t border-line-muted py-2 ${stateClass}`}
     >
       <strong className="self-center" data-numeric>
         {roundLabel ?? row.setNumber}
       </strong>
-      <span className="self-center text-xs text-muted" data-numeric>
-        {kind === "cardio" ? "—" : `${row.exercise.suggested_weight_kg ?? "—"} kg × ${row.exercise.suggested_reps}`}
+      <span className="self-center truncate text-xs text-muted" data-numeric>
+        {kind === "cardio" ? "—" : (previousText ?? "—")}
       </span>
       {fieldsReady
         ? fieldSpecs.map((spec, index) => (
@@ -405,8 +409,10 @@ export function SetRow({
               className="input block w-20 min-h-touch min-w-touch px-2 opacity-40"
             />
           ))}
-      <div className="flex flex-wrap gap-1">
-        {row.entry ? (
+      <div className="flex flex-nowrap items-center gap-2">
+        {row.entry && isPendingEntry(row.entry) ? (
+          <span className="self-center text-xs font-medium text-muted">Saving…</span>
+        ) : row.entry ? (
           <>
             <span
               className={`self-center text-xs font-medium ${
@@ -442,7 +448,6 @@ export function SetRow({
           </>
         ) : (
           <>
-            <span className="self-center text-xs text-warn">{display.label}</span>
             <button
               type="submit"
               className="btn btn-primary btn-touch"

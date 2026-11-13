@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   exerciseListPath,
+  fetchCatalogue,
   fetchCatalogueExercises,
   fetchCatalogueNames,
 } from "./exercise-catalogue";
@@ -49,6 +50,21 @@ describe("fetchCatalogueNames", () => {
   it("stops on an empty page even if the total is stale", async () => {
     const names = await fetchCatalogueNames(async () => ({ items: [], total: 5 }));
     expect(names).toEqual([]);
+  });
+});
+
+describe("fetchCatalogue", () => {
+  it("pages through every entry and returns them whole", async () => {
+    const all = Array.from({ length: 250 }, (_, index) => ({ name: `Move ${index}` }));
+    /** @type {string[]} */
+    const asked = [];
+    const entries = await fetchCatalogue(async (path) => {
+      asked.push(path);
+      const offset = Number(new URLSearchParams(path.split("?")[1]).get("offset"));
+      return { items: all.slice(offset, offset + 100), total: all.length };
+    });
+    expect(entries).toHaveLength(250);
+    expect(asked).toHaveLength(3);
   });
 });
 

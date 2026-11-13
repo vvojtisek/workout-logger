@@ -19,7 +19,7 @@ import {
   loadWarningMessage,
   occurrencesByDate,
 } from "@/lib/load-events";
-import { Button, Card, PageHeading } from "@/ui";
+import { Button, PageHeading } from "@/ui";
 import { Dialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { formatDate } from "@/lib/format";
@@ -423,13 +423,13 @@ export function CalendarView() {
 
       <div
         id="calendar-weekdays"
-        className="grid grid-cols-7 gap-1.5 text-center text-xs font-medium text-muted"
+        className="grid grid-cols-7 gap-0.5 sm:gap-1.5 text-center text-xs font-medium text-muted"
       >
         {CALENDAR_WEEKDAYS.map((label) => (
           <div key={label}>{label}</div>
         ))}
       </div>
-      <div className="mt-1.5 grid grid-cols-7 gap-1.5">
+      <div className="mt-1.5 grid grid-cols-7 gap-0.5 sm:gap-1.5">
         {Array.from({ length: leadingBlanks }, (_, index) => (
           <div key={`blank-${index}`} />
         ))}
@@ -438,13 +438,18 @@ export function CalendarView() {
           const entries = entriesByDate.get(dateStr) ?? [];
           const loads = loadByDate.get(dateStr) ?? [];
           return (
-            <Card key={dateStr} className="flex min-h-[5.5rem] flex-col gap-1 p-1.5">
+            <div
+              key={dateStr}
+              className="flex min-h-[5.5rem] flex-col gap-1 border-t border-line-muted p-0.5 sm:p-1"
+            >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted">{day}</span>
+                <span className="font-mono text-xs font-medium text-muted" data-numeric>
+                  {day}
+                </span>
                 <button
                   type="button"
                   aria-label={`Schedule a workout on ${dateStr}`}
-                  className="rounded-full px-1.5 text-sm font-medium text-muted hover:text-accent"
+                  className="rounded-full px-1.5 text-sm font-medium text-muted hover:text-accent-ink"
                   style={{ minHeight: "var(--touch)", minWidth: "var(--touch)" }}
                   onClick={() => setScheduleDate(dateStr)}
                 >
@@ -457,7 +462,7 @@ export function CalendarView() {
                     key={`${load.event_id}:${load.start_time}`}
                     data-testid="calendar-load-event"
                     title={`${load.name}, ${clockTime(load.start_time)}, ${load.duration_minutes} min`}
-                    className="overflow-hidden whitespace-nowrap rounded-md border border-dashed border-accent py-0.5 text-center text-[0.6rem] tracking-tighter text-accent sm:truncate sm:px-1.5 sm:text-left sm:text-xs sm:tracking-normal"
+                    className="overflow-hidden whitespace-nowrap rounded-md border border-dashed border-accent py-0.5 text-center text-[0.6rem] tracking-tighter text-accent-ink sm:truncate sm:px-1.5 sm:text-left sm:text-xs sm:tracking-normal"
                   >
                     {/* Phone cells only fit the time; the kind joins it on wider screens. */}
                     <span className="hidden sm:inline">{LOAD_EVENT_KIND_LABELS[load.kind]} </span>
@@ -476,7 +481,7 @@ export function CalendarView() {
                           ? `${entry.workout_plan_name}, heavy legs before hockey`
                           : undefined
                       }
-                      className={`truncate rounded-md px-1.5 py-0.5 text-left text-xs font-medium ${STATUS_STYLES[entry.status]} ${flagged ? "ring-2 ring-danger" : ""}`}
+                      className={`min-h-11 truncate rounded-md px-1.5 py-0.5 text-left text-xs font-medium ${STATUS_STYLES[entry.status]} ${flagged ? "ring-2 ring-danger" : ""}`}
                     >
                       {flagged ? (
                         <span data-testid="calendar-load-warning" className="mr-0.5 font-bold text-danger">
@@ -488,7 +493,7 @@ export function CalendarView() {
                   );
                 })}
               </div>
-            </Card>
+            </div>
           );
         })}
       </div>

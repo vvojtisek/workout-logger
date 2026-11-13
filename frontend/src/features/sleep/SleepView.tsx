@@ -6,7 +6,7 @@ import { apiFetch, errorMessage } from "@/api/client";
 import type { Paginated, SleepEntry, SleepTrends } from "@/api/types";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
-import { Button, Card, EmptyState, PageHeading } from "@/ui";
+import { Button, Block, EmptyState, PageHeading } from "@/ui";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { SLEEP_QUALITY_SCALE, scaleText } from "@/lib/scales";
 
@@ -26,7 +26,7 @@ function TrendCard({ trends }: { trends: SleepTrends }) {
     );
   }
   return (
-    <Card className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4">
+    <Block className="grid grid-cols-2 gap-4 py-4 sm:grid-cols-4">
       <div>
         <p className="text-xs text-muted">Last night</p>
         <p className="mt-1 text-lg font-semibold tabular-nums">
@@ -57,7 +57,7 @@ function TrendCard({ trends }: { trends: SleepTrends }) {
             : "—"}
         </p>
       </div>
-    </Card>
+    </Block>
   );
 }
 
@@ -129,7 +129,7 @@ export function SleepView() {
           </li>
         ) : null}
         {entries.map((entry) => (
-          <li key={entry.id} className="card flex flex-wrap items-center justify-between gap-3 p-4">
+          <li key={entry.id} className="block-flat flex flex-wrap items-center justify-between gap-3 py-4">
             <div className="min-w-0">
               <p className="font-medium tabular-nums">
                 {formatDate(entry.sleep_date)}

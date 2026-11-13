@@ -30,3 +30,15 @@ export function exerciseStatsFacts(stats: ExerciseStats | undefined): string[] {
   if (stats.trend) facts.push(TREND_LABELS[stats.trend]);
   return facts;
 }
+
+/** What the same set weighed and managed in the last logged session, for the
+ * "Previous" column ("30 kg × 12"). Null when there is no such set. */
+export function previousSetText(
+  stats: ExerciseStats | undefined,
+  setNumber: number,
+): string | null {
+  const reps = stats?.last_reps_per_set?.[setNumber - 1];
+  if (!stats || reps === undefined) return null;
+  if (!stats.last_weight_kg) return `${reps} reps`;
+  return `${Number(stats.last_weight_kg.toFixed(2))} kg × ${reps}`;
+}

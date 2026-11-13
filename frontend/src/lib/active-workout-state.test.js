@@ -45,7 +45,7 @@ describe("absolute rest timer state", () => {
     expect(restTimerState(deadline, new Date("2026-08-22T10:00:00.000Z"))).toEqual({
       status: "active",
       remainingSeconds: 90,
-      label: "Rest: 90s",
+      label: "Rest: 01:30",
     });
     expect(restTimerState(deadline, new Date("2026-08-22T10:01:31.000Z"))).toEqual({
       status: "expired",

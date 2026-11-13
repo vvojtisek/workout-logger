@@ -8,6 +8,9 @@ import globals from "globals";
 export default [
   {
     ignores: [
+      ".agents/**",
+      ".claude/**",
+      ".github/skills/**",
       "app/static/dist/**",
       "frontend/**/*.ts",
       "frontend/**/*.tsx",
@@ -19,6 +22,14 @@ export default [
   js.configs.recommended,
   {
     files: ["e2e/**/*.js", "playwright.config.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: { ...globals.node, ...globals.browser },
+    },
+  },
+  {
+    files: ["frontend/**/*.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
