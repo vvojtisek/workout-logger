@@ -1,10 +1,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
+from app.exceptions import NotFoundError
 from app.schemas.common import ErrorResponse
 from app.schemas.workout_sessions import (
     LocationCheckRead,
@@ -53,12 +54,24 @@ async def start_workout_session(
     "/active",
     operation_id="get_active_workout_session",
     response_model=WorkoutSessionRead,
-    responses={404: {"model": ErrorResponse, "description": "No active session"}},
+    responses={
+        204: {"description": "No active session, and `optional=true` was requested"},
+        404: {"model": ErrorResponse, "description": "No active session"},
+    },
 )
 async def get_active_workout_session(
     session: SessionDep,
-) -> WorkoutSessionRead:
-    workout_session = await workout_sessions_service.get_active_session(session)
+    optional: Annotated[
+        bool,
+        Query(description="Answer 204 instead of 404 when no session is active."),
+    ] = False,
+) -> WorkoutSessionRead | Response:
+    try:
+        workout_session = await workout_sessions_service.get_active_session(session)
+    except NotFoundError:
+        if optional:
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+        raise
     return WorkoutSessionRead.model_validate(workout_session)
 
 

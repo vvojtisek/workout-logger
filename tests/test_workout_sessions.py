@@ -287,3 +287,18 @@ async def test_delete_session_removes_it_for_test_data_cleanup(client, auth_head
 
     missing = await client.get(f"{SESSIONS}/{session_id}", headers=auth_headers)
     assert missing.status_code == 404
+
+
+async def test_optional_active_lookup_answers_204_instead_of_404(client, auth_headers):
+    missing = await client.get(f"{SESSIONS}/active", headers=auth_headers)
+    assert missing.status_code == 404
+
+    optional = await client.get(f"{SESSIONS}/active?optional=true", headers=auth_headers)
+    assert optional.status_code == 204
+    assert optional.content == b""
+
+    plan = await create_plan(client, auth_headers)
+    started = await start_session(client, auth_headers, plan["id"])
+    found = await client.get(f"{SESSIONS}/active?optional=true", headers=auth_headers)
+    assert found.status_code == 200
+    assert found.json()["id"] == started["id"]

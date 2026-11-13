@@ -132,15 +132,18 @@ export function AppLayout() {
 
   useEffect(() => {
     let cancelled = false;
-    apiFetch<WorkoutSession>("/workout-sessions/active")
+    // `optional=true` answers 204 when nothing is active, so a normal cold load
+    // leaves no red 404 in the console. Restoring a session never navigates:
+    // the rest bar is the way back, so a deep link such as /history stays put.
+    apiFetch<WorkoutSession | null>("/workout-sessions/active?optional=true")
       .then((active) => {
-        if (!cancelled) openSession(active);
+        if (!cancelled && active) setSession(active);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [openSession]);
+  }, []);
 
   const isDesktop = useIsDesktop();
   const ctx: AppContextValue = {
