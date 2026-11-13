@@ -22,3 +22,10 @@ build/
 # Created when running deploy/aws/compose.yaml locally or in CI end-to-end tests.
 deploy/aws/.env.production
 deploy/aws/backups/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+# Local agent/tooling folders -- not part of the app
+.agents/
+.claude/
+.github/skills/
+skills-lock.json

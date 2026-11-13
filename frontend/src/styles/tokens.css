@@ -33,7 +33,7 @@
   /* Typography */
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --text-dim: #7a899f;
   --text-on-accent: #ffffff;
 
   /* Accents and status */
@@ -82,17 +82,17 @@
   /* Typography */
   --text-main: #0f172a;
   --text-muted: #475569;
-  --text-dim: #94a3b8;
+  --text-dim: #556377;
   --text-on-accent: #ffffff;
 
   /* Accents and status */
   --accent-primary: #2563eb;
   --accent-primary-hover: #1d4ed8;
   --accent-primary-soft: rgba(37, 99, 235, 0.12);
-  --accent-success: #059669;
+  --accent-success: #036a4d;
   --accent-success-soft: rgba(5, 150, 105, 0.12);
   --accent-success-text: #ffffff;
-  --accent-warn: #d97706;
+  --accent-warn: #92400e;
   --accent-warn-soft: rgba(217, 119, 6, 0.14);
   --accent-purple: #7c3aed;
   --accent-purple-soft: rgba(124, 58, 237, 0.12);
