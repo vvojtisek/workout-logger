@@ -27,7 +27,7 @@ import { hudIndex, performanceOrder } from "@/lib/workout-hud";
 import { WorkoutHud } from "./WorkoutHud";
 
 export function ActiveWorkoutView() {
-  const { session, online, updateSession, finishSession } = useAppContext();
+  const { session, sessionResolved, online, updateSession, finishSession } = useAppContext();
   const hadSessionRef = useRef(false);
   if (session) hadSessionRef.current = true;
 
@@ -37,6 +37,9 @@ export function ActiveWorkoutView() {
   // router's own navigate("/history") lands, and redirecting to /plans here
   // in that window would win the race and hijack the destination — so after
   // finishing, render nothing and let the in-flight navigation land instead.
+  // Wait for the first lookup: a reload at /workout has no session yet, and
+  // redirecting now would bounce a live workout to the plans list.
+  if (!session && !sessionResolved) return null;
   if (!session && !hadSessionRef.current) return <Navigate to="/plans" replace />;
   if (!session) return null;
 

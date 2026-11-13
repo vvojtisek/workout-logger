@@ -276,7 +276,7 @@ export function WorkoutHud(props: WorkoutHudProps) {
         <div className="flex flex-col items-center gap-1 pt-4 pb-3 text-center">
           <p
             id="hud-position"
-            className="text-[11px] font-semibold tracking-widest text-muted"
+            className="text-xs font-semibold tracking-widest text-muted"
             data-numeric
           >
             EXERCISE {position.index} OF {position.total} • SET {row.setNumber}{" "}
@@ -311,11 +311,11 @@ export function WorkoutHud(props: WorkoutHudProps) {
             ) : null;
           })()}
           {props.statsLine}
-          {row.entry ? null : (
-            <p className="text-xs text-warn">
-              {previousLogged
-                ? `Repeating set ${previousLogged.setNumber} · not saved`
-                : suggestionLabel(row.exercise.suggestion_source, row.exercise.suggestion_note)}
+          {/* Only a coaching note ("Same load, aim for 8 reps") earns a line; the
+              plain "suggested from plan / repeating set" provenance is noise. */}
+          {row.entry || previousLogged || !row.exercise.suggestion_note ? null : (
+            <p className="text-xs text-muted" id="hud-suggestion">
+              {suggestionLabel(row.exercise.suggestion_source, row.exercise.suggestion_note)}
             </p>
           )}
         </div>
@@ -368,7 +368,7 @@ function Dial({
     <div className="card flex flex-col gap-2 p-3">
       <label
         htmlFor={id}
-        className="text-center text-[11px] font-semibold tracking-wider text-muted uppercase"
+        className="text-center text-xs font-semibold tracking-wider text-muted uppercase"
       >
         <span className="sr-only">{spec.label}</span>
         <span aria-hidden="true">{CAPTIONS[spec.draftKey] ?? spec.label}</span>
@@ -384,7 +384,7 @@ function Dial({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full bg-transparent text-center font-mono text-[32px] leading-tight font-bold disabled:text-muted"
+        className="min-h-12 w-full bg-transparent text-center font-mono text-[32px] leading-tight font-bold disabled:text-muted"
       />
       {step ? (
         <div className="grid grid-cols-2 gap-2">
@@ -392,7 +392,7 @@ function Dial({
             type="button"
             disabled={disabled}
             onClick={() => onChange(stepValue(value, -step.delta, step.min))}
-            className="btn btn-secondary h-11 font-mono"
+            className="btn btn-secondary h-14 font-mono text-base"
           >
             −{step.delta}
           </button>
@@ -400,7 +400,7 @@ function Dial({
             type="button"
             disabled={disabled}
             onClick={() => onChange(stepValue(value, step.delta, step.min))}
-            className="btn btn-secondary h-11 font-mono"
+            className="btn btn-secondary h-14 font-mono text-base"
           >
             +{step.delta}
           </button>
@@ -420,35 +420,48 @@ function RirPills({
   onChange: (value: string) => void;
 }) {
   const selected = rirPillValue(value);
+  const [hintOpen, setHintOpen] = useState(false);
   return (
     <div className="flex flex-col gap-1">
-      <div
-        role="radiogroup"
-        aria-label="RIR"
-        className="grid grid-cols-5 gap-2"
-      >
-        {RIR_PILLS.map((pill) => {
-          const active = pill.value === selected;
-          return (
-            <button
-              key={pill.value}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              disabled={disabled}
-              onClick={() => onChange(active ? "" : pill.value)}
-              className={`h-10 rounded-full border font-mono text-sm font-semibold ${
-                active
-                  ? "border-warn bg-warn-soft text-warn"
-                  : "border-line bg-elevated text-muted"
-              }`}
-            >
-              {pill.label}
-            </button>
-          );
-        })}
+      <div className="flex items-center gap-2">
+        <div
+          role="radiogroup"
+          aria-label="RIR"
+          className="grid flex-1 grid-cols-5 gap-2"
+        >
+          {RIR_PILLS.map((pill) => {
+            const active = pill.value === selected;
+            return (
+              <button
+                key={pill.value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                disabled={disabled}
+                onClick={() => onChange(active ? "" : pill.value)}
+                className={`h-12 rounded-full border font-mono text-sm font-semibold ${
+                  active
+                    ? "border-warn bg-warn-soft text-warn"
+                    : "border-line bg-elevated text-muted"
+                }`}
+              >
+                {pill.label}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          aria-label="What is RIR?"
+          aria-expanded={hintOpen}
+          aria-controls="rir-hint"
+          onClick={() => setHintOpen((open) => !open)}
+          className="btn btn-ghost h-12 w-12 shrink-0 rounded-full p-0 font-mono"
+        >
+          ?
+        </button>
       </div>
-      <p id="rir-hint" className="text-center text-[11px] text-muted">
+      <p id="rir-hint" hidden={!hintOpen} className="text-center text-xs text-muted">
         {RIR_HINT}
       </p>
     </div>
@@ -484,7 +497,7 @@ function RestBar({
         id="subtract-rest-time"
         aria-label="−15 seconds"
         onClick={() => onAdjust(-15)}
-        className="btn btn-secondary h-10 shrink-0 px-2 font-mono text-xs"
+        className="btn btn-secondary h-11 min-w-12 shrink-0 px-2 font-mono text-xs"
       >
         −15s
       </button>
@@ -493,7 +506,7 @@ function RestBar({
         id="add-rest-time"
         aria-label="+15 seconds"
         onClick={() => onAdjust(15)}
-        className="btn btn-secondary h-10 shrink-0 px-2 font-mono text-xs"
+        className="btn btn-secondary h-11 min-w-12 shrink-0 px-2 font-mono text-xs"
       >
         +15s
       </button>
@@ -501,7 +514,7 @@ function RestBar({
         type="button"
         id="skip-rest"
         onClick={onSkip}
-        className="btn btn-primary h-10 shrink-0 px-2 text-xs whitespace-nowrap"
+        className="btn btn-primary h-11 shrink-0 px-3 text-xs whitespace-nowrap"
       >
         Skip Rest
       </button>
@@ -738,7 +751,7 @@ function SetPanel({
           {!row.entry ? (
             <button
               type="button"
-              className="btn btn-ghost h-9 self-center text-xs"
+              className="btn btn-ghost h-11 self-center px-4 text-xs"
               onClick={() => onSkip(row, values())}
             >
               Skip set

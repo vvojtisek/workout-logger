@@ -49,6 +49,8 @@ import { useIsDesktop } from "@/lib/use-media-query";
 
 interface AppContextValue {
   session: WorkoutSession | null;
+  /** False until the first look for an already-active session has answered. */
+  sessionResolved: boolean;
   online: boolean;
   openSession: (session: WorkoutSession) => void;
   updateSession: (session: WorkoutSession) => void;
@@ -108,6 +110,7 @@ export function AppLayout() {
   const buildLabel = useBuildLabel(online);
   const { logout } = useAuth();
   const [session, setSession] = useState<WorkoutSession | null>(null);
+  const [sessionResolved, setSessionResolved] = useState(false);
 
   const handleLogout = useCallback(() => {
     void logout().then(() => navigate("/login"));
@@ -139,7 +142,10 @@ export function AppLayout() {
       .then((active) => {
         if (!cancelled && active) setSession(active);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setSessionResolved(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -148,6 +154,7 @@ export function AppLayout() {
   const isDesktop = useIsDesktop();
   const ctx: AppContextValue = {
     session,
+    sessionResolved,
     online,
     openSession,
     updateSession,
@@ -159,7 +166,7 @@ export function AppLayout() {
       id="logout-btn"
       type="button"
       onClick={handleLogout}
-      className="whitespace-nowrap text-xs font-medium text-muted hover:text-main"
+      className="inline-flex min-h-11 items-center whitespace-nowrap px-2 text-xs font-medium text-muted hover:text-main"
     >
       Log out
     </button>
@@ -276,7 +283,7 @@ function SectionPages({
             key={page.path}
             to={page.path}
             aria-current={active ? "page" : undefined}
-            className={`-mb-px shrink-0 border-b-2 px-3 py-2.5 text-sm font-medium ${
+            className={`-mb-px shrink-0 border-b-2 px-3 min-h-11 inline-flex items-center text-sm font-medium ${
               active
                 ? "border-accent text-main"
                 : "border-transparent text-muted hover:text-main"
@@ -304,7 +311,7 @@ function RailLink({
     <Link
       to={sectionTarget(section, sessionActive)}
       aria-current={active ? "page" : undefined}
-      className={`flex items-center gap-3 border-l-[3px] px-4 py-2.5 text-sm font-medium ${
+      className={`flex items-center gap-3 border-l-[3px] px-4 min-h-11 text-sm font-medium ${
         active
           ? "border-accent bg-elevated text-main"
           : "border-transparent text-muted hover:bg-elevated/60 hover:text-main"
@@ -327,7 +334,7 @@ function ThemeToggle() {
       onClick={() => setPreference(next)}
       aria-label={`Switch to ${next} theme`}
       title={`Switch to ${next} theme`}
-      className="rounded-[var(--radius-sm)] px-2 py-1 text-sm text-muted hover:bg-elevated hover:text-main"
+      className="rounded-[var(--radius-sm)] inline-flex h-11 w-11 items-center justify-center text-sm text-muted hover:bg-elevated hover:text-main"
     >
       {theme === "dark" ? (
         <Moon aria-hidden="true" size={16} strokeWidth={1.75} />
