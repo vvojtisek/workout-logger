@@ -78,7 +78,7 @@ export function projectQueuedSets(
     })),
   };
   let rest: QueuedRest | null = null;
-  let restStarted = session.exercises.flatMap((exercise) => exercise.set_entries)
+  let restStarted = projected.exercises.flatMap((exercise) => exercise.set_entries)
     .reduce((latest, entry) => {
       const time = entry.state === "completed" && entry.completed_at ? Date.parse(entry.completed_at) : NaN;
       return Number.isFinite(time) ? Math.max(latest, time) : latest;
