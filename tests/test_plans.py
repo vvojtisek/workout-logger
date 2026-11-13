@@ -47,6 +47,32 @@ async def test_create_plan_with_multiple_exercises(client, auth_headers):
     assert len(body["exercises"]) == 3
 
 
+async def test_plan_target_rir_is_preserved_on_create_and_replace(client, auth_headers):
+    payload = make_plan_payload(exercises=[{**make_exercise("Bench press"), "target_rir": 2}])
+    created = await client.post(BASE, json=payload, headers=auth_headers)
+    assert created.status_code == 201
+    plan_id = created.json()["id"]
+    assert created.json()["exercises"][0]["target_rir"] == 2
+
+    replacement = make_plan_payload(exercises=[{**make_exercise("Bench press"), "target_rir": 4}])
+    updated = await client.put(f"{BASE}/{plan_id}", json=replacement, headers=auth_headers)
+    assert updated.status_code == 200
+    assert updated.json()["exercises"][0]["target_rir"] == 4
+
+
+async def test_plan_target_rir_rejects_values_above_ten(client, auth_headers):
+    payload = make_plan_payload(exercises=[{**make_exercise("Bench press"), "target_rir": 11}])
+    response = await client.post(BASE, json=payload, headers=auth_headers)
+    assert response.status_code == 422
+
+    bodyweight = make_exercise("Pull-up")
+    bodyweight.update({"exercise_kind": "bodyweight", "target_rir": 2})
+    response = await client.post(
+        BASE, json=make_plan_payload(exercises=[bodyweight]), headers=auth_headers
+    )
+    assert response.status_code == 422
+
+
 async def test_exercise_sort_order_matches_input_order(client, auth_headers):
     payload = make_plan_payload(
         name="Leg Day",
@@ -235,34 +261,3 @@ async def test_create_plan_with_invalid_exercise_kind_returns_422(client, auth_h
         BASE, json=make_plan_payload(name="Invalid Kind", exercises=[invalid]), headers=auth_headers
     )
     assert response.status_code == 422
-
-
-async def test_rir_and_laterality_round_trip_and_default(client, auth_headers):
-    payload = make_plan_payload(
-        exercises=[
-            {**make_exercise("Bulgarian Split Squat"), "target_rir": 2, "laterality": "per_side"},
-            make_exercise("Bench Press"),
-        ]
-    )
-    created = (await client.post(BASE, json=payload, headers=auth_headers)).json()
-    split, bench = created["exercises"]
-    assert (split["target_rir"], split["laterality"]) == (2, "per_side")
-    # Omitted fields keep the old behaviour: nothing prescribed, both limbs.
-    assert (bench["target_rir"], bench["laterality"]) == (None, "bilateral")
-
-    fetched = (await client.get(f"{BASE}/{created['id']}", headers=auth_headers)).json()
-    assert fetched["exercises"][0]["laterality"] == "per_side"
-
-    replaced = {
-        **payload,
-        "exercises": [{**make_exercise("Single-arm Row"), "laterality": "single_limb"}],
-    }
-    body = (await client.put(f"{BASE}/{created['id']}", json=replaced, headers=auth_headers)).json()
-    assert body["exercises"][0]["laterality"] == "single_limb"
-
-
-async def test_rir_and_laterality_are_validated(client, auth_headers):
-    for bad in ({"target_rir": 11}, {"target_rir": -1}, {"laterality": "left_only"}):
-        payload = make_plan_payload(exercises=[{**make_exercise("Squat"), **bad}])
-        response = await client.post(BASE, json=payload, headers=auth_headers)
-        assert response.status_code == 422, bad

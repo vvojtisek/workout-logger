@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import GUID, Base, UTCDateTime, UUIDPrimaryKeyMixin, utcnow
 
 if TYPE_CHECKING:
+    from app.models.location import Location
     from app.models.session_exercise import SessionExercise
 
 
@@ -46,6 +47,7 @@ class WorkoutSession(UUIDPrimaryKeyMixin, Base):
         nullable=True,
         index=True,
     )
+    location: Mapped["Location | None"] = relationship(lazy="selectin")
     workout_log_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID(), ForeignKey("workout_logs.id", ondelete="SET NULL"), nullable=True, unique=True
     )
@@ -62,3 +64,8 @@ class WorkoutSession(UUIDPrimaryKeyMixin, Base):
         cascade="all, delete-orphan",
         order_by="SessionExercise.sort_order",
     )
+
+    @property
+    def total_volume_kg(self) -> float:
+        """Sum of each exercise's volume (see app.services.volume)."""
+        return round(sum(exercise.volume_kg for exercise in self.exercises), 1)

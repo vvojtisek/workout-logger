@@ -3,28 +3,16 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
-import type { CatalogExercise, EquipmentTag, MuscleTag } from "@/api/types";
-import { MUSCLE_TAGS } from "@/api/types";
+import type { CatalogExercise, EquipmentTag, MovementPattern, MuscleTag } from "@/api/types";
+import { MOVEMENT_PATTERNS, MUSCLE_TAGS } from "@/api/types";
+import { MOVEMENT_PATTERN_LABELS, MUSCLE_LABELS } from "@/lib/exercise-catalogue";
 import { MAX_EQUIPMENT_OPTIONS, toggleEquipmentTag } from "@/lib/equipment";
 import { exercisePayloadSchema } from "@/lib/exercise-schema";
+import { EQUIPMENT_LOAD_MODES, LOAD_MODE_LABELS } from "@/lib/load-rules";
+import type { EquipmentLoadMode } from "@/lib/load-rules";
 import { Button, Card, Input, PageHeading } from "@/ui";
 import { EquipmentChips } from "@/ui/EquipmentChips";
 import { toast } from "@/ui/Toast";
-
-const MUSCLE_LABELS: Record<MuscleTag, string> = {
-  chest: "Chest",
-  back: "Back",
-  shoulders: "Shoulders",
-  biceps: "Biceps",
-  triceps: "Triceps",
-  forearms: "Forearms",
-  quads: "Quads",
-  hamstrings: "Hamstrings",
-  glutes: "Glutes",
-  calves: "Calves",
-  core: "Core",
-  full_body: "Full body",
-};
 
 function MuscleTagPicker({
   label,
@@ -55,6 +43,45 @@ function MuscleTagPicker({
               style={{ minHeight: "var(--touch)" }}
             >
               {MUSCLE_LABELS[tag]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MovementPatternPicker({
+  selected,
+  onToggle,
+}: {
+  selected: MovementPattern[];
+  onToggle: (pattern: MovementPattern) => void;
+}) {
+  return (
+    <div>
+      <span className="field-label">Movement patterns</span>
+      <p className="mb-2 text-sm text-muted">
+        Classify the exercise by its main movement demands. Leave blank when unsure.
+      </p>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Movement patterns">
+        {MOVEMENT_PATTERNS.map((pattern) => {
+          const active = selected.includes(pattern);
+          return (
+            <button
+              key={pattern}
+              type="button"
+              aria-pressed={active}
+              disabled={!active && selected.length >= 4}
+              onClick={() => onToggle(pattern)}
+              className={`rounded-full border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 ${
+                active
+                  ? "border-accent bg-accent text-on-accent"
+                  : "border-line-muted bg-surface text-muted hover:text-main"
+              }`}
+              style={{ minHeight: "var(--touch)" }}
+            >
+              {MOVEMENT_PATTERN_LABELS[pattern]}
             </button>
           );
         })}
@@ -177,10 +204,15 @@ function buildPayload(state: {
   media_url: string;
   primary_muscles: MuscleTag[];
   secondary_muscles: MuscleTag[];
+  movement_patterns: MovementPattern[];
   instructions: string[];
   equipment: string;
   equipment_any_of: EquipmentTag[][] | null;
   safety_notes: string;
+  progression_increment_kg: string;
+  equipment_load_mode: EquipmentLoadMode;
+  is_unilateral: boolean;
+  movement_pattern: MovementPattern | null;
 }) {
   return {
     name: state.name.trim(),
@@ -188,10 +220,17 @@ function buildPayload(state: {
     media_url: state.media_url.trim() || null,
     primary_muscles: state.primary_muscles,
     secondary_muscles: state.secondary_muscles,
+    movement_patterns: state.movement_patterns,
     instructions: state.instructions.map((step) => step.trim()).filter((step) => step.length > 0),
     equipment: state.equipment.trim() || null,
     equipment_any_of: state.equipment_any_of,
     safety_notes: state.safety_notes.trim() || null,
+    progression_increment_kg: state.progression_increment_kg.trim()
+      ? Number(state.progression_increment_kg)
+      : null,
+    equipment_load_mode: state.equipment_load_mode,
+    is_unilateral: state.is_unilateral,
+    movement_pattern: state.movement_pattern,
   };
 }
 
@@ -206,6 +245,7 @@ export function ExerciseBuilder() {
   const [mediaUrl, setMediaUrl] = useState("");
   const [primaryMuscles, setPrimaryMuscles] = useState<MuscleTag[]>([]);
   const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleTag[]>([]);
+  const [movementPatterns, setMovementPatterns] = useState<MovementPattern[]>([]);
   const [instructions, setInstructions] = useState<string[]>([]);
   const [equipment, setEquipment] = useState("");
   // null: let the server read the tags from the equipment text.
@@ -214,6 +254,10 @@ export function ExerciseBuilder() {
   // follow the text, so editing "barbell" to "dumbbell" retags the exercise.
   const [tagsTouched, setTagsTouched] = useState(false);
   const [safetyNotes, setSafetyNotes] = useState("");
+  const [progressionIncrement, setProgressionIncrement] = useState("");
+  const [loadMode, setLoadMode] = useState<EquipmentLoadMode>("standard");
+  const [unilateral, setUnilateral] = useState(false);
+  const [movementPattern, setMovementPattern] = useState<MovementPattern | "">("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const seededExerciseId = useRef<string | null>(null);
 
@@ -231,10 +275,15 @@ export function ExerciseBuilder() {
     setMediaUrl(existing.media_url ?? "");
     setPrimaryMuscles(existing.primary_muscles);
     setSecondaryMuscles(existing.secondary_muscles);
+    setMovementPatterns(existing.movement_patterns);
     setInstructions(existing.instructions);
     setEquipment(existing.equipment ?? "");
     setEquipmentAnyOf(existing.equipment_any_of.length > 0 ? existing.equipment_any_of : null);
     setSafetyNotes(existing.safety_notes ?? "");
+    setProgressionIncrement(existing.progression_increment_kg?.toString() ?? "");
+    setLoadMode(existing.equipment_load_mode);
+    setUnilateral(existing.is_unilateral);
+    setMovementPattern(existing.movement_pattern ?? "");
   }, [existing]);
 
   const mutation = useMutation({
@@ -266,6 +315,16 @@ export function ExerciseBuilder() {
     setList(list.includes(tag) ? list.filter((t) => t !== tag) : [...list, tag]);
   }
 
+  function toggleMovementPattern(pattern: MovementPattern) {
+    setMovementPatterns((selected) =>
+      selected.includes(pattern)
+        ? selected.filter((item) => item !== pattern)
+        : selected.length < 4
+          ? [...selected, pattern]
+          : selected,
+    );
+  }
+
   function submit() {
     const payload = buildPayload({
       name,
@@ -273,10 +332,15 @@ export function ExerciseBuilder() {
       media_url: mediaUrl,
       primary_muscles: primaryMuscles,
       secondary_muscles: secondaryMuscles,
+      movement_patterns: movementPatterns,
       instructions,
       equipment,
       equipment_any_of: equipmentAnyOf,
       safety_notes: safetyNotes,
+      progression_increment_kg: progressionIncrement,
+      equipment_load_mode: loadMode,
+      is_unilateral: unilateral,
+      movement_pattern: movementPattern || null,
     });
     const result = exercisePayloadSchema.safeParse(payload);
     if (!result.success) {
@@ -357,6 +421,28 @@ export function ExerciseBuilder() {
           selected={primaryMuscles}
           onToggle={(tag) => toggleMuscle(primaryMuscles, setPrimaryMuscles, tag)}
         />
+        <div>
+          <label className="field-label" htmlFor="exercise-movement-pattern">
+            Primary movement pattern
+          </label>
+          <p className="mb-1 text-xs text-muted">
+            Used for plan balance; also included among the movement-pattern tags below.
+          </p>
+          <select
+            id="exercise-movement-pattern"
+            className="input"
+            value={movementPattern}
+            onChange={(event) => setMovementPattern(event.target.value as MovementPattern | "")}
+          >
+            <option value="">Unclassified</option>
+            {MOVEMENT_PATTERNS.map((pattern) => (
+              <option key={pattern} value={pattern}>
+                {MOVEMENT_PATTERN_LABELS[pattern]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <MovementPatternPicker selected={movementPatterns} onToggle={toggleMovementPattern} />
         <MuscleTagPicker
           label="Secondary muscles"
           selected={secondaryMuscles}
@@ -394,6 +480,61 @@ export function ExerciseBuilder() {
             setEquipmentAnyOf(options);
           }}
         />
+
+        <div>
+          <label className="field-label" htmlFor="exercise-load-mode">
+            Weight you type
+          </label>
+          <select
+            id="exercise-load-mode"
+            className="input"
+            value={loadMode}
+            onChange={(event) => setLoadMode(event.target.value as EquipmentLoadMode)}
+          >
+            {EQUIPMENT_LOAD_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {LOAD_MODE_LABELS[mode]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="field-label" htmlFor="exercise-progression-increment">
+            Progression increment (kg)
+          </label>
+          <Input
+            id="exercise-progression-increment"
+            type="number"
+            min="0.05"
+            max="20"
+            step="0.01"
+            inputMode="decimal"
+            placeholder="Automatic"
+            value={progressionIncrement}
+            onChange={(event) => setProgressionIncrement(event.target.value)}
+          />
+          <p className="mt-1 text-sm text-muted">
+            Optional override for the load increase after all sets reach the top of the rep range.
+            Leave blank to use the automatic equipment-based increment.
+          </p>
+          {errors.progression_increment_kg ? (
+            <p className="mt-1 text-sm text-danger">{errors.progression_increment_kg}</p>
+          ) : null}
+        </div>
+
+        <label className="flex items-center gap-3 text-sm">
+          <input
+            id="exercise-unilateral"
+            type="checkbox"
+            className="h-5 w-5"
+            checked={unilateral}
+            onChange={(event) => setUnilateral(event.target.checked)}
+          />
+          <span>
+            One side at a time: a set's reps are per leg or arm, and volume counts both sides
+          </span>
+        </label>
 
         <div>
           <label className="field-label" htmlFor="exercise-safety-notes">

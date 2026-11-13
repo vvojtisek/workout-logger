@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openPage } from "./support/navigation.js";
+import { isDesktop, openPage } from "./support/navigation.js";
 import { clickAndAwaitWrite } from "./support/writes.js";
 
 function todayIso() {
@@ -10,6 +10,13 @@ function todayIso() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/** @param {string} isoDate @param {number} days */
+function addUtcDays(isoDate, days) {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 test("schedules, starts, reschedules, skips, and unschedules a real workout through the calendar GUI", async ({
   page,
   request,
@@ -17,12 +24,17 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
   const TEST_RUN_ID = process.env.TEST_RUN_ID || `calendar-${Date.now()}`;
   const tag = `[E2E:${TEST_RUN_ID}:calendar]`;
   const today = todayIso();
+  const blockEnd = addUtcDays(today, 27);
   /** @type {string | undefined} */
   let planId;
   /** @type {string | undefined} */
   let programId;
   /** @type {string | undefined} */
   let scheduledId;
+  /** @type {string | undefined} */
+  let secondScheduledId;
+  /** @type {string | undefined} */
+  let fourthWeekScheduledId;
   /** @type {string | undefined} */
   let sessionId;
 
@@ -58,8 +70,11 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     await page.getByLabel("Name").fill(`${tag} program`);
     await page.getByLabel("Kind").fill("Hypertrophy");
     await page.getByLabel("Start date").fill(today);
+    await page.getByLabel("End date (optional)").fill(blockEnd);
     await clickAndAwaitWrite(page, page.getByRole("button", { name: "Create program" }), "POST");
     await expect(page.getByRole("heading", { name: "Programs", exact: true })).toBeVisible();
+    const programRow = page.locator("#programs-list").getByRole("listitem", { name: `${tag} program` });
+    await expect(programRow.getByTestId("program-week-summary")).toContainText("Week 1 of 4 · 4% elapsed");
 
     const programList = await request.get("/api/v1/programs?limit=100");
     /** @type {{items: Array<{id: string, name: string}>}} */
@@ -98,11 +113,67 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     });
     scheduledId = scheduled?.id;
 
+    await openPage(page, "Programs");
+    const programCard = page
+      .locator("#programs-list")
+      .getByRole("listitem")
+      .filter({ hasText: `${tag} program` });
+    await expect(programCard.getByTestId("program-schedule-summary")).toContainText(
+      /Scheduled 1.*In progress 0.*Completed 0.*Skipped 0/,
+    );
+    await expect(programCard.getByTestId("program-week-schedule-summary")).toContainText(
+      /Week 1.*Scheduled 1.*In progress 0.*Completed 0.*Skipped 0/,
+    );
+    const nextWeekResponse = await request.post("/api/v1/scheduled-workouts", {
+      data: {
+        program_id: programId,
+        workout_plan_id: planId,
+        scheduled_date: addUtcDays(today, 7),
+      },
+    });
+    expect(nextWeekResponse.status()).toBe(201);
+    secondScheduledId = (await nextWeekResponse.json()).id;
+    const fourthWeekResponse = await request.post("/api/v1/scheduled-workouts", {
+      data: {
+        program_id: programId,
+        workout_plan_id: planId,
+        scheduled_date: addUtcDays(today, 21),
+      },
+    });
+    expect(fourthWeekResponse.status()).toBe(201);
+    fourthWeekScheduledId = (await fourthWeekResponse.json()).id;
+    await page.reload();
+    const refreshedProgramCard = page
+      .locator("#programs-list")
+      .getByRole("listitem")
+      .filter({ hasText: `${tag} program` });
+    await refreshedProgramCard.getByText("Week-by-week states", { exact: true }).click();
+    const weeklyStates = refreshedProgramCard.getByRole("table", {
+      name: `${tag} program weekly schedule states`,
+    });
+    await expect(weeklyStates.getByRole("row")).toHaveCount(5);
+    const weekOne = weeklyStates.getByRole("row", { name: /Week 1/ });
+    await expect(weekOne.getByRole("cell")).toHaveText(["1", "0", "0", "0"]);
+    const weekTwo = weeklyStates.getByRole("row", { name: /Week 2/ });
+    await expect(weekTwo.getByRole("cell")).toHaveText(["1", "0", "0", "0"]);
+    const weekThree = weeklyStates.getByRole("row", { name: /Week 3/ });
+    await expect(weekThree.getByRole("cell")).toHaveText(["0", "0", "0", "0"]);
+    const weekFour = weeklyStates.getByRole("row", { name: /Week 4/ });
+    await expect(weekFour.getByRole("cell")).toHaveText(["1", "0", "0", "0"]);
+    await request.delete(`/api/v1/scheduled-workouts/${secondScheduledId}`);
+    expect((await request.get(`/api/v1/scheduled-workouts/${secondScheduledId}`)).status()).toBe(404);
+    secondScheduledId = undefined;
+    await request.delete(`/api/v1/scheduled-workouts/${fourthWeekScheduledId}`);
+    expect((await request.get(`/api/v1/scheduled-workouts/${fourthWeekScheduledId}`)).status()).toBe(404);
+    fourthWeekScheduledId = undefined;
+    await page.reload();
+
     // Reschedule: move it one day into the future, then back to today.
     const tomorrow = new Date();
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
     const tomorrowIso = tomorrow.toISOString().slice(0, 10);
 
+    await openPage(page, "Calendar");
     await page.getByRole("button", { name: `${tag} plan` }).click();
     await expect(page.getByRole("heading", { name: `${tag} plan` })).toBeVisible();
     await expect(page.locator("#reschedule-date")).toHaveAttribute("type", "text");
@@ -144,6 +215,25 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     expect(activeResponse.status()).toBe(200);
     sessionId = (await activeResponse.json()).id;
 
+    if (!isDesktop(page)) {
+      await page.getByRole("button", { name: "Minimize workout" }).click();
+    }
+    await openPage(page, "Programs");
+    await expect(
+      page
+        .locator("#programs-list")
+        .getByRole("listitem")
+        .filter({ hasText: `${tag} program` })
+        .getByTestId("program-schedule-summary"),
+    ).toContainText(/Scheduled 0.*In progress 1.*Completed 0.*Skipped 0/);
+    await expect(
+      page
+        .locator("#programs-list")
+        .getByRole("listitem")
+        .filter({ hasText: `${tag} program` })
+        .getByTestId("program-week-schedule-summary"),
+    ).toContainText(/Week 1.*Scheduled 0.*In progress 1.*Completed 0.*Skipped 0/);
+
     const afterStart = await request.get(`/api/v1/scheduled-workouts/${scheduledId}`);
     expect(await afterStart.json()).toMatchObject({
       status: "in_progress",
@@ -153,6 +243,15 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     // Cancel the session; the scheduled workout should revert automatically.
     await request.delete(`/api/v1/workout-sessions/${sessionId}`);
     sessionId = undefined;
+    await openPage(page, "Programs");
+    await expect(
+      page
+        .locator("#programs-list")
+        .getByRole("listitem")
+        .filter({ hasText: `${tag} program` })
+        .getByTestId("program-schedule-summary"),
+    ).toContainText(/Scheduled 1.*In progress 0.*Completed 0.*Skipped 0/);
+    await openPage(page, "Calendar");
     const afterCancel = await request.get(`/api/v1/scheduled-workouts/${scheduledId}`);
     expect(await afterCancel.json()).toMatchObject({ status: "scheduled", workout_session_id: null });
 
@@ -172,6 +271,14 @@ test("schedules, starts, reschedules, skips, and unschedules a real workout thro
     }
     if (scheduledId) {
       await request.delete(`/api/v1/scheduled-workouts/${scheduledId}`);
+    }
+    if (secondScheduledId) {
+      await request.delete(`/api/v1/scheduled-workouts/${secondScheduledId}`);
+      expect((await request.get(`/api/v1/scheduled-workouts/${secondScheduledId}`)).status()).toBe(404);
+    }
+    if (fourthWeekScheduledId) {
+      await request.delete(`/api/v1/scheduled-workouts/${fourthWeekScheduledId}`);
+      expect((await request.get(`/api/v1/scheduled-workouts/${fourthWeekScheduledId}`)).status()).toBe(404);
     }
     if (programId) {
       await request.delete(`/api/v1/programs/${programId}`);

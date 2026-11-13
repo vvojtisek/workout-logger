@@ -3,23 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, MuscleTag } from "@/api/types";
+import { MOVEMENT_PATTERN_LABELS, MUSCLE_LABELS } from "@/lib/exercise-catalogue";
+import { ProgressionCard } from "@/features/progression/ProgressionCard";
+import { useExerciseProgression } from "@/features/progression/useExerciseProgression";
 import { describeEquipmentOptions } from "@/lib/equipment";
+import { loadRuleText } from "@/lib/load-rules";
 import { Button, Card, EmptyState, PageHeading } from "@/ui";
-
-const MUSCLE_LABELS: Record<MuscleTag, string> = {
-  chest: "Chest",
-  back: "Back",
-  shoulders: "Shoulders",
-  biceps: "Biceps",
-  triceps: "Triceps",
-  forearms: "Forearms",
-  quads: "Quads",
-  hamstrings: "Hamstrings",
-  glutes: "Glutes",
-  calves: "Calves",
-  core: "Core",
-  full_body: "Full body",
-};
 
 function MuscleBadgeList({ title, muscles }: { title: string; muscles: MuscleTag[] }) {
   if (muscles.length === 0) return null;
@@ -88,6 +77,15 @@ function MediaContainer({ mediaUrl }: { mediaUrl: string | null }) {
   );
 }
 
+function ExerciseProgression({ name }: { name: string }) {
+  const { stats, ...progression } = useExerciseProgression([name]);
+  return (
+    <div className="mb-4">
+      <ProgressionCard stats={stats.get(name)} {...progression} showSummary />
+    </div>
+  );
+}
+
 export function ExerciseDetailView() {
   const { exerciseId } = useParams<{ exerciseId: string }>();
   const navigate = useNavigate();
@@ -114,6 +112,7 @@ export function ExerciseDetailView() {
   }
 
   const equipmentTags = describeEquipmentOptions(exercise.equipment_any_of ?? []);
+  const loadRule = loadRuleText(exercise);
 
   return (
     <section id="exercise-detail-view">
@@ -126,11 +125,19 @@ export function ExerciseDetailView() {
         <Button onClick={() => void navigate(`/exercises/${exercise.id}/edit`)}>Edit</Button>
       </div>
 
+      <ExerciseProgression name={exercise.name} />
+
       <Card className="p-4">
         <MediaContainer mediaUrl={exercise.media_url} />
       </Card>
 
       <Card className="mt-4 flex flex-col gap-3 p-4">
+        {exercise.movement_pattern ? (
+          <div>
+            <h3 className="mb-1.5 text-sm font-medium text-muted">Movement pattern</h3>
+            <p>{MOVEMENT_PATTERN_LABELS[exercise.movement_pattern]}</p>
+          </div>
+        ) : null}
         {exercise.primary_muscles.length === 0 && exercise.secondary_muscles.length === 0 ? (
           <p className="text-sm text-muted">No muscle groups recorded for this exercise.</p>
         ) : (
@@ -139,6 +146,23 @@ export function ExerciseDetailView() {
             <MuscleBadgeList title="Secondary muscles" muscles={exercise.secondary_muscles} />
           </>
         )}
+        <div>
+          <h3 className="mb-1.5 text-sm font-medium text-muted">Movement patterns</h3>
+          {exercise.movement_patterns.length === 0 ? (
+            <p className="text-sm text-muted">Unclassified</p>
+          ) : (
+            <ul className="flex flex-wrap gap-2">
+              {exercise.movement_patterns.map((pattern) => (
+                <li
+                  key={pattern}
+                  className="rounded-full bg-elevated px-3 py-1 text-sm font-medium"
+                >
+                  {MOVEMENT_PATTERN_LABELS[pattern]}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </Card>
 
       <Card className="mt-4 p-4">
@@ -162,7 +186,7 @@ export function ExerciseDetailView() {
         )}
       </Card>
 
-      {exercise.equipment || equipmentTags || exercise.safety_notes ? (
+      {exercise.equipment || equipmentTags || loadRule || exercise.safety_notes ? (
         <Card className="mt-4 flex flex-col gap-3 p-4">
           {exercise.equipment ? (
             <div>
@@ -174,6 +198,12 @@ export function ExerciseDetailView() {
             <div>
               <h3 className="text-sm font-medium text-muted">Needs</h3>
               <p data-testid="exercise-equipment-tags">{equipmentTags}</p>
+            </div>
+          ) : null}
+          {loadRule ? (
+            <div>
+              <h3 className="text-sm font-medium text-muted">Logging</h3>
+              <p data-testid="exercise-load-rule">{loadRule}</p>
             </div>
           ) : null}
           {exercise.safety_notes ? (

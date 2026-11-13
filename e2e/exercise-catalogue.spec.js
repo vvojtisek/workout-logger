@@ -8,6 +8,9 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
   const TEST_RUN_ID = process.env.TEST_RUN_ID || `catalogue-${Date.now()}`;
   const tag = `[E2E:${TEST_RUN_ID}:catalogue]`;
   let exerciseId;
+  let planId;
+  let logId;
+  let sessionId;
 
   try {
     page.setDefaultTimeout(5_000);
@@ -23,6 +26,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     await expect(page.getByRole("heading", { name: "New Exercise" })).toBeVisible();
 
     await page.getByLabel("Name").fill(`${tag} Bench Press`);
+    await page.getByLabel("Primary movement pattern").selectOption("horizontal_push");
 
     await page.getByRole("button", { name: "+ Add alias" }).click();
     await page.getByLabel("Aliases 1", { exact: true }).fill(`${tag} Flat Bench`);
@@ -36,6 +40,10 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
       .getByRole("group", { name: "Secondary muscles" })
       .getByRole("button", { name: "Triceps" })
       .click();
+    await page
+      .getByRole("group", { name: "Movement patterns" })
+      .getByRole("button", { name: "Horizontal push" })
+      .click();
 
     await page.getByRole("button", { name: "+ Add step" }).click();
     await page.getByRole("button", { name: "+ Add step" }).click();
@@ -43,6 +51,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     await page.getByLabel("Instructions 2", { exact: true }).fill(`${tag} Press the bar up.`);
 
     await page.getByLabel("Equipment (optional)").fill("Barbell");
+    await page.getByLabel("Progression increment (kg)").fill("0.25");
     // Pick the equipment tags by hand: barbell and bench, or dumbbells and bench.
     await page.getByRole("button", { name: "Choose tags" }).click();
     const firstOption = page.getByRole("group", { name: "Option 1 equipment" });
@@ -85,6 +94,9 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
         ["bench", "dumbbell"],
       ],
       safety_notes: "Use a spotter.",
+      progression_increment_kg: 0.25,
+      movement_pattern: "horizontal_push",
+      movement_patterns: ["horizontal_push"],
     });
 
     // The detail view (guide) landed here after creation; verify it renders
@@ -96,6 +108,7 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
       "https://example.com/videos/bench-press.mp4",
     );
     await expect(page.getByText("Chest", { exact: true })).toBeVisible();
+    await expect(detailPane(page).getByText("Horizontal push", { exact: true })).toHaveCount(2);
     await expect(page.getByText("Triceps", { exact: true })).toBeVisible();
     await expect(page.getByText(`${tag} Lie on the bench.`)).toBeVisible();
     await expect(page.getByText(`${tag} Press the bar up.`)).toBeVisible();
@@ -105,9 +118,62 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     );
     await expect(page.getByText("Use a spotter.")).toBeVisible();
 
+    // A custom catalogue increment replaces the equipment heuristic when the
+    // next session is prepared from a completed workout.
+    const planResponse = await request.post("/api/v1/plans", {
+      data: {
+        name: `${tag} progression plan`,
+        exercises: [
+          {
+            exercise_name: `${tag} Bench Press`,
+            target_sets: 3,
+            target_reps_min: 8,
+            target_reps_max: 12,
+            target_weight_kg: 20,
+          },
+        ],
+      },
+    });
+    expect(planResponse.status()).toBe(201);
+    planId = (await planResponse.json()).id;
+    const logResponse = await request.post("/api/v1/logs", {
+      data: {
+        source_plan_id: planId,
+        performed_at: new Date().toISOString(),
+        total_time_minutes: 30,
+        overall_feeling: 4,
+        exercises: [
+          {
+            exercise_name: `${tag} Bench Press`,
+            sets_count: 3,
+            reps_per_set: [12, 12, 12],
+            weight_kg: 20,
+            rest_time_seconds: 90,
+          },
+        ],
+      },
+    });
+    expect(logResponse.status()).toBe(201);
+    logId = (await logResponse.json()).id;
+    const sessionResponse = await request.post("/api/v1/workout-sessions", {
+      data: { source_plan_id: planId },
+    });
+    expect(sessionResponse.status()).toBe(201);
+    const session = await sessionResponse.json();
+    sessionId = session.id;
+    expect(session.exercises[0]).toMatchObject({
+      suggested_weight_kg: 20.25,
+      suggestion_note: "+0.25 kg: every set reached 12 reps",
+    });
+
     // Creating a second exercise with the same name must surface the 409
     // inline, never as a native alert.
     await openPage(page, "Exercises");
+    await page.locator("#exercise-movement-pattern-filter").selectOption("horizontal_push");
+    await page.getByLabel("Search exercises").fill(tag);
+    await expect(page.locator("#exercises-list").getByRole("listitem")).toHaveCount(1);
+    await expect(page.locator("#exercises-list")).toContainText(`${tag} Bench Press`);
+    await page.locator("#exercise-movement-pattern-filter").selectOption("");
     await page.getByRole("button", { name: "New exercise" }).click();
     await page.getByLabel("Name").fill(`${tag} Bench Press`);
     await page.getByRole("button", { name: "Create exercise" }).click();
@@ -136,10 +202,16 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     expect(await updated.json()).toMatchObject({
       equipment: "Barbell, bench",
       equipment_any_of: [["barbell", "bench"]],
+      progression_increment_kg: 0.25,
+      movement_patterns: ["horizontal_push"],
     });
 
     // Delete through the GUI and prove it is gone.
     await openPage(page, "Exercises");
+    await page.getByLabel("Search exercises").fill("");
+    await page.locator("#exercise-movement-pattern-filter").selectOption("horizontal_push");
+    await expect(page.locator("#exercises-list")).toContainText(`${tag} Bench Press`);
+    await page.locator("#exercise-movement-pattern-filter").selectOption("");
     await page.getByLabel("Search exercises").fill(tag);
     await page
       .getByRole("listitem")
@@ -156,7 +228,16 @@ test("builds, views, edits, and deletes a real exercise catalogue entry through 
     const afterDelete = await request.get(`/api/v1/exercises/${exerciseId}`);
     expect(afterDelete.status()).toBe(404);
     exerciseId = undefined;
+    expect((await request.delete(`/api/v1/workout-sessions/${sessionId}`)).status()).toBe(204);
+    sessionId = undefined;
+    expect((await request.delete(`/api/v1/logs/${logId}`)).status()).toBe(204);
+    logId = undefined;
+    expect((await request.delete(`/api/v1/plans/${planId}`)).status()).toBe(204);
+    planId = undefined;
   } finally {
+    if (sessionId) await request.delete(`/api/v1/workout-sessions/${sessionId}`);
+    if (logId) await request.delete(`/api/v1/logs/${logId}`);
+    if (planId) await request.delete(`/api/v1/plans/${planId}`);
     if (exerciseId) {
       await request.delete(`/api/v1/exercises/${exerciseId}`);
       expect((await request.get(`/api/v1/exercises/${exerciseId}`)).status()).toBe(404);

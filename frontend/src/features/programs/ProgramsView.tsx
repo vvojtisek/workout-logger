@@ -2,14 +2,17 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useListVersion } from "@/app/MasterDetail";
 import { apiFetch, errorMessage } from "@/api/client";
-import type { Paginated, Program } from "@/api/types";
+import type { Paginated, Program, ProgramScheduleSummary } from "@/api/types";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { Button, EmptyState, PageHeading } from "@/ui";
 
 import { ProgramTemplates } from "./ProgramTemplates";
 import { formatDate } from "@/lib/format";
+import { localIsoDate } from "@/lib/today";
+import { programWeekProgress } from "@/lib/program-week";
 
 const STATUS_LABELS: Record<Program["status"], string> = {
   active: "Active",
@@ -18,9 +21,13 @@ const STATUS_LABELS: Record<Program["status"], string> = {
 };
 
 export function ProgramsView() {
+  const listVersion = useListVersion();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [scheduleSummaries, setScheduleSummaries] = useState<
+    Record<string, ProgramScheduleSummary>
+  >({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<Program | null>(null);
@@ -28,8 +35,14 @@ export function ProgramsView() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiFetch<Paginated<Program>>("/programs?limit=100");
+      const [data, summaries] = await Promise.all([
+        apiFetch<Paginated<Program>>("/programs?limit=100"),
+        apiFetch<{ items: ProgramScheduleSummary[] }>("/programs/schedule-summary"),
+      ]);
       setPrograms(data.items);
+      setScheduleSummaries(
+        Object.fromEntries(summaries.items.map((item) => [item.program_id, item])),
+      );
       setError(null);
     } catch (err) {
       setError(`Failed to load programs: ${errorMessage(err)}`);
@@ -38,9 +51,10 @@ export function ProgramsView() {
     }
   }, []);
 
+  // Reload after the detail beside the list closes (see MasterDetail).
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, listVersion]);
 
   async function deleteProgram(program: Program) {
     try {
@@ -87,6 +101,27 @@ export function ProgramsView() {
                 {program.end_date ? ` – ${formatDate(program.end_date)}` : " – ongoing"}
               </p>
               <p className="mt-1 text-xs text-muted">{STATUS_LABELS[program.status]}</p>
+              <ProgramWeekSummary program={program} />
+              {scheduleSummaries[program.id] ? (
+                <p className="mt-1 text-xs text-muted" data-testid="program-schedule-summary">
+                  Scheduled {scheduleSummaries[program.id].scheduled} · In progress{" "}
+                  {scheduleSummaries[program.id].in_progress} · Completed{" "}
+                  {scheduleSummaries[program.id].completed} · Skipped{" "}
+                  {scheduleSummaries[program.id].skipped}
+                </p>
+              ) : null}
+              {scheduleSummaries[program.id] ? (
+                <ProgramWeekScheduleSummary
+                  program={program}
+                  summary={scheduleSummaries[program.id]}
+                />
+              ) : null}
+              {scheduleSummaries[program.id] ? (
+                <ProgramWeeklyStateTable
+                  program={program}
+                  weeks={scheduleSummaries[program.id].weeks}
+                />
+              ) : null}
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button onClick={() => void navigate(`/programs/${program.id}/edit`)}>Edit</Button>
@@ -111,5 +146,177 @@ export function ProgramsView() {
         confirmLabel="Delete"
       />
     </section>
+  );
+}
+
+function ProgramWeekSummary({ program }: { program: Program }) {
+  const progress = programWeekProgress(
+    program.start_date,
+    program.end_date,
+    localIsoDate(new Date()),
+  );
+  let label: string;
+  if (progress.state === "upcoming") {
+    label = `Starts in ${progress.daysUntilStart} ${progress.daysUntilStart === 1 ? "day" : "days"}`;
+  } else if (progress.totalWeeks === null) {
+    label = `Week ${progress.week} · ongoing`;
+  } else if (progress.state === "ended") {
+    label = `Block ended · Week ${progress.week} of ${progress.totalWeeks}`;
+  } else {
+    label = `Week ${progress.week} of ${progress.totalWeeks} · ${progress.elapsedPercent}% elapsed`;
+  }
+
+  return (
+    <div className="mt-2 max-w-xs" data-testid="program-week-summary">
+      <p className="text-xs font-medium" data-numeric>{label}</p>
+      {progress.elapsedPercent !== null && progress.state !== "upcoming" ? (
+        <div
+          role="progressbar"
+          aria-label={`${program.name} block duration`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress.elapsedPercent}
+          aria-valuetext={`${label}`}
+          className="mt-1 h-1.5 overflow-hidden rounded-full bg-elevated"
+        >
+          <div
+            className="h-full rounded-full bg-accent"
+            style={{ width: `${progress.elapsedPercent}%` }}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ProgramWeekScheduleSummary({
+  program,
+  summary,
+}: {
+  program: Program;
+  summary: ProgramScheduleSummary;
+}) {
+  const progress = programWeekProgress(
+    program.start_date,
+    program.end_date,
+    localIsoDate(new Date()),
+  );
+  if (progress.state !== "active") return null;
+
+  const counts = summary.weeks.find((week) => week.week_number === progress.week) ?? {
+    week_number: progress.week,
+    scheduled: 0,
+    in_progress: 0,
+    completed: 0,
+    skipped: 0,
+  };
+  return (
+    <p className="mt-1 text-xs text-muted" data-testid="program-week-schedule-summary">
+      Week {counts.week_number} · Scheduled {counts.scheduled} · In progress {counts.in_progress} ·
+      {" "}Completed {counts.completed} · Skipped {counts.skipped}
+    </p>
+  );
+}
+
+function ProgramWeeklyStateTable({
+  program,
+  weeks,
+}: {
+  program: Program;
+  weeks: ProgramScheduleSummary["weeks"];
+}) {
+  const progress = programWeekProgress(
+    program.start_date,
+    program.end_date,
+    localIsoDate(new Date()),
+  );
+  const scheduledWeeks = [...weeks].sort((left, right) => left.week_number - right.week_number);
+  const finalWeek = Math.max(
+    progress.totalWeeks ?? progress.week,
+    scheduledWeeks.at(-1)?.week_number ?? 0,
+  );
+  const rows: Array<
+    | { kind: "scheduled"; week: (typeof scheduledWeeks)[number] }
+    | { kind: "empty"; firstWeek: number; lastWeek: number }
+  > = [];
+  let nextWeek = 1;
+  for (const week of scheduledWeeks) {
+    if (week.week_number > nextWeek) {
+      rows.push({
+        kind: "empty",
+        firstWeek: nextWeek,
+        lastWeek: week.week_number - 1,
+      });
+    }
+    rows.push({ kind: "scheduled", week });
+    nextWeek = week.week_number + 1;
+  }
+  if (nextWeek <= finalWeek) {
+    rows.push({ kind: "empty", firstWeek: nextWeek, lastWeek: finalWeek });
+  }
+
+  return (
+    <details className="mt-2 text-xs">
+      <summary className="w-fit cursor-pointer text-muted underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+        Week-by-week states
+      </summary>
+      <div className="mt-2 max-w-full overflow-x-auto">
+        {rows.length > 0 ? (
+          <table
+            aria-label={`${program.name} weekly schedule states`}
+            className="w-full border-collapse text-left"
+          >
+            <thead>
+              <tr className="border-b border-border text-muted">
+                <th scope="col" className="py-1 pr-3 font-medium">Week</th>
+                <th scope="col" className="px-2 py-1 font-medium">Scheduled</th>
+                <th scope="col" className="px-2 py-1 font-medium">In progress</th>
+                <th scope="col" className="px-2 py-1 font-medium">Completed</th>
+                <th scope="col" className="px-2 py-1 font-medium">Skipped</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                if (row.kind === "scheduled") {
+                  const { week } = row;
+                  return (
+                    <tr key={`week-${week.week_number}`} className="border-b border-border/60">
+                      <th scope="row" className="py-1 pr-3 font-medium">
+                        Week {week.week_number}
+                      </th>
+                      <td className="px-2 py-1 tabular-nums">{week.scheduled}</td>
+                      <td className="px-2 py-1 tabular-nums">{week.in_progress}</td>
+                      <td className="px-2 py-1 tabular-nums">{week.completed}</td>
+                      <td className="px-2 py-1 tabular-nums">{week.skipped}</td>
+                    </tr>
+                  );
+                }
+
+                const weekLabel =
+                  row.firstWeek === row.lastWeek
+                    ? `Week ${row.firstWeek}`
+                    : `Weeks ${row.firstWeek}–${row.lastWeek}`;
+                return (
+                  <tr
+                    key={`empty-${row.firstWeek}-${row.lastWeek}`}
+                    className="border-b border-border/60 text-muted"
+                  >
+                    <th scope="row" className="py-1 pr-3 font-medium">
+                      {weekLabel} · No scheduled workouts
+                    </th>
+                    <td className="px-2 py-1 tabular-nums">0</td>
+                    <td className="px-2 py-1 tabular-nums">0</td>
+                    <td className="px-2 py-1 tabular-nums">0</td>
+                    <td className="px-2 py-1 tabular-nums">0</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-muted">No workouts scheduled inside this block.</p>
+        )}
+      </div>
+    </details>
   );
 }

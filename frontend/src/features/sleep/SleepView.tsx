@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useListVersion } from "@/app/MasterDetail";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { Paginated, SleepEntry, SleepTrends } from "@/api/types";
 import { ConfirmDialog } from "@/ui/Dialog";
@@ -61,6 +62,7 @@ function TrendCard({ trends }: { trends: SleepTrends }) {
 }
 
 export function SleepView() {
+  const listVersion = useListVersion();
   const navigate = useNavigate();
   const [entries, setEntries] = useState<SleepEntry[]>([]);
   const [trends, setTrends] = useState<SleepTrends | null>(null);
@@ -85,9 +87,10 @@ export function SleepView() {
     }
   }, []);
 
+  // Reload after the detail beside the list closes (see MasterDetail).
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, listVersion]);
 
   async function deleteEntry(entry: SleepEntry) {
     try {

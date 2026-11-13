@@ -5,6 +5,7 @@ import { AppLayout } from "@/AppLayout";
 import { FULL_BLEED, MasterDetail, WIDE } from "@/app/MasterDetail";
 import { RouteErrorBoundary } from "@/app/RouteErrorBoundary";
 import { RequireAuth } from "@/auth/RequireAuth";
+import { ActiveWorkoutView } from "@/features/active-workout/ActiveWorkoutView";
 import { useIsDesktop } from "@/lib/use-media-query";
 
 /** Lazily loads a list page and wraps it in the list-and-detail layout. */
@@ -95,8 +96,8 @@ export const router = createBrowserRouter([
               handle: FULL_BLEED,
               lazy: masterDetail("/plans", "Pick a plan to edit, or start a new one.", () =>
                 import("@/features/plans/PlansView").then((m) => m.PlansView),
-              "max-w-5xl"
-            ),
+                "max-w-5xl"
+              ),
               children: [
                 { index: true },
                 {
@@ -219,6 +220,13 @@ export const router = createBrowserRouter([
               ],
             },
             {
+              path: "nutrition/quick-add",
+              lazy: () =>
+                import("@/features/nutrition/QuickAddPresetsView").then((m) => ({
+                  Component: m.QuickAddPresetsView,
+                })),
+            },
+            {
               path: "nutrition/meals",
               handle: FULL_BLEED,
               lazy: masterDetail("/nutrition/meals", "Pick a meal to edit, or log a new one.", () =>
@@ -281,6 +289,10 @@ export const router = createBrowserRouter([
                 })),
             },
             {
+              path: "training-load",
+              lazy: () => import("@/features/history/TrainingLoadView").then((m) => ({ Component: m.TrainingLoadView })),
+            },
+            {
               path: "history",
               handle: FULL_BLEED,
               lazy: masterDetail("/history", "Pick a workout to see what was logged.", () =>
@@ -297,10 +309,7 @@ export const router = createBrowserRouter([
             {
               path: "workout",
               handle: FULL_BLEED,
-              lazy: () =>
-                import("@/features/active-workout/ActiveWorkoutView").then((m) => ({
-                  Component: m.ActiveWorkoutView,
-                })),
+              element: <ActiveWorkoutView />,
             },
           ],
         },

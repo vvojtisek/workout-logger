@@ -4,8 +4,13 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import NotFoundError
-from app.models import Program, WorkoutPlan
-from app.schemas.programs import ProgramCreate, ProgramReplace
+from app.models import Program, ScheduledWorkout, WorkoutPlan
+from app.schemas.programs import (
+    ProgramCreate,
+    ProgramReplace,
+    ProgramScheduleSummary,
+    ProgramWeekScheduleSummary,
+)
 
 
 async def list_programs(
@@ -16,6 +21,51 @@ async def list_programs(
         select(Program).order_by(Program.start_date.desc()).limit(limit).offset(offset)
     )
     return list(result.scalars().all()), total or 0
+
+
+async def schedule_summaries(session: AsyncSession) -> list[ProgramScheduleSummary]:
+    result = await session.execute(
+        select(
+            Program.id.label("program_id"),
+            Program.start_date,
+            Program.end_date,
+            ScheduledWorkout.status,
+            ScheduledWorkout.scheduled_date,
+        )
+        .outerjoin(ScheduledWorkout, ScheduledWorkout.program_id == Program.id)
+        .order_by(Program.start_date.desc(), ScheduledWorkout.scheduled_date)
+    )
+    summaries: dict[UUID, dict] = {}
+    status_names = ("scheduled", "in_progress", "completed", "skipped")
+    for row in result:
+        summary = summaries.setdefault(
+            row.program_id,
+            {"program_id": row.program_id, **dict.fromkeys(status_names, 0), "weeks": {}},
+        )
+        if row.status is None or row.scheduled_date is None:
+            continue
+
+        summary[row.status] += 1
+        if row.scheduled_date < row.start_date or (
+            row.end_date is not None and row.scheduled_date > row.end_date
+        ):
+            continue
+
+        week_number = (row.scheduled_date - row.start_date).days // 7 + 1
+        week = summary["weeks"].setdefault(
+            week_number,
+            {"week_number": week_number, **dict.fromkeys(status_names, 0)},
+        )
+        week[row.status] += 1
+
+    response: list[ProgramScheduleSummary] = []
+    for summary in summaries.values():
+        weeks = [
+            ProgramWeekScheduleSummary(**counts)
+            for _, counts in sorted(summary.pop("weeks").items())
+        ]
+        response.append(ProgramScheduleSummary(**summary, weeks=weeks))
+    return response
 
 
 async def get_program(session: AsyncSession, program_id: UUID) -> Program:

@@ -1,14 +1,8 @@
-import asyncio
-import os
-import subprocess
-import sys
 from uuid import uuid4
 
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, func, select
 
-from app.database import create_engine, get_session, get_session_maker
+from app.database import get_session_maker
 from app.models import (
     AccountToken,
     BodyMetric,
@@ -26,43 +20,6 @@ from app.models import (
     WorkoutLog,
     WorkoutPlan,
 )
-
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-@pytest_asyncio.fixture
-async def migrated_client(tmp_path):
-    database_path = tmp_path / "account-isolation.db"
-    database_url = f"sqlite+aiosqlite:///{database_path}"
-    environment = os.environ.copy()
-    environment["DATABASE_URL"] = database_url
-    await asyncio.to_thread(
-        subprocess.run,
-        [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"],
-        check=True,
-        cwd=REPO_ROOT,
-        env=environment,
-        capture_output=True,
-        text=True,
-    )
-
-    engine = create_engine(database_url)
-    session_maker = get_session_maker(engine)
-
-    async def override_get_session():
-        async with session_maker() as session:
-            yield session
-
-    from app.main import app
-
-    app.dependency_overrides[get_session] = override_get_session
-    async with AsyncClient(
-        transport=ASGITransport(app=app, raise_app_exceptions=False),
-        base_url="http://testserver",
-    ) as client:
-        yield client, engine
-    app.dependency_overrides.pop(get_session, None)
-    await engine.dispose()
 
 
 async def _create_logged_in_user(client, admin_headers, email: str) -> dict[str, str]:
@@ -183,6 +140,9 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
         )
         assert started.status_code == 201
         session_id = started.json()["id"]
+        owner = await client.get("/api/v1/auth/me", headers=owner_cookies)
+        assert owner.status_code == 200
+        assert started.json()["owner_id"] == owner.json()["id"]
         other_session = await client.get(
             f"/api/v1/workout-sessions/{session_id}", headers=other_cookies
         )
@@ -206,6 +166,7 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
                 "performed_at": "2026-10-13T08:00:00Z",
                 "total_time_minutes": 45,
                 "overall_feeling": 4,
+                "effort_rpe": 5,
                 "notes": f"[TEST_RUN_ID:{test_run_id}] private history",
                 "exercises": [
                     {
@@ -237,6 +198,28 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
         assert other_stats.status_code == 200
         assert other_stats.json()["items"][0]["sessions_count"] == 0
         assert other_stats.json()["items"][0]["best_weight_kg"] is None
+
+        for cookies, sessions, volume, effort in [
+            (owner_cookies, 1, 500, 225),
+            (other_cookies, 0, 0, None),
+        ]:
+            training_load = await client.get(
+                "/api/v1/training-load",
+                params={"week_of": "2026-10-13", "weeks": 1},
+                headers=cookies,
+            )
+            assert training_load.status_code == 200
+            assert training_load.json()["weeks"][0]["gym_sessions"] == sessions
+            assert training_load.json()["weeks"][0]["volume_kg"] == volume
+            assert training_load.json()["weeks"][0]["session_effort"]["load_au"] == effort
+
+            training_csv = await client.get(
+                "/api/v1/training-load/export",
+                params={"week_of": "2026-10-13", "weeks": 1},
+                headers=cookies,
+            )
+            assert training_csv.status_code == 200
+            assert (log_id in training_csv.text) == bool(sessions)
 
         other_logs = await client.get("/api/v1/logs", headers=other_cookies)
         assert other_logs.status_code == 200
@@ -328,6 +311,12 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
         program_id = created_program.json()["id"]
         other_programs = await client.get("/api/v1/programs", headers=other_cookies)
         assert all(item["id"] != program_id for item in other_programs.json()["items"])
+        other_program_summaries = await client.get(
+            "/api/v1/programs/schedule-summary", headers=other_cookies
+        )
+        assert all(
+            item["program_id"] != program_id for item in other_program_summaries.json()["items"]
+        )
 
         created_nutrition_plan = await client.post(
             "/api/v1/nutrition-plans",
@@ -676,10 +665,32 @@ async def test_locations_are_private_per_invited_account(migrated_client, auth_h
         )
         created = await client.post(
             "/api/v1/locations",
-            json={"name": "Office", "kind": "office", "equipment": ["dumbbell"]},
+            json={
+                "name": "Office",
+                "kind": "office",
+                "equipment": ["dumbbell"],
+                "plate_profiles": [
+                    {
+                        "name": "Private bar",
+                        "bar_kg": 20,
+                        "collars_kg": 0,
+                        "plates": [{"weight_kg": 2.5, "pairs": 1}],
+                    }
+                ],
+                "dumbbell_profiles": [
+                    {
+                        "name": "Private adjustable pair",
+                        "handle_kg": 2,
+                        "collars_kg": 0,
+                        "plates": [{"weight_kg": 1.25, "pairs": 2}],
+                    }
+                ],
+            },
             headers=owner_cookies,
         )
         assert created.status_code == 201
+        assert created.json()["plate_profiles"][0]["name"] == "Private bar"
+        assert created.json()["dumbbell_profiles"][0]["name"] == "Private adjustable pair"
         location_id = created.json()["id"]
 
         # The same name is free for another account.

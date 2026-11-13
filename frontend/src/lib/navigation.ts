@@ -45,6 +45,7 @@ const PAGES = {
   calendar: { path: "/calendar", label: "Calendar" },
   schedule: { path: "/schedule", label: "Sport schedule" },
   history: { path: "/history", label: "History" },
+  trainingLoad: { path: "/training-load", label: "Training load" },
   exercises: { path: "/exercises", label: "Exercises" },
   locations: { path: "/locations", label: "Locations" },
   nutrition: { path: "/nutrition", label: "Nutrition" },
@@ -83,7 +84,7 @@ export const DESKTOP_SECTIONS: NavSection[] = [
     id: "history",
     label: "Workout History",
     icon: "history",
-    pages: [PAGES.history],
+    pages: [PAGES.history, PAGES.trainingLoad],
   },
   {
     id: "exercises",
@@ -131,7 +132,7 @@ export const MOBILE_SECTIONS: NavSection[] = [
     id: "history",
     label: "History",
     icon: "history",
-    pages: [PAGES.history, PAGES.calendar],
+    pages: [PAGES.history, PAGES.calendar, PAGES.trainingLoad],
   },
   {
     id: LOG_SECTION_ID,

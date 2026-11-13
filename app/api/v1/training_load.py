@@ -1,0 +1,65 @@
+from datetime import timedelta
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_session
+from app.schemas.training_load import TrainingLoadQuery, TrainingLoadResponse
+from app.services.training_load import export_training_load_csv, weekly_training_load
+
+router = APIRouter(prefix="/training-load", tags=["training load"])
+
+
+@router.get(
+    "",
+    operation_id="get_training_load",
+    summary="Review logged sets, external volume, and session effort by week",
+    description=(
+        "Returns Monday-start weeks in the requested timezone, oldest first. Counts workout "
+        "records with exercise sets and uses their logged weights and volume rules for gym "
+        "totals. Weeks without recorded work have zero counts. "
+        "External volume is split equally among distinct primary muscle tags, with any "
+        "rounding tenths assigned in tag order. Muscle-tag set counts include each set for each "
+        "distinct primary tag, so counts can overlap. Null muscle denotes unclassified work. "
+        "Session effort includes workouts and activities. Load in arbitrary units is the "
+        "sum of rated session minutes multiplied by their RPE. Null load means no rated minutes. "
+        "The workload ratio divides a closed local week's load by the mean of the four "
+        "preceding weeks. The ratio requires at least one log and complete effort ratings "
+        "in each contributing week. The baseline is independent of the visible week count."
+    ),
+    response_model=TrainingLoadResponse,
+)
+async def get_training_load(
+    query: Annotated[TrainingLoadQuery, Query()],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> TrainingLoadResponse:
+    return await weekly_training_load(session, query)
+
+
+@router.get(
+    "/export",
+    operation_id="export_training_load",
+    summary="Download sessions, sets, and weekly summaries for selected training weeks as CSV",
+    description=(
+        "Uses only the requested weeks. Session rows hold duration and whole-session RPE. "
+        "Set rows hold saved weight, reps and RIR and share the session's workout_id. Weekly "
+        "summary rows include session effort, workload ratio, and monotony metrics; weekly "
+        "activity summary rows report effort coverage and load by activity type."
+    ),
+    response_class=Response,
+    responses={200: {"content": {"text/csv": {"schema": {"type": "string"}}}}},
+)
+async def export_training_load(
+    query: Annotated[TrainingLoadQuery, Query()],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    content = await export_training_load_csv(session, query)
+    first = query.first_week()
+    last = first + timedelta(days=query.weeks * 7 - 1)
+    filename = f"training-load-{first}-through-{last}.csv"
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

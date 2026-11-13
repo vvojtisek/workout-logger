@@ -14,6 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import GUID, Base, UUIDPrimaryKeyMixin
+from app.services.volume import DEFAULT_RULE, sets_volume_kg, total_reps
 
 if TYPE_CHECKING:
     from app.models.set_entry import SetEntry
@@ -36,6 +37,10 @@ class SessionExercise(UUIDPrimaryKeyMixin, Base):
             "exercise_kind IN ('strength', 'bodyweight', 'cardio')",
             name="ck_session_exercises_kind",
         ),
+        CheckConstraint(
+            "target_rir IS NULL OR (exercise_kind = 'strength' AND target_rir >= 0 AND target_rir <= 10)",
+            name="ck_session_exercises_target_rir_range",
+        ),
         Index("ix_session_exercises_session_order", "session_id", "sort_order"),
     )
 
@@ -48,6 +53,7 @@ class SessionExercise(UUIDPrimaryKeyMixin, Base):
     target_sets: Mapped[int] = mapped_column(Integer, nullable=False)
     target_reps_min: Mapped[int] = mapped_column(Integer, nullable=False)
     target_reps_max: Mapped[int] = mapped_column(Integer, nullable=False)
+    target_rir: Mapped[int | None] = mapped_column(Integer, nullable=True)
     target_weight_kg: Mapped[float | None] = mapped_column(REAL, nullable=True)
     rest_time_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
@@ -66,3 +72,30 @@ class SessionExercise(UUIDPrimaryKeyMixin, Base):
         cascade="all, delete-orphan",
         order_by="SetEntry.set_number",
     )
+
+    # Filled from the exercise catalogue by app.services.volume_rules on load.
+    volume_rule = DEFAULT_RULE
+    equipment_any_of: tuple[tuple[str, ...], ...] = ()
+
+    @property
+    def is_unilateral(self) -> bool:
+        return self.volume_rule.is_unilateral
+
+    @property
+    def equipment_load_mode(self) -> str:
+        return self.volume_rule.equipment_load_mode
+
+    def _completed(self) -> list["SetEntry"]:
+        return [entry for entry in self.set_entries if entry.state == "completed"]
+
+    @property
+    def total_reps(self) -> int:
+        if self.exercise_kind == "cardio":
+            return 0
+        return sum(total_reps(entry.reps, self.volume_rule) for entry in self._completed())
+
+    @property
+    def volume_kg(self) -> float:
+        return sets_volume_kg(
+            ((entry.weight_kg, entry.reps) for entry in self._completed()), self.volume_rule
+        )

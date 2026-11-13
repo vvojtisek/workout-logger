@@ -171,6 +171,8 @@ Release with checksummed deployment assets, then deploys through AWS Systems Man
 a verified SQLite backup before the new image starts and rolling back the image if it fails its
 readiness check. Host setup, the release procedure, and admin bootstrap are documented in
 [`deploy/aws/README.md`](deploy/aws/README.md).
+After merge checks pass, the release planner considers Conventional Commit subjects and the
+commit list in GitHub squash merges when selecting the next version.
 
 ### SQLite upgrade and shutdown behavior
 
@@ -228,9 +230,120 @@ Never copy a database over `/data/workout_logger.db` while the app is running. S
 * **Machine-Readable Spec:** `GET /openapi.json` (OpenAPI 3.1).
 * **Compatibility Aliases:** `/workout-plans` maps to `/api/v1/plans`, `/workout-logs` maps to `/api/v1/logs`.
 
+Programs show counts for scheduled, in-progress, completed, and skipped workouts. The
+account-scoped `GET /api/v1/programs/schedule-summary` endpoint returns those counts per
+program without combining them into an adherence score.
+
+Each planned strength exercise can optionally define a target RIR from 0 to 10. Starting a
+workout copies that target into its session snapshot, and the mobile HUD and desktop workout
+view show it beside the controls for recording actual set effort. Duplicating a plan preserves
+the prescription.
+
+Configure named bar and plate inventories in **Settings → Preferences**, then choose the default
+profile. The mobile strength-workout HUD can switch profiles for the current workout and
+calculates the fewest matching plates per side from the current weight dial. When the requested
+load cannot be made, it shows the closest available load. The calculation includes the bar and
+excludes collars. Existing bar weight and plate settings migrate into a profile unchanged.
+
 Active-workout Slice 1 adds authenticated `/api/v1/workout-sessions` operations to start or
 resume a plan snapshot, idempotently save a set with an absolute rest deadline, read the session,
 complete it into the existing workout-log history, and remove E2E records during verified cleanup.
+
+Exercise progression at `GET /api/v1/exercise-stats` uses each set's recorded weight and reps
+to find the heaviest set and the highest estimated one-rep max. Choose Epley, Brzycki, Lombardi,
+or Wathen in the desktop progression card or with the optional `formula` query parameter
+(`epley`, `brzycki`, `lombardi`, or `wathen`). The default Epley model retains all rep counts.
+The other options use sets of 1–10 effective reps. When a set has recorded RIR, the estimate
+adds RIR to reps as estimated reps to failure; unknown RIR uses the logged reps as-is. The
+4+ value is represented by four, so that estimate uses a minimum. Each chart point shows the
+recorded reps and the set behind its estimate. Older logs with a single weight use that weight
+for every set. [Reference for the equations, Table 1](https://doi.org/10.1007/s11332-024-01264-y).
+
+An exercise can optionally set a custom progression increment in kilograms, from 0.05 to 20 kg
+in 0.01 kg steps. When every set reaches the top of its rep range with reserve, the next-session
+suggestion uses that increment. Leaving the field blank keeps the existing equipment-based
+automatic increase.
+
+Exercise catalogue entries can also be tagged with an optional movement pattern: horizontal or
+vertical push/pull, squat, hinge, lunge, carry, rotation, core stability, or locomotion. Existing
+entries remain unclassified until someone reviews and tags them. The catalogue can filter by the
+selected pattern; movement classification complements the primary and secondary muscle tags.
+
+The plan editor also summarizes prescribed set counts by movement pattern as you change the
+exercise list. It matches catalogue names and aliases, reports free-text and ambiguous matches as
+unclassified, and keeps the counts descriptive rather than grading the plan against a fixed ratio.
+
+Exercise catalogue entries can also carry up to four movement-pattern tags (push/pull directions,
+squat, hinge, lunge, carry, trunk work, and locomotion). Use the catalogue's **Movement pattern**
+filter or `GET /api/v1/exercises?movement_pattern=hinge` to find classified exercises. Existing
+entries remain unclassified until edited; movement tags supplement muscle and equipment tags.
+
+The desktop history range can show the last 30, 90, or 365 days or all history. For a fixed
+window, pass both timezone-aware `date_from` (inclusive) and `date_to` (exclusive) to the
+exercise stats endpoint. The window applies to both the headline stats and the chart.
+Open an exercise in the catalogue to review the same progression without starting a workout.
+History matches the exercise name case-insensitively.
+
+Open **Workout History → Training load** for weekly counts and external-load volume. Weeks
+start Monday in the browser's timezone. Gym sessions are workout records with exercise sets,
+and separately logged activities are excluded. Volume follows the same per-set load rules
+as workout history. `GET /api/v1/training-load` accepts a local `week_of` date, `weeks` (1–26),
+and an IANA `timezone` (UTC by default).
+Select a week in the muscle breakdown to allocate that external volume across each exercise's
+current primary muscle tags. Each lift's volume is split evenly and leftover tenths go to tags
+in alphabetical order, so the breakdown sums to the weekly total. Unmatched and untagged lifts
+appear as Unclassified.
+
+The weekly session effort panel sums duration in minutes × whole-session RPE for rated gym
+workouts and activities. It shows rated and logged session counts and rated minutes, with
+separate labels for weeks without sessions and weeks without ratings. Add or clear a rating
+from the workout history editor. [Session-RPE method validation](https://pubmed.ncbi.nlm.nih.gov/11708692/).
+
+The calendar workload ratio divides a closed local week's session-RPE load by the mean load
+of its preceding four local weeks. The comparison shows its dates, numerator, and denominator.
+Each week needs logged sessions with complete ratings, including preceding weeks outside the
+visible table. Use this ratio to compare recorded workloads. [Methodological analysis](https://pubmed.ncbi.nlm.nih.gov/32502973/).
+
+In a past workout, expand **Rep retention at the same weight** when an exercise has repeated
+recorded loads. Each chart plots reps at the set numbers in workout history. The table shows recorded
+reps, RIR when available, and reps as a percentage of the first set at that load. Explicitly
+missing loads are excluded. Older single-weight records use that weight for each set.
+When at least two same-load sets include RIR, the chart can also plot estimated reps at failure
+(recorded reps + RIR); sets without RIR are omitted from that estimate. This helps separate actual
+rep dropoff from a change in reported reserve.
+
+In a live strength workout on a phone, tap **RIR** or **RPE** to enter a set rating inline. Each
+rating is optional and recorded independently. Tap a selected rating again to clear it. **Complete
+set & start rest** still saves the prefilled weight and reps in one tap.
+Completed workout details list the recorded RPE by set. Adding or removing sets in History
+keeps the ratings with their original sets. Whole-workout effort is recorded separately.
+API clients replacing `exercises` can send a `rpe_per_set` list aligned with the new sets or
+`null` to clear it. Omitting the field keeps ratings when the ordered exercise names, repetitions,
+weights, and RIR values still match the stored log.
+During a connection interruption, completed and skipped sets remain queued in browser storage.
+The phone advances after each set is saved on the device, and its rest timer can be adjusted or
+skipped before reconnecting. Reconnecting sends the queued actions in order with their original
+capture times. Finish the workout after its queued sets synchronize.
+After the browser has loaded the live workout online, reloading `/workout` offline can resume its
+local snapshot for the last verified account. The server verifies that account again before the
+browser sends queued sets. Signing out clears the local resume snapshot.
+For barbell lifts, open **Barbell plates** below the weight field to see the exact stack for
+each side. Locations can store up to eight named bar profiles, including bar and collar weights
+plus paired plate stock. The workout starts with that location's first profile; choose another
+profile or the labeled default inventory when needed. The calculator shows the nearest supported
+loads when an exact stack is unavailable and never changes the value saved in the weight field.
+For adjustable dumbbells, open **Dumbbell plates** to calculate the symmetric stack on each
+side of one dumbbell. Named handle and plate inventories come from the selected location; the
+weight field continues to record kilograms per dumbbell.
+Rest completion plays a short tone and requests a brief vibration once per timer deadline.
+Toggle either cue in Settings; sound activates with the next completed set, and vibration depends
+on browser and device support.
+
+**Download training CSV** exports the visible Training load window using the same local-week
+boundaries. The UTF-8 file has one `session` row per workout or activity with duration and
+session RPE, and `set` rows linked by `workout_id` with exercise, weight, reps, RIR, and `set_rpe`. Blank
+cells represent missing values. Exercise names that look like spreadsheet formulas get a
+leading apostrophe. The API uses the same filters at `GET /api/v1/training-load/export`.
 
 Invite-only accounts have server-enforced per-account record ownership. See
 [`docs/account-data-ownership.md`](docs/account-data-ownership.md) for the legacy-data backfill,

@@ -1,10 +1,12 @@
 import { useCallback } from "react";
+import type { MutableRefObject } from "react";
 import { Link } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { WorkoutSession } from "@/api/types";
 import { formatCountdown } from "@/lib/workout-hud";
 import { toast } from "@/ui/Toast";
+import type { RestControls } from "@/AppLayout";
 import { useRestCountdown } from "./RestOverlay";
 
 /**
@@ -19,12 +21,16 @@ export function GlobalRestBar({
   session,
   onSessionChange,
   reserveSpace = false,
+  controls,
 }: {
   session: WorkoutSession | null;
   onSessionChange: (session: WorkoutSession) => void;
   /** Keep the bar's height when no rest is running. The workout screen sets
    * this so starting a rest never shifts the controls above it. */
   reserveSpace?: boolean;
+  /** The live workout's own rest handler, when mounted: it also covers sets
+   * queued offline. Without it the bar talks to the server directly. */
+  controls?: MutableRefObject<RestControls | null>;
 }) {
   const restEndsAt = session?.rest_ends_at ?? null;
   const { remainingSeconds, expired } = useRestCountdown(restEndsAt);
@@ -32,6 +38,10 @@ export function GlobalRestBar({
   const updateRest = useCallback(
     async (data: { adjustment_seconds?: number; skip?: boolean }) => {
       if (!session) return;
+      if (controls?.current) {
+        await controls.current(data);
+        return;
+      }
       try {
         const updated = await apiFetch<WorkoutSession>(
           `/workout-sessions/${session.id}/rest`,
@@ -45,7 +55,7 @@ export function GlobalRestBar({
         toast.error(`Failed to update rest timer: ${errorMessage(err)}`);
       }
     },
-    [session, onSessionChange],
+    [session, onSessionChange, controls],
   );
 
   if (!session || !restEndsAt || expired) {

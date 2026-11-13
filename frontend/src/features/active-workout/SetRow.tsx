@@ -10,6 +10,8 @@ import {
 } from "@/lib/active-workout-state";
 import type { SetDraft } from "@/lib/active-workout-state";
 import { isPendingEntry } from "@/lib/optimistic-session";
+import { repsHint, weightHint } from "@/lib/load-rules";
+import type { LoadRule } from "@/lib/load-rules";
 import { resolveSetDisplayState } from "@/lib/workout-utils";
 import type { ExerciseKind, GridRow } from "@/lib/workout-utils";
 
@@ -19,6 +21,7 @@ export interface SetValues {
   weight: number | null;
   reps: number;
   rir: number | null;
+  rpe?: number | null;
   added_weight_kg: number | null;
   band_level: string | null;
   duration_seconds: number | null;
@@ -47,7 +50,7 @@ export const ROW_GRID = "grid grid-cols-[3rem_6rem_5rem_5rem_5rem_16rem] gap-2 m
 /** The three input cells shown for each exercise kind, in column order. Every
  *  kind gets exactly three, matching the grid's three middle columns. */
 export interface FieldSpec {
-  draftKey: keyof SetDraft;
+  draftKey: Exclude<keyof SetDraft, "rpe">;
   label: string;
   type: "number" | "text";
   inputMode?: "decimal" | "numeric";
@@ -109,6 +112,14 @@ export const FIELD_SPECS_BY_KIND: Record<ExerciseKind, FieldSpec[]> = {
   ],
 };
 
+/** What the weight or reps input means for this exercise ("Input: 1x DB",
+ *  "per side"), or null when it is the plain number. */
+export function fieldHint(draftKey: keyof SetDraft, rule: LoadRule): string | null {
+  if (draftKey === "weight") return weightHint(rule);
+  if (draftKey === "reps") return repsHint(rule);
+  return null;
+}
+
 function numericValue(raw: string): number | null {
   return raw ? Number.parseFloat(raw) : null;
 }
@@ -122,6 +133,7 @@ export function draftToValues(kind: ExerciseKind, raw: Partial<SetDraft>): SetVa
     // server-side, so it is sent as a fixed placeholder rather than shown.
     reps: kind === "cardio" ? 1 : Number.parseInt(raw.reps ?? "", 10),
     rir: kind === "strength" && rir ? Number.parseInt(rir, 10) : null,
+    rpe: kind === "strength" && raw.rpe !== undefined ? numericValue(raw.rpe) : undefined,
     added_weight_kg: kind === "bodyweight" ? numericValue(raw.added_weight_kg ?? "") : null,
     band_level: kind === "bodyweight" ? raw.band_level || null : null,
     duration_seconds:
@@ -150,30 +162,48 @@ function FieldCell({
   defaultValue,
   onInput,
   disabled,
+  hint,
+  hintId,
 }: {
   spec: FieldSpec;
   inputRef: RefObject<HTMLInputElement | null>;
   defaultValue: string;
   onInput: () => void;
   disabled: boolean;
+  hint: string | null;
+  hintId: string;
 }) {
+  // The hint sits outside the label so the input's accessible name stays the
+  // field label; it is linked as the description instead.
   return (
-    <label className="text-xs font-medium text-muted">
-      <span className="sr-only">{spec.label}</span>
-      <input
-        ref={inputRef}
-        type={spec.type === "number" ? "number" : "text"}
-        inputMode={spec.type === "number" ? spec.inputMode : undefined}
-        min={spec.type === "number" ? spec.min : undefined}
-        max={spec.type === "number" ? spec.max : undefined}
-        step={spec.type === "number" ? (spec.step ?? "1") : undefined}
-        maxLength={spec.type === "text" ? 20 : undefined}
-        defaultValue={defaultValue}
-        disabled={disabled}
-        onInput={onInput}
-        className="input block w-20 min-h-touch min-w-touch px-2"
-      />
-    </label>
+    <div>
+      <label className="text-xs font-medium text-muted">
+        <span className="sr-only">{spec.label}</span>
+        <input
+          ref={inputRef}
+          aria-describedby={hint ? hintId : undefined}
+          type={spec.type === "number" ? "number" : "text"}
+          inputMode={spec.type === "number" ? spec.inputMode : undefined}
+          min={spec.type === "number" ? spec.min : undefined}
+          max={spec.type === "number" ? spec.max : undefined}
+          step={spec.type === "number" ? (spec.step ?? "1") : undefined}
+          maxLength={spec.type === "text" ? 20 : undefined}
+          defaultValue={defaultValue}
+          disabled={disabled}
+          onInput={onInput}
+          className="input block w-20 min-h-touch min-w-touch px-2"
+        />
+      </label>
+      {hint ? (
+        <span
+          id={hintId}
+          className="mt-0.5 block text-[10px] leading-tight text-muted"
+          data-load-hint=""
+        >
+          {hint}
+        </span>
+      ) : null}
+    </div>
   );
 }
 
@@ -307,7 +337,7 @@ export function SetRow({
   }
 
   function currentValues(): SetValues {
-    const raw: Partial<SetDraft> = {};
+    const raw: Partial<SetDraft> = row.entry ? {} : { rpe: savedDraft.rpe };
     fieldSpecs.forEach((spec, index) => {
       raw[spec.draftKey] = fieldRefs[index].current?.value ?? "";
     });
@@ -368,6 +398,8 @@ export function SetRow({
               defaultValue={seedFor(spec)}
               onInput={saveDraft}
               disabled={disabled}
+              hint={fieldHint(spec.draftKey, row.exercise)}
+              hintId={`${spec.draftKey}-hint-${row.exercise.id}-${row.setNumber}`}
             />
           ))
         : fieldSpecs.map((spec) => (

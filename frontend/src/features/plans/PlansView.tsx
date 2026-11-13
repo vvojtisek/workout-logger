@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMatch, useNavigate } from "react-router-dom";
 
+import { useListVersion } from "@/app/MasterDetail";
 import { apiFetch, errorMessage } from "@/api/client";
 import type {
   Location,
@@ -18,6 +19,7 @@ import { toast } from "@/ui/Toast";
 import { Button, EmptyState, PageHeading } from "@/ui";
 
 export function PlansView() {
+  const listVersion = useListVersion();
   const { openSession } = useAppContext();
   const navigate = useNavigate();
   const selectedId = useMatch("/plans/:planId/edit")?.params.planId ?? null;
@@ -51,12 +53,21 @@ export function PlansView() {
     isLoading: loading,
     refetch,
   } = useQuery({
-    queryKey: ["plans"],
+    // Its own key (a sub-key of "plans", so saves still invalidate it) and always
+    // fresh on mount: Today caches a different "plans" query for 30 seconds.
+    queryKey: ["plans", "list"],
     queryFn: () => apiFetch<Paginated<WorkoutPlan>>("/plans?limit=100"),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
   const plans = planData?.items ?? [];
   const error = loadError ? `Failed to load plans: ${errorMessage(loadError)}` : null;
   const load = () => void refetch();
+
+  // Also reload after the detail beside the list closes (see MasterDetail).
+  useEffect(() => {
+    if (listVersion > 0) void refetch();
+  }, [listVersion, refetch]);
 
   async function startWorkout(planId: string) {
     try {
@@ -99,10 +110,9 @@ export function PlansView() {
         target_sets: ex.target_sets,
         target_reps_min: ex.target_reps_min,
         target_reps_max: ex.target_reps_max,
+        target_rir: ex.target_rir,
         target_weight_kg: ex.target_weight_kg,
         rest_time_seconds: ex.rest_time_seconds,
-        target_rir: ex.target_rir,
-        laterality: ex.laterality,
         notes: ex.notes,
         group_key: ex.group_key,
         group_order: ex.group_order,

@@ -23,9 +23,11 @@ from app.api.v1 import (
     plans,
     program_templates,
     programs,
+    quick_add_presets,
     scheduled_workouts,
     settings,
     sleep_entries,
+    training_load,
     users,
     workout_sessions,
 )
@@ -41,6 +43,7 @@ api_router.include_router(load_events.router)
 api_router.include_router(locations.router)
 api_router.include_router(logs.router)
 api_router.include_router(exercise_stats.router)
+api_router.include_router(training_load.router)
 api_router.include_router(workout_sessions.router)
 api_router.include_router(programs.router)
 api_router.include_router(program_templates.router)
@@ -51,6 +54,7 @@ api_router.include_router(foods.router)
 api_router.include_router(food_catalog.router)
 api_router.include_router(nutrition_plans.router)
 api_router.include_router(meal_entries.router)
+api_router.include_router(quick_add_presets.router)
 api_router.include_router(nutrition_dashboard.router)
 api_router.include_router(sleep_entries.router)
 api_router.include_router(ingest.router)

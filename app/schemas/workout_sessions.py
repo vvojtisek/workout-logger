@@ -4,7 +4,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.schemas.common import OrmModel
+from app.schemas.common import OrmModel, require_timezone_aware_utc
+from app.schemas.exercises import EquipmentTag
+from app.schemas.locations import DumbbellProfile, PlateProfile
+from app.services.volume import LoadMode as EquipmentLoadMode
 
 
 class WorkoutSessionStart(BaseModel):
@@ -19,8 +22,8 @@ class SetEntryCreate(BaseModel):
     reps: int = Field(ge=1, le=1000)
     rir: int | None = Field(default=None, ge=0, le=10)
     # Kind-specific fields: bodyweight uses added_weight_kg/band_level, cardio
-    # uses duration_seconds/distance_km/incline_percent, and rpe is a strength
-    # alternative to rir. All optional regardless of the exercise's kind - the
+    # uses duration_seconds/distance_km/incline_percent, and strength can record
+    # RPE alongside RIR. All optional regardless of the exercise's kind - the
     # client only sends what its kind's inputs collected.
     added_weight_kg: float | None = Field(default=None, ge=0)
     band_level: str | None = Field(default=None, max_length=20)
@@ -30,6 +33,25 @@ class SetEntryCreate(BaseModel):
     rpe: int | None = Field(default=None, ge=0, le=10)
     state: Literal["completed", "skipped"] = "completed"
     client_operation_id: str = Field(min_length=1, max_length=100)
+    client_completed_at: datetime | None = Field(
+        default=None, description="When a queued set was captured, with a UTC offset."
+    )
+    client_rest_seconds: int | None = Field(
+        default=None, ge=0, le=3600, description="Adjusted rest for a queued set. Zero skips rest."
+    )
+
+    @field_validator("client_completed_at")
+    @classmethod
+    def client_time_requires_timezone(cls, value: datetime | None) -> datetime | None:
+        return require_timezone_aware_utc(value) if value is not None else None
+
+    @model_validator(mode="after")
+    def rest_override_requires_queued_completion(self) -> "SetEntryCreate":
+        if self.client_rest_seconds is not None and (
+            self.client_completed_at is None or self.state != "completed"
+        ):
+            raise ValueError("client_rest_seconds requires a timed completed set")
+        return self
 
 
 class SetEntryUpdate(BaseModel):
@@ -41,7 +63,9 @@ class SetEntryUpdate(BaseModel):
     duration_seconds: int | None = Field(default=None, ge=0, le=86400)
     distance_km: float | None = Field(default=None, ge=0)
     incline_percent: float | None = Field(default=None, ge=-100, le=100)
-    rpe: int | None = Field(default=None, ge=0, le=10)
+    rpe: int | None = Field(
+        default=None, ge=0, le=10, description="Omit to retain the stored RPE. Null clears it."
+    )
 
 
 class SessionExerciseSwap(BaseModel):
@@ -81,6 +105,13 @@ class WorkoutSessionComplete(BaseModel):
     overall_feeling: int = Field(ge=1, le=5)
 
 
+class SessionLocationRef(OrmModel):
+    id: UUID
+    name: str
+    plate_profiles: list[PlateProfile] = Field(default_factory=list)
+    dumbbell_profiles: list[DumbbellProfile] = Field(default_factory=list)
+
+
 class SetEntryRead(OrmModel):
     id: UUID
     set_number: int
@@ -106,6 +137,7 @@ class SessionExerciseRead(OrmModel):
     target_sets: int
     target_reps_min: int
     target_reps_max: int
+    target_rir: int | None
     target_weight_kg: float | None
     rest_time_seconds: int
     notes: str | None
@@ -117,13 +149,22 @@ class SessionExerciseRead(OrmModel):
     suggestion_note: str | None
     status: str
     set_entries: list[SetEntryRead]
+    # From the exercise catalogue (app/services/volume.py); volume and reps
+    # count completed sets only.
+    equipment_load_mode: EquipmentLoadMode = "standard"
+    equipment_any_of: list[list[EquipmentTag]] = Field(default_factory=list)
+    is_unilateral: bool = False
+    total_reps: int = 0
+    volume_kg: float = 0.0
 
 
 class WorkoutSessionRead(OrmModel):
     id: UUID
+    owner_id: UUID | None
     source_plan_id: UUID | None
     source_plan_name: str
     location_id: UUID | None
+    location: SessionLocationRef | None = None
     workout_log_id: UUID | None
     status: str
     started_at: datetime
@@ -133,6 +174,7 @@ class WorkoutSessionRead(OrmModel):
     rest_ends_at: datetime | None
     version: int
     exercises: list[SessionExerciseRead]
+    total_volume_kg: float = 0.0
 
 
 class LocationRef(BaseModel):

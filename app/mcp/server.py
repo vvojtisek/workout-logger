@@ -72,6 +72,12 @@ mcp: FastMCP = FastMCP(
 
 _EDIT_NOTE = " Only the fields you pass change; the others keep their current value."
 
+_LOAD_NOTE = (
+    " weight_kg is what one hand holds (one dumbbell); reps are per side when the "
+    "exercise's is_unilateral is true. volume_kg in the result counts both "
+    "dumbbells and both sides from the exercise catalogue."
+)
+
 
 M = TypeVar("M", bound=BaseModel)
 
@@ -205,7 +211,7 @@ async def schedule_workout(
     description=(
         "Record one set in an active workout session. client_operation_id makes "
         "the write idempotent: replaying the same id returns the session unchanged "
-        "rather than duplicating the set. Returns the updated session."
+        "rather than duplicating the set. Returns the updated session." + _LOAD_NOTE
     ),
     auth=require_scopes("log"),
 )
@@ -624,7 +630,7 @@ async def delete_meal(meal_entry_id: UUID) -> dict[str, Any]:
         "exercises (exercise_name, sets_count, reps_per_set with one entry per "
         "set, optional weight_kg). For hockey, a swim, a ride, a hike or a run "
         "set activity_type and optionally distance_km and effort_rpe (1-10). "
-        "overall_feeling is 1-5; performed_at is a UTC timestamp."
+        "overall_feeling is 1-5; performed_at is a UTC timestamp." + _LOAD_NOTE
     ),
     auth=require_scopes("log"),
 )

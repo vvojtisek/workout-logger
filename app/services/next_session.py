@@ -41,6 +41,8 @@ async def increment_for(
 ) -> float:
     match = await _catalogue_match(session, exercise_name, catalog_exercise_id)
     if match is not None:
+        if match.progression_increment_kg is not None:
+            return match.progression_increment_kg
         leg = bool(LEG_MUSCLES & set(match.primary_muscles))
         barbell = any(
             "barbell" in option or "trap_bar" in option for option in match.equipment_any_of
@@ -52,6 +54,9 @@ async def increment_for(
 
 
 async def _rir_for(session: AsyncSession, log: ExerciseLog) -> list[int | None] | None:
+    # The log's own copy wins: it is what the history editor changes.
+    if log.rir_per_set is not None:
+        return list(log.rir_per_set)
     live = await session.scalar(
         select(WorkoutSession)
         .options(selectinload(WorkoutSession.exercises).selectinload(SessionExercise.set_entries))

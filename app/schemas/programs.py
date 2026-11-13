@@ -50,5 +50,26 @@ class ProgramRead(OrmModel):
     updated_at: datetime
 
 
+class ProgramScheduleSummary(BaseModel):
+    program_id: UUID
+    scheduled: int
+    in_progress: int
+    completed: int
+    skipped: int
+    weeks: list["ProgramWeekScheduleSummary"] = Field(default_factory=list)
+
+
+class ProgramWeekScheduleSummary(BaseModel):
+    week_number: int = Field(ge=1)
+    scheduled: int = Field(ge=0)
+    in_progress: int = Field(ge=0)
+    completed: int = Field(ge=0)
+    skipped: int = Field(ge=0)
+
+
+class ProgramScheduleSummariesResponse(BaseModel):
+    items: list[ProgramScheduleSummary]
+
+
 class PaginatedProgramsResponse(PaginatedResponse[ProgramRead]):
     pass

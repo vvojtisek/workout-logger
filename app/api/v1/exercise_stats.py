@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
-from app.schemas.exercise_stats import ExerciseStatsResponse
+from app.schemas.exercise_stats import ExerciseStatsQuery, ExerciseStatsResponse
 from app.services import exercise_stats as exercise_stats_service
 
 router = APIRouter(prefix="/exercise-stats", tags=["exercise stats"])
@@ -15,17 +15,22 @@ router = APIRouter(prefix="/exercise-stats", tags=["exercise stats"])
     operation_id="get_exercise_stats",
     summary="Get per-exercise progress statistics",
     description="Summarizes logged workout history for each requested exercise name "
-    "(case-insensitive): last session, heaviest set, Epley estimated one-rep max, "
-    "and the load trend between the two most recent sessions. Items are returned "
-    "in the order the names were requested.",
+    "(case-insensitive): last session, heaviest set, estimated one-rep max "
+    "from recorded weight and reps in the same set, and the working-weight trend "
+    "between the two most recent sessions. The latest session also includes ordered "
+    "rep sequences at repeated recorded loads, with last-set reps as a percentage of "
+    "the first set at each load. This is a rep drop-off measure, not bar velocity or "
+    "a failure estimate. The latest session also reports the spread among all four "
+    "equations on the same heaviest 1–10 rep set when one exists. Both timestamps "
+    "are required to filter to a range "
+    "[date_from, date_to). Items are returned in the order the names were requested.",
     response_model=ExerciseStatsResponse,
 )
 async def get_exercise_stats(
-    name: Annotated[
-        list[Annotated[str, Query(min_length=1, max_length=150)]],
-        Query(min_length=1, max_length=50),
-    ],
+    query: Annotated[ExerciseStatsQuery, Query()],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ExerciseStatsResponse:
-    items = await exercise_stats_service.get_exercise_stats(session, name)
+    items = await exercise_stats_service.get_exercise_stats(
+        session, query.name, query.formula, date_from=query.date_from, date_to=query.date_to
+    )
     return ExerciseStatsResponse(items=items)

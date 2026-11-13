@@ -22,22 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   volume and best set, with date and plan filters.
 - The desktop rest timer reads `Rest: 01:30` instead of `Rest: 90s`.
 - Plans: on desktop the plan list sits beside an inline-editing exercise table
-  (sets, reps, weight, RIR, rest, laterality, superset group, notes) with a
+  (sets, reps, weight, RIR, rest, superset group, notes) with a
   running exercise/set total and an "Unsaved changes" flag; saving keeps the plan
   open. On a phone each exercise is a flat block with 44 px controls and
   tabular numerals. Every `.btn` and `.input` is now at least 44 px tall.
-
 - Calendar, Nutrition, Sleep, Biometrics and Settings follow the same system:
   hairline sections instead of boxed cards, 44 px controls (calendar entries,
   the theme switch, the repeat-meal chips) and JetBrains Mono for every
   tabular number. The calendar uses the full desktop width.
-
-### Added
-
-- Plan exercises carry a target RIR (`target_rir`, 0-10, optional) and a
-  `laterality` (`bilateral`, `per_side`, `single_limb`; default `bilateral`),
-  through the REST API, MCP and the plan editor. They are stored and shown;
-  the live workout does not yet split logging per side.
 
 ### Fixed
 
@@ -58,6 +50,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GET /api/v1/workout-sessions/active?optional=true` answers 204 instead of
   404 when no workout is active, so the app's start-up check leaves nothing
   in the browser console. Without the parameter the endpoint is unchanged.
+- Per-side and dumbbell volume rules. Exercises carry `equipment_load_mode`
+  (`standard`, `single_db`, `pair_db`) and `is_unilateral`. The weight you type
+  is always one dumbbell; `pair_db` counts it twice, and a per-side exercise
+  counts reps and volume for both sides. Logs and sessions report `volume_kg`,
+  `total_reps` and `total_volume_kg`, computed when read, so past workouts
+  follow an exercise's current rule. The live workout labels the inputs
+  ("Input: 1x DB (Vol: 2x)", "per side"), and the shared catalogue is marked
+  (Bulgarian split squat, lunges, DB presses, curls and others).
+  "Dumbbell Romanian deadlift" is now its own exercise instead of an alias.
+- Quick-add drinks: one-tap Cappuccino (150 ml, 90 kcal) and Tea (250 ml,
+  0 kcal) buttons at the top of Log Meal and on the phone's Today screen. A tap
+  logs the drink now as an ordinary meal entry, with an Undo toast. The drinks
+  and their values are editable under Nutrition > Quick-add drinks
+  (`/api/v1/quick-add-presets`).
+- Edit a past workout from its history page (`/history/<id>`): change the date
+  and time, duration, how it felt and notes; add or remove exercises; and add,
+  change or remove single sets (weight, reps, RIR). Each set now keeps its own
+  weight and RIR (`exercise_logs.weight_per_set`, `rir_per_set`); `weight_kg`
+  stays the last set's weight, as before. Workouts finished from a live session
+  get their per-set values copied from that session by the migration. The next
+  session's suggestion and the exercise stats use the edited values.
+  New `PATCH /api/v1/logs/{id}` changes only the fields sent.
+
 - Health Connect import: `POST /api/v1/ingest/health-connect?timezone=...`
   takes the HC Webhook Android app's JSON and stores daily steps, sleep (with
   asleep and awake time from the stages) and exercise sessions (hockey, swims,
@@ -90,6 +105,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Releases are automatic. After Merge checks passes on `main`, the next
+  version is worked out from the Conventional Commits since the last tag, and
+  the existing tagged-release pipeline builds the image, creates the tag and a
+  GitHub Release with a grouped changelog, moves `:latest`, deploys through
+  SSM and waits for the site to report the new version. Set the repository
+  variable `AUTO_RELEASE=false` to pause it.
 - Standardize displayed and entered dates as `YYYY-MM-DD` and local date-times
   as `YYYY-MM-DD HH:mm`, independent of browser locale.
 - Use metric units throughout; normalize saved unit preferences without changing

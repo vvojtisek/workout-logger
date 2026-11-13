@@ -9,6 +9,7 @@ from app.schemas.common import ErrorResponse
 from app.schemas.logs import (
     PaginatedLogsResponse,
     WorkoutLogCreate,
+    WorkoutLogPatch,
     WorkoutLogRead,
     WorkoutLogReplace,
 )
@@ -93,6 +94,25 @@ async def replace_workout_log(
     session: AsyncSession = Depends(get_session),
 ) -> WorkoutLogRead:
     log = await logs_service.replace_log(session, log_id, data)
+    return WorkoutLogRead.model_validate(log)
+
+
+@router.patch(
+    "/{log_id}",
+    operation_id="update_workout_log",
+    summary="Update part of a workout log",
+    description="Changes only the fields sent; an explicit null clears an optional field. "
+    "Sending exercises replaces the whole exercise list, as PUT does. The merged record is "
+    "validated like a PUT body.",
+    response_model=WorkoutLogRead,
+    responses={404: {"model": ErrorResponse, "description": "Log or referenced plan not found"}},
+)
+async def update_workout_log(
+    log_id: UUID,
+    data: WorkoutLogPatch,
+    session: AsyncSession = Depends(get_session),
+) -> WorkoutLogRead:
+    log = await logs_service.patch_log(session, log_id, data)
     return WorkoutLogRead.model_validate(log)
 
 

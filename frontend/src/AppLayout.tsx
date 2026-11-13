@@ -3,9 +3,10 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
-import type { ReactNode } from "react";
+import type { MutableRefObject, ReactNode } from "react";
 import {
   Activity,
   CalendarDays,
@@ -47,11 +48,20 @@ import type { NavIcon, NavSection } from "@/lib/navigation";
 import { useTheme, useThemePreference } from "@/lib/theme";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { GlobalRestBar } from "@/features/active-workout/GlobalRestBar";
+import { clearWorkoutSnapshot, loadWorkoutSnapshot, saveWorkoutSnapshot } from "@/lib/active-workout-storage";
+
+/** Adjusts or skips the running rest; the live workout registers it. */
+export type RestControls = (data: {
+  adjustment_seconds?: number;
+  skip?: boolean;
+}) => Promise<void>;
 
 interface AppContextValue {
+  /** Set by the live workout while it is mounted. */
+  restControls: MutableRefObject<RestControls | null>;
   session: WorkoutSession | null;
   /** False until the first look for an already-active session has answered. */
-  sessionResolved: boolean;
+  sessionReady: boolean;
   online: boolean;
   openSession: (session: WorkoutSession) => void;
   updateSession: (session: WorkoutSession) => void;
@@ -107,55 +117,81 @@ function useBuildLabel(online: boolean): BuildLabel | null {
 export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const online = useOnlineStatus();
-  const buildLabel = useBuildLabel(online);
-  const { logout } = useAuth();
+  const networkOnline = useOnlineStatus();
+  const { logout, accountId, status: authStatus } = useAuth();
+  const [loadedMode, setLoadedMode] = useState<typeof authStatus | null>(null);
   const [session, setSession] = useState<WorkoutSession | null>(null);
-  const [sessionResolved, setSessionResolved] = useState(false);
+  const sessionRevision = useRef(0);
+  const restControls = useRef<RestControls | null>(null);
+  const sessionReady = loadedMode === authStatus;
+  const online = networkOnline && authStatus === "authenticated" && sessionReady;
+  const buildLabel = useBuildLabel(online);
 
   const handleLogout = useCallback(() => {
+    if (accountId) void clearWorkoutSnapshot(accountId).catch(() => undefined);
     void logout().then(() => navigate("/login"));
-  }, [logout, navigate]);
+  }, [accountId, logout, navigate]);
+
+  const updateSession = useCallback((next: WorkoutSession) => {
+    if (!accountId || next.owner_id !== accountId) return false;
+    sessionRevision.current += 1;
+    setSession((current) => current?.id === next.id && current.version > next.version ? current : next);
+    void saveWorkoutSnapshot(accountId, next).catch(() => undefined);
+    return true;
+  }, [accountId]);
 
   const openSession = useCallback(
     (next: WorkoutSession) => {
-      setSession(next);
-      void navigate("/workout");
+      if (updateSession(next)) void navigate("/workout");
     },
-    [navigate],
+    [navigate, updateSession],
   );
 
   const finishSession = useCallback(() => {
+    sessionRevision.current += 1;
     setSession(null);
+    if (accountId) void clearWorkoutSnapshot(accountId).catch(() => undefined);
     void navigate("/history");
-  }, [navigate]);
-
-  const updateSession = useCallback((next: WorkoutSession) => {
-    setSession(next);
-  }, []);
+  }, [accountId, navigate]);
 
   useEffect(() => {
+    if (!accountId) return;
     let cancelled = false;
+    const revision = sessionRevision.current;
     // `optional=true` answers 204 when nothing is active, so a normal cold load
-    // leaves no red 404 in the console. Restoring a session never navigates:
-    // the rest bar is the way back, so a deep link such as /history stays put.
-    apiFetch<WorkoutSession | null>("/workout-sessions/active?optional=true")
+    // leaves no red 404 in the console.
+    const activeSession = authStatus === "offline"
+      ? loadWorkoutSnapshot(accountId)
+      : apiFetch<WorkoutSession | null>("/workout-sessions/active?optional=true");
+    activeSession
       .then((active) => {
-        if (!cancelled && active) setSession(active);
+        if (cancelled || sessionRevision.current !== revision) return;
+        if (!active) {
+          if (authStatus !== "offline") {
+            setSession(null);
+            void clearWorkoutSnapshot(accountId).catch(() => undefined);
+          }
+          return;
+        }
+        if (authStatus === "offline") setSession((current) => current ?? active);
+        // Restoring a session never navigates: the rest bar is the way back, so
+        // a deep link such as /history stays put.
+        else updateSession(active);
       })
       .catch(() => undefined)
       .finally(() => {
-        if (!cancelled) setSessionResolved(true);
+        if (!cancelled) setLoadedMode(authStatus);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [accountId, authStatus, updateSession]);
 
   const isDesktop = useIsDesktop();
   const ctx: AppContextValue = {
     session,
-    sessionResolved,
+    sessionReady,
+    restControls,
     online,
     openSession,
     updateSession,
@@ -193,6 +229,7 @@ export function AppLayout() {
               session={session}
               onSessionChange={updateSession}
               reserveSpace={location.pathname === WORKOUT_PATH}
+              controls={restControls}
             />
           }
         />

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildPayload,
   emptyRow,
-  lateralityLabel,
   planSummary,
   rowFromExercise,
   supersetLabels,
@@ -21,7 +20,6 @@ const squat = {
   target_weight_kg: 100,
   rest_time_seconds: 120,
   target_rir: 2,
-  laterality: "bilateral",
   notes: null,
   group_key: null,
   group_order: null,
@@ -35,9 +33,13 @@ describe("plan drafts", () => {
       target_sets: 4,
       target_weight_kg: 100,
       target_rir: 2,
-      laterality: "bilateral",
-      group_key: null,
+          group_key: null,
     });
+  });
+
+  it("drops RIR on non-strength exercises", () => {
+    const row = { ...rowFromExercise(squat), exercise_kind: /** @type {const} */ ("bodyweight"), target_rir: "2" };
+    expect(buildPayload("p", "", [row]).exercises[0].target_rir).toBeNull();
   });
 
   it("treats a blank RIR as not prescribed and keeps RIR 0", () => {
@@ -55,18 +57,12 @@ describe("plan drafts", () => {
   });
 
   it("starts new rows bilateral with no RIR", () => {
-    expect(emptyRow(90)).toMatchObject({ laterality: "bilateral", target_rir: "", rest_time_seconds: "90" });
+    expect(emptyRow(90)).toMatchObject({ target_rir: "", rest_time_seconds: "90" });
   });
 
   it("summarises sets and a sensible duration", () => {
     const rows = [rowFromExercise(squat), { ...rowFromExercise(squat), target_sets: "3" }];
     expect(planSummary(rows)).toEqual({ exercises: 2, sets: 7 });
-  });
-
-  it("labels laterality for people", () => {
-    expect(lateralityLabel("bilateral")).toBe("Both");
-    expect(lateralityLabel("per_side")).toBe("Each side");
-    expect(lateralityLabel("single_limb")).toBe("One limb");
   });
 
   it("letters superset groups A, B in order of first appearance", () => {

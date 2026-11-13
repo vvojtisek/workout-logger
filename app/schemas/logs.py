@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -10,6 +10,7 @@ from app.schemas.common import (
     require_non_empty,
     require_timezone_aware_utc,
 )
+from app.services.volume import LoadMode as EquipmentLoadMode
 
 
 class ExerciseLogCreate(BaseModel):
@@ -17,6 +18,17 @@ class ExerciseLogCreate(BaseModel):
     sets_count: int = Field(ge=1, le=100)
     reps_per_set: list[int]
     weight_kg: float | None = Field(default=None, ge=0)
+    weight_per_set: list[Annotated[float, Field(ge=0)] | None] | None = Field(
+        default=None,
+        description="Weight of each set in kg, one entry per set. When sent, weight_kg "
+        "is set to the last non-null entry.",
+    )
+    rir_per_set: list[Annotated[int, Field(ge=0, le=10)] | None] | None = Field(
+        default=None, description="Reps in reserve for each set, one entry per set."
+    )
+    rpe_per_set: list[Annotated[int, Field(ge=0, le=10)] | None] | None = Field(
+        default=None, description="Perceived exertion for each set, one entry per set."
+    )
     rest_time_seconds: int = Field(default=60, ge=0, le=3600)
     notes: str | None = Field(default=None, max_length=4000)
 
@@ -38,6 +50,18 @@ class ExerciseLogCreate(BaseModel):
     def sets_count_matches_reps_per_set(self) -> "ExerciseLogCreate":
         if len(self.reps_per_set) != self.sets_count:
             raise ValueError("sets_count must equal the number of entries in reps_per_set")
+        for name in ("weight_per_set", "rir_per_set", "rpe_per_set"):
+            values = getattr(self, name)
+            if values is not None and len(values) != self.sets_count:
+                raise ValueError(f"{name} must have one entry per set")
+        return self
+
+    @model_validator(mode="after")
+    def working_weight_is_the_last_set_s(self) -> "ExerciseLogCreate":
+        # Preserve the working weight for progression and legacy readers.
+        if self.weight_per_set is not None:
+            loaded = [weight for weight in self.weight_per_set if weight is not None]
+            self.weight_kg = loaded[-1] if loaded else None
         return self
 
 
@@ -46,6 +70,12 @@ class ExerciseLogRead(ExerciseLogCreate):
 
     id: UUID
     sort_order: int
+    # Derived from the exercise catalogue when read (app/services/volume.py):
+    # weight_kg is one dumbbell and reps_per_set are per side.
+    equipment_load_mode: EquipmentLoadMode = "standard"
+    is_unilateral: bool = False
+    total_reps: int = 0
+    volume_kg: float = 0.0
 
 
 ActivityType = Literal["ice_hockey", "swimming", "cycling", "hiking", "running", "other"]
@@ -73,6 +103,24 @@ class WorkoutLogReplace(WorkoutLogCreate):
     pass
 
 
+class WorkoutLogPatch(BaseModel):
+    """Fields to change on a stored log. Omitted fields keep their value; an
+    explicit null clears an optional one. `exercises` replaces the whole list."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_plan_id: UUID | None = None
+    performed_at: datetime | None = None
+    total_time_minutes: int | None = None
+    calories_burned: int | None = None
+    overall_feeling: int | None = None
+    notes: str | None = None
+    activity_type: ActivityType | None = None
+    distance_km: float | None = None
+    effort_rpe: int | None = None
+    exercises: list[ExerciseLogCreate] | None = None
+
+
 class WorkoutLogRead(OrmModel):
     id: UUID
     source_plan_id: UUID | None
@@ -88,6 +136,7 @@ class WorkoutLogRead(OrmModel):
     distance_km: float | None
     effort_rpe: int | None
     exercises: list[ExerciseLogRead]
+    total_volume_kg: float = 0.0
     created_at: datetime
     updated_at: datetime
 

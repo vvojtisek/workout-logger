@@ -96,6 +96,121 @@ async def test_list_programs_pagination(client, auth_headers):
     assert len(body["items"]) == 2
 
 
+async def test_program_schedule_summary_counts_each_calendar_state(client, auth_headers):
+    plan_response = await client.post(
+        "/api/v1/plans",
+        json={
+            "name": "Schedule summary plan",
+            "exercises": [
+                {
+                    "exercise_name": "Bench press",
+                    "target_sets": 1,
+                    "target_reps_min": 5,
+                    "target_reps_max": 8,
+                    "target_weight_kg": 60,
+                }
+            ],
+        },
+        headers=auth_headers,
+    )
+    assert plan_response.status_code == 201
+    plan_id = plan_response.json()["id"]
+    program_response = await client.post(BASE, json=make_program_payload(), headers=auth_headers)
+    assert program_response.status_code == 201
+    program_id = program_response.json()["id"]
+
+    scheduled_ids = []
+    for scheduled_date in ("2026-01-02", "2026-01-05", "2026-01-09", "2026-01-12"):
+        response = await client.post(
+            "/api/v1/scheduled-workouts",
+            json={
+                "program_id": program_id,
+                "workout_plan_id": plan_id,
+                "scheduled_date": scheduled_date,
+            },
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
+        scheduled_ids.append(response.json()["id"])
+    for scheduled_date in ("2025-12-31", "2026-03-02"):
+        response = await client.post(
+            "/api/v1/scheduled-workouts",
+            json={
+                "program_id": program_id,
+                "workout_plan_id": plan_id,
+                "scheduled_date": scheduled_date,
+            },
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
+
+    skipped = await client.patch(
+        f"/api/v1/scheduled-workouts/{scheduled_ids[1]}",
+        json={"status": "skipped"},
+        headers=auth_headers,
+    )
+    assert skipped.status_code == 200
+    completed_session = await client.post(
+        f"/api/v1/scheduled-workouts/{scheduled_ids[2]}/start", headers=auth_headers
+    )
+    assert completed_session.status_code == 201
+    session = completed_session.json()
+    saved = await client.post(
+        f"/api/v1/workout-sessions/{session['id']}/sets",
+        json={
+            "session_exercise_id": session["exercises"][0]["id"],
+            "set_number": 1,
+            "weight_kg": 60,
+            "reps": 8,
+            "client_operation_id": "program-summary-completed",
+        },
+        headers=auth_headers,
+    )
+    assert saved.status_code == 201
+    completed = await client.post(
+        f"/api/v1/workout-sessions/{session['id']}/complete",
+        json={"overall_feeling": 4},
+        headers=auth_headers,
+    )
+    assert completed.status_code == 200
+
+    in_progress = await client.post(
+        f"/api/v1/scheduled-workouts/{scheduled_ids[3]}/start", headers=auth_headers
+    )
+    assert in_progress.status_code == 201
+
+    response = await client.get(f"{BASE}/schedule-summary", headers=auth_headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {
+        "items": [
+            {
+                "program_id": program_id,
+                "scheduled": 3,
+                "in_progress": 1,
+                "completed": 1,
+                "skipped": 1,
+                "weeks": [
+                    {
+                        "week_number": 1,
+                        "scheduled": 1,
+                        "in_progress": 0,
+                        "completed": 0,
+                        "skipped": 1,
+                    },
+                    {
+                        "week_number": 2,
+                        "scheduled": 0,
+                        "in_progress": 1,
+                        "completed": 1,
+                        "skipped": 0,
+                    },
+                ],
+            }
+        ]
+    }
+
+
 async def test_replace_program_updates_fields(client, auth_headers):
     create_resp = await client.post(
         BASE, json=make_program_payload(name="Old Name"), headers=auth_headers

@@ -1,4 +1,4 @@
-import type { Laterality, WorkoutPlan } from "@/api/types";
+import type { WorkoutPlan } from "@/api/types";
 import type { ExerciseKind } from "@/lib/workout-utils";
 
 /** One exercise row in the plan editor. Fields stay strings while typing. */
@@ -12,7 +12,6 @@ export interface ExerciseRowState {
   target_weight_kg: string;
   rest_time_seconds: string;
   target_rir: string;
-  laterality: Laterality;
   notes: string;
   group_key: string;
 }
@@ -28,7 +27,6 @@ export function emptyRow(restSeconds = 60): ExerciseRowState {
     target_weight_kg: "",
     rest_time_seconds: String(restSeconds),
     target_rir: "",
-    laterality: "bilateral",
     notes: "",
     group_key: "",
   };
@@ -45,7 +43,6 @@ export function rowFromExercise(exercise: WorkoutPlan["exercises"][number]): Exe
     target_weight_kg: exercise.target_weight_kg != null ? String(exercise.target_weight_kg) : "",
     rest_time_seconds: String(exercise.rest_time_seconds),
     target_rir: exercise.target_rir != null ? String(exercise.target_rir) : "",
-    laterality: exercise.laterality ?? "bilateral",
     notes: exercise.notes ?? "",
     group_key: exercise.group_key ?? "",
   };
@@ -73,8 +70,11 @@ export function buildPayload(name: string, description: string, rows: ExerciseRo
       rest_time_seconds: row.rest_time_seconds.trim()
         ? Number.parseInt(row.rest_time_seconds, 10)
         : 60,
-      target_rir: row.target_rir.trim() ? Number.parseInt(row.target_rir, 10) : null,
-      laterality: row.laterality,
+      // Only strength work has a RIR to prescribe.
+      target_rir:
+        row.exercise_kind === "strength" && row.target_rir.trim()
+          ? Number.parseInt(row.target_rir, 10)
+          : null,
       notes: row.notes.trim() || null,
       group_key: groupKey,
       group_order: groupOrder,
@@ -91,16 +91,6 @@ export function planSummary(rows: ExerciseRowState[]): { exercises: number; sets
     if (Number.isFinite(n)) sets += n;
   }
   return { exercises: rows.length, sets };
-}
-
-const LATERALITY_LABELS: Record<Laterality, string> = {
-  bilateral: "Both",
-  per_side: "Each side",
-  single_limb: "One limb",
-};
-
-export function lateralityLabel(laterality: Laterality): string {
-  return LATERALITY_LABELS[laterality];
 }
 
 /** "A", "B"… for superset groups in order of first appearance; "" for no group. */

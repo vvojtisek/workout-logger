@@ -1,5 +1,6 @@
 import type { ExerciseKind, GridExercise, GridSession } from "@/lib/workout-utils";
 import type { ActivityType } from "@/lib/activity";
+import type { EquipmentLoadMode } from "@/lib/load-rules";
 
 export interface Paginated<T> {
   items: T[];
@@ -20,8 +21,6 @@ export interface CurrentUser {
   updated_at: string;
 }
 
-export type Laterality = "bilateral" | "per_side" | "single_limb";
-
 export interface PlanExercise {
   id: string;
   sort_order: number;
@@ -30,10 +29,9 @@ export interface PlanExercise {
   target_sets: number;
   target_reps_min: number;
   target_reps_max: number;
+  target_rir: number | null;
   target_weight_kg: number | null;
   rest_time_seconds: number;
-  target_rir: number | null;
-  laterality: Laterality;
   notes: string | null;
   group_key: string | null;
   group_order: number | null;
@@ -51,17 +49,28 @@ export interface WorkoutPlan {
 export interface SessionExercise extends GridExercise {
   target_reps_min: number;
   target_reps_max: number;
+  target_rir: number | null;
   target_weight_kg: number | null;
   rest_time_seconds: number;
   notes: string | null;
   status: string;
+  /** Completed sets only, both dumbbells and both sides counted. */
+  total_reps?: number;
+  volume_kg?: number;
 }
 
 export interface WorkoutSession extends GridSession {
   id: string;
+  owner_id: string | null;
   source_plan_id: string | null;
   source_plan_name: string;
   location_id: string | null;
+  location: {
+    id: string;
+    name: string;
+    plate_profiles: PlateProfile[];
+    dumbbell_profiles: DumbbellProfile[];
+  } | null;
   workout_log_id: string | null;
   status: string;
   started_at: string;
@@ -69,6 +78,7 @@ export interface WorkoutSession extends GridSession {
   rest_ends_at: string | null;
   version: number;
   exercises: SessionExercise[];
+  total_volume_kg?: number;
 }
 
 /** One past session of an exercise, for the progression chart. */
@@ -77,6 +87,20 @@ export interface ExerciseSessionPoint {
   weight_kg: number | null;
   top_reps: number;
   estimated_one_rep_max_kg: number | null;
+}
+
+export interface RepRetentionGroup {
+  weight_kg: number;
+  reps_per_set: number[];
+  rir_per_set: (number | null)[];
+  retention_percent: number;
+}
+
+export interface FormulaAgreement {
+  reference_weight_kg: number;
+  reference_reps: number;
+  estimates_kg: Record<OneRepMaxFormula, number>;
+  spread_percent: number;
 }
 
 export interface ExerciseStats {
@@ -89,6 +113,9 @@ export interface ExerciseStats {
   best_weight_reps: number | null;
   estimated_one_rep_max_kg: number | null;
   trend: "up" | "down" | "flat" | null;
+  formula_agreement: FormulaAgreement | null;
+  /** Repeated same-load set sequences from the latest session. */
+  rep_retention: RepRetentionGroup[];
   /** Up to the last twelve sessions, oldest first. */
   recent: ExerciseSessionPoint[];
 }
@@ -97,14 +124,85 @@ export interface ExerciseStatsResponse {
   items: ExerciseStats[];
 }
 
+export type OneRepMaxFormula = "epley" | "brzycki" | "lombardi" | "wathen";
+
+export interface TrainingLoadWeek {
+  week_start: string;
+  gym_sessions: number;
+  logged_sets: number;
+  volume_kg: number;
+  muscle_volume: { muscle: MuscleTag | null; set_count: number; volume_kg: number }[];
+  movement_pattern_volume: {
+    movement_pattern: MovementPattern | null;
+    volume_kg: number;
+  }[];
+  movement_pattern_sets: { movement_pattern: MovementPattern | null; sets: number }[];
+  rir_distribution: { rir: number | null; sets: number }[];
+  session_effort: {
+    logged_sessions: number;
+    rated_sessions: number;
+    rated_minutes: number;
+    load_au: number | null;
+  };
+  session_effort_sessions: {
+    performed_at_utc: string;
+    local_date: string;
+    activity_type: ActivityType | null;
+    duration_minutes: number;
+    effort_rpe: number | null;
+    load_au: number | null;
+  }[];
+  session_effort_by_activity: {
+    activity_type: ActivityType | null;
+    logged_sessions: number;
+    rated_sessions: number;
+    rated_minutes: number;
+    load_au: number | null;
+    workload_ratio: {
+      status: "ready" | "week_incomplete" | "missing_sessions" | "missing_ratings" | "zero_baseline";
+      baseline_start: string | null;
+      baseline_mean_au: number | null;
+      ratio: number | null;
+    };
+  }[];
+  workload_ratio: {
+    status: "ready" | "week_incomplete" | "missing_sessions" | "missing_ratings" | "zero_baseline";
+    baseline_start: string | null;
+    baseline_mean_au: number | null;
+    ratio: number | null;
+  };
+  training_variability: {
+    status: "ready" | "week_incomplete" | "no_sessions" | "missing_ratings" | "zero_variation";
+    daily_mean_au: number | null;
+    daily_sd_au: number | null;
+    monotony: number | null;
+    strain_au: number | null;
+    daily_loads: { local_date: string; load_au: number }[];
+  };
+}
+
+export interface TrainingLoadResponse {
+  timezone: string;
+  weeks: TrainingLoadWeek[];
+}
+
 export interface ExerciseLog {
   id: string;
   exercise_name: string;
   sets_count: number;
   reps_per_set: number[];
+  /** One dumbbell for dumbbell lifts; reps_per_set are per side when is_unilateral. */
   weight_kg: number | null;
+  /** One entry per set; null on logs saved with a single weight (weight_kg). */
+  weight_per_set?: (number | null)[] | null;
+  rir_per_set?: (number | null)[] | null;
+  rpe_per_set?: (number | null)[] | null;
   rest_time_seconds: number;
   notes: string | null;
+  equipment_load_mode?: EquipmentLoadMode;
+  is_unilateral?: boolean;
+  total_reps?: number;
+  volume_kg?: number;
 }
 
 export interface WorkoutLogSummary {
@@ -119,6 +217,7 @@ export interface WorkoutLogSummary {
   activity_type: ActivityType | null;
   distance_km: number | null;
   effort_rpe: number | null;
+  total_volume_kg?: number;
 }
 
 export interface WorkoutLog extends WorkoutLogSummary {
@@ -168,6 +267,25 @@ export const EQUIPMENT_TAGS = [
 
 export type EquipmentTag = (typeof EQUIPMENT_TAGS)[number];
 
+export const MOVEMENT_PATTERNS = [
+  "horizontal_push",
+  "horizontal_pull",
+  "vertical_push",
+  "vertical_pull",
+  "squat",
+  "hinge",
+  "lunge",
+  "carry",
+  "rotation",
+  "anti_rotation",
+  "trunk_flexion",
+  "trunk_extension",
+  "core_stability",
+  "locomotion",
+] as const;
+
+export type MovementPattern = (typeof MOVEMENT_PATTERNS)[number];
+
 export interface CatalogExercise {
   id: string;
   name: string;
@@ -175,12 +293,17 @@ export interface CatalogExercise {
   media_url: string | null;
   primary_muscles: MuscleTag[];
   secondary_muscles: MuscleTag[];
+  movement_patterns: MovementPattern[];
   instructions: string[];
   equipment: string | null;
+  movement_pattern: MovementPattern | null;
   // Alternatives: any one option will do, and an option needs all its tags.
   // Empty means the exercise is not tagged.
   equipment_any_of: EquipmentTag[][];
   safety_notes: string | null;
+  progression_increment_kg: number | null;
+  equipment_load_mode: EquipmentLoadMode;
+  is_unilateral: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -189,6 +312,20 @@ export const LOCATION_KINDS = ["home", "office", "gym", "travel"] as const;
 
 export type LocationKind = (typeof LOCATION_KINDS)[number];
 
+export interface PlateProfile {
+  name: string;
+  bar_kg: number;
+  collars_kg: number;
+  plates: Array<{ weight_kg: number; pairs: number }>;
+}
+
+export interface DumbbellProfile {
+  name: string;
+  handle_kg: number;
+  collars_kg: number;
+  plates: Array<{ weight_kg: number; pairs: number }>;
+}
+
 export interface Location {
   id: string;
   name: string;
@@ -196,6 +333,8 @@ export interface Location {
   // What the place has; bodyweight is implied everywhere.
   equipment: EquipmentTag[];
   default_minutes: number | null;
+  plate_profiles: PlateProfile[];
+  dumbbell_profiles: DumbbellProfile[];
   created_at: string;
   updated_at: string;
 }
@@ -258,6 +397,23 @@ export interface Program {
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProgramScheduleSummary {
+  program_id: string;
+  scheduled: number;
+  in_progress: number;
+  completed: number;
+  skipped: number;
+  weeks: ProgramWeekScheduleSummary[];
+}
+
+export interface ProgramWeekScheduleSummary {
+  week_number: number;
+  scheduled: number;
+  in_progress: number;
+  completed: number;
+  skipped: number;
 }
 
 export interface ProgramTemplate {
@@ -380,6 +536,22 @@ export interface NutritionPlan {
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
+/** A one-tap drink; values are for the whole serving, not per 100 g. */
+export interface QuickAddPreset {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  energy_kcal: number;
+  protein_g: number;
+  carbohydrate_g: number;
+  fat_g: number;
+  fiber_g: number | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface MealItem {
   id: string;
   food_id: string | null;
@@ -483,11 +655,27 @@ export interface ApiTokenCreated extends ApiToken {
 /** Legacy API values remain typed for compatibility; the UI always displays metric. */
 export type Units = "metric" | "imperial";
 
+export interface PlateInventoryItem {
+  plate_weight_kg: number;
+  pairs: number;
+}
+
+export interface EquipmentProfile {
+  id: string;
+  name: string;
+  barbell_weight_kg: number;
+  plate_inventory: PlateInventoryItem[];
+}
+
 export interface UserSettings {
   id: string;
   units: Units;
   default_rest_compound_seconds: number;
   default_rest_isolation_seconds: number;
+  barbell_weight_kg: number;
+  plate_inventory: { plate_weight_kg: number; pairs: number }[];
+  equipment_profiles: EquipmentProfile[];
+  active_equipment_profile_id: string;
   created_at: string;
   updated_at: string;
 }

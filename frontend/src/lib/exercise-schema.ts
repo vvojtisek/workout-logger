@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-import { EQUIPMENT_TAGS, MUSCLE_TAGS } from "@/api/types";
+import { EQUIPMENT_TAGS, MUSCLE_TAGS, MOVEMENT_PATTERNS } from "@/api/types";
 import { equipmentOptionsError } from "@/lib/equipment";
+import { EQUIPMENT_LOAD_MODES } from "@/lib/load-rules";
 
 // Mirrors the server-side validation in `app/schemas/exercises.py` so an
 // exercise can be rejected in the browser instead of round-tripping a raw 422.
@@ -24,6 +25,10 @@ export const exercisePayloadSchema = z.object({
     .nullable(),
   primary_muscles: z.array(muscleTagSchema),
   secondary_muscles: z.array(muscleTagSchema),
+  movement_patterns: z
+    .array(z.enum(MOVEMENT_PATTERNS))
+    .max(4, "Choose at most four movement patterns")
+    .refine((patterns) => new Set(patterns).size === patterns.length, "Remove duplicate patterns"),
   instructions: z.array(
     z.string().trim().min(1, "Step cannot be blank").max(1000, "Max 1000 characters"),
   ),
@@ -37,6 +42,18 @@ export const exercisePayloadSchema = z.object({
       if (message) ctx.addIssue({ code: "custom", message });
     }),
   safety_notes: z.string().max(4000, "Max 4000 characters").nullable(),
+  progression_increment_kg: z
+    .number()
+    .min(0.05, "Minimum increment is 0.05 kg")
+    .max(20, "Maximum increment is 20 kg")
+    .refine(
+      (value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-8,
+      "Use no more than two decimal places",
+    )
+    .nullable(),
+  equipment_load_mode: z.enum(EQUIPMENT_LOAD_MODES),
+  is_unilateral: z.boolean(),
+  movement_pattern: z.enum(MOVEMENT_PATTERNS).nullable(),
 });
 
 export type ExercisePayload = z.infer<typeof exercisePayloadSchema>;

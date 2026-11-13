@@ -46,6 +46,7 @@ export function applyOptimisticSet(
     incline_percent: payload.incline_percent ?? null,
     rpe: payload.rpe ?? null,
     state,
+    pending: true,
     completed_at: now.toISOString(),
     client_operation_id: payload.client_operation_id,
   };

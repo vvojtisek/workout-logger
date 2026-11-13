@@ -102,6 +102,25 @@ async def test_catalogue_equipment_decides_the_increment(client, auth_headers):
     assert squat["suggested_weight_kg"] == 17
 
 
+async def test_catalogue_progression_increment_overrides_equipment_default(client, auth_headers):
+    created = await client.post(
+        EXERCISES,
+        json={
+            "name": "Test microplate row",
+            "equipment_any_of": [["dumbbell"]],
+            "progression_increment_kg": 0.25,
+        },
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    plan = await make_plan(client, auth_headers, [("Test microplate row", 8, 12, 20)])
+    await log(client, auth_headers, plan["id"], 1, "Test microplate row", [12, 12, 12], 22)
+
+    row = by_name(await start(client, auth_headers, plan["id"]))["Test microplate row"]
+    assert row["suggested_weight_kg"] == 22.25
+    assert row["suggestion_note"] == "+0.25 kg: every set reached 12 reps"
+
+
 async def test_inside_the_range_keeps_the_load_and_adds_a_rep(client, auth_headers):
     plan = await make_plan(client, auth_headers, [("Back squat", 5, 8, 60)])
     await log(client, auth_headers, plan["id"], 1, "Back squat", [7, 6, 6], 80)
@@ -170,3 +189,28 @@ async def test_swap_progresses_from_the_new_exercise_s_history(client, auth_head
     front = swapped.json()["exercises"][0]
     assert (front["suggested_weight_kg"], front["suggested_reps"]) == (60, 6)
     assert front["suggestion_note"] == "Same load, aim for 6 reps"
+
+
+async def test_completed_session_keeps_each_set_s_weight_and_rir(client, auth_headers):
+    plan = await make_plan(client, auth_headers, [("Back squat", 5, 8, 80)])
+    await log_live_session(client, auth_headers, plan["id"], 80, [8, 8, 8], [2, 1, 0])
+    logs = (await client.get(LOGS, headers=auth_headers)).json()["items"]
+    exercise = logs[0]["exercises"][0]
+    assert exercise["weight_per_set"] == [80, 80, 80]
+    assert exercise["rir_per_set"] == [2, 1, 0]
+
+
+async def test_editing_a_finished_session_s_rir_changes_the_next_suggestion(client, auth_headers):
+    plan = await make_plan(client, auth_headers, [("Back squat", 5, 8, 80)])
+    await log_live_session(client, auth_headers, plan["id"], 80, [8, 8, 8], [2, 1, 0])
+    logged = (await client.get(LOGS, headers=auth_headers)).json()["items"][0]
+    exercise = logged["exercises"][0]
+    exercise["rir_per_set"] = [2, 2, 1]
+
+    edited = await client.patch(
+        f"{LOGS}/{logged['id']}", json={"exercises": [exercise]}, headers=auth_headers
+    )
+    assert edited.status_code == 200, edited.text
+
+    squat = (await start(client, auth_headers, plan["id"]))["exercises"][0]
+    assert squat["suggested_weight_kg"] == 82.5

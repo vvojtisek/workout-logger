@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.common import OrmModel, PaginatedResponse, require_non_empty
 from app.services.equipment import normalize_any_of, parse_equipment_text
+from app.services.volume import LoadMode
 
 MuscleTag = Literal[
     "chest",
@@ -47,6 +48,23 @@ EquipmentTag = Literal[
 ]
 EquipmentOption = Annotated[list[EquipmentTag], Field(min_length=1, max_length=8)]
 
+MovementPattern = Literal[
+    "horizontal_push",
+    "horizontal_pull",
+    "vertical_push",
+    "vertical_pull",
+    "squat",
+    "hinge",
+    "lunge",
+    "carry",
+    "rotation",
+    "anti_rotation",
+    "trunk_flexion",
+    "trunk_extension",
+    "core_stability",
+    "locomotion",
+]
+
 Alias = Annotated[str, Field(min_length=1, max_length=150)]
 InstructionStep = Annotated[str, Field(min_length=1, max_length=1000)]
 
@@ -59,12 +77,20 @@ class ExerciseCreate(BaseModel):
     media_url: str | None = Field(default=None, max_length=2000)
     primary_muscles: list[MuscleTag] = Field(default_factory=list)
     secondary_muscles: list[MuscleTag] = Field(default_factory=list)
+    movement_patterns: list[MovementPattern] = Field(default_factory=list, max_length=4)
     instructions: list[InstructionStep] = Field(default_factory=list)
     equipment: str | None = Field(default=None, max_length=200)
     # Alternatives, each a full set of tags. Left out, it is read from the
     # free-text `equipment`; an empty list means "not tagged".
     equipment_any_of: list[EquipmentOption] | None = Field(default=None, max_length=8)
     safety_notes: str | None = Field(default=None, max_length=4000)
+    progression_increment_kg: float | None = Field(default=None, ge=0.05, le=20)
+    # The typed weight is always one dumbbell: "pair_db" counts it twice in
+    # volume (both hands), "single_db" and "standard" once.
+    equipment_load_mode: LoadMode = "standard"
+    movement_pattern: MovementPattern | None = None
+    # One logged set is the same reps on each side; reps and volume count twice.
+    is_unilateral: bool = False
 
     @field_validator("name")
     @classmethod
@@ -81,6 +107,20 @@ class ExerciseCreate(BaseModel):
     def instructions_not_blank(cls, value: list[str]) -> list[str]:
         return [require_non_empty(step, "instruction step") for step in value]
 
+    @field_validator("progression_increment_kg")
+    @classmethod
+    def progression_increment_has_centigram_precision(cls, value: float | None) -> float | None:
+        if value is not None and abs(value * 100 - round(value * 100)) > 1e-8:
+            raise ValueError("progression_increment_kg must have at most two decimal places")
+        return value
+
+    @field_validator("movement_patterns")
+    @classmethod
+    def movement_patterns_are_unique(cls, value: list[MovementPattern]) -> list[MovementPattern]:
+        if len(value) != len(set(value)):
+            raise ValueError("movement_patterns cannot contain duplicates")
+        return value
+
     @model_validator(mode="after")
     def fill_equipment_tags(self) -> "ExerciseCreate":
         options = (
@@ -90,6 +130,21 @@ class ExerciseCreate(BaseModel):
         )
         # Both helpers only return known tags, so the Literal type still holds.
         self.equipment_any_of = cast(list[list[EquipmentTag]], options)
+        return self
+
+    @model_validator(mode="after")
+    def synchronize_primary_movement_pattern(self) -> "ExerciseCreate":
+        if self.movement_pattern is None and self.movement_patterns:
+            self.movement_pattern = self.movement_patterns[0]
+        elif (
+            self.movement_pattern is not None
+            and self.movement_pattern not in self.movement_patterns
+        ):
+            if len(self.movement_patterns) >= 4:
+                raise ValueError(
+                    "movement_pattern must be one of movement_patterns when all four are set"
+                )
+            self.movement_patterns.insert(0, self.movement_pattern)
         return self
 
     @field_validator("media_url")
@@ -114,10 +169,15 @@ class ExerciseRead(OrmModel):
     media_url: str | None
     primary_muscles: list[str]
     secondary_muscles: list[str]
+    movement_patterns: list[str]
     instructions: list[str]
     equipment: str | None
     equipment_any_of: list[list[str]]
     safety_notes: str | None
+    progression_increment_kg: float | None
+    equipment_load_mode: LoadMode
+    movement_pattern: MovementPattern | None
+    is_unilateral: bool
     created_at: datetime
     updated_at: datetime
 

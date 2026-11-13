@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import JSON, ForeignKey, Index, String, Text, text
+from sqlalchemy import JSON, Boolean, CheckConstraint, Float, ForeignKey, Index, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import GUID, Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -14,6 +14,17 @@ class Exercise(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __tablename__ = "exercises"
     __table_args__ = (
+        CheckConstraint(
+            "equipment_load_mode IN ('standard', 'single_db', 'pair_db')",
+            name="ck_exercises_equipment_load_mode",
+        ),
+        CheckConstraint(
+            "movement_pattern IS NULL OR movement_pattern IN "
+            "('horizontal_push', 'horizontal_pull', 'vertical_push', 'vertical_pull', "
+            "'squat', 'hinge', 'lunge', 'carry', 'rotation', 'core_stability', "
+            "'anti_rotation', 'trunk_flexion', 'trunk_extension', 'locomotion')",
+            name="ck_exercises_movement_pattern",
+        ),
         Index(
             "uq_exercises_owner_name",
             "owner_id",
@@ -40,6 +51,9 @@ class Exercise(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     media_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     primary_muscles: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     secondary_muscles: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    movement_patterns: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default=text("'[]'")
+    )
     instructions: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     equipment: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # Alternatives: each inner list is one complete set of equipment tags
@@ -48,3 +62,17 @@ class Exercise(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         JSON, nullable=False, default=list, server_default="[]"
     )
     safety_notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    # Overrides the equipment-based progression increment when an exercise is
+    # ready to add load. None keeps the existing automatic rule.
+    progression_increment_kg: Mapped[float | None] = mapped_column(Float(), nullable=True)
+    # How logged weight and reps become volume (see app/services/volume.py).
+    # The typed weight is always one dumbbell; "pair_db" counts two of them.
+    equipment_load_mode: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="standard", server_default="standard"
+    )
+    # Optional controlled movement classification; legacy catalogue entries stay unset.
+    movement_pattern: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    # One logged set is the same reps on each side; reps and volume count twice.
+    is_unilateral: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, default=False, server_default="0"
+    )

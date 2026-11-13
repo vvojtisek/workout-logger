@@ -4,18 +4,18 @@ import type { FormEvent, ReactNode, RefObject } from "react";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { ExerciseStats, SessionExercise, WorkoutSession } from "@/api/types";
+import { ProgressionCard } from "@/features/progression/ProgressionCard";
+import type { useExerciseProgression } from "@/features/progression/useExerciseProgression";
 import { activeWorkoutStorage } from "@/lib/active-workout-storage";
 import { draftStorageKey, saveSetDraft } from "@/lib/active-workout-state";
 import type { SynchronizationState } from "@/lib/active-workout-state";
 import { fetchCatalogueNames } from "@/lib/exercise-catalogue";
 import { previousSetText } from "@/lib/exercise-stats";
-import { formatDate } from "@/lib/format";
 import { FEELING_SCALE, RIR_HINT } from "@/lib/scales";
 import {
   copyDraftFrom,
   exerciseSummaries,
   lastCompletedEntry,
-  progressionChart,
   targetText,
 } from "@/lib/workout-desktop";
 import type { ExerciseSummary } from "@/lib/workout-desktop";
@@ -45,6 +45,7 @@ export interface DesktopWorkoutProps {
   restWasSkipped: boolean;
   stats: Map<string, ExerciseStats>;
   statsLine: (exercise: SessionExercise) => ReactNode;
+  progression: Omit<ReturnType<typeof useExerciseProgression>, "stats">;
   gridRef: RefObject<HTMLDivElement | null>;
   feeling: string;
   onFeelingChange: (value: string) => void;
@@ -255,9 +256,12 @@ function ExercisePane({
       </header>
 
       {exercise.exercise_kind === "strength" ? (
-        <p id="rir-hint" className="-mt-2 text-xs text-muted">
-          {RIR_HINT}
-        </p>
+        <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+          {exercise.target_rir != null ? (
+            <p data-testid="target-rir">Target RIR: {exercise.target_rir}</p>
+          ) : null}
+          <p id="rir-hint">{RIR_HINT}</p>
+        </div>
       ) : null}
 
       <div className="grid grid-cols-1 gap-5 @min-[73rem]:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
@@ -316,7 +320,10 @@ function ExercisePane({
               onChange={props.onFeelingChange}
             />
           </div>
-          <ProgressionCard stats={props.stats.get(exercise.exercise_name)} />
+          <ProgressionCard
+            stats={props.stats.get(exercise.exercise_name)}
+            {...props.progression}
+          />
         </div>
       </div>
 
@@ -331,73 +338,6 @@ function ExercisePane({
         }}
       />
     </div>
-  );
-}
-
-const CHART_WIDTH = 300;
-const CHART_HEIGHT = 120;
-
-function formatKg(value: number): string {
-  return `${Number.isInteger(value) ? value : value.toFixed(1)} kg`;
-}
-
-function ProgressionCard({ stats }: { stats: ExerciseStats | undefined }) {
-  const recent = stats?.recent ?? [];
-  const chart = progressionChart(recent, CHART_WIDTH, CHART_HEIGHT);
-  const best = [...recent]
-    .filter((point) => point.estimated_one_rep_max_kg !== null)
-    .sort((a, b) => (b.estimated_one_rep_max_kg ?? 0) - (a.estimated_one_rep_max_kg ?? 0))
-    .slice(0, 3);
-
-  return (
-    <section className="card flex flex-col gap-3 p-4" data-testid="progression-card">
-      <h3 className="font-semibold">Progression</h3>
-      {chart ? (
-        <>
-          <svg
-            role="img"
-            aria-label={`Estimated 1RM over the last ${chart.points.length} sessions, ${formatKg(chart.points[0].session.estimated_one_rep_max_kg ?? 0)} to ${formatKg(chart.points[chart.points.length - 1].session.estimated_one_rep_max_kg ?? 0)}`}
-            data-testid="progression-chart"
-            viewBox={`-6 -6 ${CHART_WIDTH + 12} ${CHART_HEIGHT + 12}`}
-            className="h-32 w-full"
-          >
-            <polyline
-              points={chart.points.map((point) => `${point.x},${point.y}`).join(" ")}
-              className="fill-none stroke-accent"
-              strokeWidth={2}
-              vectorEffect="non-scaling-stroke"
-            />
-            {chart.points.map((point) => (
-              <circle
-                key={point.session.performed_at}
-                cx={point.x}
-                cy={point.y}
-                r={4}
-                className="fill-accent"
-              />
-            ))}
-          </svg>
-          <p className="text-xs text-muted" data-numeric>
-            e1RM {formatKg(chart.min)} – {formatKg(chart.max)}
-          </p>
-          <div>
-            <h4 className="mb-1 text-sm font-medium">Best sets</h4>
-            <ul className="flex flex-col gap-1 text-sm" data-numeric>
-              {best.map((point) => (
-                <li key={point.performed_at} className="flex justify-between gap-2">
-                  <span className="text-muted">{formatDate(point.performed_at)}</span>
-                  <span>
-                    {formatKg(point.weight_kg ?? 0)} × {point.top_reps}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </>
-      ) : (
-        <p className="text-sm text-muted">No weighted history for this exercise yet.</p>
-      )}
-    </section>
   );
 }
 

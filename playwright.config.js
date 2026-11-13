@@ -15,7 +15,11 @@ const MOBILE_SPECS = [
   "hud-read-zone.spec.js",
   "optimistic-log.spec.js",
   "plan-table.spec.js",
+  "plate-calculator.spec.js",
+  "rest-alerts.spec.js",
+  "exercise-catalogue.spec.js",
   "master-detail.spec.js",
+  "programs-and-calendar.spec.js",
   "locations.spec.js",
   "train-at-location.spec.js",
   "sport-schedule.spec.js",
@@ -24,6 +28,12 @@ const MOBILE_SPECS = [
   "food-catalog.spec.js",
   "today.spec.js",
   "today-layout.spec.js",
+  "volume-rules.spec.js",
+  "drink-quick-add.spec.js",
+  "history-edit.spec.js",
+  "exercise-progression.spec.js",
+  "training-load.spec.js",
+  "rep-retention.spec.js",
 ];
 
 export default defineConfig({

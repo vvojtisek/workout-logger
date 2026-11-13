@@ -76,6 +76,7 @@ test("the app shell fits the viewport and reaches every page", async ({
     ["Calendar", /\/calendar$/],
     ["Sport schedule", /\/schedule$/],
     ["History", /\/history$/],
+    ["Training load", /\/training-load$/],
     ["Exercises", /\/exercises$/],
     ["Locations", /\/locations$/],
     ["Nutrition", /\/nutrition$/],

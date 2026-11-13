@@ -4,10 +4,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { WorkoutLog } from "@/api/types";
 import { activityLabel, logSummaryFacts } from "@/lib/activity";
+import { exerciseSetsText } from "@/lib/log-edit";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { Button, Card, PageHeading } from "@/ui";
 import { formatDateTime } from "@/lib/format";
+import { formatVolumeKg, loadNotes } from "@/lib/load-rules";
 import { TRAINING_LOAD_HINT } from "@/lib/scales";
+import { LogEditor } from "./LogEditor";
+import { RepRetention } from "./RepRetention";
 
 export function LogDetailView() {
   const { logId } = useParams<{ logId: string }>();
@@ -15,11 +19,13 @@ export function LogDetailView() {
   const [log, setLog] = useState<WorkoutLog | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (!logId) return;
     let cancelled = false;
     setLog(null);
+    setEditing(false);
     apiFetch<WorkoutLog>(`/logs/${logId}`)
       .then((data) => {
         if (!cancelled) {
@@ -46,10 +52,21 @@ export function LogDetailView() {
       <Button id="back-to-history" onClick={() => void navigate("/history")} className="mb-4">
         &larr; Back to history
       </Button>
-      <PageHeading>Workout Detail</PageHeading>
-      <div id="detail-content" className="flex flex-col gap-3">
+      <PageHeading>{editing ? "Edit Workout" : "Workout Detail"}</PageHeading>
+      {log && editing ? (
+        <LogEditor
+          key={log.id}
+          log={log}
+          onSaved={(saved) => {
+            setLog(saved);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      ) : null}
+      <div id="detail-content" className="flex flex-col gap-3" hidden={editing}>
         {error ? <p className="text-sm text-danger">{error}</p> : null}
-        {log ? (
+        {log && !editing ? (
           <>
             <Card className="p-4">
               <p className="text-sm text-muted" data-numeric>
@@ -71,16 +88,31 @@ export function LogDetailView() {
                 <li key={exercise.id} className="card p-3 text-sm">
                   {exercise.exercise_name}:{" "}
                   <span data-numeric>
-                    {exercise.reps_per_set.join(", ")} reps
-                    {exercise.weight_kg ? ` @ ${exercise.weight_kg}kg` : ""}
+                    {exerciseSetsText(exercise)}
+                    {loadNotes(exercise)}
                   </span>
+                  {exercise.volume_kg ? (
+                    <span className="text-muted" data-numeric data-testid="exercise-volume">
+                      {" "}
+                      · Volume {formatVolumeKg(exercise.volume_kg)}
+                    </span>
+                  ) : null}
+                  {exercise.rpe_per_set?.some((rating) => rating != null) ? (
+                    <p className="mt-1 text-xs text-muted" data-numeric>
+                      RPE by set: {exercise.rpe_per_set.map((rating) => rating ?? "—").join(", ")}
+                    </p>
+                  ) : null}
+                  <RepRetention exercise={exercise} />
                 </li>
               ))}
             </ul>
           </>
         ) : null}
       </div>
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex gap-2" hidden={editing}>
+        <Button id="edit-log-btn" variant="primary" disabled={!log} onClick={() => setEditing(true)}>
+          Edit workout
+        </Button>
         <Button id="delete-log-btn" variant="danger" onClick={() => setConfirmDelete(true)}>
           Delete workout
         </Button>

@@ -10,7 +10,7 @@ The app image, versioned Compose file, environment example, Caddy snippet,
 checksum, and deploy script are attached to every `vX.Y.Z` GitHub Release.
 GitHub source archives are also available from that Release page. Release tags
 must point to a commit already on `main` and pass the Python, frontend,
-dependency-audit, and build gates. Publishing a release triggers the AWS deploy
+dependency-audit, and build gates. Publishing a release runs the AWS deploy
 workflow only after the GitHub `production` environment permits it and the
 `AWS_DEPLOY_ROLE_ARN` repository variable is configured.
 
@@ -86,10 +86,36 @@ earliest admin account when one exists. Deploy this change only after the
 account-isolation and account-capacity PRs are merged and reviewed; back up the
 database before migration.
 
-## Manual release and deployment
+## Automatic release and deployment
 
-After the setup steps above, publish a semantic version tag from a green main
-commit, for example:
+Every merge to `main` releases itself once **Merge checks** (the production
+Compose end-to-end run) passes for that commit. The **Continuous delivery**
+workflow then:
+
+1. reads the Conventional Commits since the newest `vX.Y.Z` tag
+   (`scripts/release_version.py`). `feat` bumps the minor version; `fix`,
+   `perf` and `revert` bump the patch; `type!:` or a `BREAKING CHANGE:` footer
+   bumps the major. Nothing else (`chore`, `docs`, `test`, `ci`, `refactor`,
+   or a subject that is not a Conventional Commit) cuts a release, and the run
+   ends green with the reason in its summary. Commits by
+   `github-actions[bot]` and `chore(release):` commits are always ignored.
+2. calls **Tagged release** for that version and commit: it re-runs the
+   quality gates, checks again that Merge checks passed for the commit, builds
+   the ARM64/AMD64 image as `ghcr.io/vvojtisek/workout-logger:vX.Y.Z`, creates
+   the tag and the GitHub Release with a grouped changelog, then moves
+   `:latest` to it.
+3. calls **Deploy release to AWS EC2 through SSM**, which waits up to five
+   minutes for `https://fitness.vvojtisek.eu/health/ready` to report the new
+   version and fails the run if it does not.
+
+Release decisions, releases and deployments each run one at a time. No commit
+is written back to `main`; the version shown in the UI comes from the tag at
+build time. To pause automatic releases, set the repository variable
+`AUTO_RELEASE` to `false` (`gh variable set AUTO_RELEASE --body false`); delete
+it to resume. To release the current `main` by hand after a pause, run
+**Continuous delivery** from the Actions tab.
+
+Pushing a tag by hand still works and goes through the same gates:
 
 ```bash
 git switch main
@@ -97,11 +123,6 @@ git pull --ff-only origin main
 git tag -a v1.1.0 -m "Workout Logger v1.1.0"
 git push origin v1.1.0
 ```
-
-The tagged-release workflow builds and publishes the ARM64 image, then creates
-the downloadable GitHub Release and dispatches the SSM deployment workflow. A
-maintainer can also select **Deploy release to AWS EC2 through SSM** in GitHub
-Actions and enter an existing release tag.
 
 To roll back, or to redeploy a release after fixing something on the host,
 deploy any earlier release tag:

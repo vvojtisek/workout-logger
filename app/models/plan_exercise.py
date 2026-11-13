@@ -29,12 +29,8 @@ class PlanExercise(UUIDPrimaryKeyMixin, Base):
             name="ck_plan_exercises_kind",
         ),
         CheckConstraint(
-            "laterality IN ('bilateral', 'per_side', 'single_limb')",
-            name="ck_plan_exercises_laterality",
-        ),
-        CheckConstraint(
-            "target_rir IS NULL OR (target_rir >= 0 AND target_rir <= 10)",
-            name="ck_plan_exercises_target_rir",
+            "target_rir IS NULL OR (exercise_kind = 'strength' AND target_rir >= 0 AND target_rir <= 10)",
+            name="ck_plan_exercises_target_rir_range",
         ),
         Index("ix_plan_exercises_plan_order", "workout_plan_id", "sort_order"),
     )
@@ -54,15 +50,9 @@ class PlanExercise(UUIDPrimaryKeyMixin, Base):
     target_sets: Mapped[int] = mapped_column(Integer, nullable=False)
     target_reps_min: Mapped[int] = mapped_column(Integer, nullable=False)
     target_reps_max: Mapped[int] = mapped_column(Integer, nullable=False)
+    target_rir: Mapped[int | None] = mapped_column(Integer, nullable=True)
     target_weight_kg: Mapped[float | None] = mapped_column(REAL, nullable=True)
     rest_time_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
-    # Reps left in reserve to aim for; null means "not prescribed".
-    target_rir: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    # bilateral: both limbs at once. per_side: each side is trained (and should be
-    # logged) independently. single_limb: one limb only, e.g. a rehab override.
-    laterality: Mapped[str] = mapped_column(
-        String(12), nullable=False, default="bilateral", server_default="bilateral"
-    )
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     group_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
     group_order: Mapped[int | None] = mapped_column(Integer, nullable=True)

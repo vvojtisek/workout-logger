@@ -33,6 +33,21 @@ export async function expectRir(page, value) {
   }
 }
 
+/** @param {import("@playwright/test").Page} page @param {string} key */
+export async function readWorkoutStorage(page, key) {
+  return page.evaluate((key) => new Promise((resolve, reject) => {
+    const open = indexedDB.open("workout-logger-offline");
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const read = db.transaction("kv", "readonly").objectStore("kv").get(`active-workout:${key}`);
+      read.onsuccess = () => resolve(read.result ?? null);
+      read.onerror = () => reject(read.error);
+      db.close();
+    };
+  }), key);
+}
+
 /** Saves the set on screen in a one-set workout. @param {import("@playwright/test").Page} page */
 export async function saveOnlySet(page) {
   const name = isDesktop(page) ? "Save set" : "Complete set & start rest";

@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiFetch, errorMessage } from "@/api/client";
 import type { CatalogExercise, Paginated, WorkoutPlan } from "@/api/types";
-import { fetchCatalogueNames } from "@/lib/exercise-catalogue";
+import { fetchCatalogueExercises, MOVEMENT_PATTERN_LABELS } from "@/lib/exercise-catalogue";
 import {
   buildPayload,
   emptyRow,
@@ -13,6 +13,7 @@ import {
   supersetLabels,
   type ExerciseRowState,
 } from "@/lib/plan-draft";
+import { summarizePlanPatterns } from "@/lib/plan-pattern-balance";
 import { planPayloadSchema } from "@/lib/plan-schema";
 import { useSettingsQuery } from "@/lib/settings-query";
 import { useIsDesktop } from "@/lib/use-media-query";
@@ -51,11 +52,13 @@ function PlanEditor({ planId }: { planId: string | undefined }) {
     enabled: isEditing,
   });
   // Suggestions only: a name outside the catalogue is still a valid plan exercise.
-  const { data: catalogueNames = [] } = useQuery({
-    queryKey: ["exercise-catalogue-names"],
-    queryFn: () => fetchCatalogueNames((path) => apiFetch<Paginated<CatalogExercise>>(path)),
+  const { data: catalogueExercises = [] } = useQuery({
+    queryKey: ["exercise-catalogue"],
+    queryFn: () =>
+      fetchCatalogueExercises((path) => apiFetch<Paginated<CatalogExercise>>(path)),
     staleTime: 5 * 60_000,
   });
+  const movementBalance = summarizePlanPatterns(rows, catalogueExercises);
 
   useEffect(() => {
     if (!existingPlan || seededPlanId.current === existingPlan.id) return;
@@ -150,8 +153,8 @@ function PlanEditor({ planId }: { planId: string | undefined }) {
   return (
     <section id="plan-builder-view" className="pb-24">
       <datalist id="exercise-catalogue-names">
-        {catalogueNames.map((catalogueName) => (
-          <option key={catalogueName} value={catalogueName} />
+        {catalogueExercises.map((exercise) => (
+          <option key={exercise.id} value={exercise.name} />
         ))}
       </datalist>
 
@@ -194,8 +197,7 @@ function PlanEditor({ planId }: { planId: string | undefined }) {
 
       <h3 className="mt-6 mb-1 font-medium">Exercises</h3>
       <p className="mb-2 text-sm text-muted">
-        Superset rows by giving them the same group name. RIR is reps left in reserve; Side sets
-        whether each limb is trained and logged on its own.
+        Superset rows by giving them the same group name. RIR is reps left in reserve.
       </p>
       <PlanTableHeader />
       <div id="plan-exercises-list" className="flex flex-col">
@@ -213,6 +215,37 @@ function PlanEditor({ planId }: { planId: string | undefined }) {
           />
         ))}
       </div>
+      {movementBalance.length > 0 ? (
+        <section
+          className="mt-4 border-t border-line-muted pt-3"
+          aria-label="Plan movement balance"
+          role="region"
+        >
+          <h4 className="font-medium">Planned sets by movement pattern</h4>
+          <p className="mt-1 text-xs text-muted">
+            Descriptive prescription totals. Catalogue name or alias matches determine the
+            pattern; unmatched, ambiguous, and unclassified exercises stay unclassified.
+          </p>
+          <ul className="mt-2 flex flex-col gap-1 text-sm">
+            {movementBalance.map((item) => (
+              <li
+                key={item.movement_pattern ?? "unclassified"}
+                className="flex justify-between gap-3"
+              >
+                <span>
+                  {item.movement_pattern
+                    ? MOVEMENT_PATTERN_LABELS[item.movement_pattern]
+                    : "Unclassified"}
+                </span>
+                <span className="font-mono text-muted" data-numeric>
+                  {item.target_sets} target set{item.target_sets === 1 ? "" : "s"} ·{" "}
+                  {item.exercise_count} exercise{item.exercise_count === 1 ? "" : "s"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {rows.length === 0 ? (
         <p className="border-b border-line-muted py-6 text-center text-sm text-muted">
           No exercises yet. Add one below.

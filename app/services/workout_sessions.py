@@ -28,6 +28,7 @@ from app.schemas.workout_sessions import (
 )
 from app.services.locations import get_location
 from app.services.next_session import suggest_next
+from app.services.volume_rules import apply_to_session
 from app.services.plans import get_plan
 
 # Most sets an exercise can grow to during a session with "Add set".
@@ -101,6 +102,7 @@ async def get_session(session: AsyncSession, session_id: UUID) -> WorkoutSession
     workout_session = result.scalar_one_or_none()
     if workout_session is None:
         raise NotFoundError("Workout session not found", code="SESSION_NOT_FOUND")
+    await apply_to_session(session, workout_session)
     return workout_session
 
 
@@ -115,6 +117,7 @@ async def get_active_session(session: AsyncSession) -> WorkoutSession:
     workout_session = result.scalar_one_or_none()
     if workout_session is None:
         raise NotFoundError("No active workout session", code="ACTIVE_SESSION_NOT_FOUND")
+    await apply_to_session(session, workout_session)
     return workout_session
 
 
@@ -131,6 +134,7 @@ async def start_session(
     )
     existing = existing_result.scalar_one_or_none()
     if existing is not None:
+        await apply_to_session(session, existing)
         return existing, False
 
     plan = await get_plan(session, source_plan_id)
@@ -167,6 +171,7 @@ async def start_session(
                 target_sets=exercise.target_sets,
                 target_reps_min=exercise.target_reps_min,
                 target_reps_max=exercise.target_reps_max,
+                target_rir=exercise.target_rir,
                 target_weight_kg=exercise.target_weight_kg,
                 rest_time_seconds=exercise.rest_time_seconds,
                 notes=exercise.notes,
@@ -204,6 +209,13 @@ async def save_set(
     if any(entry.set_number == data.set_number for entry in exercise.set_entries):
         raise ConflictError("Set has already been completed", code="SET_ALREADY_COMPLETED")
 
+    now = utcnow()
+    completed_at = min(now, max(workout_session.started_at, data.client_completed_at or now))
+    starts_rest = data.state == "completed" and not any(
+        entry.state == "completed" and entry.completed_at > completed_at
+        for item in workout_session.exercises
+        for entry in item.set_entries
+    )
     exercise.set_entries.append(
         SetEntry(
             set_number=data.set_number,
@@ -217,11 +229,17 @@ async def save_set(
             incline_percent=data.incline_percent,
             rpe=data.rpe,
             state=data.state,
+            completed_at=completed_at,
             client_operation_id=data.client_operation_id,
         )
     )
-    if data.state == "completed":
-        workout_session.rest_ends_at = utcnow() + timedelta(seconds=exercise.rest_time_seconds)
+    if starts_rest:
+        rest_seconds = data.client_rest_seconds
+        workout_session.rest_ends_at = (
+            None
+            if rest_seconds == 0
+            else completed_at + timedelta(seconds=rest_seconds or exercise.rest_time_seconds)
+        )
     _focus_next_incomplete(workout_session)
     workout_session.version += 1
     await session.commit()
@@ -256,7 +274,8 @@ async def update_set(
     entry.duration_seconds = data.duration_seconds
     entry.distance_km = data.distance_km
     entry.incline_percent = data.incline_percent
-    entry.rpe = data.rpe
+    if "rpe" in data.model_fields_set:
+        entry.rpe = data.rpe
     workout_session.version += 1
     await session.commit()
     return await get_session(session, workout_session.id)
@@ -390,6 +409,9 @@ async def complete_session(
                 sets_count=len(entries),
                 reps_per_set=[entry.reps for entry in entries],
                 weight_kg=entries[-1].weight_kg,
+                weight_per_set=[entry.weight_kg for entry in entries],
+                rir_per_set=[entry.rir for entry in entries],
+                rpe_per_set=[entry.rpe for entry in entries],
                 rest_time_seconds=exercise.rest_time_seconds,
                 notes=exercise.notes,
             )

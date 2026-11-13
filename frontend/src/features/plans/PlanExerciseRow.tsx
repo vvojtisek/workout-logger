@@ -1,5 +1,4 @@
-import type { Laterality } from "@/api/types";
-import { lateralityLabel, type ExerciseRowState } from "@/lib/plan-draft";
+import type { ExerciseRowState } from "@/lib/plan-draft";
 import type { ExerciseKind } from "@/lib/workout-utils";
 import { Button, Input } from "@/ui";
 
@@ -9,11 +8,9 @@ const KIND_LABELS: Record<ExerciseKind, string> = {
   cardio: "Cardio",
 };
 
-const LATERALITIES: Laterality[] = ["bilateral", "per_side", "single_limb"];
-
 /** The column template shared by the header and every row from 1024px up. */
 export const PLAN_GRID =
-  "lg:grid-cols-[1.75rem_minmax(10rem,1fr)_3.5rem_3.5rem_3.5rem_5rem_3.5rem_4.5rem_7rem]";
+  "lg:grid-cols-[1.75rem_minmax(10rem,1fr)_3.5rem_3.5rem_3.5rem_5rem_3.5rem_4.5rem]";
 
 /** A visible label on the phone; a screen-reader-only one beside the table's header on desktop. */
 function Field({
@@ -55,7 +52,6 @@ export function PlanTableHeader() {
       <span className={cell}>kg</span>
       <span className={cell}>RIR</span>
       <span className={cell}>Rest s</span>
-      <span className={cell}>Side</span>
     </div>
   );
 }
@@ -109,7 +105,7 @@ export function PlanExerciseRow({
             </span>
           ) : null}
         </span>
-        <div className="flex gap-1 lg:col-span-2 lg:col-start-8 lg:row-start-2 lg:justify-self-end">
+        <div className="flex gap-1 lg:col-span-1 lg:col-start-8 lg:row-start-2 lg:justify-self-end">
           <Button
             aria-label={`Move ${label} up`}
             disabled={index === 0}
@@ -199,18 +195,22 @@ export function PlanExerciseRow({
           onChange={(e) => onChange({ target_reps_max: e.target.value })}
         />
       </Field>
-      <Field htmlFor={id("rir")} label="Target RIR" error={err("target_rir")} className="lg:col-start-7 lg:row-start-1">
-        <Input
-          id={id("rir")}
-          type="number"
-          min="0"
-          max="10"
-          placeholder="–"
-          className={num}
-          value={row.target_rir}
-          onChange={(e) => onChange({ target_rir: e.target.value })}
-        />
-      </Field>
+      {row.exercise_kind === "strength" ? (
+        <Field htmlFor={id("rir")} label="Target RIR (optional)" error={err("target_rir")} className="lg:col-start-7 lg:row-start-1">
+          <Input
+            id={id("rir")}
+            type="number"
+            min="0"
+            max="10"
+            placeholder="–"
+            className={num}
+            value={row.target_rir}
+            onChange={(e) => onChange({ target_rir: e.target.value })}
+          />
+        </Field>
+      ) : (
+        <div aria-hidden="true" className="hidden lg:col-start-7 lg:row-start-1 lg:block" />
+      )}
       <Field htmlFor={id("rest")} label="Rest seconds" error={err("rest_time_seconds")} className="lg:col-start-8 lg:row-start-1">
         <Input
           id={id("rest")}
@@ -222,21 +222,6 @@ export function PlanExerciseRow({
           onChange={(e) => onChange({ rest_time_seconds: e.target.value })}
         />
       </Field>
-      <Field htmlFor={id("laterality")} label="Laterality" className="col-span-2 lg:col-span-1 lg:col-start-9 lg:row-start-1">
-        <select
-          id={id("laterality")}
-          className="input"
-          value={row.laterality}
-          onChange={(e) => onChange({ laterality: e.target.value as Laterality })}
-        >
-          {LATERALITIES.map((value) => (
-            <option key={value} value={value}>
-              {lateralityLabel(value)}
-            </option>
-          ))}
-        </select>
-      </Field>
-
       <Field htmlFor={id("kind")} label="Exercise type" className="col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-2">
         <select
           id={id("kind")}

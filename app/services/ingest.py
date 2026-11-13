@@ -12,6 +12,7 @@ from app.schemas.ingest import (
 from app.services import body_metrics as body_metrics_service
 from app.services import logs as logs_service
 from app.services import sleep_entries as sleep_entries_service
+from app.services.volume_rules import apply_to_logs
 
 
 async def ingest_weight(session: AsyncSession, data: WeightIngestCreate) -> tuple[BodyMetric, bool]:
@@ -53,6 +54,7 @@ async def ingest_session(
     )
     existing = result.scalar_one_or_none()
     if existing is not None:
+        await apply_to_logs(session, [existing])
         return existing, False
     log = await logs_service.create_log(session, data)
     log.source = data.source

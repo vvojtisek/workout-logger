@@ -1,15 +1,25 @@
 from datetime import datetime
 from uuid import UUID
 
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.exceptions import NotFoundError
 from app.models import ExerciseLog, WorkoutLog, WorkoutPlan
-from app.schemas.logs import WorkoutLogCreate, WorkoutLogReplace
+from app.schemas.logs import WorkoutLogCreate, WorkoutLogPatch, WorkoutLogRead, WorkoutLogReplace
+from app.services.volume_rules import apply_to_logs
 
 _LOAD_EXERCISES = selectinload(WorkoutLog.exercises)
+_SET_IDENTITY_FIELDS = (
+    "exercise_name",
+    "reps_per_set",
+    "weight_kg",
+    "weight_per_set",
+    "rir_per_set",
+)
 
 
 async def list_logs(
@@ -38,7 +48,9 @@ async def list_logs(
     result = await session.execute(
         list_stmt.order_by(WorkoutLog.performed_at.desc()).limit(limit).offset(offset)
     )
-    return list(result.scalars().all()), total or 0
+    logs = list(result.scalars().all())
+    await apply_to_logs(session, logs)
+    return logs, total or 0
 
 
 async def get_log(session: AsyncSession, log_id: UUID) -> WorkoutLog:
@@ -48,6 +60,7 @@ async def get_log(session: AsyncSession, log_id: UUID) -> WorkoutLog:
     log = result.scalar_one_or_none()
     if log is None:
         raise NotFoundError("Workout log not found", code="LOG_NOT_FOUND")
+    await apply_to_logs(session, [log])
     return log
 
 
@@ -88,6 +101,15 @@ async def replace_log(session: AsyncSession, log_id: UUID, data: WorkoutLogRepla
     log = await get_log(session, log_id)
     source_plan_name = await _resolve_source_plan_name(session, data.source_plan_id)
 
+    # Older clients can replace exercises without knowing about RPE. Keep the
+    # ratings only when the complete ordered layout still identifies the same sets.
+    stored_rpes = []
+    if len(log.exercises) == len(data.exercises) and all(
+        all(getattr(current, field) == getattr(new, field) for field in _SET_IDENTITY_FIELDS)
+        for current, new in zip(log.exercises, data.exercises, strict=True)
+    ):
+        stored_rpes = [exercise.rpe_per_set for exercise in log.exercises]
+
     log.source_plan_id = data.source_plan_id
     log.source_plan_name = source_plan_name
     log.performed_at = data.performed_at
@@ -101,9 +123,25 @@ async def replace_log(session: AsyncSession, log_id: UUID, data: WorkoutLogRepla
     log.exercises.clear()
     await session.flush()
     for index, exercise in enumerate(data.exercises):
-        log.exercises.append(ExerciseLog(sort_order=index, **exercise.model_dump()))
+        values = exercise.model_dump()
+        if stored_rpes and "rpe_per_set" not in exercise.model_fields_set:
+            values["rpe_per_set"] = stored_rpes[index]
+        log.exercises.append(ExerciseLog(sort_order=index, **values))
     await session.commit()
     return await get_log(session, log_id)
+
+
+async def patch_log(session: AsyncSession, log_id: UUID, changes: WorkoutLogPatch) -> WorkoutLog:
+    """Overlays the fields the client sent on the stored log and saves the
+    result through the same validation and replace path as PUT."""
+    current = WorkoutLogRead.model_validate(await get_log(session, log_id))
+    data = current.model_dump(include=set(WorkoutLogReplace.model_fields))
+    data.update(changes.model_dump(exclude_unset=True))
+    try:
+        replacement = WorkoutLogReplace.model_validate(data)
+    except ValidationError as exc:
+        raise RequestValidationError(exc.errors(include_url=False)) from exc
+    return await replace_log(session, log_id, replacement)
 
 
 async def delete_log(session: AsyncSession, log_id: UUID) -> None:
