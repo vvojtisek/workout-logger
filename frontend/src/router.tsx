@@ -133,6 +133,7 @@ export const router = createBrowserRouter([
             },
             {
               path: "calendar",
+              handle: WIDE,
               lazy: () =>
                 import("@/features/calendar/CalendarView").then((m) => ({
                   Component: m.CalendarView,

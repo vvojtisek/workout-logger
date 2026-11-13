@@ -248,6 +248,16 @@
     border-radius: var(--radius-md);
   }
 
+  /* Tabular numbers are the monospace face (one UI sans, one mono). */
+  .tabular-nums {
+    font-family: var(--font-mono);
+  }
+
+  /* The flat counterpart of .card: a hairline rule and no box. */
+  .block-flat {
+    border-top: 1px solid var(--border-muted);
+  }
+
   .input {
     width: 100%;
     background-color: var(--bg-input);

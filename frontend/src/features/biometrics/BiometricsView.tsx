@@ -7,7 +7,7 @@ import type { BodyMetric, BodyMetricTrends, Paginated } from "@/api/types";
 import { formatWeightDeltaKg, formatWeightKg } from "@/lib/units";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
-import { Button, Card, EmptyState, PageHeading } from "@/ui";
+import { Button, Block, EmptyState, PageHeading } from "@/ui";
 import { formatDateTime } from "@/lib/format";
 
 function TrendCard({ trends }: { trends: BodyMetricTrends }) {
@@ -20,7 +20,7 @@ function TrendCard({ trends }: { trends: BodyMetricTrends }) {
     );
   }
   return (
-    <Card className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4">
+    <Block className="grid grid-cols-2 gap-4 py-4 sm:grid-cols-4">
       <div>
         <p className="text-xs text-muted">Latest weight</p>
         <p className="mt-1 text-lg font-semibold tabular-nums">
@@ -51,7 +51,7 @@ function TrendCard({ trends }: { trends: BodyMetricTrends }) {
             : "—"}
         </p>
       </div>
-    </Card>
+    </Block>
   );
 }
 
@@ -114,7 +114,7 @@ export function BiometricsView() {
           </li>
         ) : null}
         {entries.map((metric) => (
-          <li key={metric.id} className="card flex flex-wrap items-center justify-between gap-3 p-4">
+          <li key={metric.id} className="block-flat flex flex-wrap items-center justify-between gap-3 py-4">
             <div className="min-w-0">
               <p className="font-medium tabular-nums">{formatWeightKg(metric.weight_kg)}</p>
               <p className="mt-0.5 text-sm text-muted">

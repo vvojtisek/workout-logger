@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   open. On a phone each exercise is a flat block with 44 px controls and
   tabular numerals. Every `.btn` and `.input` is now at least 44 px tall.
 
+- Calendar, Nutrition, Sleep, Biometrics and Settings follow the same system:
+  hairline sections instead of boxed cards, 44 px controls (calendar entries,
+  the theme switch, the repeat-meal chips) and JetBrains Mono for every
+  tabular number. The calendar uses the full desktop width.
+
 ### Added
 
 - Plan exercises carry a target RIR (`target_rir`, 0-10, optional) and a

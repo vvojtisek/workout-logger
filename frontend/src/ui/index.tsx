@@ -32,6 +32,11 @@ export function Card({ className = "", children }: { className?: string; childre
   return <div className={`card ${className}`.trim()}>{children}</div>;
 }
 
+/** A section without a box: separated from its neighbours by a hairline. */
+export function Block({ className = "", children }: { className?: string; children: ReactNode }) {
+  return <div className={`block-flat ${className}`.trim()}>{children}</div>;
+}
+
 export function Input({ className = "", ...rest }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`input ${className}`.trim()} {...rest} />;
 }

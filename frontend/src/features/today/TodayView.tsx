@@ -562,10 +562,10 @@ function FoodCard({ now, onChange }: { now: Date; onChange: () => void }) {
                 type="button"
                 disabled={repeat.isPending}
                 onClick={() => repeat.mutate(meal)}
-                className="min-h-9 max-w-full truncate rounded-full border border-line bg-elevated px-3 py-1.5 text-left text-sm disabled:opacity-50"
+                className="min-h-11 max-w-full truncate rounded-full border border-line bg-elevated px-3 py-1.5 text-left text-sm disabled:opacity-50"
               >
                 {meal.label}
-                <span data-numeric className="ml-1 text-muted">
+                <span data-numeric className="ml-1 font-mono text-muted">
                   {meal.energyKcal} kcal
                 </span>
               </button>

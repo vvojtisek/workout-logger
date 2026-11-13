@@ -6,7 +6,7 @@ import { apiFetch, errorMessage } from "@/api/client";
 import type { SleepEntry } from "@/api/types";
 import { sleepEntryPayloadSchema } from "@/lib/sleep-entry-schema";
 import { localDateTimeInputToIso, toLocalDateTimeInput } from "@/lib/date-time-inputs";
-import { Button, Card, Input, PageHeading } from "@/ui";
+import { Button, Block, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
 import { SLEEP_QUALITY_SCALE } from "@/lib/scales";
 import { ScaleSelect } from "@/ui/ScaleSelect";
@@ -151,7 +151,7 @@ export function SleepEntryForm() {
     <section id="sleep-form-view">
       <PageHeading>{isEditing ? "Edit Sleep Entry" : "Log Sleep"}</PageHeading>
 
-      <Card className="flex flex-col gap-4 p-4">
+      <Block className="flex flex-col gap-4 py-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="field-label" htmlFor="sleep-start">
@@ -267,7 +267,7 @@ export function SleepEntryForm() {
             onChange={(e) => update("notes", e.target.value)}
           />
         </div>
-      </Card>
+      </Block>
 
       <div className="mt-5 flex gap-2">
         <Button
