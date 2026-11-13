@@ -87,7 +87,9 @@ test("shows live barbell plate counts on the phone without changing the recorded
   const machineName = `${tag} Machine row`;
   /** @type {string[]} */
   const exerciseIds = [];
+  /** @type {string | undefined} */
   let planId;
+  /** @type {string | undefined} */
   let sessionId;
 
   try {
