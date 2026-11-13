@@ -9,6 +9,7 @@ import {
   saveSetDraft,
 } from "@/lib/active-workout-state";
 import type { SetDraft } from "@/lib/active-workout-state";
+import { isPendingEntry } from "@/lib/optimistic-session";
 import { resolveSetDisplayState } from "@/lib/workout-utils";
 import type { ExerciseKind, GridRow } from "@/lib/workout-utils";
 
@@ -374,7 +375,9 @@ export function SetRow({
             />
           ))}
       <div className="flex flex-wrap gap-1">
-        {row.entry ? (
+        {row.entry && isPendingEntry(row.entry) ? (
+          <span className="self-center text-xs font-medium text-muted">Saving…</span>
+        ) : row.entry ? (
           <>
             <span
               className={`self-center text-xs font-medium ${

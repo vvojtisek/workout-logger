@@ -29,6 +29,7 @@ import {
   upNextText,
 } from "@/lib/workout-hud";
 import type { HudRow } from "@/lib/workout-hud";
+import { isPendingEntry } from "@/lib/optimistic-session";
 import { ScaleSelect } from "@/ui/ScaleSelect";
 import { useRestCountdown } from "./RestOverlay";
 import { EMPTY_DRAFT, FIELD_SPECS_BY_KIND, draftToValues } from "./SetRow";
@@ -592,7 +593,13 @@ function SetPanel({
   const bandSpec = specs.find((spec) => spec.draftKey === "band_level");
 
   let action: ReactNode;
-  if (row.entry && !editing) {
+  if (row.entry && isPendingEntry(row.entry)) {
+    action = (
+      <div className="flex h-[54px] items-center gap-2" aria-live="polite">
+        <span className="flex-1 text-sm font-semibold text-muted">Saving…</span>
+      </div>
+    );
+  } else if (row.entry && !editing) {
     action = (
       <div className="flex h-[54px] items-center gap-2">
         <span

@@ -178,6 +178,15 @@ test("rest timer and an offline set retry recover against the real server", asyn
 
     await row(3).getByRole("button", { name: `Skip ${tag} Deadlift set 3` }).click();
     await expect(row(3)).toHaveAttribute("data-state", "skipped");
+    // The screen updates before the write reaches the server, so wait for it.
+    await expect
+      .poll(async () => {
+        const body = await (
+          await request.get(`/api/v1/workout-sessions/${sessionId}`)
+        ).json();
+        return body.exercises[0].set_entries.length;
+      })
+      .toBe(3);
     const skippedSet = await (
       await request.get(`/api/v1/workout-sessions/${sessionId}`)
     ).json();

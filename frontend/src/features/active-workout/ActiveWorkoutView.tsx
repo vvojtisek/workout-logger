@@ -16,6 +16,11 @@ import {
   synchronizationState,
 } from "@/lib/active-workout-state";
 import type { SetOperation } from "@/lib/active-workout-state";
+import {
+  applyOptimisticSet,
+  applyPendingSets,
+  isPendingEntry,
+} from "@/lib/optimistic-session";
 import { workoutProgress } from "@/lib/workout-utils";
 import type { GridRow } from "@/lib/workout-utils";
 import { ConfirmDialog } from "@/ui/Dialog";
@@ -173,39 +178,59 @@ function ActiveWorkoutSession({
     return () => window.cancelAnimationFrame(handle);
   }, [session]);
 
+  // After a reload (or a crash) with sets still queued, show them as logged
+  // again instead of waiting for the network to confirm them.
+  const restoredFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (restoredFor.current === session.id) return;
+    restoredFor.current = session.id;
+    void getSetQueue(activeWorkoutStorage).then((all) => {
+      const mine = all.filter((operation) => operation.session_id === session.id);
+      if (mine.length > 0) onSessionChange(applyPendingSets(session, mine));
+    });
+  }, [session, onSessionChange]);
+
   const persistSet = useCallback(
     async (row: GridRow, values: SetValues, state: "completed" | "skipped") => {
       const operationId = crypto.randomUUID();
       const draftKey = draftStorageKey(session.id, row.exercise.id, row.setNumber);
+      const payload = {
+        session_exercise_id: row.exercise.id,
+        set_number: row.setNumber,
+        weight_kg: values.weight,
+        reps: values.reps,
+        rir: values.rir,
+        added_weight_kg: values.added_weight_kg,
+        band_level: values.band_level,
+        duration_seconds: values.duration_seconds,
+        distance_km: values.distance_km,
+        incline_percent: values.incline_percent,
+        state,
+        client_operation_id: operationId,
+      };
+      // Optimistic: the set, the rest timer and the next set's focus all update
+      // in this frame. Durability and the network follow, never gate the UI.
+      onSessionChange(applyOptimisticSet(session, payload));
       await enqueueSetOperation(activeWorkoutStorage, {
         client_operation_id: operationId,
         session_id: session.id,
         draft_key: draftKey,
-        payload: {
-          session_exercise_id: row.exercise.id,
-          set_number: row.setNumber,
-          weight_kg: values.weight,
-          reps: values.reps,
-          rir: values.rir,
-          added_weight_kg: values.added_weight_kg,
-          band_level: values.band_level,
-          duration_seconds: values.duration_seconds,
-          distance_km: values.distance_km,
-          incline_percent: values.incline_percent,
-          state,
-          client_operation_id: operationId,
-        },
+        payload,
       });
       setSyncError(null);
       await refreshQueue();
       await flushSetQueue();
     },
-    [session.id, flushSetQueue, refreshQueue]
+    [session, onSessionChange, flushSetQueue, refreshQueue]
   );
 
   const correctSet = useCallback(
     async (row: GridRow, values: SetValues): Promise<boolean> => {
       if (!row.entry) return false;
+      if (isPendingEntry(row.entry)) {
+        toast.error("This set is still saving. Try again in a moment.");
+        return false;
+      }
       if (!Number.isInteger(values.reps) || values.reps < 1) {
         toast.error("Enter a whole number of reps before saving the correction.");
         return false;
@@ -239,7 +264,7 @@ function ActiveWorkoutSession({
 
   const undoSet = useCallback(
     async (row: GridRow) => {
-      if (!row.entry) return;
+      if (!row.entry || isPendingEntry(row.entry)) return;
       try {
         const updated = await apiFetch<WorkoutSession>(
           `/workout-sessions/${session.id}/sets/${row.entry.id}`,

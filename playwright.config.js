@@ -13,6 +13,7 @@ const MOBILE_SPECS = [
   "workout-hud.spec.js",
   "rest-bar.spec.js",
   "hud-read-zone.spec.js",
+  "optimistic-log.spec.js",
   "master-detail.spec.js",
   "locations.spec.js",
   "train-at-location.spec.js",
