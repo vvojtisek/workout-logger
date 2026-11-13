@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { Link } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { WorkoutSession } from "@/api/types";
@@ -64,15 +65,33 @@ export function GlobalRestBar({
       data-testid="rest-bar"
       className="flex h-[61px] shrink-0 items-center gap-2 border-t border-accent bg-accent-soft px-4"
     >
-      <p
-        id="active-rest-timer"
-        role="timer"
-        aria-live="off"
-        className="min-w-0 flex-1 font-mono text-lg font-bold whitespace-nowrap"
-        data-numeric
-      >
-        RESTING — {formatCountdown(remainingSeconds)}
-      </p>
+      {/* On the workout screen this is just the countdown; anywhere else it is
+          also the way back to the live workout. */}
+      {(() => {
+        const timer = (
+          <p
+            id="active-rest-timer"
+            role="timer"
+            aria-live="off"
+            className="font-mono text-lg font-bold whitespace-nowrap"
+            data-numeric
+          >
+            RESTING — {formatCountdown(remainingSeconds)}
+          </p>
+        );
+        return reserveSpace ? (
+          <div className="min-w-0 flex-1">{timer}</div>
+        ) : (
+          <Link
+            to="/workout"
+            title="Back to the workout"
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-2"
+          >
+            {timer}
+            <span className="truncate text-xs text-muted">Back to workout ›</span>
+          </Link>
+        );
+      })()}
       <button
         type="button"
         id="subtract-rest-time"

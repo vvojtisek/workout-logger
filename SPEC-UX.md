@@ -1,6 +1,26 @@
 # SPEC-UX: UI/UX Refactor
 
-Status: **draft for review. No application code has been written.**
+Status: **implemented** on `feat/ux-ui-overhaul` as slices 0–8 (one commit each). Slice 9 / B6 (planning pane) is deferred.
+
+### Implementation notes
+
+Decisions that settled the open questions in section 11:
+
+- **Fonts/CSP:** fonts are never inlined (`build.assetsInlineLimit` returns false for font files); the CSP is unchanged.
+- **Console noise:** `GET /workout-sessions/active?optional=true` answers 204 instead of 404 (additive; default behaviour unchanged). The 401 from `/auth/me` only occurs when logged out and is left alone.
+- **Deep links:** restoring an active session on load no longer navigates; the rest bar (tap the timer) and Today's "Resume workout" are the way back.
+- **Aggregation:** client-side. `GET /logs` already returns set-level data per exercise, so volume and muscle split need no endpoint.
+- **Previous column:** last session's same set (`previousSetText`).
+- **Git:** one local branch, one commit per slice, nothing pushed.
+
+Deviations from the spec as written:
+
+- The idle rest slot ("Rest timer starts when you log a set") reserves the bar's height on the workout screen, so the Log button never moves; the spec's wireframe had no idle state.
+- A set that is still saving shows "Saving…" and cannot be edited or undone until the server confirms it (A4).
+- A reload while offline replays queued sets onto the session; the queue itself is the existing IndexedDB one.
+- Tests that encoded old behaviour were updated, not weakened: `workout-hud.spec.js` (Log button now stays visible while resting), `rest-timer-resilience.spec.js` and `desktop-workout.spec.js` / `support/workout.js` (mm:ss rest label; polling the server after an optimistic skip).
+
+Not done / not verified: Plans, Calendar, Nutrition, Sleep and Settings screens were not touched; the light theme and real-device touch were not checked; `e2e/auth.spec.js` could not run in the local harness (invite creation fails there), so it was excluded from every local run.
 Branch: `feat/ux-ui-overhaul` · Rules: `CLAUDE.md` (UI/UX Overhaul Rules) · Delivery: `AGENTS.md`
 
 ## 1. Objective

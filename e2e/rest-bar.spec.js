@@ -72,6 +72,14 @@ test("the phone's rest timer stays visible across pages and never moves the Log 
     await expect(bar).toBeVisible();
     await expect(page.getByRole("timer")).toHaveText(/^RESTING — 00:\d\d$/);
 
+    // Off the workout screen the timer is also the way back to it.
+    await bar.getByRole("link", { name: /Back to workout/ }).click();
+    await expect(page).toHaveURL(/\/workout$/);
+    await expect(page.getByRole("heading", { name: `${tag} Squat` })).toBeVisible();
+    await expect(bar.getByRole("link")).toHaveCount(0);
+    await page.getByRole("button", { name: "Minimize workout" }).click();
+    await expect(page).toHaveURL(/\/today$/);
+
     // And it survives a reload.
     await page.reload();
     await expect(bar).toBeVisible();
