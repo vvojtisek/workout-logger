@@ -33,6 +33,9 @@ export function applyOptimisticSet(
   }
 
   const state = payload.state ?? "completed";
+  // Use the set's own timestamp when it has one, so the placeholder and the
+  // queued operation never disagree about when the set finished.
+  const completedAt = payload.client_completed_at ? new Date(payload.client_completed_at) : now;
   const entry: SetEntry = {
     id: `${PENDING_PREFIX}${payload.client_operation_id ?? payload.set_number}`,
     set_number: payload.set_number,
@@ -47,7 +50,7 @@ export function applyOptimisticSet(
     rpe: payload.rpe ?? null,
     state,
     pending: true,
-    completed_at: now.toISOString(),
+    completed_at: completedAt.toISOString(),
     client_operation_id: payload.client_operation_id,
   };
 
@@ -61,7 +64,7 @@ export function applyOptimisticSet(
     ...session,
     exercises,
     rest_ends_at: restStarts
-      ? new Date(now.getTime() + target.rest_time_seconds * 1000).toISOString()
+      ? new Date(completedAt.getTime() + target.rest_time_seconds * 1000).toISOString()
       : session.rest_ends_at,
   };
 

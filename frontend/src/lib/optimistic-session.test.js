@@ -5,6 +5,7 @@ import {
   applyPendingSets,
   isPendingEntry,
 } from "./optimistic-session";
+import { projectQueuedSets } from "./workout-hud";
 
 const NOW = new Date("2026-11-13T10:00:00.000Z");
 
@@ -135,5 +136,27 @@ describe("applyPendingSets", () => {
   it("returns the same session when nothing is queued", () => {
     const base = session();
     expect(applyPendingSets(base, [], NOW)).toBe(base);
+  });
+});
+
+describe("optimistic placeholder and the queued-set projection", () => {
+  it("lets the queue still own the rest timer when the placeholder is a few ms later", () => {
+    const completedAt = "2026-11-13T10:00:00.000Z";
+    const op = payload({ client_completed_at: completedAt });
+    // The placeholder is built slightly after the operation's own timestamp.
+    const later = new Date(NOW.getTime() + 7);
+    const withPlaceholder = applyOptimisticSet(session(), op, later);
+    const { rest, session: projected } = projectQueuedSets(withPlaceholder, [
+      { client_operation_id: "op-1", session_id: "s1", payload: op },
+    ]);
+    expect(rest).toEqual({ operationId: "op-1", defaultSeconds: 90 });
+    expect(projected.rest_ends_at).toBe("2026-11-13T10:01:30.000Z");
+  });
+
+  it("dates the placeholder by the set's own timestamp", () => {
+    const op = payload({ client_completed_at: "2026-11-13T09:59:59.000Z" });
+    const next = applyOptimisticSet(session(), op, NOW);
+    const entry = next.exercises[0].set_entries[0];
+    expect(entry.completed_at).toBe("2026-11-13T09:59:59.000Z");
   });
 });
