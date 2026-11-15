@@ -220,3 +220,22 @@ def test_api_key_auth_is_off_unless_enabled():
     assert isinstance(provider, ApiKeyOrOAuthAuth)
     with pytest.raises(ValueError, match="PUBLIC_BASE_URL"):
         Settings(API_KEY="x" * 40, PUBLIC_BASE_URL="", MCP_API_KEY_AUTH_ENABLED=True)
+
+
+async def test_oauth_calls_act_for_the_configured_account(client, auth_headers, monkeypatch):
+    from app.config import get_settings
+
+    alice = await _create_logged_in_user(client, auth_headers, "mcp-oauth-alice@example.test")
+    await _create_logged_in_user(client, auth_headers, "mcp-oauth-bob@example.test")
+    settings = get_settings()
+    monkeypatch.setattr(settings, "MCP_OAUTH_ACCOUNT_EMAIL", "MCP-OAUTH-ALICE@example.test")
+    oauth = {"Authorization": f"Bearer {mint_mcp_oauth_token()}"}
+    async with mcp_with_headers(oauth) as agent:
+        await agent.call_tool("upsert_daily_nutrition_plan", {"days": [_day_plan()]})
+    mine = await client.get(f"/api/v1/meal-plans/{TODAY.isoformat()}", headers=alice)
+    assert mine.status_code == 200
+
+    monkeypatch.setattr(settings, "MCP_OAUTH_ACCOUNT_EMAIL", "nobody@example.test")
+    async with mcp_with_headers(oauth) as agent:
+        with pytest.raises(ToolError, match="does not match an account"):
+            await agent.call_tool("get_coaching_context", {"days": 1})

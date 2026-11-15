@@ -359,6 +359,26 @@ async def test_kitchen_checklist_marks_ingredients_prepared(client, auth_headers
     assert response.json()["meals"][0]["ingredients"][0]["prepared"] is True
 
 
+async def test_deleting_a_day_plan_keeps_eaten_meals(client, auth_headers):
+    plan = await client.put(
+        "/api/v1/coach/nutrition-plan", json={"days": [_day(TODAY)]}, headers=auth_headers
+    )
+    meal = plan.json()["days"][0]["meals"][0]
+    eaten = await client.post(f"/api/v1/meal-plans/meals/{meal['id']}/eaten", headers=auth_headers)
+    entry_id = eaten.json()["meals"][0]["eaten_meal_entry_id"]
+
+    deleted = await client.delete(f"/api/v1/meal-plans/{TODAY.isoformat()}", headers=auth_headers)
+    assert deleted.status_code == 204
+    gone = await client.get(f"/api/v1/meal-plans/{TODAY.isoformat()}", headers=auth_headers)
+    assert gone.status_code == 404
+    shopping = await client.get("/api/v1/grocery-list", headers=auth_headers)
+    assert shopping.json()["items"] == []
+    kept = await client.get(f"/api/v1/meal-entries/{entry_id}", headers=auth_headers)
+    assert kept.status_code == 200
+    again = await client.delete(f"/api/v1/meal-plans/{TODAY.isoformat()}", headers=auth_headers)
+    assert again.status_code == 404
+
+
 async def test_supplements_due_follow_training_days(client, auth_headers):
     await client.put(
         "/api/v1/coach/nutrition-plan",
@@ -419,6 +439,28 @@ def _bench_log(day: date, weight: float, reps: list[int]) -> dict:
             }
         ],
     }
+
+
+async def test_deleting_a_supplement_removes_its_history(client, auth_headers):
+    plan = await client.put(
+        "/api/v1/coach/nutrition-plan",
+        json={
+            "days": [_day(TODAY)],
+            "supplement_stack": [{"name": "Creatine", "dose": 5, "unit": "g", "timing": "morning"}],
+        },
+        headers=auth_headers,
+    )
+    creatine = plan.json()["supplements"][0]
+    taken = await client.put(
+        f"/api/v1/supplements/{creatine['id']}/intakes/{TODAY.isoformat()}", headers=auth_headers
+    )
+    assert taken.status_code == 200
+    deleted = await client.delete(f"/api/v1/supplements/{creatine['id']}", headers=auth_headers)
+    assert deleted.status_code == 204
+    listed = await client.get("/api/v1/supplements", headers=auth_headers)
+    assert listed.json()["items"] == []
+    again = await client.delete(f"/api/v1/supplements/{creatine['id']}", headers=auth_headers)
+    assert again.status_code == 404
 
 
 async def test_adaptive_workout_upsert_is_idempotent_and_prefills_the_session(client, auth_headers):

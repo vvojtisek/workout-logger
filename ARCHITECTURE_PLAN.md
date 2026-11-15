@@ -112,8 +112,14 @@ Changed tables:
 - `workout_plans.origin` user|coach, server default `user`.
 - `plan_exercises`: `target_rpe` 1-10 (strength only), `coach_rationale`
   varchar(240), `target_source` user|coach (server default `user`).
-- `session_exercises`: `suggestion_source` check adds `coach`;
-  `coach_rationale` varchar(240); `readiness_factor` real.
+- `session_exercises`: `target_source` user|coach (copied from the plan
+  exercise), `coach_rationale` varchar(240), `readiness_factor` real. The
+  `suggestion_source` check is left alone (`plan`|`history`): a coach target is
+  a plan suggestion. Changing that check would need a batch table rebuild that
+  turns column-level checks into table-level ones and breaks an older
+  migration's downgrade, so the new column carries the provenance instead.
+  New columns on `plan_exercises` and `session_exercises` are plain
+  `ADD COLUMN`s with column-level checks for the same reason.
 - `workout_logs`: `activity_type` check adds `sauna`; `laps` int >= 0;
   `sauna_rounds` int 0-20.
 
@@ -149,10 +155,12 @@ database file locally (section 9).
   suggestion. `next_session.HISTORY_SESSIONS` goes from 2 to 5; the rules
   still read only the newest two, so existing suggestions do not change.
 - `app/services/coach_context.py`: the consolidated payload (section 7).
-- `app/services/quick_log.py`: activity defaults and the combined
+- `app/services/coach_log.py`: activity defaults and the combined
   readiness + activity write used by REST, MCP and the phone.
 - `workout_sessions.start_session`: for each exercise, a coach target wins
-  over history (`suggestion_source = 'coach'`, note from the rationale);
+  over history (`suggestion_source = 'plan'`, `target_source = 'coach'`, note
+  `Coach target`, rationale copied; readiness scales it only when the check-in
+  is newer than the prescription, since the coach already saw older data);
   otherwise the history suggestion is scaled by the readiness factor and the
   note says why, for example `Adjusted -10% for post-hockey recovery`.
 
@@ -204,7 +212,12 @@ Supporting REST for the phone (not MCP): `GET/PUT /profile`,
 `PATCH /meal-plans/ingredients/{id}` (`prepared`),
 `GET /grocery-list?start=&end=`, `PATCH /grocery-list` (`ids`, `checked`),
 `GET /supplements`, `GET /supplements/due?date=`,
-`PUT|DELETE /supplements/{id}/intakes/{date}`.
+`PUT|DELETE /supplements/{id}/intakes/{date}`,
+`DELETE /meal-plans/{date}` (meals already eaten stay in the food log) and
+`DELETE /supplements/{id}` (with its intake history; leaving a supplement out
+of the next stack only deactivates it). The two deletes also let the e2e suite
+leave an empty database, which `scripts/assert_empty_e2e_database.py` now checks
+for the new tables.
 
 `get_coaching_context` payload (compact keys, no nulls dropped so the shape is
 stable):
@@ -256,16 +269,17 @@ security, unreferenced component schemas pruned. Validated in tests with
 
 ```
 TodayView (phone home)
-├── QuickLogBar  [new, top of page, 3 x 48 px buttons]
+├── CoachCard     [stays first so the workout start is on the first screen]
+├── QuickLogBar  [new, 3 x 64 px buttons]
 │   ├── Swim + Sauna → POST /coach/log (optimistic row in "Done today", toast "Edit details" 5 s → /history/:logId)
 │   ├── Hockey       → POST /coach/log (duration from today's load event, else 75 min)
 │   └── Check-in     → ReadinessSheet (soreness slider, energy slider, sore-muscle chips, Save)
 ├── DoneToday        [new: today's logs and check-in score; the daily summary the bar updates]
-├── CoachCard / HockeyCards / SleepCard / FoodCard  [unchanged]
-└── KitchenLink      [new: "Today's meals" → /kitchen when a day plan exists]
+├── HockeyCards / SleepCard [unchanged]
+└── FoodCard  [adds a "Kitchen & store" button]
 
 KitchenView /kitchen  [new route, phone-first, high contrast, also in navigation]
-├── DayChips (Today, Tomorrow, +2) and Tabs: Kitchen | Store
+├── Tabs: Kitchen | Store; DayChips (today + 6) in Kitchen, span chips (Today, 3 days, 7 days) in Store
 ├── Kitchen tab
 │   ├── SupplementReminders (due today, tap = taken)
 │   └── MealCard x n: name, macros, IngredientChecklist (prepared, strike-through), PrepSteps (ordered), "Logged as eaten" / "Eaten · Undo"
@@ -280,9 +294,9 @@ WorkoutHud (live session)  [extended]
 SettingsView → CoachProfileSection [new]: goals, dietary constraints rows, physical constraints
 ```
 
-Accessibility: touch targets >= 44 px, checklist rows are buttons with
-`aria-pressed`, strike-through plus a check icon (state never by colour
-alone), body text uses the existing `--color-text`/`--color-bg` pair (AA in
+Accessibility: touch targets >= 44 px, checklist rows are native checkboxes
+inside full-row labels (48 px), strike-through plus the checkbox state (never
+by colour alone), body text uses the existing `--color-text`/`--color-bg` pair (AA in
 both themes); new muted text uses `--color-text-muted` only at >= 14 px.
 
 ## 9. Verification plan
