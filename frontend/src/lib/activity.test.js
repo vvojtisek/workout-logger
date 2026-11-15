@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ACTIVITY_TYPES, activityLabel, logSummaryFacts, logTitle } from "./activity";
+import { ACTIVITY_TYPES, activityLabel, isRecoveryType, logSummaryFacts, logTitle } from "./activity";
 
 const base = {
   performed_at: "2026-10-14T19:30:00Z",
@@ -59,5 +59,17 @@ describe("logSummaryFacts", () => {
       "Feeling 4/5 (Good)",
       "Volume 2 480 kg",
     ]);
+  });
+});
+
+describe("cardio and recovery summaries", () => {
+  it("shows cycles, the 1-5 effort and load, and a custom name", () => {
+    const sauna = { ...base, activity_type: /** @type {const} */ ("sauna"), total_time_minutes: 45, cycles: 3, cycle_minutes: 12, sauna_rounds: 3 };
+    expect(logSummaryFacts(sauna)).toEqual(["45 min", "3 cycles × 12 min", "Feeling 4/5 (Good)"]);
+    const hockey = { ...base, activity_type: /** @type {const} */ ("ice_hockey"), total_time_minutes: 60, effort_level: 4, effort_rpe: 7 };
+    expect(logSummaryFacts(hockey)).toEqual(["60 min", "Effort 4/5 (Hard)", "Load 420", "Feeling 4/5 (Good)"]);
+    expect(logTitle({ ...base, activity_type: /** @type {const} */ ("other"), activity_name: "Paddleboarding" })).toBe("Paddleboarding");
+    expect(isRecoveryType("cold_plunge")).toBe(true);
+    expect(isRecoveryType("swimming")).toBe(false);
   });
 });

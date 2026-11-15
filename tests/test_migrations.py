@@ -1418,3 +1418,78 @@ def test_coach_loop_migration_keeps_existing_training_data(alembic_config, alemb
     assert "readiness_logs" not in tables
     assert tuple(kept) == ("ice_hockey", 8)
     sync_engine.dispose()
+
+
+def test_cardio_recovery_migration_backfills_cycles_and_enforces_values(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "d1a5c7e9b3f2")
+    sauna_id, swim_id, strength_id = (str(uuid.uuid4()) for _ in range(3))
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    insert_log = (
+        "INSERT INTO workout_logs (id, performed_at, total_time_minutes, overall_feeling, "
+        "source, activity_type, sauna_rounds, laps, created_at, updated_at) VALUES "
+        "(:id, CURRENT_TIMESTAMP, :minutes, 4, 'manual', :kind, :rounds, :laps, "
+        "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+    )
+    with sync_engine.begin() as connection:
+        for row in (
+            {"id": sauna_id, "minutes": 45, "kind": "sauna", "rounds": 3, "laps": None},
+            {"id": swim_id, "minutes": 30, "kind": "swimming", "rounds": 2, "laps": 30},
+            {"id": strength_id, "minutes": 40, "kind": None, "rounds": None, "laps": None},
+        ):
+            connection.execute(text(insert_log), row)
+
+    command.upgrade(alembic_config, "e6c2a8f4b0d3")
+
+    select_new = (
+        "SELECT total_time_minutes, activity_type, sauna_rounds, laps, cycles, effort_level, "
+        "feel_before, feel_after, cycle_minutes, linked_log_id, activity_name "
+        "FROM workout_logs WHERE id = :id"
+    )
+    with sync_engine.connect() as connection:
+        sauna = connection.execute(text(select_new), {"id": sauna_id}).one()
+        swim = connection.execute(text(select_new), {"id": swim_id}).one()
+        strength = connection.execute(text(select_new), {"id": strength_id}).one()
+    # Sauna rounds become cycles; a swim's rounds stay where they were.
+    assert sauna == (45, "sauna", 3, None, 3, None, None, None, None, None, None)
+    assert swim == (30, "swimming", 2, 30, None, None, None, None, None, None, None)
+    assert strength == (40, None, None, None, None, None, None, None, None, None, None)
+
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE workout_logs SET activity_type = 'meditation', effort_level = 2, "
+                "feel_before = 3, feel_after = 5, cycles = 2, cycle_minutes = 10, "
+                "linked_log_id = :swim WHERE id = :id"
+            ),
+            {"id": strength_id, "swim": swim_id},
+        )
+    for invalid in (
+        "activity_type = 'quidditch'",
+        "effort_level = 6",
+        "feel_before = 0",
+        "feel_after = 6",
+        "cycles = 21",
+        "cycle_minutes = 0",
+        "linked_log_id = id",
+    ):
+        with sync_engine.begin() as connection, pytest.raises(IntegrityError):
+            connection.execute(
+                text(f"UPDATE workout_logs SET {invalid} WHERE id = :id"), {"id": strength_id}
+            )
+
+    # The old schema cannot hold a meditation log, so the downgrade refuses.
+    with pytest.raises(RuntimeError, match="meditation"):
+        command.downgrade(alembic_config, "d1a5c7e9b3f2")
+    with sync_engine.begin() as connection:
+        connection.execute(text("DELETE FROM workout_logs WHERE id = :id"), {"id": strength_id})
+    command.downgrade(alembic_config, "d1a5c7e9b3f2")
+    with sync_engine.connect() as connection:
+        columns = {row[1] for row in connection.execute(text("PRAGMA table_info(workout_logs)"))}
+        kept = connection.execute(
+            text("SELECT sauna_rounds FROM workout_logs WHERE id = :id"), {"id": sauna_id}
+        ).scalar_one()
+    assert "cycles" not in columns and "linked_log_id" not in columns
+    assert kept == 3
+    sync_engine.dispose()
