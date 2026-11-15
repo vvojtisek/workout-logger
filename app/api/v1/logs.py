@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -32,7 +33,7 @@ async def list_workout_logs(
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
     source_plan_id: UUID | None = Query(default=None),
-    category: ActivityCategory | None = Query(default=None),
+    category: Annotated[ActivityCategory | None, Query()] = None,
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_session),

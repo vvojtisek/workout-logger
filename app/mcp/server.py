@@ -9,8 +9,9 @@ the REST layer's validation, conflict handling, and transaction boundaries.
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import date, datetime
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
@@ -69,8 +70,14 @@ from app.schemas.workout_sessions import (
     WorkoutSessionComplete,
     WorkoutSessionRead,
 )
+from app.services import (
+    activity_defaults,
+    coach_context,
+    coach_log,
+    coach_workouts,
+    readiness_score,
+)
 from app.services import body_metrics as body_metrics_service
-from app.services import coach_context, coach_log, coach_workouts, readiness_score
 from app.services import coaching_principles as principles_service
 from app.services import exercise_baseline as exercise_baseline_service
 from app.services import foods as foods_service
@@ -967,6 +974,40 @@ async def log_readiness_and_activity(
     data = CoachLogRequest(readiness=readiness, activity=activity)
     async with _db() as session:
         result = await coach_log.log_readiness_and_activity(session, data, source="mcp")
+        return result.model_dump(mode="json")
+
+
+@mcp.tool(
+    name="get_activity_defaults",
+    description=(
+        "Predict what a cardio (category 'cardio') or recovery ('recovery') log on `on_date` "
+        "will most likely be, from the last `weeks` (4-12) weeks of entries matched by "
+        "weekday and season: activity type, local start (15-min slots), duration, effort "
+        "level 1-5 and recovery cycles, plus one-tap recovery presets. `timezone` is the "
+        "athlete's IANA zone; `on_date` defaults to today there."
+    ),
+    auth=require_scopes("read"),
+)
+async def get_activity_defaults(
+    category: Literal["cardio", "recovery"] = "cardio",
+    on_date: date | None = None,
+    timezone: str = "UTC",
+    weeks: int = 8,
+) -> dict[str, Any]:
+    if not 4 <= weeks <= 12:
+        raise ToolError("weeks must be between 4 and 12")
+    try:
+        zone = ZoneInfo(timezone)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise ToolError(f"'{timezone}' is not a recognized IANA timezone name") from exc
+    async with _db() as session:
+        result = await activity_defaults.predict_defaults(
+            session,
+            day=on_date or datetime.now(zone).date(),
+            category=category,
+            tz_name=timezone,
+            weeks=weeks,
+        )
         return result.model_dump(mode="json")
 
 

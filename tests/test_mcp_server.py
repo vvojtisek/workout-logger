@@ -22,6 +22,7 @@ EXPECTED_TOOLS = {
     "delete_workout",
     "delete_workout_session",
     "get_active_workout_session",
+    "get_activity_defaults",
     "get_coaching_context",
     "get_coaching_principles",
     "get_exercise_baseline",

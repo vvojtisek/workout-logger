@@ -15,6 +15,7 @@ from typing import Any
 ACTION_OPERATIONS: tuple[str, ...] = (
     "get_coaching_context",
     "log_readiness_and_activity",
+    "get_activity_defaults",
     "upsert_daily_nutrition_plan",
     "upsert_adaptive_workout_plan",
     "get_exercise_baseline",
