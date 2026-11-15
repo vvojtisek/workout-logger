@@ -1,4 +1,5 @@
 import math
+from dataclasses import replace
 from datetime import timedelta
 from typing import Any, cast
 from uuid import UUID
@@ -26,10 +27,13 @@ from app.schemas.workout_sessions import (
     WorkoutSessionFocus,
     WorkoutSessionRestUpdate,
 )
+from app.services.exercise_baseline import adjust_for_readiness
 from app.services.locations import get_location
 from app.services.next_session import suggest_next
-from app.services.volume_rules import apply_to_session
 from app.services.plans import get_plan
+from app.services.progression import Suggestion
+from app.services.readiness import latest_for_session_start
+from app.services.volume_rules import apply_to_session
 
 # Most sets an exercise can grow to during a session with "Add set".
 MAX_SESSION_SETS = 20
@@ -153,16 +157,46 @@ async def start_session(
         status="active",
         focused_set_number=1,
     )
+    check_in = await latest_for_session_start(session)
     for exercise in plan.exercises:
-        suggestion = await suggest_next(
-            session,
-            exercise_name=exercise.exercise_name,
-            plan_id=plan.id,
-            rep_min=exercise.target_reps_min,
-            rep_max=exercise.target_reps_max,
-            plan_weight_kg=exercise.target_weight_kg,
-            catalog_exercise_id=exercise.catalog_exercise_id,
-        )
+        if exercise.target_source == "coach":
+            # The coach saw the readiness data it was given; only a check-in
+            # logged after the prescription changes its load.
+            newer = check_in if check_in and check_in.logged_at > plan.updated_at else None
+            adjusted = await adjust_for_readiness(
+                session,
+                check_in=newer,
+                exercise_name=exercise.exercise_name,
+                catalog_exercise_id=exercise.catalog_exercise_id,
+                weight_kg=exercise.target_weight_kg,
+                base_note=None,
+                label="Coach target",
+            )
+            suggestion = Suggestion(
+                weight_kg=adjusted.weight_kg,
+                reps=exercise.target_reps_min,
+                source="plan",
+                note=adjusted.note or "Coach target",
+            )
+        else:
+            history = await suggest_next(
+                session,
+                exercise_name=exercise.exercise_name,
+                plan_id=plan.id,
+                rep_min=exercise.target_reps_min,
+                rep_max=exercise.target_reps_max,
+                plan_weight_kg=exercise.target_weight_kg,
+                catalog_exercise_id=exercise.catalog_exercise_id,
+            )
+            adjusted = await adjust_for_readiness(
+                session,
+                check_in=check_in,
+                exercise_name=exercise.exercise_name,
+                catalog_exercise_id=exercise.catalog_exercise_id,
+                weight_kg=history.weight_kg,
+                base_note=history.note,
+            )
+            suggestion = replace(history, weight_kg=adjusted.weight_kg, note=adjusted.note)
         workout_session.exercises.append(
             SessionExercise(
                 sort_order=exercise.sort_order,
@@ -181,6 +215,9 @@ async def start_session(
                 suggested_reps=suggestion.reps,
                 suggestion_source=suggestion.source,
                 suggestion_note=suggestion.note,
+                target_source=exercise.target_source,
+                coach_rationale=exercise.coach_rationale,
+                readiness_factor=adjusted.factor if check_in is not None else None,
                 status="planned",
             )
         )
@@ -481,12 +518,25 @@ async def swap_exercise(
         # The plan's load was for the old exercise.
         plan_weight_kg=None,
     )
+    adjusted = await adjust_for_readiness(
+        session,
+        check_in=await latest_for_session_start(session),
+        exercise_name=data.exercise_name,
+        catalog_exercise_id=None,
+        weight_kg=suggestion.weight_kg,
+        base_note=suggestion.note,
+    )
+    suggestion = replace(suggestion, weight_kg=adjusted.weight_kg, note=adjusted.note)
     exercise.exercise_name = data.exercise_name
     exercise.exercise_kind = data.exercise_kind
     exercise.suggested_weight_kg = suggestion.weight_kg
     exercise.suggested_reps = suggestion.reps
     exercise.suggestion_source = suggestion.source
     exercise.suggestion_note = suggestion.note
+    # A swapped-in exercise is no longer the coach's prescription.
+    exercise.target_source = "user"
+    exercise.coach_rationale = None
+    exercise.readiness_factor = adjusted.factor
     workout_session.version += 1
     await session.commit()
     return await get_session(session, workout_session.id)

@@ -14,7 +14,8 @@ from app.models import Exercise, ExerciseLog, SessionExercise, WorkoutLog, Worko
 from app.services.load_warnings import LEG_MUSCLES, LEG_NAME
 from app.services.progression import SessionResult, Suggestion, load_increment, suggest
 
-HISTORY_SESSIONS = 2
+# The rules read the newest two; the rest feeds trends and baselines.
+HISTORY_SESSIONS = 5
 _NOT_BARBELL = re.compile(r"dumbbell|kettlebell|goblet|band|cable|machine|smith", re.IGNORECASE)
 
 
@@ -120,3 +121,9 @@ async def suggest_next(
         plan_weight_kg=plan_weight_kg,
         increment_kg=await increment_for(session, exercise_name, catalog_exercise_id),
     )
+
+
+async def catalogue_match(
+    session: AsyncSession, exercise_name: str, catalog_exercise_id: UUID | None = None
+) -> Exercise | None:
+    return await _catalogue_match(session, exercise_name, catalog_exercise_id)

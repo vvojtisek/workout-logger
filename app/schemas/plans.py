@@ -41,6 +41,10 @@ class PlanExerciseRead(PlanExerciseCreate):
 
     id: UUID
     sort_order: int
+    target_rpe: int | None = None
+    # "coach" when an assistant prescribed these targets (PUT /coach/workout-plan).
+    target_source: Literal["user", "coach"] = "user"
+    coach_rationale: str | None = None
 
 
 class WorkoutPlanCreate(BaseModel):
@@ -62,6 +66,7 @@ class WorkoutPlanRead(OrmModel):
     id: UUID
     name: str
     description: str | None
+    origin: Literal["user", "coach"] = "user"
     exercises: list[PlanExerciseRead]
     created_at: datetime
     updated_at: datetime

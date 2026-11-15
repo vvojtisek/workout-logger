@@ -78,7 +78,7 @@ class ExerciseLogRead(ExerciseLogCreate):
     volume_kg: float = 0.0
 
 
-ActivityType = Literal["ice_hockey", "swimming", "cycling", "hiking", "running", "other"]
+ActivityType = Literal["ice_hockey", "swimming", "sauna", "cycling", "hiking", "running", "other"]
 
 
 class WorkoutLogCreate(BaseModel):
@@ -91,6 +91,8 @@ class WorkoutLogCreate(BaseModel):
     activity_type: ActivityType | None = None
     distance_km: float | None = Field(default=None, ge=0, le=1000)
     effort_rpe: int | None = Field(default=None, ge=1, le=10)
+    laps: int | None = Field(default=None, ge=0, le=1000)
+    sauna_rounds: int | None = Field(default=None, ge=0, le=20)
     exercises: list[ExerciseLogCreate] = Field(default_factory=list)
 
     @field_validator("performed_at")
@@ -118,6 +120,8 @@ class WorkoutLogPatch(BaseModel):
     activity_type: ActivityType | None = None
     distance_km: float | None = None
     effort_rpe: int | None = None
+    laps: int | None = None
+    sauna_rounds: int | None = None
     exercises: list[ExerciseLogCreate] | None = None
 
 
@@ -135,6 +139,8 @@ class WorkoutLogRead(OrmModel):
     activity_type: ActivityType | None
     distance_km: float | None
     effort_rpe: int | None
+    laps: int | None = None
+    sauna_rounds: int | None = None
     exercises: list[ExerciseLogRead]
     total_volume_kg: float = 0.0
     created_at: datetime

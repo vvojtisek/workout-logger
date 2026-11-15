@@ -13,10 +13,17 @@ _LOAD_EXERCISES = selectinload(WorkoutPlan.exercises)
 
 
 async def list_plans(
-    session: AsyncSession, limit: int, offset: int, owner_id: UUID | None = None
+    session: AsyncSession,
+    limit: int,
+    offset: int,
+    owner_id: UUID | None = None,
+    origin: str | None = None,
 ) -> tuple[list[WorkoutPlan], int]:
     count_stmt = select(func.count()).select_from(WorkoutPlan)
     list_stmt = select(WorkoutPlan).options(_LOAD_EXERCISES)
+    if origin is not None:
+        count_stmt = count_stmt.where(WorkoutPlan.origin == origin)
+        list_stmt = list_stmt.where(WorkoutPlan.origin == origin)
     if owner_id is not None:
         count_stmt = count_stmt.where(WorkoutPlan.owner_id == owner_id)
         list_stmt = list_stmt.where(WorkoutPlan.owner_id == owner_id)

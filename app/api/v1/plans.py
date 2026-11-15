@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
@@ -28,10 +29,16 @@ async def list_workout_plans(
     request: Request,
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    origin: Literal["user", "coach"] | None = Query(
+        default=None,
+        description="Only the user's own plans, or only coach-prescribed sessions. Omitted: all.",
+    ),
     session: AsyncSession = Depends(get_session),
 ) -> PaginatedPlansResponse:
     auth: AuthContext = request.state.auth_context
-    items, total = await plans_service.list_plans(session, limit, offset, auth.owner_id)
+    items, total = await plans_service.list_plans(
+        session, limit, offset, auth.owner_id, origin=origin
+    )
     return PaginatedPlansResponse(
         items=[WorkoutPlanRead.model_validate(item) for item in items],
         total=total,

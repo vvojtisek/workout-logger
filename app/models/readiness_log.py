@@ -5,6 +5,7 @@ from sqlalchemy import JSON, CheckConstraint, Date, ForeignKey, Index, Integer, 
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import GUID, Base, TimestampMixin, UTCDateTime, UUIDPrimaryKeyMixin, utcnow
+from app.services.readiness_score import ReadinessInputs, load_factor, readiness_score
 
 
 class ReadinessLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -59,3 +60,21 @@ class ReadinessLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     physical_constraints: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="app")
+
+    @property
+    def inputs(self) -> ReadinessInputs:
+        return ReadinessInputs(
+            soreness=self.soreness,
+            fatigue=self.fatigue,
+            sleep_quality=self.sleep_quality,
+            prior_day_strain=self.prior_day_strain,
+            sore_muscle_groups=tuple(self.sore_muscle_groups or ()),
+        )
+
+    @property
+    def score(self) -> int:
+        return readiness_score(self.inputs)
+
+    @property
+    def load_factor(self) -> float:
+        return load_factor(self.score)
