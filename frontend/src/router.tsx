@@ -301,6 +301,11 @@ export const router = createBrowserRouter([
                 import("@/features/activity/CardioLogView").then((m) => ({ Component: m.CardioLogView })),
             },
             {
+              path: "recovery",
+              lazy: () =>
+                import("@/features/activity/RecoveryLogView").then((m) => ({ Component: m.RecoveryLogView })),
+            },
+            {
               path: "training-load",
               lazy: () => import("@/features/history/TrainingLoadView").then((m) => ({ Component: m.TrainingLoadView })),
             },

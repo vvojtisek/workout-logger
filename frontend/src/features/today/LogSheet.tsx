@@ -35,6 +35,7 @@ export function LogSheet({
     { to: "/nutrition/meals/new", title: "Food", hint: "A meal or a snack" },
     { to: "/sleep/new", title: "Sleep", hint: "With all the details" },
     { to: "/activity/quick", title: "Cardio", hint: "Pre-filled hockey, swim, ride" },
+    { to: "/recovery", title: "Recovery", hint: "Sauna, stretch: one tap" },
     { to: "/activity/new", title: "Activity", hint: "Every field, distance too" },
     { to: "/biometrics/new", title: "Weight", hint: "And body measurements" },
     sessionActive

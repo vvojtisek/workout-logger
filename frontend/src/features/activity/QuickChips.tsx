@@ -69,6 +69,7 @@ export function ChipGroup<V extends string | number>({
 export function QuickLogTabs() {
   const tabs = [
     { to: "/activity/quick", label: "Cardio & sport" },
+    { to: "/recovery", label: "Recovery" },
   ];
   return (
     <nav aria-label="Quick log sections" className="mb-4 grid grid-cols-2 gap-1 rounded-[var(--radius-md)] border border-line p-1">

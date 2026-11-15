@@ -41,6 +41,7 @@ const PAGES = {
   newWorkout: { path: "/log/new", label: "New Workout" },
   logActivity: { path: "/activity/new", label: "Log Activity" },
   quickCardio: { path: "/activity/quick", label: "Cardio" },
+  recovery: { path: "/recovery", label: "Recovery" },
   plans: { path: "/plans", label: "Plans" },
   programs: { path: "/programs", label: "Programs" },
   calendar: { path: "/calendar", label: "Calendar" },
@@ -68,7 +69,7 @@ export const DESKTOP_SECTIONS: NavSection[] = [
     id: "workout",
     label: "Active Workout",
     icon: "workout",
-    pages: [PAGES.newWorkout, PAGES.logActivity, PAGES.quickCardio],
+    pages: [PAGES.newWorkout, PAGES.logActivity, PAGES.quickCardio, PAGES.recovery],
   },
   {
     id: "plans",
@@ -140,7 +141,7 @@ export const MOBILE_SECTIONS: NavSection[] = [
     id: LOG_SECTION_ID,
     label: "Log",
     icon: "log",
-    pages: [PAGES.newWorkout, PAGES.logActivity, PAGES.quickCardio],
+    pages: [PAGES.newWorkout, PAGES.logActivity, PAGES.quickCardio, PAGES.recovery],
   },
   {
     id: "coach",
