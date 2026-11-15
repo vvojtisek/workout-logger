@@ -66,12 +66,12 @@ def overlay_changes(current: dict, changes: dict) -> dict:
         old_level = current.get("effort_level")
         if old_level is not None and current.get("effort_rpe") == level_to_rpe(old_level):
             data["effort_rpe"] = None
-    if (
-        "cycles" in changes
-        and "sauna_rounds" not in changes
-        and data.get("activity_type") == "sauna"
-    ):
-        data["sauna_rounds"] = changes["cycles"]
+    if data.get("activity_type") == "sauna":
+        if "cycles" in changes and "sauna_rounds" not in changes:
+            data["sauna_rounds"] = changes["cycles"]
+        elif "sauna_rounds" in changes and "cycles" not in changes:
+            rounds = changes["sauna_rounds"]
+            data["cycles"] = rounds if rounds else None
     return data
 
 

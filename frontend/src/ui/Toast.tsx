@@ -9,6 +9,8 @@ interface ToastAction {
 
 interface ToastOptions {
   action?: ToastAction;
+  /** A second button, e.g. Edit beside Undo. */
+  secondaryAction?: ToastAction;
   /** How long the toast stays; defaults to 4 s, or 8 s with an action. */
   durationMs?: number;
 }
@@ -18,6 +20,7 @@ interface Toast {
   message: string;
   variant: ToastVariant;
   action?: ToastAction;
+  secondaryAction?: ToastAction;
   durationMs?: number;
 }
 
@@ -30,7 +33,14 @@ function emit() {
 }
 
 export function toast(message: string, variant: ToastVariant = "info", options: ToastOptions = {}) {
-  toasts = [...toasts, { id: nextId++, message, variant, action: options.action, durationMs: options.durationMs }];
+  toasts = [...toasts, {
+      id: nextId++,
+      message,
+      variant,
+      action: options.action,
+      secondaryAction: options.secondaryAction,
+      durationMs: options.durationMs,
+    }];
   emit();
 }
 
@@ -93,6 +103,18 @@ function ToastItem({ item }: { item: Toast }) {
             className="min-h-11 shrink-0 rounded-[var(--radius-sm)] px-2 py-1 font-semibold underline underline-offset-2"
           >
             {item.action.label}
+          </button>
+        ) : null}
+        {item.secondaryAction ? (
+          <button
+            type="button"
+            onClick={() => {
+              dismiss(item.id);
+              item.secondaryAction?.onClick();
+            }}
+            className="min-h-11 shrink-0 rounded-[var(--radius-sm)] px-2 py-1 font-semibold underline underline-offset-2"
+          >
+            {item.secondaryAction.label}
           </button>
         ) : null}
         <button

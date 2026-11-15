@@ -110,3 +110,18 @@ export const ENERGY_SCALE: Scale = {
   },
   hint: "How much energy you have. Higher is better.",
 };
+
+/** Whole-session effort for cardio and sport logs, 1-5. The server turns it
+ * into a CR-10 session RPE (1→2, 2→3, 3→5, 4→7, 5→9) for training load. */
+export const EFFORT_LEVEL_SCALE: Scale = {
+  max: 5,
+  labels: { 1: "Recovery", 2: "Easy", 3: "Moderate", 4: "Hard", 5: "Max effort" },
+  hint: "1 relaxed, 3 standard tempo, 5 an exhausting game. Higher means harder.",
+};
+
+/** Physical state just before and after a session. Higher is better. */
+export const BODY_FEEL_SCALE: Scale = {
+  max: 5,
+  labels: { 1: "Wrecked", 2: "Fatigued", 3: "Sore", 4: "Normal", 5: "Fresh" },
+  hint: "How your body felt. Higher is better.",
+};

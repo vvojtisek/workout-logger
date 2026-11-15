@@ -22,6 +22,9 @@ describe("activityLabel", () => {
       "Hiking",
       "Running",
       "Other activity",
+      "Meditation",
+      "Stretching",
+      "Cold plunge",
     ]);
   });
 });

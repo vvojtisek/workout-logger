@@ -34,7 +34,8 @@ export function LogSheet({
   const entries: Entry[] = [
     { to: "/nutrition/meals/new", title: "Food", hint: "A meal or a snack" },
     { to: "/sleep/new", title: "Sleep", hint: "With all the details" },
-    { to: "/activity/new", title: "Activity", hint: "Hockey, swim, ride, hike" },
+    { to: "/activity/quick", title: "Cardio", hint: "Pre-filled hockey, swim, ride" },
+    { to: "/activity/new", title: "Activity", hint: "Every field, distance too" },
     { to: "/biometrics/new", title: "Weight", hint: "And body measurements" },
     sessionActive
       ? { to: WORKOUT_PATH, title: "Resume workout", hint: "Back to the live session" }

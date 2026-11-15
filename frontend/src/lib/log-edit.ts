@@ -28,6 +28,8 @@ export interface LogDraft {
   notes: string;
   /** Shown only for swims and sauna visits; "" clears the value. */
   water: { laps: string; saunaRounds: string } | null;
+  /** Shown for cardio and recovery logs; "" clears the value. */
+  activity: { level: string; feelBefore: string; feelAfter: string; originalEffort: string } | null;
   exercises: ExerciseDraft[];
 }
 
@@ -54,6 +56,14 @@ export function logToDraft(log: WorkoutLog): LogDraft {
       log.activity_type === "swimming" || log.activity_type === "sauna"
         ? { laps: text(log.laps), saunaRounds: text(log.sauna_rounds) }
         : null,
+    activity: log.activity_type
+      ? {
+          level: text(log.effort_level),
+          feelBefore: text(log.feel_before),
+          feelAfter: text(log.feel_after),
+          originalEffort: text(log.effort_rpe),
+        }
+      : null,
     exercises: log.exercises.map((exercise) => ({
       key: exercise.id,
       exercise_name: exercise.exercise_name,
@@ -158,6 +168,19 @@ export function draftToPatch(
     }
     water = { laps, sauna_rounds: rounds };
   }
+  let activity: LogPatch = {};
+  let sendEffort = true;
+  if (draft.activity) {
+    const level = optionalNumber(draft.activity.level, (value) => Number.isInteger(value) && value >= 1 && value <= 5);
+    const before = optionalNumber(draft.activity.feelBefore, (value) => Number.isInteger(value) && value >= 1 && value <= 5);
+    const after = optionalNumber(draft.activity.feelAfter, (value) => Number.isInteger(value) && value >= 1 && value <= 5);
+    if (level === undefined || before === undefined || after === undefined) {
+      return { patch: null, error: "Effort level and feel must be whole numbers from 1 to 5." };
+    }
+    activity = { effort_level: level, feel_before: before, feel_after: after };
+    // An unchanged RPE is left out so the server can re-derive it from a new level.
+    sendEffort = draft.effort !== draft.activity.originalEffort;
+  }
   const exercises = [];
   for (const exercise of draft.exercises) {
     const payload = exercisePayload(exercise);
@@ -169,9 +192,10 @@ export function draftToPatch(
       performed_at: performedAt,
       total_time_minutes: minutes,
       overall_feeling: Number(draft.feeling),
-      effort_rpe: effort,
+      ...(sendEffort ? { effort_rpe: effort } : {}),
       notes: draft.notes.trim() || null,
       ...water,
+      ...activity,
       exercises,
     },
     error: null,
