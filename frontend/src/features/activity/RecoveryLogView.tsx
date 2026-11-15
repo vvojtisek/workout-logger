@@ -27,7 +27,7 @@ import { deviceTimezone, localIsoDate } from "@/lib/today";
 import { Button, PageHeading } from "@/ui";
 
 import { ACTIVITY_DEFAULTS_KEY, announceSaved, postActivity } from "./CardioLogView";
-import { ChipGroup, QuickLogTabs, Stepper } from "./QuickChips";
+import { ChipGroup, Stepper } from "./QuickChips";
 
 const RECOVERY_KEY = ["recovery-today"] as const;
 const CYCLE_TYPES: RecoveryType[] = ["sauna", "cold_plunge"];
@@ -139,7 +139,6 @@ export function RecoveryLogView() {
       <PageHeading hint="One tap logs a routine now. It is linked to the session you just finished.">
         Log recovery
       </PageHeading>
-      <QuickLogTabs />
 
       <div className="mb-6 grid grid-cols-2 gap-2" data-testid="recovery-presets">
         {presets.map((preset) => (

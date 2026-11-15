@@ -1,6 +1,5 @@
 import { useId } from "react";
 import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
 
 export interface ChipOption<V extends string | number> {
   value: V;
@@ -62,32 +61,6 @@ export function ChipGroup<V extends string | number>({
         {children}
       </div>
     </div>
-  );
-}
-
-/** Cardio | Recovery: the two quick-log sections. */
-export function QuickLogTabs() {
-  const tabs = [
-    { to: "/activity/quick", label: "Cardio & sport" },
-    { to: "/recovery", label: "Recovery" },
-  ];
-  return (
-    <nav aria-label="Quick log sections" className="mb-4 grid grid-cols-2 gap-1 rounded-[var(--radius-md)] border border-line p-1">
-      {tabs.map((tab) => (
-        <NavLink
-          key={tab.to}
-          to={tab.to}
-          end
-          className={({ isActive }) =>
-            `flex min-h-11 items-center justify-center rounded-[var(--radius-sm)] text-sm font-semibold ${
-              isActive ? "bg-accent-soft text-main" : "text-muted"
-            }`
-          }
-        >
-          {tab.label}
-        </NavLink>
-      ))}
-    </nav>
   );
 }
 

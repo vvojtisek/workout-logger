@@ -26,7 +26,7 @@ import { deviceTimezone } from "@/lib/today";
 import { toast } from "@/ui/Toast";
 import { Button, Input, PageHeading } from "@/ui";
 
-import { ChipGroup, QuickLogTabs } from "./QuickChips";
+import { ChipGroup } from "./QuickChips";
 
 export interface CoachLogResult {
   workout_log: WorkoutLog | null;
@@ -139,7 +139,6 @@ export function CardioLogView() {
       <PageHeading hint="Pre-filled from what you usually do on this weekday. Tap anything to change it.">
         Log cardio
       </PageHeading>
-      <QuickLogTabs />
       <form onSubmit={submit} className="flex flex-col gap-4" data-testid="cardio-form" aria-busy={defaults.isFetching}>
         <ChipGroup
           label="Activity"
@@ -263,7 +262,7 @@ export function CardioLogView() {
           <Button touch variant="primary" type="submit" disabled={save.isPending}>
             Save {form.type === "other" ? "activity" : activityLabel(form.type).toLowerCase()}
           </Button>
-          <Link to="/activity/new" className="self-start text-sm text-muted underline underline-offset-2">
+          <Link to="/activity/new" className="inline-flex min-h-11 items-center self-start text-sm text-muted underline underline-offset-2">
             Distance, notes or calories? Use the full form
           </Link>
         </div>
