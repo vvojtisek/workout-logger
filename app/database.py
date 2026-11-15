@@ -14,7 +14,9 @@ from sqlalchemy.pool import ConnectionPoolEntry
 from app.config import get_settings
 from app.models import (
     ApiToken,
+    AthleteProfile,
     BodyMetric,
+    DailyMealPlan,
     Exercise,
     Food,
     LoadEvent,
@@ -22,9 +24,11 @@ from app.models import (
     MealEntry,
     NutritionPlan,
     Program,
+    ReadinessLog,
     ScheduledWorkout,
     SleepEntry,
     StepCount,
+    SupplementSchedule,
     UserSettings,
     WorkoutLog,
     WorkoutPlan,
@@ -33,6 +37,10 @@ from app.models import (
 
 _OWNED_MODELS = (
     ApiToken,
+    AthleteProfile,
+    DailyMealPlan,
+    ReadinessLog,
+    SupplementSchedule,
     BodyMetric,
     Exercise,
     Food,

@@ -64,6 +64,20 @@ class SessionExercise(UUIDPrimaryKeyMixin, Base):
     suggestion_source: Mapped[str] = mapped_column(String(20), nullable=False, default="plan")
     # Why the suggestion is what it is, from the progression rules.
     suggestion_note: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Copied from the plan exercise: "coach" targets were prescribed by an
+    # assistant and are used as the suggestion (source "plan").
+    target_source: Mapped[str] = mapped_column(
+        String(10),
+        CheckConstraint(
+            "target_source IN ('user', 'coach')", name="ck_session_exercises_target_source"
+        ),
+        nullable=False,
+        default="user",
+        server_default="user",
+    )
+    coach_rationale: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    # The readiness load factor applied at session start (1.0 = none).
+    readiness_factor: Mapped[float | None] = mapped_column(REAL, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="planned")
 
     workout_session: Mapped["WorkoutSession"] = relationship(back_populates="exercises")

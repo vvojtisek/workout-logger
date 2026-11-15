@@ -16,7 +16,7 @@ class WorkoutLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint(
             "activity_type IS NULL OR activity_type IN "
-            "('ice_hockey', 'swimming', 'cycling', 'hiking', 'running', 'other')",
+            "('ice_hockey', 'swimming', 'sauna', 'cycling', 'hiking', 'running', 'other')",
             name="ck_workout_logs_activity_type",
         ),
         CheckConstraint(
@@ -24,6 +24,11 @@ class WorkoutLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         CheckConstraint(
             "distance_km IS NULL OR distance_km >= 0", name="ck_workout_logs_distance_km"
+        ),
+        CheckConstraint("laps IS NULL OR laps >= 0", name="ck_workout_logs_laps"),
+        CheckConstraint(
+            "sauna_rounds IS NULL OR sauna_rounds BETWEEN 0 AND 20",
+            name="ck_workout_logs_sauna_rounds",
         ),
         Index("ix_workout_logs_performed_at", "performed_at"),
         Index("ix_workout_logs_source_plan_id", "source_plan_id"),
@@ -68,6 +73,9 @@ class WorkoutLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     distance_km: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Session RPE on the CR-10 scale; times duration it gives the session's training load.
     effort_rpe: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Pool lengths for a swim, and sauna rounds after it (or on their own).
+    laps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sauna_rounds: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     exercises: Mapped[list["ExerciseLog"]] = relationship(
         back_populates="workout_log",
