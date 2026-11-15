@@ -34,6 +34,7 @@ const MOBILE_SPECS = [
   "exercise-progression.spec.js",
   "training-load.spec.js",
   "rep-retention.spec.js",
+  "coach-loop.spec.js",
 ];
 
 export default defineConfig({

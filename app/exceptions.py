@@ -36,6 +36,14 @@ class ConflictError(AppError):
         super().__init__(status.HTTP_409_CONFLICT, detail, code)
 
 
+class UnprocessableError(AppError):
+    """A well-formed request that breaks a domain rule, such as a meal plan
+    ingredient that hits one of the athlete's hard dietary exclusions."""
+
+    def __init__(self, detail: str, code: str = "UNPROCESSABLE") -> None:
+        super().__init__(status.HTTP_422_UNPROCESSABLE_CONTENT, detail, code)
+
+
 class RateLimitedError(AppError):
     def __init__(self, detail: str, code: str = "RATE_LIMITED") -> None:
         super().__init__(status.HTTP_429_TOO_MANY_REQUESTS, detail, code)

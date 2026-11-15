@@ -49,6 +49,7 @@ const PAGES = {
   exercises: { path: "/exercises", label: "Exercises" },
   locations: { path: "/locations", label: "Locations" },
   nutrition: { path: "/nutrition", label: "Nutrition" },
+  kitchen: { path: "/kitchen", label: "Kitchen & Store" },
   biometrics: { path: "/biometrics", label: "Biometrics" },
   sleep: { path: "/sleep", label: "Sleep" },
   tokens: { path: "/tokens", label: "Tokens" },
@@ -96,7 +97,7 @@ export const DESKTOP_SECTIONS: NavSection[] = [
     id: "nutrition",
     label: "Nutrition & Meals",
     icon: "nutrition",
-    pages: [PAGES.nutrition],
+    pages: [PAGES.nutrition, PAGES.kitchen],
   },
   {
     id: "body",
@@ -158,6 +159,7 @@ export const MOBILE_SECTIONS: NavSection[] = [
     icon: "more",
     pages: [
       PAGES.nutrition,
+      PAGES.kitchen,
       PAGES.biometrics,
       PAGES.sleep,
       PAGES.settings,

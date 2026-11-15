@@ -58,6 +58,8 @@ describe("navigation model", () => {
     expect(sectionForPath(MOBILE_SECTIONS, "/schedule")?.label).toBe("Coach");
     expect(sectionForPath(MOBILE_SECTIONS, "/sleep/new")?.label).toBe("More");
     expect(sectionForPath(MOBILE_SECTIONS, "/today")?.label).toBe("Today");
+    expect(sectionForPath(DESKTOP, "/kitchen")?.label).toBe("Nutrition & Meals");
+    expect(sectionForPath(MOBILE_SECTIONS, "/kitchen")?.label).toBe("More");
   });
 
   it("returns to a live session from the workout section", () => {

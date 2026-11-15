@@ -184,6 +184,13 @@ export const router = createBrowserRouter([
                 })),
             },
             {
+              path: "kitchen",
+              lazy: () =>
+                import("@/features/nutrition/KitchenView").then((m) => ({
+                  Component: m.KitchenView,
+                })),
+            },
+            {
               path: "nutrition/foods",
               handle: FULL_BLEED,
               lazy: masterDetail("/nutrition/foods", "Pick a food to edit, or add a new one.", () =>

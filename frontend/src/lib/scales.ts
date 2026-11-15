@@ -74,3 +74,39 @@ export const RIR_HINT =
 
 /** Session-RPE training load: effort (1-10) times minutes. */
 export const TRAINING_LOAD_HINT = "Session load equals whole-session effort × duration in minutes (AU).";
+
+/** Muscle soreness for the readiness check-in. Higher means more sore, not better. */
+export const SORENESS_SCALE: Scale = {
+  max: 10,
+  labels: {
+    1: "None",
+    2: "Barely",
+    3: "Slight",
+    4: "Mild",
+    5: "Noticeable",
+    6: "Sore",
+    7: "Quite sore",
+    8: "Very sore",
+    9: "Painful",
+    10: "Can't train it",
+  },
+  hint: "How sore your muscles are. Higher means more sore.",
+};
+
+/** Energy for the readiness check-in; saved as fatigue = 11 - energy. */
+export const ENERGY_SCALE: Scale = {
+  max: 10,
+  labels: {
+    1: "Exhausted",
+    2: "Drained",
+    3: "Very tired",
+    4: "Tired",
+    5: "Flat",
+    6: "OK",
+    7: "Good",
+    8: "Fresh",
+    9: "Very fresh",
+    10: "Fully charged",
+  },
+  hint: "How much energy you have. Higher is better.",
+};

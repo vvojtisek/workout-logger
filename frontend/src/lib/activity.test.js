@@ -17,6 +17,7 @@ describe("activityLabel", () => {
     expect(ACTIVITY_TYPES.map(activityLabel)).toEqual([
       "Ice hockey",
       "Swimming",
+      "Sauna",
       "Cycling",
       "Hiking",
       "Running",

@@ -1316,3 +1316,105 @@ def test_exercise_movement_pattern_migration_preserves_existing_catalogue_rows(
         columns = {row[1] for row in connection.execute(text("PRAGMA table_info(exercises)"))}
     assert "movement_patterns" not in columns
     sync_engine.dispose()
+
+
+def test_coach_loop_migration_keeps_existing_training_data(alembic_config, alembic_db_path):
+    command.upgrade(alembic_config, "c3a8f2e6b1d4")
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    now = "2026-11-14 08:00:00.000000"
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO workout_plans (id, name, created_at, updated_at) "
+                "VALUES ('wp', 'Upper A', :now, :now)"
+            ),
+            {"now": now},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO plan_exercises (id, workout_plan_id, sort_order, exercise_name, "
+                "exercise_kind, target_sets, target_reps_min, target_reps_max, target_rir, "
+                "target_weight_kg, rest_time_seconds) "
+                "VALUES ('pe', 'wp', 0, 'Bench Press', 'strength', 3, 6, 10, 2, 70, 120)"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO workout_logs (id, performed_at, total_time_minutes, overall_feeling, "
+                "source, activity_type, effort_rpe, created_at, updated_at) "
+                "VALUES ('hockey', :now, 75, 4, 'manual', 'ice_hockey', 8, :now, :now)"
+            ),
+            {"now": now},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO workout_sessions (id, source_plan_id, source_plan_name, status, "
+                "started_at, focused_set_number, version) "
+                "VALUES ('ws', 'wp', 'Upper A', 'active', :now, 1, 1)"
+            ),
+            {"now": now},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO session_exercises (id, session_id, sort_order, exercise_name, "
+                "exercise_kind, target_sets, target_reps_min, target_reps_max, target_rir, "
+                "rest_time_seconds, suggested_weight_kg, suggested_reps, suggestion_source, "
+                "suggestion_note, status) "
+                "VALUES ('se', 'ws', 0, 'Bench Press', 'strength', 3, 6, 10, 2, 120, 72.5, 6, "
+                "'history', 'note', 'planned')"
+            )
+        )
+
+    command.upgrade(alembic_config, "head")
+    with sync_engine.connect() as connection:
+        plan = connection.execute(
+            text("SELECT name, origin FROM workout_plans WHERE id = 'wp'")
+        ).one()
+        plan_exercise = connection.execute(
+            text(
+                "SELECT target_weight_kg, target_rir, target_source, target_rpe, coach_rationale "
+                "FROM plan_exercises WHERE id = 'pe'"
+            )
+        ).one()
+        log = connection.execute(
+            text(
+                "SELECT activity_type, effort_rpe, total_time_minutes, laps, sauna_rounds "
+                "FROM workout_logs WHERE id = 'hockey'"
+            )
+        ).one()
+        session_exercise = connection.execute(
+            text(
+                "SELECT suggested_weight_kg, suggestion_source, suggestion_note, target_source, "
+                "readiness_factor FROM session_exercises WHERE id = 'se'"
+            )
+        ).one()
+    assert tuple(plan) == ("Upper A", "user")
+    assert tuple(plan_exercise) == (70.0, 2, "user", None, None)
+    assert tuple(log) == ("ice_hockey", 8, 75, None, None)
+    assert tuple(session_exercise) == (72.5, "history", "note", "user", None)
+
+    with sync_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO workout_logs (id, performed_at, total_time_minutes, overall_feeling, "
+                "source, activity_type, sauna_rounds, created_at, updated_at) "
+                "VALUES ('sauna', :now, 30, 4, 'manual', 'sauna', 3, :now, :now)"
+            ),
+            {"now": now},
+        )
+        with pytest.raises(IntegrityError):
+            connection.execute(text("UPDATE workout_logs SET sauna_rounds = 25 WHERE id = 'sauna'"))
+    with pytest.raises(RuntimeError, match="sauna logs"):
+        command.downgrade(alembic_config, "c3a8f2e6b1d4")
+
+    with sync_engine.begin() as connection:
+        connection.execute(text("DELETE FROM workout_logs WHERE id = 'sauna'"))
+    command.downgrade(alembic_config, "c3a8f2e6b1d4")
+    with sync_engine.connect() as connection:
+        tables = set(inspect(connection).get_table_names())
+        kept = connection.execute(
+            text("SELECT activity_type, effort_rpe FROM workout_logs WHERE id = 'hockey'")
+        ).one()
+    assert "readiness_logs" not in tables
+    assert tuple(kept) == ("ice_hockey", 8)
+    sync_engine.dispose()

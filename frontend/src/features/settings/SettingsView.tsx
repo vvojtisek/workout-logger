@@ -33,6 +33,7 @@ import type { RestAlertPreferences } from "@/lib/rest-alerts";
 import { SETTINGS_QUERY_KEY, useSettingsQuery } from "@/lib/settings-query";
 import { THEME_PREFERENCES, useThemePreference } from "@/lib/theme";
 import { Block, Button, Card, Input, PageHeading } from "@/ui";
+import { AthleteProfileSection } from "./AthleteProfileSection";
 import { toast } from "@/ui/Toast";
 
 function SectionHeading({ children }: { children: string }) {
@@ -696,6 +697,7 @@ export function SettingsView() {
       <WorkoutAlertsSection />
       <PreferencesSection />
       <CoachingPrinciplesSection />
+      <AthleteProfileSection />
       <McpSection />
       <ActionLogSection />
       <ExportSection />

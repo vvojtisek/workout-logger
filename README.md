@@ -45,12 +45,14 @@ All configuration is managed via environment variables:
 | `LOG_LEVEL` | no | `INFO` | Python structured log level. |
 | `TRUSTED_HOSTS` | no | `localhost,127.0.0.1` | Comma-separated host allow-list. |
 | `PUBLIC_BASE_URL` | no | `https://fitness.vvojtisek.eu/` | Public HTTPS origin used in OpenAPI servers. |
+| `MCP_API_KEY_AUTH_ENABLED` | no | `false` | Mounts `/mcp/` (and the legacy `/mcp/sse/`) for the app's own `wl_` API tokens, sent as `Authorization: Bearer` or `X-API-Key`. Calls act for the token's owner. Works beside or without OAuth. |
+| `MCP_OAUTH_ACCOUNT_EMAIL` | no | unset | The account that OAuth-authenticated MCP calls read and write. Unset: unscoped, as before per-account data. |
 
 > `API_KEY` is never logged, never embedded in the container image, and supplied only through the host's production environment file at runtime.
 
-The MCP server (`/mcp/`, used by ChatGPT and other MCP clients) authenticates separately via
-OAuth 2.1 rather than `X-API-Key`; see [MCP Server](#mcp-server) below and `.env.example` for its
-`MCP_OAUTH_*` variables.
+The MCP server (`/mcp/`) authenticates with OAuth 2.1 and, when `MCP_API_KEY_AUTH_ENABLED=true`,
+with the app's own `wl_` API tokens; the bootstrap `API_KEY` is never accepted there. See
+[MCP Server](#mcp-server) below and `.env.example` for its `MCP_*` variables.
 
 ### Invite-only accounts
 
@@ -369,13 +371,155 @@ Tools (read scope for `list_*`/`get_*`, log scope for the rest):
 - Live workout: `start_workout_session`, `get_active_workout_session`, `log_set`, `update_set`,
   `delete_set`, `complete_workout_session`, `delete_workout_session`.
 
+AI coach loop (see `ARCHITECTURE_PLAN.md`):
+
+- `get_coaching_context(days=7)`: one read with the athlete profile and dietary rules, coaching
+  principles, equipment, sessions and load, exercise trends, readiness and recovery deficits,
+  meal plans with adherence, supplements and the app's rules. Read it first.
+- `log_readiness_and_activity`: a soreness/fatigue/sleep check-in and/or an activity
+  (`swim_sauna`, `ice_hockey`, `sauna`, `gym`, ...) in one atomic write.
+- `upsert_daily_nutrition_plan`: 1-7 day plans (meals, ingredients with quantity and unit,
+  macro targets, prep steps) plus the supplement stack. Rebuilds the shopping list, keeps ticks
+  already made, and refuses the whole call if an ingredient breaks a severe or strict food rule.
+- `upsert_adaptive_workout_plan`: a dated session with target weight, reps, sets, RIR/RPE and a
+  one-line rationale per exercise. Replaying it rewrites the same session until it is started.
+- `get_exercise_baseline`: the last five sessions of an exercise, e1RM, the progression rule's
+  next step and today's readiness adjustment.
+
+The same operations exist over REST under `/api/v1/coach/*`, `/api/v1/profile`,
+`/api/v1/readiness-logs`, `/api/v1/meal-plans`, `/api/v1/grocery-list` and
+`/api/v1/supplements`.
+
 `update_*` tools change only the fields passed and check the result with the same schema as the
 app's edit forms. `tests/test_mcp_crud.py` adds, edits and removes each kind of record over MCP
 and reads it back through the REST API.
 
 The REST API keeps its own `X-API-Key` authentication, unchanged — see
-[REST API-key authentication](#rest-api-key-authentication-unchanged) below. The MCP endpoint uses
-OAuth 2.1 instead, described here.
+[REST API-key authentication](#rest-api-key-authentication-unchanged) below. The MCP endpoint takes
+OAuth 2.1 or, if enabled, an API token; both are described here.
+
+#### Connecting an assistant with an API token
+
+With `MCP_API_KEY_AUTH_ENABLED=true`, any MCP client that can send a header connects with one of
+the app's own API tokens. Mint one in the app (Tokens -> New token, scopes `read` and `log`) or:
+
+```bash
+curl -X POST https://fitness.vvojtisek.eu/api/v1/tokens \
+  -H "X-API-Key: <an admin token or the bootstrap key>" -H "Content-Type: application/json" \
+  -d '{"name": "Claude Code", "scopes": ["read", "log"]}'
+```
+
+The response's `token` (`wl_...`) is shown once. Every call acts for the account that owns the
+token, so a family member's token never sees your data. A `read`-only token gets only the read
+tools. The bootstrap `API_KEY` is refused on `/mcp/`, and a revoked token stops working at once.
+
+**Claude Code** (streamable HTTP):
+
+```bash
+claude mcp add --transport http workout-logger https://fitness.vvojtisek.eu/mcp/ \
+  --header "Authorization: Bearer wl_..."
+```
+
+**Claude Desktop** (`claude_desktop_config.json`; Desktop reaches remote servers through the
+`mcp-remote` bridge, and the custom connectors in Claude.ai settings use OAuth instead):
+
+```json
+{
+  "mcpServers": {
+    "workout-logger": {
+      "command": "npx",
+      "args": [
+        "-y", "mcp-remote", "https://fitness.vvojtisek.eu/mcp/",
+        "--header", "Authorization:${WL_AUTH}"
+      ],
+      "env": { "WL_AUTH": "Bearer wl_..." }
+    }
+  }
+}
+```
+
+**Gemini CLI** (`~/.gemini/settings.json`). Gemini's consumer app has no third-party tool
+integration for a private server like this one (the older "Gemini Extensions" only cover Google
+apps), so the CLI is the supported route:
+
+```json
+{
+  "mcpServers": {
+    "workout-logger": {
+      "httpUrl": "https://fitness.vvojtisek.eu/mcp/",
+      "headers": { "Authorization": "Bearer wl_..." }
+    }
+  }
+}
+```
+
+**ChatGPT Custom GPT Actions**: in the GPT editor, Configure -> Actions -> Create new action ->
+Import from URL:
+
+```text
+https://fitness.vvojtisek.eu/openapi/actions.json
+```
+
+Then Authentication -> API Key, Auth Type **Custom**, Custom Header Name `X-API-Key`, and paste a
+`wl_` token. The schema is OpenAPI 3.1 with 25 operations (the limit is 30) and short
+`operationId`s such as `get_coaching_context`, `log_readiness_and_activity`,
+`upsert_daily_nutrition_plan` and `upsert_adaptive_workout_plan`. The full API stays at
+`/openapi.json`. ChatGPT's own MCP connectors (Developer Mode) use OAuth, below.
+
+**Legacy SSE clients**: `https://fitness.vvojtisek.eu/mcp/sse/`, same headers.
+
+**Check it with curl** (initialize, then call a tool with the returned session id):
+
+```bash
+curl -si https://fitness.vvojtisek.eu/mcp/ -H "Authorization: Bearer wl_..." \
+  -H "Accept: application/json, text/event-stream" -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"curl","version":"1"}}}'
+# copy the mcp-session-id response header, then:
+curl -s https://fitness.vvojtisek.eu/mcp/ -H "X-API-Key: wl_..." -H "Mcp-Session-Id: <id>" \
+  -H "Accept: application/json, text/event-stream" -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+curl -s https://fitness.vvojtisek.eu/mcp/ -H "X-API-Key: wl_..." -H "Mcp-Session-Id: <id>" \
+  -H "Accept: application/json, text/event-stream" -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_coaching_context","arguments":{"days":7}}}'
+```
+
+The MCP Inspector works the same way: `npx @modelcontextprotocol/inspector`, transport
+"Streamable HTTP", URL `.../mcp/`, header `Authorization: Bearer wl_...`.
+
+#### The coach profile
+
+The assistant reads the profile first; the server enforces its food rules. Edit it in Settings ->
+Coach profile, or `PUT /api/v1/profile`. A rule with `severity` `severe` or `strict` blocks the
+words in `match_terms` (omitted: the rule's `item`); `"match_terms": []` makes it advice only,
+for rules a word match cannot judge. Words match whole words and plurals, and "gluten-free" style
+names pass. For example:
+
+```json
+{
+  "display_name": "Vlad",
+  "longevity_goals": ["Stay strong and mobile for hockey past 60", "Keep VO2max high"],
+  "physical_constraints": [],
+  "dietary_constraints": [
+    {"item": "gluten", "kind": "intolerance", "severity": "strict",
+     "match_terms": ["gluten", "wheat", "barley", "rye", "spelt", "couscous", "bulgur", "seitan"]},
+    {"item": "lactose", "kind": "intolerance", "severity": "strict",
+     "match_terms": ["milk", "cream", "lactose", "butter", "yogurt", "yoghurt", "cheese", "quark", "whey"]},
+    {"item": "fish and seafood", "kind": "allergy", "severity": "severe",
+     "match_terms": ["fish", "salmon", "tuna", "cod", "trout", "mackerel", "sardine", "anchovy",
+                     "shrimp", "prawn", "crab", "lobster", "mussel", "oyster", "squid", "octopus",
+                     "fish sauce"]},
+    {"item": "mushrooms", "kind": "exclusion", "severity": "strict",
+     "match_terms": ["mushroom", "champignon", "shiitake", "porcini", "chanterelle"]},
+    {"item": "chickpeas", "kind": "exclusion", "severity": "strict",
+     "match_terms": ["chickpea", "garbanzo", "hummus", "falafel", "gram flour"]},
+    {"item": "thermally processed dill", "kind": "exclusion", "severity": "strict",
+     "note": "Raw dill is fine; never cooked, baked or in a hot sauce.", "match_terms": []}
+  ]
+}
+```
+
+Lactose-free products ("lactose-free milk") pass the lactose rule by name. A word list is a
+safety net, not a guarantee; the assistant still reads every rule.
 
 #### Action log
 

@@ -55,6 +55,10 @@ def _round_to_step(value: float, step: float) -> float:
     return round(max(steps, 0) * step, 2)
 
 
+def round_to_step(value: float, step: float) -> float:
+    return _round_to_step(value, step)
+
+
 def _misses(result: SessionResult, rep_min: int) -> bool:
     return bool(result.reps) and min(result.reps) < rep_min
 

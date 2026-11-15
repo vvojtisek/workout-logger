@@ -27,6 +27,10 @@ import { VolumeChart } from "@/features/dashboard/VolumeChart";
 import { LocationCheckDialog } from "@/features/locations/LocationCheckDialog";
 import { DrinkQuickAdd, useQuickAddPresets } from "@/features/nutrition/DrinkQuickAdd";
 import { isPresetEntry } from "@/lib/quick-add";
+import { activityLabel } from "@/lib/activity";
+import { isPendingLog, logsOn } from "@/lib/quick-log";
+import { QuickLogBar } from "./QuickLogBar";
+import type { ReadinessLog } from "./QuickLogBar";
 import { LOAD_EVENT_KIND_LABELS, clockTime, loadWarningMessage } from "@/lib/load-events";
 import { readTrainingLocation, writeTrainingLocation } from "@/lib/locations";
 import { FEELING_SCALE, SLEEP_QUALITY_SCALE, scaleLabel, scaleText, scaleValues } from "@/lib/scales";
@@ -182,6 +186,11 @@ export function TodayView() {
     // aggregate on the client without a new endpoint.
     queryFn: () => apiFetch<Paginated<WorkoutLog>>("/logs?limit=100"),
   });
+  const readiness = useQuery({
+    queryKey: [...TODAY_KEY, "readiness", today],
+    ...FRESH,
+    queryFn: () => apiFetch<{ items: ReadinessLog[] }>(`/readiness-logs?start=${today}&end=${today}`),
+  });
   const isDesktop = useIsDesktop();
 
   const occurrences = calendar.data?.load_events ?? [];
@@ -199,6 +208,13 @@ export function TodayView() {
       </div>
 
       <CoachCard now={now} calendar={calendar.data} onChange={refresh} />
+      <QuickLogBar
+        now={now}
+        occurrences={occurrences}
+        logsKey={[...TODAY_KEY, "logs"]}
+        readinessKey={[...TODAY_KEY, "readiness", today]}
+      />
+      <DoneToday today={today} logs={logs.data?.items ?? []} checkIn={readiness.data?.items[0] ?? null} />
       <HockeyCards now={now} occurrences={occurrences} logs={logs.data?.items ?? []} onChange={refresh} />
       <SleepCard now={now} entries={sleep.data?.items} onChange={refresh} />
       <FoodCard now={now} onChange={refresh} />
@@ -243,6 +259,73 @@ export function TodayView() {
   );
 }
 
+function doneTitle(log: WorkoutLogSummary): string {
+  if (log.activity_type === "swimming" && log.sauna_rounds) return "Swim + sauna";
+  if (log.activity_type) return activityLabel(log.activity_type);
+  return log.source_plan_name ?? "Workout";
+}
+
+/** What today already holds: the check-in's readiness and each session, so a
+ * one-tap log shows up here the moment it is tapped. */
+function DoneToday({
+  today,
+  logs,
+  checkIn,
+}: {
+  today: string;
+  logs: WorkoutLogSummary[];
+  checkIn: ReadinessLog | null;
+}) {
+  const done = logsOn(logs, today);
+  const minutes = done.reduce((sum, log) => sum + log.total_time_minutes, 0);
+  const load = done.reduce((sum, log) => sum + (log.effort_rpe ?? 0) * log.total_time_minutes, 0);
+  return (
+    <TodayCard
+      title="Done today"
+      aside={done.length > 0 ? `${minutes} min · load ${load}` : undefined}
+      testId="today-done"
+    >
+      {checkIn ? (
+        <p data-testid="today-readiness" className="text-sm">
+          Readiness{" "}
+          <span data-numeric className="font-semibold">
+            {checkIn.score}/100
+          </span>
+          {checkIn.load_factor < 1 ? (
+            <span className="text-muted">
+              {" "}
+              · loads <span data-numeric>-{Math.round((1 - checkIn.load_factor) * 100)}%</span>
+            </span>
+          ) : (
+            <span className="text-muted"> · full loads</span>
+          )}
+        </p>
+      ) : null}
+      {done.length > 0 ? (
+        <ul className="flex flex-col gap-1" aria-label="Sessions today">
+          {done.map((log) => (
+            <li
+              key={log.id}
+              data-testid="today-done-item"
+              data-pending={isPendingLog(log) ? "true" : undefined}
+              className="flex items-baseline justify-between gap-3 text-sm"
+            >
+              <span className="font-medium">{doneTitle(log)}</span>
+              <span data-numeric className="text-muted">
+                {log.total_time_minutes} min
+                {log.laps != null ? ` · ${log.laps} laps` : ""}
+                {log.sauna_rounds ? ` · ${log.sauna_rounds} sauna` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : checkIn ? null : (
+        <p className="text-sm text-muted">Nothing logged yet. One tap above logs it.</p>
+      )}
+    </TodayCard>
+  );
+}
+
 function Glance({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-w-0 items-baseline gap-1.5">
@@ -264,7 +347,7 @@ function CoachCard({ now, calendar, onChange }: { now: Date; calendar: CalendarW
 
   const plans = useQuery({
     queryKey: ["plans"],
-    queryFn: () => apiFetch<Paginated<WorkoutPlan>>("/plans?limit=100"),
+    queryFn: () => apiFetch<Paginated<WorkoutPlan>>("/plans?limit=100&origin=user"),
   });
   const locationsQuery = useQuery({
     queryKey: ["locations"],
@@ -577,9 +660,14 @@ function FoodCard({ now, onChange }: { now: Date; onChange: () => void }) {
           </div>
         </div>
       ) : null}
-      <Button touch onClick={() => void navigate("/nutrition/meals/new")}>
-        Log other food
-      </Button>
+      <div className="grid grid-cols-2 gap-2">
+        <Button touch onClick={() => void navigate("/kitchen")}>
+          Kitchen &amp; store
+        </Button>
+        <Button touch onClick={() => void navigate("/nutrition/meals/new")}>
+          Log other food
+        </Button>
+      </div>
     </TodayCard>
   );
 }

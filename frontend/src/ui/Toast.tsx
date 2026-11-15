@@ -9,6 +9,8 @@ interface ToastAction {
 
 interface ToastOptions {
   action?: ToastAction;
+  /** How long the toast stays; defaults to 4 s, or 8 s with an action. */
+  durationMs?: number;
 }
 
 interface Toast {
@@ -16,6 +18,7 @@ interface Toast {
   message: string;
   variant: ToastVariant;
   action?: ToastAction;
+  durationMs?: number;
 }
 
 let nextId = 1;
@@ -27,7 +30,7 @@ function emit() {
 }
 
 export function toast(message: string, variant: ToastVariant = "info", options: ToastOptions = {}) {
-  toasts = [...toasts, { id: nextId++, message, variant, action: options.action }];
+  toasts = [...toasts, { id: nextId++, message, variant, action: options.action, durationMs: options.durationMs }];
   emit();
 }
 
@@ -62,9 +65,10 @@ function ToastItem({ item }: { item: Toast }) {
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
     // A toast with an action (Undo) stays longer so there is time to tap it.
-    timerRef.current = window.setTimeout(() => dismiss(item.id), item.action ? 8000 : 4000);
+    const duration = item.durationMs ?? (item.action ? 8000 : 4000);
+    timerRef.current = window.setTimeout(() => dismiss(item.id), duration);
     return () => window.clearTimeout(timerRef.current);
-  }, [item.id, item.action]);
+  }, [item.id, item.action, item.durationMs]);
 
   const handleDismiss = useCallback(() => {
     setVisible(false);
@@ -86,7 +90,7 @@ function ToastItem({ item }: { item: Toast }) {
               dismiss(item.id);
               item.action?.onClick();
             }}
-            className="shrink-0 rounded-[var(--radius-sm)] px-2 py-1 font-semibold underline underline-offset-2"
+            className="min-h-11 shrink-0 rounded-[var(--radius-sm)] px-2 py-1 font-semibold underline underline-offset-2"
           >
             {item.action.label}
           </button>

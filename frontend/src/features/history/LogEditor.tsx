@@ -210,6 +210,42 @@ export function LogEditor({
             onChange={(event) => setDraft({ ...draft, totalTime: event.target.value })}
           />
         </div>
+        {draft.water ? (
+          <>
+            <div>
+              <label className="field-label" htmlFor="edit-laps">
+                Laps
+              </label>
+              <Input
+                id="edit-laps"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="1000"
+                value={draft.water.laps}
+                onChange={(event) =>
+                  setDraft({ ...draft, water: { laps: event.target.value, saunaRounds: draft.water?.saunaRounds ?? "" } })
+                }
+              />
+            </div>
+            <div>
+              <label className="field-label" htmlFor="edit-sauna-rounds">
+                Sauna rounds
+              </label>
+              <Input
+                id="edit-sauna-rounds"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="20"
+                value={draft.water.saunaRounds}
+                onChange={(event) =>
+                  setDraft({ ...draft, water: { laps: draft.water?.laps ?? "", saunaRounds: event.target.value } })
+                }
+              />
+            </div>
+          </>
+        ) : null}
         <div>
           <label className="field-label" htmlFor="edit-feeling">
             How it felt

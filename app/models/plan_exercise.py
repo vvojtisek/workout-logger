@@ -56,5 +56,25 @@ class PlanExercise(UUIDPrimaryKeyMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     group_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
     group_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    target_rpe: Mapped[int | None] = mapped_column(
+        Integer,
+        CheckConstraint(
+            "target_rpe IS NULL OR (exercise_kind = 'strength' AND target_rpe BETWEEN 1 AND 10)",
+            name="ck_plan_exercises_target_rpe_range",
+        ),
+        nullable=True,
+    )
+    # "coach": the targets were prescribed by an assistant and win over the
+    # history-based suggestion when a session starts.
+    target_source: Mapped[str] = mapped_column(
+        String(10),
+        CheckConstraint(
+            "target_source IN ('user', 'coach')", name="ck_plan_exercises_target_source"
+        ),
+        nullable=False,
+        default="user",
+        server_default="user",
+    )
+    coach_rationale: Mapped[str | None] = mapped_column(String(240), nullable=True)
 
     workout_plan: Mapped["WorkoutPlan"] = relationship(back_populates="exercises")

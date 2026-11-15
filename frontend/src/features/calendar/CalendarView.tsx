@@ -353,7 +353,7 @@ export function CalendarView() {
 
   const plansQuery = useQuery({
     queryKey: ["plans"],
-    queryFn: () => apiFetch<Paginated<WorkoutPlan>>("/plans?limit=100"),
+    queryFn: () => apiFetch<Paginated<WorkoutPlan>>("/plans?limit=100&origin=user"),
   });
   const programsQuery = useQuery({
     queryKey: ["programs"],

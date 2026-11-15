@@ -31,6 +31,10 @@ export interface PlanExercise {
   target_reps_max: number;
   target_rir: number | null;
   target_weight_kg: number | null;
+  target_rpe?: number | null;
+  /** "coach" when an LLM coach wrote the prescription over MCP. */
+  target_source?: "user" | "coach";
+  coach_rationale?: string | null;
   rest_time_seconds: number;
   notes: string | null;
   group_key: string | null;
@@ -41,6 +45,7 @@ export interface WorkoutPlan {
   id: string;
   name: string;
   description: string | null;
+  origin?: "user" | "coach";
   exercises: PlanExercise[];
   created_at: string;
   updated_at: string;
@@ -51,6 +56,11 @@ export interface SessionExercise extends GridExercise {
   target_reps_max: number;
   target_rir: number | null;
   target_weight_kg: number | null;
+  target_source?: "user" | "coach";
+  /** Why the coach chose this target, shown beside the exercise. */
+  coach_rationale?: string | null;
+  /** The readiness load factor applied at session start; null without a check-in. */
+  readiness_factor?: number | null;
   rest_time_seconds: number;
   notes: string | null;
   status: string;
@@ -217,6 +227,8 @@ export interface WorkoutLogSummary {
   activity_type: ActivityType | null;
   distance_km: number | null;
   effort_rpe: number | null;
+  laps?: number | null;
+  sauna_rounds?: number | null;
   total_volume_kg?: number;
 }
 
@@ -728,4 +740,96 @@ export interface AuditEventsPage {
   limit: number;
   offset: number;
   retention_hours: number;
+}
+
+export type SupplementTiming = "morning" | "pre_workout" | "post_workout" | "with_meal" | "evening" | "bedtime";
+export type SupplementDays = "daily" | "training_days" | "rest_days" | "hockey_days";
+
+export interface PlannedIngredient {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  note: string | null;
+  food_id: string | null;
+  energy_kcal: number | null;
+  protein_g: number | null;
+  carbohydrate_g: number | null;
+  fat_g: number | null;
+  fiber_g: number | null;
+  /** Ticked off in the kitchen while cooking. */
+  prepared: boolean;
+}
+
+export interface PlannedMeal {
+  id: string;
+  sort_order: number;
+  meal_type: MealType;
+  name: string;
+  prep_steps: string[];
+  energy_kcal: number;
+  protein_g: number;
+  carbohydrate_g: number;
+  fat_g: number;
+  fiber_g: number | null;
+  /** The meal entry made by "Logged as eaten", or null. */
+  eaten_meal_entry_id: string | null;
+  ingredients: PlannedIngredient[];
+}
+
+export interface DayGroceryItem {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  checked: boolean;
+}
+
+export interface DayPlan {
+  id: string;
+  plan_date: string;
+  energy_target_kcal: number;
+  protein_target_g: number;
+  fiber_target_g: number | null;
+  carbohydrate_target_g: number | null;
+  fat_target_g: number | null;
+  notes: string | null;
+  source: "coach" | "manual";
+  meals: PlannedMeal[];
+  grocery_items: DayGroceryItem[];
+  updated_at: string;
+}
+
+export interface GroceryLine {
+  name: string;
+  unit: string;
+  quantity: number;
+  /** True when every underlying day item is checked. */
+  checked: boolean;
+  item_ids: string[];
+  dates: string[];
+}
+
+export interface GroceryList {
+  start: string;
+  end: string;
+  items: GroceryLine[];
+}
+
+export interface Supplement {
+  id: string;
+  name: string;
+  dose: number;
+  unit: string;
+  timing: SupplementTiming;
+  applies_on: SupplementDays;
+  notes: string | null;
+  active: boolean;
+}
+
+export interface SupplementsDue {
+  date: string;
+  training_day: boolean;
+  hockey_day: boolean;
+  items: { supplement: Supplement; taken: boolean; taken_at: string | null }[];
 }

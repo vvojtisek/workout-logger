@@ -147,6 +147,9 @@ class SessionExerciseRead(OrmModel):
     suggested_reps: int
     suggestion_source: str
     suggestion_note: str | None
+    target_source: Literal["user", "coach"] = "user"
+    coach_rationale: str | None = None
+    readiness_factor: float | None = None
     status: str
     set_entries: list[SetEntryRead]
     # From the exercise catalogue (app/services/volume.py); volume and reps

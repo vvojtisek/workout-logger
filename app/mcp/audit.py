@@ -56,6 +56,11 @@ _TOOL_TARGETS = {
     "delete_set": "workout_session",
     "complete_workout_session": "workout_session",
     "delete_workout_session": "workout_session",
+    "get_coaching_context": "coaching_context",
+    "log_readiness_and_activity": "readiness_log",
+    "upsert_daily_nutrition_plan": "meal_plan",
+    "upsert_adaptive_workout_plan": "scheduled_workout",
+    "get_exercise_baseline": "exercise",
 }
 
 
@@ -67,7 +72,12 @@ async def _oauth_client(context: MiddlewareContext[Any]) -> tuple[str | None, st
     client_id = access.client_id if access is not None else None
     fastmcp = context.fastmcp_context.fastmcp if context.fastmcp_context else None
     auth = getattr(fastmcp, "auth", None)
-    proxy = getattr(auth, "_delegate", auth)
+    proxy = auth
+    # Unwrap the API-key and allowlist wrappers down to the OAuth proxy.
+    inner = getattr(proxy, "_delegate", None)
+    while inner is not None:
+        proxy = inner
+        inner = getattr(proxy, "_delegate", None)
     issuer = getattr(proxy, "jwt_issuer", None)
     if proxy is None or issuer is None:
         return client_id, None

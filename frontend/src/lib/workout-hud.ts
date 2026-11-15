@@ -282,3 +282,29 @@ export function upNextText(row: HudRow | null): string | null {
       : "";
   return `${exercise.exercise_name} · ${sets}${load}`;
 }
+
+/** "Last: 3x8 @ 70 kg" (or "Last: 8/8/7 @ 70 kg" when reps differ) for the
+ * most recent logged session of an exercise, or null without history. */
+export function lastSessionBadge(
+  lastRepsPerSet: number[] | null | undefined,
+  lastWeightKg: number | null | undefined,
+): string | null {
+  if (!lastRepsPerSet?.length) return null;
+  const same = lastRepsPerSet.every((reps) => reps === lastRepsPerSet[0]);
+  const sets = same
+    ? `${lastRepsPerSet.length}x${lastRepsPerSet[0]}`
+    : lastRepsPerSet.join("/");
+  return lastWeightKg ? `Last: ${sets} @ ${plain(lastWeightKg)} kg` : `Last: ${sets}`;
+}
+
+/** The coach line for an exercise: the readiness adjustment note when the
+ * check-in scaled the load, else nothing. A factor of 1 is no adjustment. */
+export function readinessBadge(
+  factor: number | null | undefined,
+  note: string | null | undefined,
+): string | null {
+  if (factor == null || factor >= 1) return null;
+  const part = note?.split(" · ").find((segment) => segment.startsWith("Adjusted"));
+  if (part) return part;
+  return `Adjusted -${Math.round((1 - factor) * 100)}% for readiness`;
+}

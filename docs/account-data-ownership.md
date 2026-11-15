@@ -29,6 +29,11 @@ give it to invited users. Session-authenticated admins manage accounts but
 still see only their own health and workout records. Account-created API tokens
 inherit the creating account's data scope.
 
-MCP OAuth remains disabled in the AWS deployment until its OAuth identity is
-mapped to a specific account. The MCP tool server currently opens database
-sessions outside the REST request authentication scope.
+MCP tool calls are scoped the same way. A call made with an account's API
+token (`MCP_API_KEY_AUTH_ENABLED=true`) sees and writes only that token
+owner's records, plus the shared exercise templates. A call made over OAuth
+acts for the account named by `MCP_OAUTH_ACCOUNT_EMAIL`; if that email matches
+no account the tool call fails. With `MCP_OAUTH_ACCOUNT_EMAIL` unset, OAuth
+calls stay unscoped as before, so set it before enabling MCP OAuth on a
+deployment with more than one account. The bootstrap `API_KEY` is refused on
+`/mcp/`.

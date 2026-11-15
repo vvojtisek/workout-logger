@@ -16,6 +16,8 @@ from app.database import get_engine
 from app.exceptions import register_exception_handlers
 from app.logging_config import access_logger, setup_logging
 from app.mcp import mcp
+from app.mcp.api_key_auth import ApiKeyHeaderAdapter
+from app.openapi_actions import build_actions_schema
 from app.schemas.common import HealthResponse
 
 settings = get_settings()
@@ -36,6 +38,10 @@ openapi_servers = [{"url": settings.PUBLIC_BASE_URL}] if settings.PUBLIC_BASE_UR
 # Built before the FastAPI app so its session-manager lifespan can be adopted
 # below; without that the streamable-HTTP transport is never started.
 mcp_app = mcp.http_app(path="/")
+# Legacy SSE transport for clients that have not moved to streamable HTTP.
+# Its lifespan is not needed: the streamable app's lifespan already runs the
+# shared FastMCP server lifespan.
+mcp_sse_app = mcp.http_app(path="/", transport="sse")
 
 app = FastAPI(
     title="Workout Logger & Planner API",
@@ -53,8 +59,10 @@ def register_mcp_routes(
     auth: Any,
     *,
     enabled: bool,
+    sse_application: Any = None,
 ) -> None:
-    """Expose the MCP transport and discovery only when OAuth is configured."""
+    """Expose the MCP transport and discovery only when OAuth or API-token
+    auth is configured; /mcp is never served without authentication."""
     if not enabled:
         return
 
@@ -65,7 +73,10 @@ def register_mcp_routes(
     application.add_api_route(
         "/mcp", mcp_bare_path_redirect, methods=["GET"], include_in_schema=False
     )
-    application.mount("/mcp", mcp_application)
+    if sse_application is not None:
+        # Before /mcp, which would otherwise swallow /mcp/sse.
+        application.mount("/mcp/sse", ApiKeyHeaderAdapter(sse_application))
+    application.mount("/mcp", ApiKeyHeaderAdapter(mcp_application))
 
     # OAuth discovery metadata is required at the origin root, not only under
     # the MCP mount. Register it only with the authenticated transport.
@@ -161,7 +172,9 @@ app.include_router(api_router)
 app.include_router(auth_router, prefix="/api/v1")
 
 
-register_mcp_routes(app, mcp_app, mcp.auth, enabled=settings.MCP_OAUTH_ENABLED)
+register_mcp_routes(
+    app, mcp_app, mcp.auth, enabled=settings.mcp_enabled, sse_application=mcp_sse_app
+)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -242,6 +255,19 @@ async def health_startup() -> JSONResponse:
     return await dependency_health()
 
 
+_actions_schema: dict[str, Any] | None = None
+
+
+@app.get("/openapi/actions.json", include_in_schema=False)
+async def openapi_actions() -> JSONResponse:
+    """The small schema for GPT Actions (app/openapi_actions.py); public like
+    /openapi.json so an action editor can import it by URL."""
+    global _actions_schema
+    if _actions_schema is None:
+        _actions_schema = build_actions_schema(app.openapi(), settings.PUBLIC_BASE_URL)
+    return JSONResponse(_actions_schema)
+
+
 @app.get("/manifest.webmanifest", include_in_schema=False)
 async def manifest() -> FileResponse:
     return FileResponse(STATIC_DIR / "manifest.webmanifest", media_type="application/manifest+json")
@@ -259,6 +285,7 @@ SPA_PREFIX_BLACKLIST = (
     "/health",
     "/docs",
     "/openapi.json",
+    "/openapi/",
     "/sw.js",
     "/manifest.webmanifest",
     "/.well-known/",

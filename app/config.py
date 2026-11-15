@@ -66,6 +66,12 @@ class Settings(BaseSettings):
     MCP_OAUTH_JWT_SIGNING_KEY: str | None = None
     MCP_OAUTH_STORAGE_DIR: str = "/data/mcp-oauth"
     MCP_OAUTH_STORAGE_KEY: str | None = None
+    # API tokens (`wl_...`) as an alternative to OAuth on /mcp, for clients
+    # that cannot run an OAuth flow. Independent of MCP_OAUTH_ENABLED.
+    MCP_API_KEY_AUTH_ENABLED: bool = False
+    # The account OAuth-authenticated MCP calls act for. Unset: unscoped
+    # (the behaviour before per-account data), see docs/account-data-ownership.md.
+    MCP_OAUTH_ACCOUNT_EMAIL: str | None = None
     # Only used when MCP_OAUTH_PROVIDER="jwt".
     MCP_OAUTH_JWKS_URI: str | None = None
     MCP_OAUTH_JWT_PUBLIC_KEY: str | None = None
@@ -104,6 +110,19 @@ class Settings(BaseSettings):
                 "MCP_OAUTH_BASE_URL or PUBLIC_BASE_URL must be set when MCP_OAUTH_ENABLED=true"
             )
         return base.rstrip("/")
+
+    @property
+    def mcp_enabled(self) -> bool:
+        return self.MCP_OAUTH_ENABLED or self.MCP_API_KEY_AUTH_ENABLED
+
+    @model_validator(mode="after")
+    def _validate_mcp_api_key_auth(self) -> "Settings":
+        if self.MCP_API_KEY_AUTH_ENABLED and not (self.MCP_OAUTH_BASE_URL or self.PUBLIC_BASE_URL):
+            raise ValueError(
+                "MCP_OAUTH_BASE_URL or PUBLIC_BASE_URL must be set when "
+                "MCP_API_KEY_AUTH_ENABLED=true"
+            )
+        return self
 
     @model_validator(mode="after")
     def _validate_mcp_oauth(self) -> "Settings":

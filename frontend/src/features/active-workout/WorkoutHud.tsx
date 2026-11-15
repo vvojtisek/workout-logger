@@ -23,7 +23,9 @@ import {
   formatElapsed,
   nextExercise,
   previousExercise,
+  lastSessionBadge,
   previousSet,
+  readinessBadge,
   rirPillValue,
   setTrail,
   stepValue,
@@ -63,26 +65,6 @@ const CAPTIONS: Partial<Record<keyof SetDraft, string>> = {
   distance_km: "Distance (km)",
   incline_percent: "Incline (%)",
 };
-
-function formatKg(value: number): string {
-  return `${value.toFixed(1)} kg`;
-}
-
-/** "Last session: 70.0 kg × 8", from the most recent logged session. Logs do
- * not keep RIR, so it is left out. */
-function lastSessionText(
-  stats: ExerciseStats | undefined,
-  setNumber: number,
-): string | null {
-  if (!stats?.last_reps_per_set?.length) return null;
-  const reps =
-    stats.last_reps_per_set[setNumber - 1] ??
-    stats.last_reps_per_set[stats.last_reps_per_set.length - 1];
-  const load = stats.last_weight_kg
-    ? `${formatKg(stats.last_weight_kg)} × ${reps}`
-    : `${reps} reps`;
-  return `Last session: ${load}`;
-}
 
 /** What a set's dials start at: its saved values, else the values logged for
  * the previous set of the same exercise (most sets repeat the last one), else
@@ -312,19 +294,40 @@ export function WorkoutHud(props: WorkoutHudProps) {
             </h2>
           </div>
           {(() => {
-            const last = lastSessionText(
-              props.stats.get(row.exercise.exercise_name),
-              row.setNumber,
+            const stats = props.stats.get(row.exercise.exercise_name);
+            const last = lastSessionBadge(stats?.last_reps_per_set, stats?.last_weight_kg);
+            const { exercise } = row;
+            const adjusted = readinessBadge(exercise.readiness_factor, exercise.suggestion_note);
+            if (!last && !adjusted && !exercise.coach_rationale) return null;
+            return (
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {last ? (
+                    <span
+                      id="hud-last-session"
+                      className="rounded-[var(--radius-sm)] border border-line px-2 py-0.5 text-sm text-main"
+                      data-numeric
+                    >
+                      {last}
+                    </span>
+                  ) : null}
+                  {adjusted ? (
+                    <span
+                      id="hud-readiness"
+                      className="rounded-[var(--radius-sm)] bg-warn-soft px-2 py-0.5 text-sm font-medium text-warn"
+                    >
+                      {adjusted}
+                    </span>
+                  ) : null}
+                </div>
+                {exercise.coach_rationale ? (
+                  <p id="hud-coach-note" className="max-w-prose text-sm text-balance text-muted">
+                    <span className="font-semibold text-main">Coach: </span>
+                    {exercise.coach_rationale}
+                  </p>
+                ) : null}
+              </div>
             );
-            return last ? (
-              <p
-                id="hud-last-session"
-                className="text-sm text-muted"
-                data-numeric
-              >
-                {last}
-              </p>
-            ) : null;
           })()}
           {props.statsLine}
           <SetTrail rows={rows} exerciseId={row.exercise.id} currentSet={row.setNumber} />

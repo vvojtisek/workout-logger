@@ -32,6 +32,8 @@ export interface GridExercise {
   suggestion_source: string;
   // Why: the double progression rule that produced the suggestion.
   suggestion_note?: string | null;
+  coach_rationale?: string | null;
+  readiness_factor?: number | null;
   group_key: string | null;
   group_order: number | null;
   set_entries: SetEntry[];

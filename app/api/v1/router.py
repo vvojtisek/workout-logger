@@ -2,9 +2,11 @@ from fastapi import APIRouter, Security
 
 from app.api.v1 import (
     api_tokens,
+    athlete_profile,
     audit_events,
     body_metrics,
     calendar,
+    coach,
     coaching_principles,
     exercise_stats,
     exercises,
@@ -18,15 +20,18 @@ from app.api.v1 import (
     logs,
     mcp_status,
     meal_entries,
+    meal_plans,
     nutrition_dashboard,
     nutrition_plans,
     plans,
     program_templates,
     programs,
     quick_add_presets,
+    readiness_logs,
     scheduled_workouts,
     settings,
     sleep_entries,
+    supplements,
     training_load,
     users,
     workout_sessions,
@@ -63,3 +68,8 @@ api_router.include_router(coaching_principles.router)
 api_router.include_router(mcp_status.router)
 api_router.include_router(export.router)
 api_router.include_router(audit_events.router)
+api_router.include_router(athlete_profile.router)
+api_router.include_router(readiness_logs.router)
+api_router.include_router(meal_plans.router)
+api_router.include_router(supplements.router)
+api_router.include_router(coach.router)

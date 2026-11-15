@@ -1,7 +1,7 @@
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Index, String, Text, text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import GUID, Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -26,6 +26,7 @@ class WorkoutPlan(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             unique=True,
             sqlite_where=text("owner_id IS NULL"),
         ),
+        CheckConstraint("origin IN ('user', 'coach')", name="ck_workout_plans_origin"),
     )
 
     owner_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -44,6 +45,11 @@ class WorkoutPlan(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         index=True,
     )
 
+    # "coach" plans are written by an assistant for one date and never edit
+    # the user's own templates.
+    origin: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="user", server_default="user"
+    )
     exercises: Mapped[list["PlanExercise"]] = relationship(
         back_populates="workout_plan",
         cascade="all, delete-orphan",

@@ -5,12 +5,19 @@ import sqlite3
 from pathlib import Path
 
 APPLICATION_TABLES = (
+    "daily_meal_plans",
     "exercise_logs",
+    "grocery_items",
     "load_events",
     "locations",
     "plan_exercises",
+    "planned_meal_ingredients",
+    "planned_meals",
+    "readiness_logs",
     "session_exercises",
     "set_entries",
+    "supplement_intakes",
+    "supplement_schedules",
     "workout_logs",
     "workout_plans",
     "workout_sessions",
