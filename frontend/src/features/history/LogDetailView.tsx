@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { WorkoutLog } from "@/api/types";
@@ -16,6 +16,9 @@ import { RepRetention } from "./RepRetention";
 export function LogDetailView() {
   const { logId } = useParams<{ logId: string }>();
   const navigate = useNavigate();
+  // ?edit=1 (from Today's "Edit details" toast) opens the editor directly.
+  const [searchParams] = useSearchParams();
+  const openEditor = searchParams.get("edit") === "1";
   const [log, setLog] = useState<WorkoutLog | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -31,6 +34,7 @@ export function LogDetailView() {
         if (!cancelled) {
           setLog(data);
           setError(null);
+          if (openEditor) setEditing(true);
         }
       })
       .catch((err: unknown) => {
@@ -39,7 +43,7 @@ export function LogDetailView() {
     return () => {
       cancelled = true;
     };
-  }, [logId]);
+  }, [logId, openEditor]);
 
   async function deleteLog() {
     if (!logId) return;

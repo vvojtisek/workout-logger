@@ -175,3 +175,23 @@ describe("exerciseSetsText", () => {
     expect(exerciseSetsText({ ...exercise, weight_per_set: null })).toBe("8, 6 reps @ 62.5kg");
   });
 });
+
+describe("swim and sauna fields", () => {
+  it("round-trip laps and sauna rounds for a swim", () => {
+    const log = { ...makeLog(), activity_type: /** @type {const} */ ("swimming"), laps: 30, sauna_rounds: 3, exercises: [] };
+    const draft = logToDraft(log);
+    expect(draft.water).toEqual({ laps: "30", saunaRounds: "3" });
+    const result = draftToPatch({ ...draft, water: { laps: "40", saunaRounds: "" } });
+    expect(result.patch).toMatchObject({ laps: 40, sauna_rounds: null });
+  });
+  it("leaves them out of a strength log's patch", () => {
+    const draft = logToDraft(makeLog());
+    expect(draft.water).toBeNull();
+    expect(draftToPatch(draft).patch).not.toHaveProperty("laps");
+  });
+  it("rejects an invalid lap count", () => {
+    const log = { ...makeLog(), activity_type: /** @type {const} */ ("swimming"), laps: 30, sauna_rounds: null, exercises: [] };
+    const draft = logToDraft(log);
+    expect(draftToPatch({ ...draft, water: { laps: "-1", saunaRounds: "" } }).error).toMatch(/Laps/);
+  });
+});

@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
@@ -68,3 +68,17 @@ async def unmark_taken(
     schedule_id: UUID, intake_date: date, session: Annotated[AsyncSession, Depends(get_session)]
 ) -> SupplementsDue:
     return await supplements_service.unmark_taken(session, schedule_id, intake_date)
+
+
+@router.delete(
+    "/{schedule_id}",
+    operation_id="delete_supplement",
+    summary="Delete a supplement and its intake history",
+    description="To stop one but keep its history, leave it out of the next supplement_stack.",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=_NOT_FOUND,
+)
+async def delete_supplement(
+    schedule_id: UUID, session: Annotated[AsyncSession, Depends(get_session)]
+) -> None:
+    await supplements_service.delete_schedule(session, schedule_id)

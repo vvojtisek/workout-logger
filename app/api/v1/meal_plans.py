@@ -75,6 +75,20 @@ async def get_meal_plan(
     return DayPlanRead.model_validate(await meal_plans_service.get_day(session, plan_date))
 
 
+@router.delete(
+    "/meal-plans/{plan_date}",
+    operation_id="delete_meal_plan",
+    summary="Delete one day's meal plan",
+    description="Meals already logged as eaten stay in the food log.",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=_NOT_FOUND,
+)
+async def delete_meal_plan(
+    plan_date: date, session: Annotated[AsyncSession, Depends(get_session)]
+) -> None:
+    await meal_plans_service.delete_day(session, plan_date)
+
+
 @router.post(
     "/meal-plans/meals/{meal_id}/eaten",
     operation_id="mark_planned_meal_eaten",

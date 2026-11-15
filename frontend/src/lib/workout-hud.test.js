@@ -13,6 +13,8 @@ import {
   setSummary,
   setTrail,
   stepValue,
+  lastSessionBadge,
+  readinessBadge,
   upNextText,
 } from "./workout-hud";
 
@@ -183,5 +185,32 @@ describe("upNextText", () => {
 
   it("is null at the end of the workout", () => {
     expect(upNextText(null)).toBeNull();
+  });
+});
+
+describe("lastSessionBadge", () => {
+  it("collapses equal sets into sets x reps", () => {
+    expect(lastSessionBadge([8, 8, 8], 70)).toBe("Last: 3x8 @ 70 kg");
+  });
+  it("lists reps when they differ", () => {
+    expect(lastSessionBadge([8, 8, 7], 72.5)).toBe("Last: 8/8/7 @ 72.5 kg");
+  });
+  it("drops the load for body-weight work and is null without history", () => {
+    expect(lastSessionBadge([12, 12], null)).toBe("Last: 2x12");
+    expect(lastSessionBadge(null, 70)).toBeNull();
+    expect(lastSessionBadge([], 70)).toBeNull();
+  });
+});
+
+describe("readinessBadge", () => {
+  it("shows the server's adjustment note", () => {
+    expect(readinessBadge(0.9, "Adjusted -10% for post-hockey recovery · Coach target")).toBe(
+      "Adjusted -10% for post-hockey recovery",
+    );
+  });
+  it("falls back to the factor and hides an unscaled load", () => {
+    expect(readinessBadge(0.85, null)).toBe("Adjusted -15% for readiness");
+    expect(readinessBadge(1, "Adjusted -0%")).toBeNull();
+    expect(readinessBadge(null, null)).toBeNull();
   });
 });

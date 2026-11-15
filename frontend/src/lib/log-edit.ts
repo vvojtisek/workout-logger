@@ -26,6 +26,8 @@ export interface LogDraft {
   feeling: string;
   effort: string;
   notes: string;
+  /** Shown only for swims and sauna visits; "" clears the value. */
+  water: { laps: string; saunaRounds: string } | null;
   exercises: ExerciseDraft[];
 }
 
@@ -48,6 +50,10 @@ export function logToDraft(log: WorkoutLog): LogDraft {
     feeling: String(log.overall_feeling),
     effort: text(log.effort_rpe),
     notes: log.notes ?? "",
+    water:
+      log.activity_type === "swimming" || log.activity_type === "sauna"
+        ? { laps: text(log.laps), saunaRounds: text(log.sauna_rounds) }
+        : null,
     exercises: log.exercises.map((exercise) => ({
       key: exercise.id,
       exercise_name: exercise.exercise_name,
@@ -139,6 +145,19 @@ export function draftToPatch(
   if (effort === undefined) {
     return { patch: null, error: "Session effort must be a whole number from 1 to 10." };
   }
+  let water: LogPatch = {};
+  if (draft.water) {
+    const laps = optionalNumber(draft.water.laps, (value) => Number.isInteger(value) && value >= 0 && value <= 1000);
+    if (laps === undefined) return { patch: null, error: "Laps must be a whole number from 0 to 1000." };
+    const rounds = optionalNumber(
+      draft.water.saunaRounds,
+      (value) => Number.isInteger(value) && value >= 0 && value <= 20,
+    );
+    if (rounds === undefined) {
+      return { patch: null, error: "Sauna rounds must be a whole number from 0 to 20." };
+    }
+    water = { laps, sauna_rounds: rounds };
+  }
   const exercises = [];
   for (const exercise of draft.exercises) {
     const payload = exercisePayload(exercise);
@@ -152,6 +171,7 @@ export function draftToPatch(
       overall_feeling: Number(draft.feeling),
       effort_rpe: effort,
       notes: draft.notes.trim() || null,
+      ...water,
       exercises,
     },
     error: null,

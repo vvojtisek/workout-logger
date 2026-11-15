@@ -137,3 +137,11 @@ async def unmark_taken(session: AsyncSession, schedule_id: UUID, day: date) -> S
             row.intakes.remove(intake)
     await session.commit()
     return await due_on(session, day)
+
+
+async def delete_schedule(session: AsyncSession, schedule_id: UUID) -> None:
+    """Removes a supplement and its intake history for good. Leaving it out of
+    the next stack only makes it inactive."""
+    row = await _schedule(session, schedule_id)
+    await session.delete(row)
+    await session.commit()

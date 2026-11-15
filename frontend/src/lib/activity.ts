@@ -5,6 +5,7 @@ import { EFFORT_SCALE, FEELING_SCALE, scaleText } from "./scales";
 export const ACTIVITY_TYPES = [
   "ice_hockey",
   "swimming",
+  "sauna",
   "cycling",
   "hiking",
   "running",
@@ -16,6 +17,7 @@ export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 const LABELS: Record<ActivityType, string> = {
   ice_hockey: "Ice hockey",
   swimming: "Swimming",
+  sauna: "Sauna",
   cycling: "Cycling",
   hiking: "Hiking",
   running: "Running",
@@ -34,6 +36,8 @@ interface LogLike {
   activity_type: ActivityType | null;
   distance_km: number | null;
   effort_rpe: number | null;
+  laps?: number | null;
+  sauna_rounds?: number | null;
   total_volume_kg?: number;
 }
 
@@ -46,6 +50,8 @@ export function logTitle(log: LogLike): string {
 export function logSummaryFacts(log: LogLike): string[] {
   const facts = [`${log.total_time_minutes} min`];
   if (log.distance_km != null) facts.push(`${log.distance_km} km`);
+  if (log.laps != null) facts.push(`${log.laps} laps`);
+  if (log.sauna_rounds) facts.push(`${log.sauna_rounds} sauna ${log.sauna_rounds === 1 ? "round" : "rounds"}`);
   if (log.effort_rpe != null) {
     facts.push(`Effort ${scaleText(EFFORT_SCALE, log.effort_rpe)}`);
     facts.push(`Load ${log.effort_rpe * log.total_time_minutes}`);

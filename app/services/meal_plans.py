@@ -49,6 +49,14 @@ async def get_day(session: AsyncSession, plan_date: date) -> DailyMealPlan:
     return day
 
 
+async def delete_day(session: AsyncSession, plan_date: date) -> None:
+    """Removes a day's plan with its meals and shopping items. Meals already
+    logged as eaten stay in the food log."""
+    day = await get_day(session, plan_date)
+    await session.delete(day)
+    await session.commit()
+
+
 async def _find_day(session: AsyncSession, plan_date: date) -> DailyMealPlan | None:
     return await session.scalar(
         select(DailyMealPlan)

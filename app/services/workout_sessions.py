@@ -169,14 +169,13 @@ async def start_session(
                 exercise_name=exercise.exercise_name,
                 catalog_exercise_id=exercise.catalog_exercise_id,
                 weight_kg=exercise.target_weight_kg,
-                base_note=None,
-                label="Coach target",
+                base_note="Coach target",
             )
             suggestion = Suggestion(
                 weight_kg=adjusted.weight_kg,
                 reps=exercise.target_reps_min,
                 source="plan",
-                note=adjusted.note or "Coach target",
+                note=adjusted.note,
             )
         else:
             history = await suggest_next(

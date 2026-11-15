@@ -87,7 +87,6 @@ async def adjust_for_readiness(
     catalog_exercise_id: UUID | None,
     weight_kg: float | None,
     base_note: str | None,
-    label: str = "Adjusted",
 ) -> Adjusted:
     """Scales a load by the check-in's factor, rounded to the exercise's
     increment. No check-in, no load, or a factor of 1.0 leaves it alone."""
@@ -105,7 +104,7 @@ async def adjust_for_readiness(
     return Adjusted(
         weight_kg=adjusted,
         factor=factor,
-        note=_note(f"{label} -{percent}% for {reason}", base_note),
+        note=_note(f"Adjusted -{percent}% for {reason}", base_note),
     )
 
 

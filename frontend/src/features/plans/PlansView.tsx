@@ -56,7 +56,7 @@ export function PlansView() {
     // Its own key (a sub-key of "plans", so saves still invalidate it) and always
     // fresh on mount: Today caches a different "plans" query for 30 seconds.
     queryKey: ["plans", "list"],
-    queryFn: () => apiFetch<Paginated<WorkoutPlan>>("/plans?limit=100"),
+    queryFn: () => apiFetch<Paginated<WorkoutPlan>>("/plans?limit=100&origin=user"),
     staleTime: 0,
     refetchOnMount: "always",
   });
