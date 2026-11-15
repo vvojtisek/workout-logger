@@ -22,7 +22,9 @@ EXPECTED_TOOLS = {
     "delete_workout",
     "delete_workout_session",
     "get_active_workout_session",
+    "get_coaching_context",
     "get_coaching_principles",
+    "get_exercise_baseline",
     "get_daily_summary",
     "get_plan",
     "get_progression_rules",
@@ -34,6 +36,7 @@ EXPECTED_TOOLS = {
     "list_workouts",
     "log_biometrics",
     "log_meal",
+    "log_readiness_and_activity",
     "log_set",
     "log_sleep",
     "log_workout",
@@ -45,6 +48,8 @@ EXPECTED_TOOLS = {
     "update_set",
     "update_sleep",
     "update_workout",
+    "upsert_adaptive_workout_plan",
+    "upsert_daily_nutrition_plan",
 }
 
 

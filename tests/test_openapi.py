@@ -50,3 +50,31 @@ async def test_logs_list_operation_id_is_stable(client):
     spec = response.json()
     logs_get = spec["paths"]["/api/v1/logs"]["get"]
     assert logs_get["operationId"] == "list_workout_logs"
+
+
+async def test_actions_schema_is_valid_small_and_api_key_only(client):
+    from openapi_spec_validator import validate
+
+    from app.openapi_actions import ACTION_OPERATIONS, MAX_OPERATIONS, operation_count
+
+    response = await client.get("/openapi/actions.json")
+    assert response.status_code == 200
+    spec = response.json()
+    validate(spec)
+    assert spec["openapi"] == "3.1.0"
+    assert spec["servers"] == [{"url": "https://fitness.example.test"}]
+    assert operation_count(spec) == len(ACTION_OPERATIONS) <= MAX_OPERATIONS
+    assert set(spec["components"]["securitySchemes"]) == {"APIKeyHeader"}
+    operations = [op for item in spec["paths"].values() for op in item.values()]
+    assert {op["operationId"] for op in operations} == set(ACTION_OPERATIONS)
+    for operation in operations:
+        assert operation["security"] == [{"APIKeyHeader": []}]
+        assert 0 < len(operation["description"]) <= 300
+    # Hard dietary exclusions stay human-only: no profile write for assistants.
+    assert "replace_athlete_profile" not in {op["operationId"] for op in operations}
+
+
+async def test_full_schema_still_lists_every_operation(client):
+    spec = (await client.get("/openapi.json")).json()
+    ids = {op.get("operationId") for item in spec["paths"].values() for op in item.values()}
+    assert {"replace_athlete_profile", "upsert_daily_nutrition_plan", "list_workout_plans"} <= ids

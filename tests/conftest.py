@@ -38,6 +38,8 @@ os.environ.setdefault("MCP_OAUTH_ISSUER", TEST_MCP_OAUTH_ISSUER)
 os.environ.setdefault("MCP_OAUTH_AUDIENCE", TEST_MCP_OAUTH_AUDIENCE)
 os.environ.setdefault("MCP_OAUTH_JWT_PUBLIC_KEY", _MCP_OAUTH_KEY_PAIR.public_key)
 os.environ.setdefault("MCP_OAUTH_ALLOWED_SUBJECTS", TEST_MCP_OAUTH_ALLOWED_SUBJECT)
+# API tokens on /mcp beside OAuth (app/mcp/api_key_auth.py).
+os.environ.setdefault("MCP_API_KEY_AUTH_ENABLED", "true")
 
 from app.database import create_engine, get_session, get_session_maker  # noqa: E402
 from app.models import Base  # noqa: E402

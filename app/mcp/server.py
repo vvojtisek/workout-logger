@@ -6,20 +6,34 @@ Per the modular-monolith decision (docs/health-tracker-implementation-instructio
 the REST layer's validation, conflict handling, and transaction boundaries.
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import date, datetime
 from typing import Any, TypeVar
 from uuid import UUID
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 from fastmcp.server.auth import require_scopes
+from fastmcp.server.dependencies import get_access_token
 from pydantic import BaseModel
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import get_session_maker
 from app.exceptions import NotFoundError
+from app.mcp.api_key_auth import API_TOKEN_AUTH
 from app.mcp.audit import AuditMiddleware
-from app.mcp.oauth import build_mcp_oauth_provider
+from app.mcp.oauth import build_mcp_auth
+from app.models import User
 from app.schemas.body_metrics import BodyMetricCreate, BodyMetricRead, BodyMetricReplace
+from app.schemas.coach import (
+    AdaptiveWorkoutUpsert,
+    CoachActivityIn,
+    CoachExerciseIn,
+    CoachLogRequest,
+)
 from app.schemas.foods import FoodCreate, FoodRead, FoodReplace
 from app.schemas.logs import (
     ActivityType,
@@ -35,8 +49,17 @@ from app.schemas.meal_entries import (
     MealEntryReplace,
     MealItemCreate,
 )
+from app.schemas.meal_plans import (
+    DayPlanIn,
+    DayPlanRead,
+    NutritionPlanUpsert,
+    NutritionPlanUpsertResult,
+    SupplementIn,
+    SupplementRead,
+)
 from app.schemas.plans import PlanExerciseCreate, WorkoutPlanCreate, WorkoutPlanRead
 from app.schemas.programs import ProgramRead
+from app.schemas.readiness import ReadinessLogCreate
 from app.schemas.scheduled_workouts import ScheduledWorkoutCreate, ScheduledWorkoutRead
 from app.schemas.sleep_entries import SleepEntryCreate, SleepEntryRead, SleepEntryReplace
 from app.schemas.workout_sessions import (
@@ -47,28 +70,70 @@ from app.schemas.workout_sessions import (
     WorkoutSessionRead,
 )
 from app.services import body_metrics as body_metrics_service
+from app.services import coach_context, coach_log, coach_workouts, readiness_score
 from app.services import coaching_principles as principles_service
+from app.services import exercise_baseline as exercise_baseline_service
 from app.services import foods as foods_service
 from app.services import logs as logs_service
 from app.services import meal_entries as meal_entries_service
+from app.services import meal_plans as meal_plans_service
 from app.services import nutrition_dashboard as nutrition_dashboard_service
 from app.services import plans as plans_service
 from app.services import programs as programs_service
 from app.services import progression as progression_service
 from app.services import scheduled_workouts as scheduled_workouts_service
 from app.services import sleep_entries as sleep_entries_service
+from app.services import supplements as supplements_service
 from app.services import workout_sessions as workout_sessions_service
 
 mcp: FastMCP = FastMCP(
     name="workout-logger",
     instructions=(
         "Read and log training, nutrition, and body-composition data for a single "
-        "athlete's workout logger. Query tools need a token with the 'read' scope; "
-        "logging tools need 'log'."
+        "athlete's workout logger. Start a coaching conversation with "
+        "get_coaching_context: it carries the athlete's hard dietary exclusions, "
+        "equipment, recent training, readiness and meal plan. Query tools need a token "
+        "with the 'read' scope; logging tools need 'log'."
     ),
-    auth=build_mcp_oauth_provider(get_settings()),
+    auth=build_mcp_auth(get_settings()),
     middleware=[AuditMiddleware()],
 )
+
+
+@asynccontextmanager
+async def _db() -> AsyncIterator[AsyncSession]:
+    """A database session scoped like the REST API's: an API-token call sees
+    only its token owner's records; an OAuth call acts for
+    MCP_OAUTH_ACCOUNT_EMAIL when set, else stays unscoped as before."""
+    async with get_session_maker()() as session:
+        await _apply_data_scope(session)
+        yield session
+
+
+async def _apply_data_scope(session: AsyncSession) -> None:
+    access = get_access_token()
+    if access is None:
+        return
+    claims = access.claims or {}
+    owner_id: UUID | None
+    if claims.get("auth") == API_TOKEN_AUTH:
+        raw_owner = claims.get("owner_id")
+        owner_id = UUID(raw_owner) if raw_owner else None
+    else:
+        email = get_settings().MCP_OAUTH_ACCOUNT_EMAIL
+        if not email:
+            return
+        owner_id = await session.scalar(
+            select(User.id).where(func.lower(User.email) == email.strip().lower())
+        )
+        if owner_id is None:
+            raise ToolError("MCP_OAUTH_ACCOUNT_EMAIL does not match an account")
+    info = session.sync_session.info
+    info["data_owner_id"] = owner_id
+    info["data_global_access"] = False
+    # Shared catalogue templates stay readable; MCP has no catalogue write tool.
+    info["data_read_shared"] = True
+
 
 _EDIT_NOTE = " Only the fields you pass change; the others keep their current value."
 
@@ -111,7 +176,7 @@ def _deleted(record_id: UUID) -> dict[str, Any]:
     auth=require_scopes("read"),
 )
 async def list_programs(limit: int = 50, offset: int = 0) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         items, total = await programs_service.list_programs(session, limit, offset)
         return {
             "items": [ProgramRead.model_validate(item).model_dump(mode="json") for item in items],
@@ -131,7 +196,7 @@ async def list_programs(limit: int = 50, offset: int = 0) -> dict[str, Any]:
     auth=require_scopes("read"),
 )
 async def get_coaching_principles() -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         principles = await principles_service.get_principles(session)
         return principles.model_dump(mode="json")
 
@@ -151,6 +216,11 @@ async def get_progression_rules() -> dict[str, Any]:
         "other_increment_kg": progression_service.OTHER_INCREMENT_KG,
         "deload_factor": progression_service.DELOAD_FACTOR,
         "min_rir_to_add_load": progression_service.MIN_RIR_TO_ADD_LOAD,
+        "readiness_rules": readiness_score.__doc__,
+        "readiness_load_factor_bands": [
+            {"min_score": minimum, "load_factor": factor}
+            for minimum, factor in readiness_score.LOAD_FACTOR_BANDS
+        ],
     }
 
 
@@ -160,7 +230,7 @@ async def get_progression_rules() -> dict[str, Any]:
     auth=require_scopes("read"),
 )
 async def get_plan(plan_id: UUID) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         plan = await plans_service.get_plan(session, plan_id)
         return WorkoutPlanRead.model_validate(plan).model_dump(mode="json")
 
@@ -180,7 +250,7 @@ async def create_plan(
     description: str | None = None,
 ) -> dict[str, Any]:
     data = WorkoutPlanCreate(name=name, description=description, exercises=exercises)
-    async with get_session_maker()() as session:
+    async with _db() as session:
         plan = await plans_service.create_plan(session, data)
         return WorkoutPlanRead.model_validate(plan).model_dump(mode="json")
 
@@ -201,7 +271,7 @@ async def schedule_workout(
     data = ScheduledWorkoutCreate(
         workout_plan_id=workout_plan_id, scheduled_date=scheduled_date, program_id=program_id
     )
-    async with get_session_maker()() as session:
+    async with _db() as session:
         scheduled = await scheduled_workouts_service.schedule_workout(session, data)
         return ScheduledWorkoutRead.model_validate(scheduled).model_dump(mode="json")
 
@@ -244,7 +314,7 @@ async def log_set(
         distance_km=distance_km,
         incline_percent=incline_percent,
     )
-    async with get_session_maker()() as db:
+    async with _db() as db:
         workout_session, created = await workout_sessions_service.save_set(db, session_id, data)
         return {
             "created": created,
@@ -273,7 +343,7 @@ async def log_meal(
         items=items,
         notes=notes,
     )
-    async with get_session_maker()() as session:
+    async with _db() as session:
         entry = await meal_entries_service.create_meal_entry(session, data)
         return MealEntryRead.model_validate(entry).model_dump(mode="json")
 
@@ -312,7 +382,7 @@ async def log_biometrics(
         thighs_cm=thighs_cm,
         calves_cm=calves_cm,
     )
-    async with get_session_maker()() as session:
+    async with _db() as session:
         metric = await body_metrics_service.create_body_metric(session, data)
         return BodyMetricRead.model_validate(metric).model_dump(mode="json")
 
@@ -326,7 +396,7 @@ async def log_biometrics(
     auth=require_scopes("read"),
 )
 async def get_daily_summary(on_date: date) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         summary = await nutrition_dashboard_service.get_daily_summary(session, on_date)
         return summary.model_dump(mode="json")
 
@@ -340,7 +410,7 @@ async def get_daily_summary(on_date: date) -> dict[str, Any]:
     auth=require_scopes("read"),
 )
 async def list_biometrics(limit: int = 50, offset: int = 0) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         items, total = await body_metrics_service.list_body_metrics(session, limit, offset)
         return _page(BodyMetricRead, items, total, limit, offset)
 
@@ -365,7 +435,7 @@ async def update_biometrics(
     calves_cm: float | None = None,
 ) -> dict[str, Any]:
     changes = {k: v for k, v in locals().items() if k != "body_metric_id"}
-    async with get_session_maker()() as session:
+    async with _db() as session:
         current = await body_metrics_service.get_body_metric(session, body_metric_id)
         data = _merged(BodyMetricReplace, BodyMetricRead.model_validate(current), changes)
         metric = await body_metrics_service.replace_body_metric(session, body_metric_id, data)
@@ -378,7 +448,7 @@ async def update_biometrics(
     auth=require_scopes("log"),
 )
 async def delete_biometrics(body_metric_id: UUID) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         await body_metrics_service.delete_body_metric(session, body_metric_id)
     return _deleted(body_metric_id)
 
@@ -415,7 +485,7 @@ async def log_sleep(
         resting_heart_rate=resting_heart_rate,
         notes=notes,
     )
-    async with get_session_maker()() as session:
+    async with _db() as session:
         entry = await sleep_entries_service.create_sleep_entry(session, data)
         return SleepEntryRead.model_validate(entry).model_dump(mode="json")
 
@@ -426,7 +496,7 @@ async def log_sleep(
     auth=require_scopes("read"),
 )
 async def list_sleep(limit: int = 50, offset: int = 0) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         items, total = await sleep_entries_service.list_sleep_entries(session, limit, offset)
         return _page(SleepEntryRead, items, total, limit, offset)
 
@@ -448,7 +518,7 @@ async def update_sleep(
     notes: str | None = None,
 ) -> dict[str, Any]:
     changes = {k: v for k, v in locals().items() if k != "sleep_entry_id"}
-    async with get_session_maker()() as session:
+    async with _db() as session:
         current = await sleep_entries_service.get_sleep_entry(session, sleep_entry_id)
         data = _merged(SleepEntryReplace, SleepEntryRead.model_validate(current), changes)
         entry = await sleep_entries_service.replace_sleep_entry(session, sleep_entry_id, data)
@@ -461,7 +531,7 @@ async def update_sleep(
     auth=require_scopes("log"),
 )
 async def delete_sleep(sleep_entry_id: UUID) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         await sleep_entries_service.delete_sleep_entry(session, sleep_entry_id)
     return _deleted(sleep_entry_id)
 
@@ -478,7 +548,7 @@ async def delete_sleep(sleep_entry_id: UUID) -> dict[str, Any]:
     auth=require_scopes("read"),
 )
 async def list_foods(q: str | None = None, limit: int = 50, offset: int = 0) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         items, total = await foods_service.list_foods(session, limit, offset, q)
         return _page(FoodRead, items, total, limit, offset)
 
@@ -515,7 +585,7 @@ async def create_food(
         fiber_g=fiber_g,
         category=category,
     )
-    async with get_session_maker()() as session:
+    async with _db() as session:
         food = await foods_service.create_food(session, data)
         return FoodRead.model_validate(food).model_dump(mode="json")
 
@@ -542,7 +612,7 @@ async def update_food(
     category: str | None = None,
 ) -> dict[str, Any]:
     changes = {k: v for k, v in locals().items() if k != "food_id"}
-    async with get_session_maker()() as session:
+    async with _db() as session:
         current = await foods_service.get_food(session, food_id)
         data = _merged(FoodReplace, FoodRead.model_validate(current), changes)
         food = await foods_service.replace_food(session, food_id, data)
@@ -558,7 +628,7 @@ async def update_food(
     auth=require_scopes("log"),
 )
 async def delete_food(food_id: UUID) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         await foods_service.delete_food(session, food_id)
     return _deleted(food_id)
 
@@ -572,7 +642,7 @@ async def delete_food(food_id: UUID) -> dict[str, Any]:
     auth=require_scopes("read"),
 )
 async def list_meals(limit: int = 50, offset: int = 0) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         items, total = await meal_entries_service.list_meal_entries(session, limit, offset)
         return _page(MealEntryRead, items, total, limit, offset)
 
@@ -594,7 +664,7 @@ async def update_meal(
     items: list[MealItemCreate] | None = None,
 ) -> dict[str, Any]:
     changes = {"consumed_at": consumed_at, "meal_type": meal_type, "notes": notes}
-    async with get_session_maker()() as session:
+    async with _db() as session:
         current = MealEntryRead.model_validate(
             await meal_entries_service.get_meal_entry(session, meal_entry_id)
         )
@@ -615,7 +685,7 @@ async def update_meal(
     auth=require_scopes("log"),
 )
 async def delete_meal(meal_entry_id: UUID) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         await meal_entries_service.delete_meal_entry(session, meal_entry_id)
     return _deleted(meal_entry_id)
 
@@ -658,7 +728,7 @@ async def log_workout(
         notes=notes,
         source_plan_id=source_plan_id,
     )
-    async with get_session_maker()() as session:
+    async with _db() as session:
         log = await logs_service.create_log(session, data)
         return WorkoutLogRead.model_validate(log).model_dump(mode="json")
 
@@ -669,7 +739,7 @@ async def log_workout(
     auth=require_scopes("read"),
 )
 async def list_workouts(limit: int = 50, offset: int = 0) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         items, total = await logs_service.list_logs(session, limit, offset)
         return _page(WorkoutLogRead, items, total, limit, offset)
 
@@ -695,7 +765,7 @@ async def update_workout(
     notes: str | None = None,
 ) -> dict[str, Any]:
     changes = {k: v for k, v in locals().items() if k != "workout_log_id"}
-    async with get_session_maker()() as session:
+    async with _db() as session:
         current = await logs_service.get_log(session, workout_log_id)
         data = _merged(WorkoutLogReplace, WorkoutLogRead.model_validate(current), changes)
         log = await logs_service.replace_log(session, workout_log_id, data)
@@ -708,7 +778,7 @@ async def update_workout(
     auth=require_scopes("log"),
 )
 async def delete_workout(workout_log_id: UUID) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         await logs_service.delete_log(session, workout_log_id)
     return _deleted(workout_log_id)
 
@@ -727,7 +797,7 @@ async def delete_workout(workout_log_id: UUID) -> dict[str, Any]:
 async def start_workout_session(
     workout_plan_id: UUID, location_id: UUID | None = None
 ) -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         workout_session, _ = await workout_sessions_service.start_session(
             session, workout_plan_id, location_id
         )
@@ -740,7 +810,7 @@ async def start_workout_session(
     auth=require_scopes("read"),
 )
 async def get_active_workout_session() -> dict[str, Any]:
-    async with get_session_maker()() as session:
+    async with _db() as session:
         workout_session = await workout_sessions_service.get_active_session(session)
         return WorkoutSessionRead.model_validate(workout_session).model_dump(mode="json")
 
@@ -766,7 +836,7 @@ async def update_set(
     incline_percent: float | None = None,
 ) -> dict[str, Any]:
     changes = {k: v for k, v in locals().items() if k not in ("session_id", "set_entry_id")}
-    async with get_session_maker()() as db:
+    async with _db() as db:
         workout_session = await workout_sessions_service.get_session(db, session_id)
         current = next(
             (
@@ -792,7 +862,7 @@ async def update_set(
     auth=require_scopes("log"),
 )
 async def delete_set(session_id: UUID, set_entry_id: UUID) -> dict[str, Any]:
-    async with get_session_maker()() as db:
+    async with _db() as db:
         workout_session = await workout_sessions_service.delete_set(db, session_id, set_entry_id)
         return WorkoutSessionRead.model_validate(workout_session).model_dump(mode="json")
 
@@ -807,7 +877,7 @@ async def delete_set(session_id: UUID, set_entry_id: UUID) -> dict[str, Any]:
 )
 async def complete_workout_session(session_id: UUID, overall_feeling: int) -> dict[str, Any]:
     data = WorkoutSessionComplete(overall_feeling=overall_feeling)
-    async with get_session_maker()() as db:
+    async with _db() as db:
         workout_session = await workout_sessions_service.complete_session(db, session_id, data)
         return WorkoutSessionRead.model_validate(workout_session).model_dump(mode="json")
 
@@ -821,6 +891,119 @@ async def complete_workout_session(session_id: UUID, overall_feeling: int) -> di
     auth=require_scopes("log"),
 )
 async def delete_workout_session(session_id: UUID) -> dict[str, Any]:
-    async with get_session_maker()() as db:
+    async with _db() as db:
         await workout_sessions_service.delete_session(db, session_id)
     return _deleted(session_id)
+
+
+# -- AI coach loop (app/api/v1/coach.py has the REST twins) ----------------
+
+
+@mcp.tool(
+    name="get_coaching_context",
+    description=(
+        "Call this first. One compact JSON with the athlete's profile and HARD dietary "
+        "exclusions, equipment by location, the last `days` of training (sessions, volume, "
+        "hockey/swim, e1RM trends), upcoming sessions, readiness check-ins and recovery "
+        "deficits, sleep, the current meal plan, macro adherence and supplements. `today` is "
+        "the athlete's local date (default: UTC today)."
+    ),
+    auth=require_scopes("read"),
+)
+async def get_coaching_context(days: int = 7, today: date | None = None) -> dict[str, Any]:
+    if not 1 <= days <= 28:
+        raise ToolError("days must be between 1 and 28")
+    async with _db() as session:
+        context = await coach_context.build_context(session, days=days, today=today)
+        return context.model_dump(mode="json")
+
+
+@mcp.tool(
+    name="log_readiness_and_activity",
+    description=(
+        "Record how the athlete feels (soreness 1-10 with sore muscle groups, fatigue 1-10, "
+        "sleep quality 1-10, physical constraints) and/or an activity they finished: "
+        "ice_hockey, swimming, swim_sauna, sauna, gym, cycling, hiking, running, other. "
+        "Omitted activity fields use defaults (hockey 75 min RPE 8, swim_sauna 30 min 30 laps "
+        "3 sauna rounds). Both save together."
+    ),
+    auth=require_scopes("log"),
+)
+async def log_readiness_and_activity(
+    readiness: ReadinessLogCreate | None = None, activity: CoachActivityIn | None = None
+) -> dict[str, Any]:
+    data = CoachLogRequest(readiness=readiness, activity=activity)
+    async with _db() as session:
+        result = await coach_log.log_readiness_and_activity(session, data, source="mcp")
+        return result.model_dump(mode="json")
+
+
+@mcp.tool(
+    name="upsert_daily_nutrition_plan",
+    description=(
+        "Write or replace 1-7 days of meal plans in one transaction: per day macro targets "
+        "(kcal, protein, fiber; carbs/fat optional) and meals with ingredients (name, "
+        "quantity, unit, optional macros), meal macros and prep steps. Rebuilds each day's "
+        "shopping list. supplement_stack, when given, replaces the active stack. Read the "
+        "dietary constraints first: plans that hit a hard exclusion are rejected."
+    ),
+    auth=require_scopes("log"),
+)
+async def upsert_daily_nutrition_plan(
+    days: list[DayPlanIn], supplement_stack: list[SupplementIn] | None = None
+) -> dict[str, Any]:
+    data = NutritionPlanUpsert(days=days, supplement_stack=supplement_stack)
+    async with _db() as session:
+        stored = await meal_plans_service.upsert_plan(session, data, source="coach")
+        supplements = await supplements_service.list_active(session)
+        return NutritionPlanUpsertResult(
+            days=[DayPlanRead.model_validate(day) for day in stored],
+            supplements=[SupplementRead.model_validate(item) for item in supplements],
+        ).model_dump(mode="json")
+
+
+@mcp.tool(
+    name="upsert_adaptive_workout_plan",
+    description=(
+        "Prescribe or rewrite a gym or recovery session for a date: per exercise target_sets, "
+        "target_reps_min (and max), target_weight_kg (per dumbbell), target_rir or target_rpe, "
+        "rest and a one-line rationale shown in the gym. One session per date and name; "
+        "replaying it rewrites it until it is started. Returns history-based baselines."
+        + _LOAD_NOTE
+    ),
+    auth=require_scopes("log"),
+)
+async def upsert_adaptive_workout_plan(
+    scheduled_date: date,
+    name: str,
+    exercises: list[CoachExerciseIn],
+    notes: str | None = None,
+) -> dict[str, Any]:
+    data = AdaptiveWorkoutUpsert(
+        scheduled_date=scheduled_date, name=name, exercises=exercises, notes=notes
+    )
+    async with _db() as session:
+        result = await coach_workouts.upsert_adaptive_workout_plan(session, data)
+        return result.model_dump(mode="json")
+
+
+@mcp.tool(
+    name="get_exercise_baseline",
+    description=(
+        "An exercise's last 3-5 sessions (sets, reps, kg, e1RM), what the app's progression "
+        "rules suggest next, and that suggestion scaled by today's readiness check-in. Use it "
+        "before choosing a target weight."
+    ),
+    auth=require_scopes("read"),
+)
+async def get_exercise_baseline(
+    exercise_name: str,
+    plan_id: UUID | None = None,
+    rep_min: int | None = None,
+    rep_max: int | None = None,
+) -> dict[str, Any]:
+    async with _db() as session:
+        baseline = await exercise_baseline_service.exercise_baseline(
+            session, exercise_name.strip(), plan_id=plan_id, rep_min=rep_min, rep_max=rep_max
+        )
+        return baseline.model_dump(mode="json")

@@ -184,6 +184,22 @@ def _build_jwt_provider(settings: Settings) -> AuthProvider:
     )
 
 
+def build_mcp_auth(settings: Settings) -> AuthProvider | None:
+    """OAuth, API tokens, or both (app/mcp/api_key_auth.py). `None` only when
+    both are off, and then /mcp is not mounted at all (app/main.py)."""
+    oauth = build_mcp_oauth_provider(settings)
+    if not settings.MCP_API_KEY_AUTH_ENABLED:
+        return oauth
+    from app.mcp.api_key_auth import ApiKeyOrOAuthAuth, ApiTokenVerifier
+
+    base_url = f"{settings.mcp_oauth_base_url_resolved}{MCP_MOUNT_PATH}"
+    return ApiKeyOrOAuthAuth(
+        oauth,
+        ApiTokenVerifier(base_url=base_url, resource_base_url=base_url),
+        base_url,
+    )
+
+
 def build_mcp_oauth_provider(settings: Settings) -> AuthProvider | None:
     """Build the MCP auth provider from settings, or `None` when OAuth is
     disabled (local development only -- the MCP mount then has no auth at
