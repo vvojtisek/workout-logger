@@ -6,6 +6,7 @@ from sqlalchemy import CheckConstraint, Float, ForeignKey, Index, Integer, Strin
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import GUID, Base, TimestampMixin, UTCDateTime, UUIDPrimaryKeyMixin
+from app.services.activity_kinds import ALL_ACTIVITY_TYPES, ActivityCategory, category_of
 
 if TYPE_CHECKING:
     from app.models.exercise_log import ExerciseLog
@@ -16,8 +17,27 @@ class WorkoutLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint(
             "activity_type IS NULL OR activity_type IN "
-            "('ice_hockey', 'swimming', 'sauna', 'cycling', 'hiking', 'running', 'other')",
+            "(" + ", ".join(f"'{kind}'" for kind in ALL_ACTIVITY_TYPES) + ")",
             name="ck_workout_logs_activity_type",
+        ),
+        CheckConstraint(
+            "effort_level IS NULL OR effort_level BETWEEN 1 AND 5",
+            name="ck_workout_logs_effort_level",
+        ),
+        CheckConstraint(
+            "feel_before IS NULL OR feel_before BETWEEN 1 AND 5",
+            name="ck_workout_logs_feel_before",
+        ),
+        CheckConstraint(
+            "feel_after IS NULL OR feel_after BETWEEN 1 AND 5", name="ck_workout_logs_feel_after"
+        ),
+        CheckConstraint("cycles IS NULL OR cycles BETWEEN 1 AND 20", name="ck_workout_logs_cycles"),
+        CheckConstraint(
+            "cycle_minutes IS NULL OR cycle_minutes BETWEEN 1 AND 240",
+            name="ck_workout_logs_cycle_minutes",
+        ),
+        CheckConstraint(
+            "linked_log_id IS NULL OR linked_log_id <> id", name="ck_workout_logs_linked_log_id"
         ),
         CheckConstraint(
             "effort_rpe IS NULL OR effort_rpe BETWEEN 1 AND 10", name="ck_workout_logs_effort_rpe"
@@ -32,6 +52,7 @@ class WorkoutLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         Index("ix_workout_logs_performed_at", "performed_at"),
         Index("ix_workout_logs_source_plan_id", "source_plan_id"),
+        Index("ix_workout_logs_linked_log_id", "linked_log_id"),
         Index(
             "uq_workout_logs_owner_source_external_id",
             "owner_id",
@@ -76,12 +97,37 @@ class WorkoutLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Pool lengths for a swim, and sauna rounds after it (or on their own).
     laps: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sauna_rounds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # A custom name for an "other" activity, e.g. "Paddleboarding".
+    activity_name: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    # Whole-session effort, 1 (recovery, relaxed) to 5 (max effort). A cardio
+    # log with an effort level and no RPE gets an RPE derived from it.
+    effort_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Physical state before and after, 1 (wrecked) to 5 (fresh).
+    feel_before: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    feel_after: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Rounds of a recovery session (sauna, cold plunge) and minutes per round.
+    cycles: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cycle_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # The session this one followed, e.g. a sauna after a swim.
+    linked_log_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(),
+        ForeignKey(
+            "workout_logs.id",
+            ondelete="SET NULL",
+            name="fk_workout_logs_linked_log_id_workout_logs",
+        ),
+        nullable=True,
+    )
 
     exercises: Mapped[list["ExerciseLog"]] = relationship(
         back_populates="workout_log",
         cascade="all, delete-orphan",
         order_by="ExerciseLog.sort_order",
     )
+
+    @property
+    def activity_category(self) -> ActivityCategory:
+        return category_of(self.activity_type)
 
     @property
     def total_volume_kg(self) -> float:

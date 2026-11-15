@@ -6,7 +6,7 @@
 /** @type {Record<string, string[]>} */
 const DESKTOP_SECTIONS = {
   Today: ["Today"],
-  "Active Workout": ["New Workout", "Log Activity"],
+  "Active Workout": ["New Workout", "Log Activity", "Cardio", "Recovery"],
   "Programs & Plans": ["Plans", "Programs"],
   Calendar: ["Calendar", "Sport schedule"],
   "Workout History": ["History", "Training load"],
@@ -29,6 +29,8 @@ const MOBILE_SECTIONS = {
 const MOBILE_LOG_ENTRIES = {
   "New Workout": "Past workout",
   "Log Activity": "Activity",
+  Cardio: "Cardio",
+  Recovery: "Recovery",
 };
 
 /** @param {import("@playwright/test").Page} page */

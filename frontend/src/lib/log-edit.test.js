@@ -195,3 +195,38 @@ describe("swim and sauna fields", () => {
     expect(draftToPatch({ ...draft, water: { laps: "-1", saunaRounds: "" } }).error).toMatch(/Laps/);
   });
 });
+
+describe("cardio and recovery fields", () => {
+  const stored = { level: "4", feelBefore: "4", feelAfter: "", originalEffort: "7" };
+  const hockey = () =>
+    makeLog({
+      activity_type: /** @type {const} */ ("ice_hockey"),
+      effort_level: 4,
+      effort_rpe: 7,
+      feel_before: 4,
+      feel_after: null,
+      exercises: [],
+    });
+
+  it("round-trip effort level and feel for an activity", () => {
+    const draft = logToDraft(hockey());
+    expect(draft.activity).toEqual(stored);
+    const result = draftToPatch({ ...draft, activity: { ...stored, level: "5", feelAfter: "2" } });
+    expect(result.patch).toMatchObject({ effort_level: 5, feel_before: 4, feel_after: 2 });
+    // The RPE was not edited, so the server re-derives it from the new level.
+    expect(result.patch).not.toHaveProperty("effort_rpe");
+  });
+
+  it("sends an RPE the person changed", () => {
+    const draft = logToDraft(hockey());
+    expect(draftToPatch({ ...draft, effort: "8" }).patch).toMatchObject({ effort_rpe: 8, effort_level: 4 });
+  });
+
+  it("rejects an out-of-range level and leaves strength logs alone", () => {
+    const draft = logToDraft(hockey());
+    expect(draftToPatch({ ...draft, activity: { ...stored, level: "6" } }).error).toMatch(/1 to 5/);
+    const strength = logToDraft(makeLog());
+    expect(strength.activity).toBeNull();
+    expect(draftToPatch(strength).patch).not.toHaveProperty("effort_level");
+  });
+});

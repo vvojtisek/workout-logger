@@ -17,6 +17,7 @@ from app.schemas.meal_plans import (
     SupplementRead,
     SupplementsDue,
 )
+from app.services.activity_kinds import is_training
 from app.services.load_events import get_occurrences
 from app.services.readiness import logs_on
 
@@ -64,7 +65,7 @@ async def day_kind(session: AsyncSession, day: date) -> tuple[bool, bool]:
     """(training day, hockey day). Training = a scheduled workout that is not
     skipped, or any logged training; hockey = a hockey event or log."""
     hockey_events = [item for item in await get_occurrences(session, day, day) if item.date == day]
-    logs = [log for log in await logs_on(session, day) if log.activity_type != "sauna"]
+    logs = [log for log in await logs_on(session, day) if is_training(log.activity_type)]
     scheduled = (
         await session.scalars(
             select(ScheduledWorkout.id).where(

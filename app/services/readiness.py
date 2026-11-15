@@ -11,6 +11,7 @@ from app.exceptions import NotFoundError
 from app.models import ReadinessLog, WorkoutLog
 from app.models.base import utcnow
 from app.schemas.readiness import ReadinessLogCreate
+from app.services.activity_kinds import is_training
 from app.services.readiness_score import main_reason
 
 # A check-in counts for a workout started within this many hours of it, so
@@ -39,8 +40,8 @@ async def logs_on(session: AsyncSession, day: date) -> list[WorkoutLog]:
 
 def strain_of(logs: list[WorkoutLog]) -> str:
     """Ice hockey or a session RPE of 8+ is high; any other training is
-    moderate; a sauna alone is not training."""
-    training = [log for log in logs if log.activity_type != "sauna"]
+    moderate; recovery (sauna, meditation, stretching, cold plunge) is not training."""
+    training = [log for log in logs if is_training(log.activity_type)]
     if any(
         log.activity_type == "ice_hockey" or (log.effort_rpe or 0) >= HIGH_STRAIN_RPE
         for log in training

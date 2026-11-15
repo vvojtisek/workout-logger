@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Security
 
 from app.api.v1 import (
+    activities,
     api_tokens,
     athlete_profile,
     audit_events,
@@ -47,6 +48,7 @@ api_router.include_router(exercises.router)
 api_router.include_router(load_events.router)
 api_router.include_router(locations.router)
 api_router.include_router(logs.router)
+api_router.include_router(activities.router)
 api_router.include_router(exercise_stats.router)
 api_router.include_router(training_load.router)
 api_router.include_router(workout_sessions.router)

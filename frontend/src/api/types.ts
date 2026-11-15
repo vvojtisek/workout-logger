@@ -1,5 +1,5 @@
 import type { ExerciseKind, GridExercise, GridSession } from "@/lib/workout-utils";
-import type { ActivityType } from "@/lib/activity";
+import type { ActivityCategory, ActivityType } from "@/lib/activity";
 import type { EquipmentLoadMode } from "@/lib/load-rules";
 
 export interface Paginated<T> {
@@ -230,6 +230,14 @@ export interface WorkoutLogSummary {
   laps?: number | null;
   sauna_rounds?: number | null;
   total_volume_kg?: number;
+  activity_category?: ActivityCategory;
+  activity_name?: string | null;
+  effort_level?: number | null;
+  feel_before?: number | null;
+  feel_after?: number | null;
+  cycles?: number | null;
+  cycle_minutes?: number | null;
+  linked_log_id?: string | null;
 }
 
 export interface WorkoutLog extends WorkoutLogSummary {

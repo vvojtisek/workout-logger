@@ -6,7 +6,7 @@ import type { WorkoutLog } from "@/api/types";
 import { FIELD_SPECS_BY_KIND } from "@/features/active-workout/SetRow";
 import { addSet, draftToPatch, logToDraft, newExercise, removeSet } from "@/lib/log-edit";
 import type { ExerciseDraft, SetDraft } from "@/lib/log-edit";
-import { EFFORT_SCALE, FEELING_SCALE, RIR_HINT, rirMeaning } from "@/lib/scales";
+import { BODY_FEEL_SCALE, EFFORT_LEVEL_SCALE, EFFORT_SCALE, FEELING_SCALE, RIR_HINT, rirMeaning } from "@/lib/scales";
 import { toast } from "@/ui/Toast";
 import { Button, Card, Input } from "@/ui";
 import { ScaleSelect } from "@/ui/ScaleSelect";
@@ -269,6 +269,50 @@ export function LogEditor({
             optional
           />
         </div>
+        {draft.activity ? (
+          <>
+            <div>
+              <label className="field-label" htmlFor="edit-effort-level">
+                Effort level (optional)
+              </label>
+              <ScaleSelect
+                id="edit-effort-level"
+                scale={EFFORT_LEVEL_SCALE}
+                value={draft.activity.level}
+                onChange={(level) => setDraft({ ...draft, activity: draft.activity && { ...draft.activity, level } })}
+                optional
+              />
+            </div>
+            <div>
+              <label className="field-label" htmlFor="edit-feel-before">
+                Before (optional)
+              </label>
+              <ScaleSelect
+                id="edit-feel-before"
+                scale={BODY_FEEL_SCALE}
+                value={draft.activity.feelBefore}
+                onChange={(feelBefore) =>
+                  setDraft({ ...draft, activity: draft.activity && { ...draft.activity, feelBefore } })
+                }
+                optional
+              />
+            </div>
+            <div>
+              <label className="field-label" htmlFor="edit-feel-after">
+                After (optional)
+              </label>
+              <ScaleSelect
+                id="edit-feel-after"
+                scale={BODY_FEEL_SCALE}
+                value={draft.activity.feelAfter}
+                onChange={(feelAfter) =>
+                  setDraft({ ...draft, activity: draft.activity && { ...draft.activity, feelAfter } })
+                }
+                optional
+              />
+            </div>
+          </>
+        ) : null}
         <div>
           <label className="field-label" htmlFor="edit-notes">
             Notes

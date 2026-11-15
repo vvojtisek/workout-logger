@@ -9,8 +9,9 @@ the REST layer's validation, conflict handling, and transaction boundaries.
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import date, datetime
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
@@ -69,8 +70,14 @@ from app.schemas.workout_sessions import (
     WorkoutSessionComplete,
     WorkoutSessionRead,
 )
+from app.services import (
+    activity_defaults,
+    coach_context,
+    coach_log,
+    coach_workouts,
+    readiness_score,
+)
 from app.services import body_metrics as body_metrics_service
-from app.services import coach_context, coach_log, coach_workouts, readiness_score
 from app.services import coaching_principles as principles_service
 from app.services import exercise_baseline as exercise_baseline_service
 from app.services import foods as foods_service
@@ -699,8 +706,12 @@ async def delete_meal(meal_entry_id: UUID) -> dict[str, Any]:
         "Record a finished workout or activity. For a strength workout list its "
         "exercises (exercise_name, sets_count, reps_per_set with one entry per "
         "set, optional weight_kg). For hockey, a swim, a ride, a hike or a run "
-        "set activity_type and optionally distance_km and effort_rpe (1-10). "
-        "overall_feeling is 1-5; performed_at is a UTC timestamp." + _LOAD_NOTE
+        "set activity_type and optionally distance_km, effort_level (1-5, sets "
+        "effort_rpe when that is omitted) or effort_rpe (1-10), feel_before and "
+        "feel_after (1 wrecked .. 5 fresh). Recovery types (sauna, meditation, "
+        "stretching, cold_plunge) take cycles, cycle_minutes and linked_log_id (the "
+        "session they followed). overall_feeling is 1-5; performed_at is a UTC "
+        "timestamp." + _LOAD_NOTE
     ),
     auth=require_scopes("log"),
 )
@@ -715,6 +726,13 @@ async def log_workout(
     calories_burned: int | None = None,
     notes: str | None = None,
     source_plan_id: UUID | None = None,
+    activity_name: str | None = None,
+    effort_level: int | None = None,
+    feel_before: int | None = None,
+    feel_after: int | None = None,
+    cycles: int | None = None,
+    cycle_minutes: int | None = None,
+    linked_log_id: UUID | None = None,
 ) -> dict[str, Any]:
     data = WorkoutLogCreate(
         performed_at=performed_at,
@@ -727,6 +745,13 @@ async def log_workout(
         calories_burned=calories_burned,
         notes=notes,
         source_plan_id=source_plan_id,
+        activity_name=activity_name,
+        effort_level=effort_level,
+        feel_before=feel_before,
+        feel_after=feel_after,
+        cycles=cycles,
+        cycle_minutes=cycle_minutes,
+        linked_log_id=linked_log_id,
     )
     async with _db() as session:
         log = await logs_service.create_log(session, data)
@@ -763,11 +788,22 @@ async def update_workout(
     effort_rpe: int | None = None,
     calories_burned: int | None = None,
     notes: str | None = None,
+    activity_name: str | None = None,
+    effort_level: int | None = None,
+    feel_before: int | None = None,
+    feel_after: int | None = None,
+    cycles: int | None = None,
+    cycle_minutes: int | None = None,
+    linked_log_id: UUID | None = None,
 ) -> dict[str, Any]:
-    changes = {k: v for k, v in locals().items() if k != "workout_log_id"}
+    changes = {k: v for k, v in locals().items() if k != "workout_log_id" and v is not None}
     async with _db() as session:
         current = await logs_service.get_log(session, workout_log_id)
-        data = _merged(WorkoutLogReplace, WorkoutLogRead.model_validate(current), changes)
+        data = WorkoutLogReplace.model_validate(
+            logs_service.overlay_changes(
+                WorkoutLogRead.model_validate(current).model_dump(), changes
+            )
+        )
         log = await logs_service.replace_log(session, workout_log_id, data)
         return WorkoutLogRead.model_validate(log).model_dump(mode="json")
 
@@ -923,9 +959,12 @@ async def get_coaching_context(days: int = 7, today: date | None = None) -> dict
     description=(
         "Record how the athlete feels (soreness 1-10 with sore muscle groups, fatigue 1-10, "
         "sleep quality 1-10, physical constraints) and/or an activity they finished: "
-        "ice_hockey, swimming, swim_sauna, sauna, gym, cycling, hiking, running, other. "
-        "Omitted activity fields use defaults (hockey 75 min RPE 8, swim_sauna 30 min 30 laps "
-        "3 sauna rounds). Both save together."
+        "ice_hockey, swimming, swim_sauna, sauna, gym, cycling, hiking, running, other, "
+        "meditation, stretching, cold_plunge. Omitted activity fields use defaults (hockey 75 "
+        "min RPE 8, swim_sauna 30 min 30 laps 3 sauna rounds). effort_level 1-5, feel_before/"
+        "feel_after 1-5, cycles and cycle_minutes for recovery. A recovery entry links itself "
+        "to the training session up to 6 h before it; a cardio entry fills in a matching "
+        "unrated Health Connect session instead of duplicating it. Both save together."
     ),
     auth=require_scopes("log"),
 )
@@ -935,6 +974,40 @@ async def log_readiness_and_activity(
     data = CoachLogRequest(readiness=readiness, activity=activity)
     async with _db() as session:
         result = await coach_log.log_readiness_and_activity(session, data, source="mcp")
+        return result.model_dump(mode="json")
+
+
+@mcp.tool(
+    name="get_activity_defaults",
+    description=(
+        "Predict what a cardio (category 'cardio') or recovery ('recovery') log on `on_date` "
+        "will most likely be, from the last `weeks` (4-12) weeks of entries matched by "
+        "weekday and season: activity type, local start (15-min slots), duration, effort "
+        "level 1-5 and recovery cycles, plus one-tap recovery presets. `timezone` is the "
+        "athlete's IANA zone; `on_date` defaults to today there."
+    ),
+    auth=require_scopes("read"),
+)
+async def get_activity_defaults(
+    category: Literal["cardio", "recovery"] = "cardio",
+    on_date: date | None = None,
+    timezone: str = "UTC",
+    weeks: int = 8,
+) -> dict[str, Any]:
+    if not 4 <= weeks <= 12:
+        raise ToolError("weeks must be between 4 and 12")
+    try:
+        zone = ZoneInfo(timezone)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise ToolError(f"'{timezone}' is not a recognized IANA timezone name") from exc
+    async with _db() as session:
+        result = await activity_defaults.predict_defaults(
+            session,
+            day=on_date or datetime.now(zone).date(),
+            category=category,
+            tz_name=timezone,
+            weeks=weeks,
+        )
         return result.model_dump(mode="json")
 
 
