@@ -47,6 +47,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cardio and recovery quick logging. Workout logs gain `effort_level` (1-5),
+  `feel_before`/`feel_after` (1 wrecked .. 5 fresh), `cycles`,
+  `cycle_minutes`, `activity_name` (custom "other" activity) and
+  `linked_log_id` (the session a recovery entry followed), plus the
+  meditation, stretching and cold plunge types; `activity_category`
+  (strength, cardio, recovery) is derived and `GET /logs?category=` filters by
+  it. A cardio effort level without an RPE derives the CR-10 RPE, so training
+  load keeps working; recovery adds no load and no readiness strain.
+  `GET /api/v1/activities/defaults` (MCP `get_activity_defaults`) predicts the
+  activity, start slot, duration, effort and cycles for a date from the same
+  weekday over the last 4-12 weeks, with seasonal ranking. New pages: Cardio
+  (`/activity/quick`, pre-filled, four taps for yesterday's hockey game) and
+  Recovery (`/recovery`, one-tap routines such as "Sauna · 3 cycles" with Undo
+  and Edit). A rated cardio entry fills in a matching unrated Health Connect
+  session instead of creating a second one.
 - `GET /api/v1/workout-sessions/active?optional=true` answers 204 instead of
   404 when no workout is active, so the app's start-up check leaves nothing
   in the browser console. Without the parameter the endpoint is unchanged.
