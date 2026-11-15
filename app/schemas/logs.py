@@ -10,6 +10,7 @@ from app.schemas.common import (
     require_non_empty,
     require_timezone_aware_utc,
 )
+from app.services.activity_kinds import ActivityCategory, category_of, level_to_rpe
 from app.services.volume import LoadMode as EquipmentLoadMode
 
 
@@ -78,7 +79,25 @@ class ExerciseLogRead(ExerciseLogCreate):
     volume_kg: float = 0.0
 
 
-ActivityType = Literal["ice_hockey", "swimming", "sauna", "cycling", "hiking", "running", "other"]
+ActivityType = Literal[
+    "ice_hockey",
+    "swimming",
+    "sauna",
+    "cycling",
+    "hiking",
+    "running",
+    "other",
+    "meditation",
+    "stretching",
+    "cold_plunge",
+]
+
+_EFFORT_LEVEL_DESCRIPTION = (
+    "Whole-session effort 1-5: 1 recovery/relaxed, 3 moderate/standard tempo, 5 max effort. "
+    "On a cardio log with no effort_rpe, effort_rpe is derived from it (1->2, 2->3, 3->5, "
+    "4->7, 5->9 on CR-10)."
+)
+_FEEL_DESCRIPTION = "Physical state, 1 wrecked, 2 fatigued, 3 sore, 4 normal, 5 fresh."
 
 
 class WorkoutLogCreate(BaseModel):
@@ -93,12 +112,48 @@ class WorkoutLogCreate(BaseModel):
     effort_rpe: int | None = Field(default=None, ge=1, le=10)
     laps: int | None = Field(default=None, ge=0, le=1000)
     sauna_rounds: int | None = Field(default=None, ge=0, le=20)
+    activity_name: str | None = Field(
+        default=None, max_length=60, description='Custom name for an "other" activity.'
+    )
+    effort_level: int | None = Field(
+        default=None, ge=1, le=5, description=_EFFORT_LEVEL_DESCRIPTION
+    )
+    feel_before: int | None = Field(default=None, ge=1, le=5, description=_FEEL_DESCRIPTION)
+    feel_after: int | None = Field(default=None, ge=1, le=5, description=_FEEL_DESCRIPTION)
+    cycles: int | None = Field(
+        default=None, ge=1, le=20, description="Rounds of a recovery session, e.g. sauna."
+    )
+    cycle_minutes: int | None = Field(default=None, ge=1, le=240, description="Minutes per round.")
+    linked_log_id: UUID | None = Field(
+        default=None, description="The session this one followed, e.g. the swim before a sauna."
+    )
     exercises: list[ExerciseLogCreate] = Field(default_factory=list)
 
     @field_validator("performed_at")
     @classmethod
     def performed_at_requires_timezone(cls, value: datetime) -> datetime:
         return require_timezone_aware_utc(value)
+
+    @field_validator("activity_name")
+    @classmethod
+    def activity_name_trimmed(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+    @model_validator(mode="after")
+    def derive_effort_rpe_and_sauna_rounds(self) -> "WorkoutLogCreate":
+        # Training load runs on RPE; recovery is not training and gets none.
+        category = category_of(self.activity_type)
+        if self.effort_rpe is None and self.effort_level is not None and category == "cardio":
+            self.effort_rpe = level_to_rpe(self.effort_level)
+        # A sauna log keeps the legacy sauna_rounds and the generic cycles in step.
+        if self.activity_type == "sauna":
+            if self.cycles is None and self.sauna_rounds:
+                self.cycles = self.sauna_rounds
+            elif self.cycles is not None and self.sauna_rounds is None:
+                self.sauna_rounds = self.cycles
+        return self
 
 
 class WorkoutLogReplace(WorkoutLogCreate):
@@ -122,6 +177,13 @@ class WorkoutLogPatch(BaseModel):
     effort_rpe: int | None = None
     laps: int | None = None
     sauna_rounds: int | None = None
+    activity_name: str | None = None
+    effort_level: int | None = None
+    feel_before: int | None = None
+    feel_after: int | None = None
+    cycles: int | None = None
+    cycle_minutes: int | None = None
+    linked_log_id: UUID | None = None
     exercises: list[ExerciseLogCreate] | None = None
 
 
@@ -141,6 +203,14 @@ class WorkoutLogRead(OrmModel):
     effort_rpe: int | None
     laps: int | None = None
     sauna_rounds: int | None = None
+    activity_category: ActivityCategory = "strength"
+    activity_name: str | None = None
+    effort_level: int | None = None
+    feel_before: int | None = None
+    feel_after: int | None = None
+    cycles: int | None = None
+    cycle_minutes: int | None = None
+    linked_log_id: UUID | None = None
     exercises: list[ExerciseLogRead]
     total_volume_kg: float = 0.0
     created_at: datetime

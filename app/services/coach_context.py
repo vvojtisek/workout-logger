@@ -91,6 +91,11 @@ def _session(log: WorkoutLog) -> ContextSession:
         volume_kg=log.total_volume_kg,
         laps=log.laps,
         sauna_rounds=log.sauna_rounds,
+        category=log.activity_category,
+        effort_level=log.effort_level,
+        feel_before=log.feel_before,
+        feel_after=log.feel_after,
+        cycles=log.cycles,
     )
 
 

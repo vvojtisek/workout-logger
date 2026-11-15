@@ -699,8 +699,12 @@ async def delete_meal(meal_entry_id: UUID) -> dict[str, Any]:
         "Record a finished workout or activity. For a strength workout list its "
         "exercises (exercise_name, sets_count, reps_per_set with one entry per "
         "set, optional weight_kg). For hockey, a swim, a ride, a hike or a run "
-        "set activity_type and optionally distance_km and effort_rpe (1-10). "
-        "overall_feeling is 1-5; performed_at is a UTC timestamp." + _LOAD_NOTE
+        "set activity_type and optionally distance_km, effort_level (1-5, sets "
+        "effort_rpe when that is omitted) or effort_rpe (1-10), feel_before and "
+        "feel_after (1 wrecked .. 5 fresh). Recovery types (sauna, meditation, "
+        "stretching, cold_plunge) take cycles, cycle_minutes and linked_log_id (the "
+        "session they followed). overall_feeling is 1-5; performed_at is a UTC "
+        "timestamp." + _LOAD_NOTE
     ),
     auth=require_scopes("log"),
 )
@@ -715,6 +719,13 @@ async def log_workout(
     calories_burned: int | None = None,
     notes: str | None = None,
     source_plan_id: UUID | None = None,
+    activity_name: str | None = None,
+    effort_level: int | None = None,
+    feel_before: int | None = None,
+    feel_after: int | None = None,
+    cycles: int | None = None,
+    cycle_minutes: int | None = None,
+    linked_log_id: UUID | None = None,
 ) -> dict[str, Any]:
     data = WorkoutLogCreate(
         performed_at=performed_at,
@@ -727,6 +738,13 @@ async def log_workout(
         calories_burned=calories_burned,
         notes=notes,
         source_plan_id=source_plan_id,
+        activity_name=activity_name,
+        effort_level=effort_level,
+        feel_before=feel_before,
+        feel_after=feel_after,
+        cycles=cycles,
+        cycle_minutes=cycle_minutes,
+        linked_log_id=linked_log_id,
     )
     async with _db() as session:
         log = await logs_service.create_log(session, data)
@@ -763,11 +781,22 @@ async def update_workout(
     effort_rpe: int | None = None,
     calories_burned: int | None = None,
     notes: str | None = None,
+    activity_name: str | None = None,
+    effort_level: int | None = None,
+    feel_before: int | None = None,
+    feel_after: int | None = None,
+    cycles: int | None = None,
+    cycle_minutes: int | None = None,
+    linked_log_id: UUID | None = None,
 ) -> dict[str, Any]:
-    changes = {k: v for k, v in locals().items() if k != "workout_log_id"}
+    changes = {k: v for k, v in locals().items() if k != "workout_log_id" and v is not None}
     async with _db() as session:
         current = await logs_service.get_log(session, workout_log_id)
-        data = _merged(WorkoutLogReplace, WorkoutLogRead.model_validate(current), changes)
+        data = WorkoutLogReplace.model_validate(
+            logs_service.overlay_changes(
+                WorkoutLogRead.model_validate(current).model_dump(), changes
+            )
+        )
         log = await logs_service.replace_log(session, workout_log_id, data)
         return WorkoutLogRead.model_validate(log).model_dump(mode="json")
 
@@ -923,9 +952,12 @@ async def get_coaching_context(days: int = 7, today: date | None = None) -> dict
     description=(
         "Record how the athlete feels (soreness 1-10 with sore muscle groups, fatigue 1-10, "
         "sleep quality 1-10, physical constraints) and/or an activity they finished: "
-        "ice_hockey, swimming, swim_sauna, sauna, gym, cycling, hiking, running, other. "
-        "Omitted activity fields use defaults (hockey 75 min RPE 8, swim_sauna 30 min 30 laps "
-        "3 sauna rounds). Both save together."
+        "ice_hockey, swimming, swim_sauna, sauna, gym, cycling, hiking, running, other, "
+        "meditation, stretching, cold_plunge. Omitted activity fields use defaults (hockey 75 "
+        "min RPE 8, swim_sauna 30 min 30 laps 3 sauna rounds). effort_level 1-5, feel_before/"
+        "feel_after 1-5, cycles and cycle_minutes for recovery. A recovery entry links itself "
+        "to the training session up to 6 h before it; a cardio entry fills in a matching "
+        "unrated Health Connect session instead of duplicating it. Both save together."
     ),
     auth=require_scopes("log"),
 )

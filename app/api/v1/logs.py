@@ -14,6 +14,7 @@ from app.schemas.logs import (
     WorkoutLogReplace,
 )
 from app.services import logs as logs_service
+from app.services.activity_kinds import ActivityCategory
 
 router = APIRouter(prefix="/logs", tags=["logs"])
 
@@ -23,19 +24,27 @@ router = APIRouter(prefix="/logs", tags=["logs"])
     operation_id="list_workout_logs",
     summary="List workout logs",
     description="Returns a paginated list of performed workouts, sorted by performed_at descending. "
-    "The date range is [date_from, date_to).",
+    "The date range is [date_from, date_to). `category` keeps only strength (no "
+    "activity_type), cardio/sport, or recovery (sauna, meditation, stretching, cold plunge) logs.",
     response_model=PaginatedLogsResponse,
 )
 async def list_workout_logs(
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
     source_plan_id: UUID | None = Query(default=None),
+    category: ActivityCategory | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_session),
 ) -> PaginatedLogsResponse:
     items, total = await logs_service.list_logs(
-        session, limit, offset, date_from=date_from, date_to=date_to, source_plan_id=source_plan_id
+        session,
+        limit,
+        offset,
+        date_from=date_from,
+        date_to=date_to,
+        source_plan_id=source_plan_id,
+        category=category,
     )
     return PaginatedLogsResponse(
         items=[WorkoutLogRead.model_validate(item) for item in items],

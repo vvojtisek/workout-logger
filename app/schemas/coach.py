@@ -22,6 +22,9 @@ CoachActivityType = Literal[
     "hiking",
     "running",
     "other",
+    "meditation",
+    "stretching",
+    "cold_plunge",
 ]
 
 
@@ -30,7 +33,9 @@ class CoachActivityIn(BaseModel):
         description=(
             "swim_sauna = a swim followed by sauna rounds, saved as one swim. Omitted fields "
             "use defaults: hockey 75 min RPE 8; swim 30 min 30 laps RPE 5; swim_sauna adds "
-            "3 sauna rounds; sauna 45 min 3 rounds; gym 45 min RPE 7."
+            "3 sauna rounds; sauna 45 min 3 cycles; gym 45 min RPE 7; meditation and "
+            "stretching 15 min; cold plunge 5 min. Sauna, meditation, stretching and "
+            "cold_plunge are recovery and add no training load."
         )
     )
     performed_at: datetime | None = Field(default=None, description="Omitted: now.")
@@ -43,6 +48,40 @@ class CoachActivityIn(BaseModel):
     sauna_rounds: int | None = Field(default=None, ge=0, le=20)
     distance_km: float | None = Field(default=None, ge=0, le=1000)
     notes: str | None = Field(default=None, max_length=2000)
+    activity_name: str | None = Field(
+        default=None, max_length=60, description='Custom name for an "other" activity.'
+    )
+    effort_level: int | None = Field(
+        default=None,
+        ge=1,
+        le=5,
+        description="Effort 1-5 (1 relaxed, 3 moderate, 5 max). Sets effort_rpe when that is "
+        "omitted.",
+    )
+    feel_before: int | None = Field(
+        default=None, ge=1, le=5, description="1 wrecked, 2 fatigued, 3 sore, 4 normal, 5 fresh."
+    )
+    feel_after: int | None = Field(
+        default=None,
+        ge=1,
+        le=5,
+        description="Same scale as feel_before; also the overall_feeling when that is omitted.",
+    )
+    cycles: int | None = Field(default=None, ge=1, le=20, description="Recovery rounds.")
+    cycle_minutes: int | None = Field(
+        default=None,
+        ge=1,
+        le=240,
+        description="Minutes per round; with cycles it gives the duration when that is omitted.",
+    )
+    linked_log_id: UUID | None = Field(
+        default=None, description="The session this one followed, e.g. the swim before a sauna."
+    )
+    link_to_previous: bool = Field(
+        default=True,
+        description="For a recovery entry with no linked_log_id: link it to the latest "
+        "training session that started up to 6 hours before it.",
+    )
 
     @field_validator("performed_at")
     @classmethod
@@ -64,6 +103,11 @@ class CoachLogRequest(BaseModel):
 class CoachLogResult(BaseModel):
     readiness_log: ReadinessLogRead | None
     workout_log: WorkoutLogRead | None
+    merged_into_existing: bool = Field(
+        default=False,
+        description="True when the activity filled in a matching session already synced from "
+        "Health Connect instead of creating a second one.",
+    )
 
 
 class CoachExerciseIn(BaseModel):
@@ -189,6 +233,11 @@ class ContextSession(BaseModel):
     volume_kg: float
     laps: int | None
     sauna_rounds: int | None
+    category: str = Field(default="strength", description="strength, cardio or recovery.")
+    effort_level: int | None = Field(default=None, description="1 relaxed .. 5 max effort.")
+    feel_before: int | None = None
+    feel_after: int | None = None
+    cycles: int | None = None
 
 
 class ContextTotals(BaseModel):
