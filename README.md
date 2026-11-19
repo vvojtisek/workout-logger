@@ -65,6 +65,18 @@ pending invite frees its reserved slot. Disabled accounts still count toward the
 
 ---
 
+## Logging biometrics
+
+Open **Biometrics → Log entry** to record weight, body fat and waist. The date and time
+default to now in your local timezone. Tap either to open the device picker. Each measurement
+starts at its own last recorded value. Drag the slider, tap **−** or **+** for tenths, or
+tap the number to type it. Only weight is required. Uncheck any daily reading you skipped.
+
+Expand **Other measurements** when you take a circumference such as chest or hips. Check a
+value to record the same reading again, or adjust it to include the new value. The form gets
+its starting values from `GET /api/v1/body-metrics/entry-defaults`. A measurement with no
+history is returned as `null` and starts blank.
+
 ## Local Development
 
 ### 1. Python Virtual Environment (No Docker)

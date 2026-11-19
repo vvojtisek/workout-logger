@@ -217,3 +217,25 @@ async def test_trends_delta_is_none_when_no_entry_far_enough_back(client, auth_h
     body = response.json()
     assert body["weight_kg_delta_14d"] is None
     assert body["weight_kg_delta_7d"] == -0.8
+
+
+async def test_entry_defaults_use_latest_non_null_value_per_measurement(client, auth_headers):
+    defaults = f"{BASE}/entry-defaults"
+    response = await client.get(defaults, headers=auth_headers)
+    assert response.status_code == 200
+    assert all(value is None for value in response.json().values())
+
+    for payload in [
+        make_metric_payload(measured_at="2026-01-16T08:00:00Z", weight_kg=77, waist_cm=None),
+        make_metric_payload(waist_cm=84, weight_kg=78),
+        {"measured_at": "2026-01-17T08:00:00Z", "weight_kg": 76.5, "body_fat_percent": 0},
+    ]:
+        assert (await client.post(BASE, json=payload, headers=auth_headers)).status_code == 201
+    response = await client.get(defaults, headers=auth_headers)
+    assert response.json() == {
+        key: value
+        for key, value in make_metric_payload(
+            weight_kg=76.5, body_fat_percent=0, waist_cm=84
+        ).items()
+        if key != "measured_at"
+    }

@@ -8,6 +8,7 @@ from app.exceptions import NotFoundError
 from app.models import BodyMetric
 from app.schemas.body_metrics import (
     BodyMetricCreate,
+    BodyMetricEntryDefaults,
     BodyMetricRead,
     BodyMetricReplace,
     BodyMetricTrends,
@@ -25,6 +26,25 @@ async def list_body_metrics(
         select(BodyMetric).order_by(BodyMetric.measured_at.desc()).limit(limit).offset(offset)
     )
     return list(result.scalars().all()), total or 0
+
+
+async def get_entry_defaults(session: AsyncSession) -> BodyMetricEntryDefaults:
+    # Indexed newest-first lookups keep sparse weekly fields independent of daily weight.
+    latest_values = []
+    for name in BodyMetricEntryDefaults.model_fields:
+        column = getattr(BodyMetric, name)
+        latest = (
+            select(column)
+            .where(column.is_not(None))
+            .order_by(
+                BodyMetric.measured_at.desc(), BodyMetric.created_at.desc(), BodyMetric.id.desc()
+            )
+            .limit(1)
+            .scalar_subquery()
+        )
+        latest_values.append(latest.label(name))
+    row = (await session.execute(select(*latest_values))).mappings().one()
+    return BodyMetricEntryDefaults.model_validate(row)
 
 
 async def get_body_metric(session: AsyncSession, body_metric_id: UUID) -> BodyMetric:

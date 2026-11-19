@@ -256,6 +256,11 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
         assert other_metrics.status_code == 200
         assert [item["id"] for item in other_metrics.json()["items"]] == [other_metric_id]
 
+        for cookies, weight in [(owner_cookies, 72.5), (other_cookies, 64.5)]:
+            defaults = await client.get("/api/v1/body-metrics/entry-defaults", headers=cookies)
+            assert defaults.status_code == 200
+            assert defaults.json()["weight_kg"] == weight
+
         owner_steps = await client.post(
             "/api/v1/ingest/steps",
             json={
