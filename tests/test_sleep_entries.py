@@ -253,3 +253,27 @@ async def test_overnight_boundary_in_a_positive_utc_offset_timezone(client, auth
     response = await client.post(BASE, json=payload, headers=auth_headers)
     assert response.status_code == 201
     assert response.json()["sleep_date"] == "2026-01-16"
+
+
+async def test_entry_defaults_use_latest_times_and_last_observed_readings(client, auth_headers):
+    url = f"{BASE}/entry-defaults"
+    empty = await client.get(url, headers=auth_headers)
+    assert empty.status_code == 200
+    assert all(value is None for value in empty.json().values())
+    latest = make_entry_payload(
+        sleep_start="2026-01-17T04:45:00Z",
+        sleep_end="2026-01-17T11:15:00Z",
+        estimated_sleep_seconds=None,
+        awake_seconds=0,
+        resting_heart_rate=None,
+    )
+    for payload in [latest, make_entry_payload()]:
+        assert (await client.post(BASE, json=payload, headers=auth_headers)).status_code == 201
+    result = await client.get(url, headers=auth_headers)
+    assert result.json() == {
+        "sleep_start": latest["sleep_start"],
+        "sleep_end": latest["sleep_end"],
+        "estimated_sleep_seconds": 25200,
+        "awake_seconds": 0,
+        "resting_heart_rate": 58,
+    }

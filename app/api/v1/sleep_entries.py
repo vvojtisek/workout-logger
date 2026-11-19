@@ -8,6 +8,7 @@ from app.schemas.common import ErrorResponse
 from app.schemas.sleep_entries import (
     PaginatedSleepEntriesResponse,
     SleepEntryCreate,
+    SleepEntryDefaults,
     SleepEntryRead,
     SleepEntryReplace,
     SleepTrends,
@@ -36,6 +37,17 @@ async def list_sleep_entries(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get(
+    "/entry-defaults",
+    operation_id="get_sleep_entry_defaults",
+    summary="Get the last sleep window and latest optional measurements",
+)
+async def get_sleep_entry_defaults(
+    session: AsyncSession = Depends(get_session),
+) -> SleepEntryDefaults:
+    return await sleep_entries_service.get_entry_defaults(session)
 
 
 @router.get(

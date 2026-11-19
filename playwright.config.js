@@ -37,6 +37,7 @@ const MOBILE_SPECS = [
   "coach-loop.spec.js",
   "cardio-recovery.spec.js",
   "biometrics.spec.js",
+  "sleep.spec.js",
 ];
 
 export default defineConfig({
