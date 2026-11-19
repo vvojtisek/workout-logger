@@ -52,6 +52,21 @@ class PaginatedBodyMetricsResponse(PaginatedResponse[BodyMetricRead]):
     pass
 
 
+class BodyMetricEntryDefaults(BaseModel):
+    """Last recorded value of each measurement, or None if never recorded."""
+
+    weight_kg: float | None
+    body_fat_percent: float | None
+    neck_cm: float | None
+    chest_cm: float | None
+    waist_cm: float | None
+    hips_cm: float | None
+    biceps_cm: float | None
+    forearms_cm: float | None
+    thighs_cm: float | None
+    calves_cm: float | None
+
+
 class BodyMetricTrends(BaseModel):
     latest: BodyMetricRead | None
     weight_kg_delta_7d: float | None

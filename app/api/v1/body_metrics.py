@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_session
 from app.schemas.body_metrics import (
     BodyMetricCreate,
+    BodyMetricEntryDefaults,
     BodyMetricRead,
     BodyMetricReplace,
     BodyMetricTrends,
@@ -36,6 +37,17 @@ async def list_body_metrics(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get(
+    "/entry-defaults",
+    operation_id="get_body_metric_entry_defaults",
+    summary="Get the latest recorded value for each measurement",
+)
+async def get_body_metric_entry_defaults(
+    session: AsyncSession = Depends(get_session),
+) -> BodyMetricEntryDefaults:
+    return await body_metrics_service.get_entry_defaults(session)
 
 
 @router.get(

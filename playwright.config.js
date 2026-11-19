@@ -36,6 +36,7 @@ const MOBILE_SPECS = [
   "rep-retention.spec.js",
   "coach-loop.spec.js",
   "cardio-recovery.spec.js",
+  "biometrics.spec.js",
 ];
 
 export default defineConfig({
