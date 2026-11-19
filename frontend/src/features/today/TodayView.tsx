@@ -53,7 +53,6 @@ import {
   writeSkippedEvent,
 } from "@/lib/today";
 import type { RepeatableMeal } from "@/lib/today";
-import { useIsDesktop } from "@/lib/use-media-query";
 import { toast } from "@/ui/Toast";
 import { Button } from "@/ui";
 import { canonicalClock, ClockInput } from "@/ui/ClockInput";
@@ -200,7 +199,6 @@ export function TodayView() {
     ...FRESH,
     queryFn: () => apiFetch<{ items: ReadinessLog[] }>(`/readiness-logs?start=${today}&end=${today}`),
   });
-  const isDesktop = useIsDesktop();
 
   const occurrences = calendar.data?.load_events ?? [];
   const next = nextSportEvent(occurrences, now);
@@ -242,24 +240,15 @@ export function TodayView() {
     </div>
   );
 
-  // Phone: the one column above. Desktop: the same column beside the analysis
-  // panels, which use the width instead of stretching the column.
-  if (!isDesktop) {
-    return (
-      <section id="today-view" className="flex flex-col gap-3">
-        {main}
-      </section>
-    );
-  }
   return (
     <section
       id="today-view"
-      className="grid grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)] items-start gap-x-10"
+      className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)] lg:gap-x-10"
     >
       {main}
       <aside
         aria-label="Training analysis"
-        className="grid min-w-0 grid-cols-1 gap-x-10 gap-y-8 xl:grid-cols-2"
+        className="grid min-w-0 grid-cols-1 gap-x-10 gap-y-4 border-t border-line-muted pt-5 lg:border-0 lg:pt-0 xl:grid-cols-2"
       >
         <div className="xl:col-span-2">
           <VolumeChart logs={logs.data?.items ?? []} />
