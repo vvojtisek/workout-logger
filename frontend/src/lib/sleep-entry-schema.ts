@@ -15,10 +15,10 @@ export const sleepEntryPayloadSchema = z
           return false;
         }
       }, "Not a recognized IANA timezone name"),
-    estimated_sleep_seconds: z.number().min(0).max(86_400).nullable(),
-    awake_seconds: z.number().min(0).max(86_400).nullable(),
+    estimated_sleep_seconds: z.number().int().min(0).max(86_400).nullable(),
+    awake_seconds: z.number().int().min(0).max(86_400).nullable(),
     quality_score: z.number().int().min(1).max(5).nullable(),
-    resting_heart_rate: z.number().min(20).max(250).nullable(),
+    resting_heart_rate: z.number().int().min(20).max(250).nullable(),
     notes: z.string().max(2000).nullable(),
     source: z.string().max(30),
   })

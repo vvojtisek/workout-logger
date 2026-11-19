@@ -123,7 +123,7 @@ function minutesOfDay(value: string): number {
 }
 
 /** Bed and wake times to start from: the last night logged, else 23:00 to 07:00. */
-export function sleepDefaults(latest: SleepEntry | null): { bedMinutes: number; wakeMinutes: number } {
+export function sleepDefaults(latest: Pick<SleepEntry, "sleep_start" | "sleep_end"> | null): { bedMinutes: number; wakeMinutes: number } {
   if (!latest) return { bedMinutes: 23 * 60, wakeMinutes: 7 * 60 };
   return { bedMinutes: minutesOfDay(latest.sleep_start), wakeMinutes: minutesOfDay(latest.sleep_end) };
 }

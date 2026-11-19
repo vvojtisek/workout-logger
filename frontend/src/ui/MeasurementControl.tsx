@@ -6,6 +6,7 @@ interface MeasurementControlProps {
   value: string;
   min: number;
   max: number;
+  step?: 0.1 | 1;
   onChange: (value: string) => void;
   error?: string;
   included?: boolean;
@@ -18,6 +19,7 @@ export function MeasurementControl({
   value,
   min,
   max,
+  step = 0.1,
   onChange,
   error,
   included,
@@ -33,13 +35,13 @@ export function MeasurementControl({
   function nudge(direction: number) {
     const next = Math.max(
       min,
-      Math.min(max, Math.round(((numeric ?? 0) + direction * 0.1) * 10) / 10),
+      Math.min(max, Math.round(((numeric ?? 0) + direction * step) * 10) / 10),
     );
     onChange(String(next));
     center(next);
   }
-  const low = anchor === null ? min : Math.max(min, Math.floor(anchor) - 2);
-  const high = anchor === null ? max : Math.min(max, Math.ceil(anchor) + 2);
+  const low = anchor === null ? min : Math.max(min, Math.floor(anchor) - 20 * step);
+  const high = anchor === null ? max : Math.min(max, Math.ceil(anchor) + 20 * step);
   const id = `metric-${name}`;
   const title = label.split(" (")[0];
   const buttonClass = "h-11 w-11 shrink-0 text-xl text-accent disabled:opacity-40";
@@ -76,8 +78,8 @@ export function MeasurementControl({
         <input
           id={id}
           type="number"
-          inputMode="decimal"
-          step="any"
+          inputMode={step === 1 ? "numeric" : "decimal"}
+          step={step === 1 ? 1 : "any"}
           min={min}
           max={max}
           value={value}
@@ -102,7 +104,7 @@ export function MeasurementControl({
         type="range"
         min={low}
         max={high}
-        step="0.1"
+        step={step}
         value={numeric ?? low}
         aria-label={`Adjust ${title}`}
         aria-valuetext={value || "No measurement"}

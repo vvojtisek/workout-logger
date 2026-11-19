@@ -8,6 +8,7 @@ from app.exceptions import NotFoundError
 from app.models import SleepEntry
 from app.schemas.sleep_entries import (
     SleepEntryCreate,
+    SleepEntryDefaults,
     SleepEntryRead,
     SleepEntryReplace,
     SleepTrends,
@@ -28,6 +29,26 @@ async def list_sleep_entries(
         select(SleepEntry).order_by(SleepEntry.sleep_end.desc()).limit(limit).offset(offset)
     )
     return list(result.scalars().all()), total or 0
+
+
+async def get_entry_defaults(session: AsyncSession) -> SleepEntryDefaults:
+    # Both timestamps are required on stored rows. Independently skipping nulls
+    # also finds the last wearable readings across nights logged by hand.
+    fields = []
+    for name in SleepEntryDefaults.model_fields:
+        column = getattr(SleepEntry, name)
+        latest = (
+            select(column)
+            .where(column.is_not(None))
+            .order_by(
+                SleepEntry.sleep_end.desc(), SleepEntry.created_at.desc(), SleepEntry.id.desc()
+            )
+            .limit(1)
+            .scalar_subquery()
+        )
+        fields.append(latest.label(name))
+    row = (await session.execute(select(*fields))).mappings().one()
+    return SleepEntryDefaults.model_validate(row)
 
 
 async def get_sleep_entry(session: AsyncSession, sleep_entry_id: UUID) -> SleepEntry:

@@ -77,6 +77,14 @@ class PaginatedSleepEntriesResponse(PaginatedResponse[SleepEntryRead]):
     pass
 
 
+class SleepEntryDefaults(BaseModel):
+    sleep_start: datetime | None
+    sleep_end: datetime | None
+    estimated_sleep_seconds: int | None
+    awake_seconds: int | None
+    resting_heart_rate: int | None
+
+
 class SleepTrends(BaseModel):
     latest: SleepEntryRead | None
     average_sleep_seconds_7d: float | None
