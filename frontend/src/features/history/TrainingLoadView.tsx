@@ -652,6 +652,7 @@ export function TrainingLoadView() {
   const params = new URLSearchParams({ week_of: weekOf, weeks: String(weeks), timezone });
   const { data, error, isPending } = useQuery({
     queryKey: ["training-load", weekOf, weeks, timezone],
+    staleTime: 0,
     queryFn: () => apiFetch<TrainingLoadResponse>(`/training-load?${params.toString()}`),
     enabled: validDate,
   });

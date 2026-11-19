@@ -9,6 +9,7 @@ export function useBodyEntries(from: string | null, to: string | null, listVersi
   if (to) query.set("date_to", new Date(`${addTrendDays(to, 1)}T00:00`).toISOString());
   return useQuery({
     queryKey: ["body-metrics", from, to, listVersion],
+    staleTime: 0,
     queryFn: ({ signal }) => fetchAllEntries<BodyMetric>(`/body-metrics?${query}`, signal),
   });
 }
@@ -21,6 +22,7 @@ export function useSleepEntries(from: string | null, to: string | null, listVers
   if (to) query.set("date_to", `${addTrendDays(to, 2)}T00:00:00Z`);
   return useQuery({
     queryKey: ["sleep-entries", from, to, listVersion],
+    staleTime: 0,
     queryFn: async ({ signal }) => {
       const entries = await fetchAllEntries<SleepEntry>(`/sleep-entries?${query}`, signal);
       return entries.filter(({ sleep_date: date }) => (!from || date >= from) && (!to || date <= to));

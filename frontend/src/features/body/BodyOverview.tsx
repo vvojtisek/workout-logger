@@ -19,10 +19,12 @@ export function BodyOverview() {
   const sleepEntries = useSleepEntries(from, today);
   const body = useQuery({
     queryKey: ["body-metrics-trends"],
+    staleTime: 0,
     queryFn: ({ signal }) => apiFetch<BodyMetricTrends>("/body-metrics/trends", { signal }),
   });
   const sleep = useQuery({
     queryKey: ["sleep-trends"],
+    staleTime: 0,
     queryFn: ({ signal }) => apiFetch<SleepTrends>("/sleep-entries/trends", { signal }),
   });
   const latestWeight = body.data?.latest;

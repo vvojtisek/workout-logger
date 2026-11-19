@@ -29,6 +29,7 @@ export function useNutritionTrends(range: TrendRange, end: string) {
   if (start) params.set("from", start);
   return useQuery({
     queryKey: ["nutrition-trends", start, end],
+    staleTime: 0,
     queryFn: ({ signal }) => apiFetch<NutritionTrendDay[]>(`/nutrition/trends?${params}`, { signal }),
   });
 }

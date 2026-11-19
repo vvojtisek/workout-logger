@@ -31,6 +31,7 @@ export function MealLogView() {
   const [deleteTarget, setDeleteTarget] = useState<MealEntry | null>(null);
   const entriesQuery = useQuery({
     queryKey: ["meal-entries", suffix, listVersion],
+    staleTime: 0,
     queryFn: ({ signal }) => fetchAllEntries<MealEntry>(`/meal-entries${suffix}`, signal),
   });
   const entries = entriesQuery.data ?? [];

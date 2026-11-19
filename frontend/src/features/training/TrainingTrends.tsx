@@ -67,6 +67,7 @@ export function TrainingTrends() {
   if (from) query.set("date_from", new Date(`${from}T00:00`).toISOString());
   const logs = useQuery({
     queryKey: ["training", "trends", query.toString()],
+    staleTime: 0,
     queryFn: ({ signal }) => fetchAllEntries<WorkoutLog>(`/logs?${query}`, signal),
   });
 

@@ -45,6 +45,7 @@ export function NutritionDashboardView() {
 
   const { data, error, isLoading } = useQuery({
     queryKey: ["nutrition-daily", date],
+    staleTime: 0,
     queryFn: () => apiFetch<NutritionDailySummary>(`/nutrition/daily?date=${date}`),
   });
 

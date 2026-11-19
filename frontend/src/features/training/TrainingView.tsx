@@ -18,18 +18,21 @@ export function TrainingView() {
   const from = new Date(`${addTrendDays(week, -11 * 7)}T00:00`).toISOString();
   const to = new Date(`${addTrendDays(today, 1)}T00:00`).toISOString();
   const calendar = useQuery({
-    queryKey: ["training", "calendar", today],
+    queryKey: ["calendar", "training-overview", today],
+    staleTime: 0,
     queryFn: ({ signal }) => apiFetch<{ items: ScheduledWorkout[] }>(
       `/calendar?from=${today}&to=${addTrendDays(today, 30)}`,
       { signal },
     ),
   });
   const programs = useQuery({
-    queryKey: ["training", "programs"],
+    queryKey: ["programs", "training-overview"],
+    staleTime: 0,
     queryFn: ({ signal }) => fetchAllEntries<Program>("/programs", signal),
   });
   const logsQuery = useQuery({
     queryKey: ["training", "preview", from, to],
+    staleTime: 0,
     queryFn: ({ signal }) => fetchAllEntries<WorkoutLog>(
       `/logs?${new URLSearchParams({ date_from: from, date_to: to })}`,
       signal,
