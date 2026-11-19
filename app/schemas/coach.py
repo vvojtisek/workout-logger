@@ -25,6 +25,8 @@ CoachActivityType = Literal[
     "meditation",
     "stretching",
     "cold_plunge",
+    "hot_tub",
+    "massage",
 ]
 
 
@@ -34,8 +36,8 @@ class CoachActivityIn(BaseModel):
             "swim_sauna = a swim followed by sauna rounds, saved as one swim. Omitted fields "
             "use defaults: hockey 75 min RPE 8; swim 30 min 30 laps RPE 5; swim_sauna adds "
             "3 sauna rounds; sauna 45 min 3 cycles; gym 45 min RPE 7; meditation and "
-            "stretching 15 min; cold plunge 5 min. Sauna, meditation, stretching and "
-            "cold_plunge are recovery and add no training load."
+            "stretching 15 min; cold plunge 5 min; hot tub 15 min; massage 30 min. "
+            "Recovery sessions add no training load."
         )
     )
     performed_at: datetime | None = Field(default=None, description="Omitted: now.")

@@ -65,6 +65,13 @@ pending invite frees its reserved slot. Disabled accounts still count toward the
 
 ---
 
+## Logging recovery
+
+Open **Log → Recovery**, choose **Hot tub (Jacuzzi)** or **Massage**, adjust the duration
+and save. The first hot tub entry starts at 15 minutes and the first massage at 30 minutes.
+Both appear in recovery history and can become one-tap routines based on previous sessions.
+The activity types for API and MCP clients are `hot_tub` and `massage`.
+
 ## Logging biometrics
 
 Open **Biometrics → Log entry** to record weight, body fat and waist. The date and time

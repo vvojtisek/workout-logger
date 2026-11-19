@@ -1493,3 +1493,58 @@ def test_cardio_recovery_migration_backfills_cycles_and_enforces_values(
     assert "cycles" not in columns and "linked_log_id" not in columns
     assert kept == 3
     sync_engine.dispose()
+
+
+def test_hot_tub_massage_migration_preserves_history_and_links(alembic_config, alembic_db_path):
+    previous = "e6c2a8f4b0d3"
+    command.upgrade(alembic_config, previous)
+    engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    insert = text(
+        "INSERT INTO workout_logs (id, performed_at, total_time_minutes, overall_feeling, "
+        "source, activity_type, linked_log_id, created_at, updated_at) VALUES "
+        "(:id, CURRENT_TIMESTAMP, 30, 4, 'manual', :kind, :link, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+    )
+    with engine.begin() as connection:
+        connection.execute(insert, {"id": "training", "kind": None, "link": None})
+        connection.execute(insert, {"id": "recovery", "kind": "sauna", "link": "training"})
+        connection.execute(
+            text(
+                "INSERT INTO exercise_logs (id, workout_log_id, sort_order, exercise_name, "
+                "sets_count, reps_per_set, rest_time_seconds) "
+                "VALUES ('exercise', 'training', 1, 'Squat', 1, '[5]', 60)"
+            )
+        )
+
+    command.upgrade(alembic_config, "head")
+    with engine.begin() as connection:
+        for kind in ["hot_tub", "massage"]:
+            connection.execute(insert, {"id": kind, "kind": kind, "link": "training"})
+        assert not connection.execute(text("PRAGMA foreign_key_check")).all()
+        with pytest.raises(IntegrityError):
+            connection.execute(insert, {"id": "bad", "kind": "invalid", "link": None})
+
+    with pytest.raises(RuntimeError, match="Cannot downgrade"):
+        command.downgrade(alembic_config, previous)
+    with engine.begin() as connection:
+        assert connection.execute(text("SELECT count(*) FROM workout_logs")).scalar_one() == 4
+        connection.execute(
+            text("DELETE FROM workout_logs WHERE activity_type IN ('hot_tub', 'massage')")
+        )
+    command.downgrade(alembic_config, previous)
+    with engine.begin() as connection:
+        assert (
+            connection.execute(
+                text("SELECT linked_log_id FROM workout_logs WHERE id = 'recovery'")
+            ).scalar_one()
+            == "training"
+        )
+        assert (
+            connection.execute(
+                text("SELECT workout_log_id FROM exercise_logs WHERE id = 'exercise'")
+            ).scalar_one()
+            == "training"
+        )
+        assert not connection.execute(text("PRAGMA foreign_key_check")).all()
+        with pytest.raises(IntegrityError):
+            connection.execute(insert, {"id": "new", "kind": "massage", "link": None})
+    engine.dispose()

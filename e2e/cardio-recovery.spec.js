@@ -264,3 +264,71 @@ test("the recovery form saves a cold plunge with cycles and no link", async ({ p
     await removeLogs(request, logIds);
   }
 });
+
+
+test("hot tub and massage can be logged and repeated from Recovery", async ({ page, request }) => {
+  /** @type {string[]} */
+  const ids = [];
+  page.setDefaultTimeout(5000);
+  const tag = `[E2E:${process.env.TEST_RUN_ID || Date.now()}:new-recovery]`;
+  try {
+    const trainingId = await createLog(request, {
+      performed_at: at(new Date(), 0, 0).toISOString(),
+      total_time_minutes: 15,
+      overall_feeling: 3,
+      activity_type: "swimming",
+      notes: tag,
+    });
+    ids.push(trainingId);
+    await page.goto("/recovery");
+    const form = page.getByTestId("recovery-form");
+    for (const [kind, label, minutes] of [
+      ["hot_tub", "Hot tub (Jacuzzi)", "15"],
+      ["massage", "Massage", "30"],
+    ]) {
+      await form.getByTestId("recovery-type").getByRole("button", { name: label, exact: true }).click();
+      await expect(form.getByLabel("Duration in minutes")).toHaveValue(minutes);
+      await form
+        .getByTestId("recovery-link")
+        .getByRole("button", { name: "After Swimming 00:00", exact: true })
+        .click();
+      const saved = page.waitForResponse(
+        (r) => r.request().method() === "POST" && r.url().endsWith("/api/v1/coach/log"),
+      );
+      await form.getByRole("button", { name: `Save ${label.toLowerCase()}` }).click();
+      const log = (await (await saved).json()).workout_log;
+      ids.push(log.id);
+      expect(log).toMatchObject({
+        activity_type: kind,
+        activity_category: "recovery",
+        effort_rpe: null,
+        linked_log_id: trainingId,
+      });
+      await expect(page.getByTestId("recovery-today")).toContainText(label);
+      await page
+        .getByRole("status")
+        .filter({ hasText: `${label} logged` })
+        .getByRole("button", { name: "Dismiss" })
+        .click();
+    }
+    // Predictions use completed days. Open tomorrow's form to repeat a saved routine.
+    const tomorrow = daysAgo(-1);
+    await page.clock.setFixedTime(tomorrow);
+    await page.reload();
+    const preset = page.getByTestId("recovery-preset").filter({ hasText: "Massage · 30 min" });
+    await expect(page.getByTestId("recovery-preset").filter({ hasText: "Hot tub (Jacuzzi)" })).toBeVisible();
+    const repeated = page.waitForResponse(
+      (r) => r.request().method() === "POST" && r.url().endsWith("/api/v1/coach/log"),
+    );
+    await preset.click();
+    const log = (await (await repeated).json()).workout_log;
+    ids.push(log.id);
+    expect(log).toMatchObject({
+      activity_type: "massage",
+      activity_category: "recovery",
+      total_time_minutes: 30,
+    });
+  } finally {
+    await removeLogs(request, ids.reverse());
+  }
+});

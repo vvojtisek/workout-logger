@@ -13,6 +13,8 @@ export const ACTIVITY_TYPES = [
   "meditation",
   "stretching",
   "cold_plunge",
+  "hot_tub",
+  "massage",
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
@@ -20,7 +22,7 @@ export type ActivityCategory = "strength" | "cardio" | "recovery";
 
 /** Mirrors CARDIO_TYPES / RECOVERY_TYPES in app/services/activity_kinds.py. */
 export const CARDIO_TYPES = ["ice_hockey", "swimming", "cycling", "hiking", "running", "other"] as const;
-export const RECOVERY_TYPES = ["sauna", "stretching", "meditation", "cold_plunge"] as const;
+export const RECOVERY_TYPES = ["sauna", "stretching", "meditation", "cold_plunge", "hot_tub", "massage"] as const;
 export type CardioType = (typeof CARDIO_TYPES)[number];
 export type RecoveryType = (typeof RECOVERY_TYPES)[number];
 
@@ -39,6 +41,8 @@ const LABELS: Record<ActivityType, string> = {
   meditation: "Meditation",
   stretching: "Stretching",
   cold_plunge: "Cold plunge",
+  hot_tub: "Hot tub (Jacuzzi)",
+  massage: "Massage",
 };
 
 export function activityLabel(type: ActivityType): string {

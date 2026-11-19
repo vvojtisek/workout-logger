@@ -709,7 +709,7 @@ async def delete_meal(meal_entry_id: UUID) -> dict[str, Any]:
         "set activity_type and optionally distance_km, effort_level (1-5, sets "
         "effort_rpe when that is omitted) or effort_rpe (1-10), feel_before and "
         "feel_after (1 wrecked .. 5 fresh). Recovery types (sauna, meditation, "
-        "stretching, cold_plunge) take cycles, cycle_minutes and linked_log_id (the "
+        "stretching, cold_plunge, hot_tub, massage) take cycles, cycle_minutes and linked_log_id (the "
         "session they followed). overall_feeling is 1-5; performed_at is a UTC "
         "timestamp." + _LOAD_NOTE
     ),
@@ -960,7 +960,7 @@ async def get_coaching_context(days: int = 7, today: date | None = None) -> dict
         "Record how the athlete feels (soreness 1-10 with sore muscle groups, fatigue 1-10, "
         "sleep quality 1-10, physical constraints) and/or an activity they finished: "
         "ice_hockey, swimming, swim_sauna, sauna, gym, cycling, hiking, running, other, "
-        "meditation, stretching, cold_plunge. Omitted activity fields use defaults (hockey 75 "
+        "meditation, stretching, cold_plunge, hot_tub, massage. Omitted activity fields use defaults (hockey 75 "
         "min RPE 8, swim_sauna 30 min 30 laps 3 sauna rounds). effort_level 1-5, feel_before/"
         "feel_after 1-5, cycles and cycle_minutes for recovery. A recovery entry links itself "
         "to the training session up to 6 h before it; a cardio entry fills in a matching "
