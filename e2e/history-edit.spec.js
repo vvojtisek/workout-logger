@@ -40,7 +40,8 @@ test("edits a past workout's date, notes, exercises and sets from its history pa
     await page.locator("#edit-log-btn").click();
     await expect(page.getByRole("heading", { name: "Edit Workout", exact: true })).toBeVisible();
 
-    await page.locator("#edit-performed-at").fill("2033-03-11 18:15");
+    await page.getByLabel("Performed at date").fill("2033-03-11");
+    await page.getByRole("textbox", { name: "Performed at time" }).fill("1815");
     await page.locator("#edit-notes").fill(`${tag} after`);
     await page.locator("#edit-feeling").selectOption("5");
 

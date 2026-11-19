@@ -145,7 +145,7 @@ export function draftToPatch(
 ): { patch: LogPatch; error: null } | { patch: null; error: string } {
   const performedAt = localDateTimeInputToIso(draft.performedAt.trim());
   if (!performedAt) {
-    return { patch: null, error: "Enter a valid date and time as YYYY-MM-DD HH:mm." };
+    return { patch: null, error: "Choose a date and enter a time from 00:00 to 23:59." };
   }
   const minutes = Number(draft.totalTime);
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {

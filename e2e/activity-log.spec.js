@@ -31,10 +31,11 @@ test("logs an ice hockey session and a swim through the GUI and shows them in hi
     await expect(page.getByRole("heading", { name: "Log Activity", exact: true })).toBeVisible();
     await expect(page.getByLabel("Activity")).toHaveValue("ice_hockey");
     await expect(page.getByLabel("Distance (km, optional)")).toBeHidden();
-    const startedAt = page.getByLabel("Started at");
-    await expect(startedAt).toHaveAttribute("type", "text");
-    await expect(startedAt).toHaveAttribute("placeholder", "YYYY-MM-DD HH:mm");
-    await startedAt.fill("2032-05-04 19:30");
+    const startDate = page.getByLabel("Started at date");
+    const startTime = page.getByRole("textbox", { name: "Started at time" });
+    await expect(startDate).toHaveAttribute("type", "date");
+    await startDate.fill("2032-05-04");
+    await startTime.fill("1930");
     await page.getByLabel("Duration (minutes)").fill("75");
     await page.getByLabel("Effort (optional)").selectOption("7");
     await page.getByLabel("How you felt", { exact: true }).selectOption("4");
@@ -58,7 +59,8 @@ test("logs an ice hockey session and a swim through the GUI and shows them in hi
     // Swim: distance appears once the activity is not hockey.
     await openPage(page, "Log Activity");
     await page.getByLabel("Activity").selectOption("swimming");
-    await page.getByLabel("Started at").fill("2032-05-05 07:00");
+    await startDate.fill("2032-05-05");
+    await startTime.fill("0700");
     await page.getByLabel("Duration (minutes)").fill("40");
     await page.getByLabel("Distance (km, optional)").fill("1.5");
     await page.getByLabel("Notes (optional)").fill(`${tag} swim`);
