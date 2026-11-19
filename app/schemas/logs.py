@@ -90,6 +90,8 @@ ActivityType = Literal[
     "meditation",
     "stretching",
     "cold_plunge",
+    "hot_tub",
+    "massage",
 ]
 
 _EFFORT_LEVEL_DESCRIPTION = (

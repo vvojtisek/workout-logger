@@ -25,6 +25,8 @@ describe("activityLabel", () => {
       "Meditation",
       "Stretching",
       "Cold plunge",
+      "Hot tub (Jacuzzi)",
+      "Massage",
     ]);
   });
 });

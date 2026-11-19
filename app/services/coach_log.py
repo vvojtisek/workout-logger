@@ -43,6 +43,8 @@ ACTIVITY_DEFAULTS: dict[str, ActivityDefaults] = {
     "meditation": ActivityDefaults("meditation", "Meditation", 15, None),
     "stretching": ActivityDefaults("stretching", "Stretching", 15, None),
     "cold_plunge": ActivityDefaults("cold_plunge", "Cold plunge", 5, None),
+    "hot_tub": ActivityDefaults("hot_tub", "Hot tub (Jacuzzi)", 15, None),
+    "massage": ActivityDefaults("massage", "Massage", 30, None),
     "gym": ActivityDefaults(None, "Gym session", 45, 7),
     "cycling": ActivityDefaults("cycling", "Ride", 60, 5),
     "hiking": ActivityDefaults("hiking", "Hike", 120, 4),

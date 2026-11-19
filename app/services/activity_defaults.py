@@ -48,7 +48,7 @@ OTHER_SEASON_WEIGHT = 0.5
 # Order shown when nothing else separates two types.
 BASE_ORDER: dict[PrefillCategory, tuple[str, ...]] = {
     "cardio": ("ice_hockey", "swimming", "cycling", "hiking", "running", "other"),
-    "recovery": ("sauna", "stretching", "meditation", "cold_plunge"),
+    "recovery": ("sauna", "stretching", "meditation", "cold_plunge", "hot_tub", "massage"),
 }
 DEFAULT_MINUTES = {
     "ice_hockey": 75,
@@ -61,6 +61,8 @@ DEFAULT_MINUTES = {
     "meditation": 15,
     "stretching": 15,
     "cold_plunge": 5,
+    "hot_tub": 15,
+    "massage": 30,
 }
 DEFAULT_CYCLES = {"sauna": 3}
 # Minutes per sauna round when an entry only gave rounds (cooling included).
@@ -70,6 +72,8 @@ LABELS = {
     "meditation": "Meditation",
     "stretching": "Stretching",
     "cold_plunge": "Cold plunge",
+    "hot_tub": "Hot tub (Jacuzzi)",
+    "massage": "Massage",
 }
 STARTER_PRESETS: tuple[tuple[str, int | None, int], ...] = (
     ("sauna", 3, 45),

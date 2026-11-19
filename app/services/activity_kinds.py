@@ -3,7 +3,7 @@ relates to the CR-10 session RPE that training load is built on.
 
 A log with no activity_type is a strength workout. Every other type is either
 cardio/sport or recovery; recovery sessions (sauna, meditation, stretching,
-cold plunge) are not training and add no training load.
+cold plunge, hot tub and massage) are not training and add no training load.
 """
 
 from datetime import date
@@ -20,7 +20,14 @@ CARDIO_TYPES: tuple[str, ...] = (
     "running",
     "other",
 )
-RECOVERY_TYPES: tuple[str, ...] = ("sauna", "meditation", "stretching", "cold_plunge")
+RECOVERY_TYPES: tuple[str, ...] = (
+    "sauna",
+    "meditation",
+    "stretching",
+    "cold_plunge",
+    "hot_tub",
+    "massage",
+)
 # Stored order: the original seven, then the recovery types added later.
 ALL_ACTIVITY_TYPES: tuple[str, ...] = (
     "ice_hockey",
@@ -33,6 +40,8 @@ ALL_ACTIVITY_TYPES: tuple[str, ...] = (
     "meditation",
     "stretching",
     "cold_plunge",
+    "hot_tub",
+    "massage",
 )
 
 # Effort level 1 (recovery, relaxed) .. 5 (max effort) onto session RPE (CR-10):

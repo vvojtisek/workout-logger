@@ -86,7 +86,7 @@ async def test_recovery_log_keeps_cycles_and_adds_no_training_load(client, auth_
     assert sauna["cycle_minutes"] == 12
     assert sauna["linked_log_id"] == swim["id"]
 
-    for kind in ("meditation", "stretching", "cold_plunge"):
+    for kind in ("meditation", "stretching", "cold_plunge", "hot_tub", "massage"):
         body = await create(
             client,
             auth_headers,
@@ -105,6 +105,8 @@ async def test_recovery_log_keeps_cycles_and_adds_no_training_load(client, auth_
         "meditation",
         "stretching",
         "cold_plunge",
+        "hot_tub",
+        "massage",
     }
     cardio_only = await client.get(f"{LOGS}?category=cardio", headers=auth_headers)
     assert [item["id"] for item in cardio_only.json()["items"]] == [swim["id"]]
@@ -283,11 +285,13 @@ async def test_rated_hockey_fills_the_watch_session_instead_of_duplicating(clien
 
 async def test_recovery_alone_is_not_training_for_readiness(client, auth_headers):
     yesterday = datetime.now(UTC) - timedelta(days=1)
-    await client.post(
-        COACH_LOG,
-        json={"activity": {"type": "meditation", "performed_at": yesterday.isoformat()}},
-        headers=auth_headers,
-    )
+    for activity in ("meditation", "hot_tub", "massage"):
+        logged = await client.post(
+            COACH_LOG,
+            json={"activity": {"type": activity, "performed_at": yesterday.isoformat()}},
+            headers=auth_headers,
+        )
+        assert logged.status_code == 201
     check_in = await client.post(
         COACH_LOG,
         json={"readiness": {"soreness": 2, "fatigue": 2, "sleep_quality": 8}},

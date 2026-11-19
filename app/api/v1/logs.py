@@ -26,7 +26,7 @@ router = APIRouter(prefix="/logs", tags=["logs"])
     summary="List workout logs",
     description="Returns a paginated list of performed workouts, sorted by performed_at descending. "
     "The date range is [date_from, date_to). `category` keeps only strength (no "
-    "activity_type), cardio/sport, or recovery (sauna, meditation, stretching, cold plunge) logs.",
+    "activity_type), cardio/sport, or recovery logs (including hot tub and massage).",
     response_model=PaginatedLogsResponse,
 )
 async def list_workout_logs(
