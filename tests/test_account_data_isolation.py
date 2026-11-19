@@ -301,6 +301,10 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
         other_sleep = await client.get("/api/v1/sleep-entries", headers=other_cookies)
         assert other_sleep.status_code == 200
         assert all(item["id"] != sleep_id for item in other_sleep.json()["items"])
+        for cookies, expected in [(owner_cookies, "2026-10-13T08:00:00Z"), (other_cookies, None)]:
+            defaults = await client.get("/api/v1/sleep-entries/entry-defaults", headers=cookies)
+            assert defaults.status_code == 200
+            assert defaults.json()["sleep_end"] == expected
 
         created_program = await client.post(
             "/api/v1/programs",

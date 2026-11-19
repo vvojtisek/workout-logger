@@ -17,7 +17,7 @@ import {
 } from "@/lib/date-time-inputs";
 import { Block, Button, Input, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
-import { MeasurementControl } from "./MeasurementControl";
+import { MeasurementControl } from "@/ui/MeasurementControl";
 
 const DAILY = ["weight_kg", "body_fat_percent", "waist_cm"] as const;
 const OTHER = [

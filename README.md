@@ -84,6 +84,18 @@ value to record the same reading again, or adjust it to include the new value. T
 its starting values from `GET /api/v1/body-metrics/entry-defaults`. A measurement with no
 history is returned as `null` and starts blank.
 
+## Logging sleep
+
+In **Sleep → Log sleep**, the previous bedtime and wake time are suggested for the night
+ending today. The first entry starts at 23:00 and ends at 07:00. Use the device date and
+time pickers to change either end and see the time in bed. Tap a quality rating to select
+it, or tap it again to clear it.
+
+Under **Sleep details**, estimated sleep, awake time and resting heart rate start from
+their own latest readings. Check or adjust the ones to record. Notes and the nightly
+rating start blank. `GET /api/v1/sleep-entries/entry-defaults` supplies the suggested
+times and readings for the current account.
+
 ## Local Development
 
 ### 1. Python Virtual Environment (No Docker)

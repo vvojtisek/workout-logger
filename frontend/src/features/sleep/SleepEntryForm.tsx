@@ -1,285 +1,327 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { SleepEntry } from "@/api/types";
-import { sleepEntryPayloadSchema } from "@/lib/sleep-entry-schema";
 import { localDateTimeInputToIso, toLocalDateTimeInput } from "@/lib/date-time-inputs";
+import { SLEEP_QUALITY_SCALE, scaleLabel, scaleOptionText, scaleValues } from "@/lib/scales";
+import { sleepEntryPayloadSchema, type SleepEntryPayload } from "@/lib/sleep-entry-schema";
+import { deviceTimezone, formatSleepDuration, sleepDefaults, sleepWindow } from "@/lib/today";
 import { Button, Block, Input, PageHeading } from "@/ui";
+import { MeasurementControl } from "@/ui/MeasurementControl";
 import { toast } from "@/ui/Toast";
-import { SLEEP_QUALITY_SCALE } from "@/lib/scales";
-import { ScaleSelect } from "@/ui/ScaleSelect";
 
-function defaultTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    return "UTC";
-  }
-}
+const readings = [
+  { key: "estimated_sleep_seconds", label: "Estimated sleep (min)", unit: 60, min: 0, max: 1440 },
+  { key: "awake_seconds", label: "Time awake (min)", unit: 60, min: 0, max: 1440 },
+  { key: "resting_heart_rate", label: "Resting heart rate (bpm)", unit: 1, min: 20, max: 250 },
+] as const;
+type ReadingKey = (typeof readings)[number]["key"];
+type Defaults = Pick<SleepEntry, ReadingKey> & {
+  sleep_start: string | null;
+  sleep_end: string | null;
+};
 
-interface FieldState {
-  sleep_start: string;
-  sleep_end: string;
-  timezone: string;
-  estimated_sleep_minutes: string;
-  awake_minutes: string;
-  quality_score: string;
-  resting_heart_rate: string;
-  notes: string;
-}
-
-function emptyFields(): FieldState {
-  return {
-    sleep_start: "",
-    sleep_end: "",
-    timezone: defaultTimezone(),
-    estimated_sleep_minutes: "",
-    awake_minutes: "",
-    quality_score: "",
-    resting_heart_rate: "",
-    notes: "",
-  };
-}
-
-function fieldsFromEntry(entry: SleepEntry): FieldState {
-  return {
-    sleep_start: toLocalDateTimeInput(entry.sleep_start),
-    sleep_end: toLocalDateTimeInput(entry.sleep_end),
-    timezone: entry.timezone,
-    estimated_sleep_minutes:
-      entry.estimated_sleep_seconds != null ? String(Math.round(entry.estimated_sleep_seconds / 60)) : "",
-    awake_minutes: entry.awake_seconds != null ? String(Math.round(entry.awake_seconds / 60)) : "",
-    quality_score: entry.quality_score != null ? String(entry.quality_score) : "",
-    resting_heart_rate: entry.resting_heart_rate != null ? String(entry.resting_heart_rate) : "",
-    notes: entry.notes ?? "",
-  };
-}
-
-function buildPayload(fields: FieldState) {
-  return {
-    sleep_start: localDateTimeInputToIso(fields.sleep_start),
-    sleep_end: localDateTimeInputToIso(fields.sleep_end),
-    timezone: fields.timezone.trim(),
-    estimated_sleep_seconds: fields.estimated_sleep_minutes.trim()
-      ? Number.parseInt(fields.estimated_sleep_minutes, 10) * 60
+function initialWindow(entry?: SleepEntry, previous?: Defaults) {
+  if (entry)
+    return {
+      start: toLocalDateTimeInput(entry.sleep_start),
+      end: toLocalDateTimeInput(entry.sleep_end),
+    };
+  const { bedMinutes, wakeMinutes } = sleepDefaults(
+    previous?.sleep_start && previous.sleep_end
+      ? { sleep_start: previous.sleep_start, sleep_end: previous.sleep_end }
       : null,
-    awake_seconds: fields.awake_minutes.trim()
-      ? Number.parseInt(fields.awake_minutes, 10) * 60
-      : null,
-    quality_score: fields.quality_score.trim() ? Number.parseInt(fields.quality_score, 10) : null,
-    resting_heart_rate: fields.resting_heart_rate.trim()
-      ? Number.parseInt(fields.resting_heart_rate, 10)
-      : null,
-    notes: fields.notes.trim() || null,
-    source: "manual",
-  };
+  );
+  const { start, end } = sleepWindow(new Date(), bedMinutes, wakeMinutes);
+  return { start: toLocalDateTimeInput(start), end: toLocalDateTimeInput(end) };
+}
+
+function instant(local: string, original?: string) {
+  return original && toLocalDateTimeInput(original) === local
+    ? original
+    : localDateTimeInputToIso(local);
+}
+
+function ClockFields({
+  label,
+  value,
+  onChange,
+  error,
+}: {
+  label: "Bedtime" | "Wake";
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+}) {
+  const [day, time] = value.split(" ");
+  const errorId = `sleep-${label}-error`;
+  return (
+    <fieldset className="min-w-0">
+      <legend className="field-label">{label === "Wake" ? "Woke up" : "Went to bed"}</legend>
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          type="date"
+          aria-label={`${label} date`}
+          required
+          value={day}
+          className="min-w-0 text-base"
+          onChange={(e) => onChange(`${e.target.value} ${time}`)}
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
+        />
+        <Input
+          type="time"
+          aria-label={`${label} time`}
+          required
+          value={time}
+          className="min-w-0 text-base"
+          onChange={(e) => onChange(`${day} ${e.target.value}`)}
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
+        />
+      </div>
+      {error && (
+        <p id={errorId} className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+    </fieldset>
+  );
 }
 
 export function SleepEntryForm() {
   const { entryId } = useParams<{ entryId: string }>();
-  const isEditing = Boolean(entryId);
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-
-  const [fields, setFields] = useState<FieldState>(emptyFields);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const seededEntryId = useRef<string | null>(null);
-
-  const { data: existing, isLoading } = useQuery({
+  const existing = useQuery({
     queryKey: ["sleep-entry", entryId],
     queryFn: () => apiFetch<SleepEntry>(`/sleep-entries/${entryId}`),
-    enabled: isEditing,
+    enabled: !!entryId,
   });
+  const defaults = useQuery({
+    queryKey: ["sleep-entries", "entry-defaults"],
+    queryFn: () => apiFetch<Defaults>("/sleep-entries/entry-defaults"),
+    enabled: !entryId,
+    gcTime: 0,
+  });
+  return (
+    <section id="sleep-form-view">
+      <PageHeading>{entryId ? "Edit Sleep Entry" : "Log Sleep"}</PageHeading>
+      {(entryId ? existing : defaults).isLoading ? (
+        <p>Loading sleep entry…</p>
+      ) : entryId && !existing.data ? (
+        <p role="alert">Could not load this sleep entry.</p>
+      ) : (
+        <>
+          {!entryId && defaults.isError && (
+            <p role="status">
+              Previous readings are unavailable. You can enter this night manually.
+            </p>
+          )}
+          <NightForm
+            key={entryId ?? "new"}
+            entry={existing.data}
+            defaults={entryId ? existing.data : defaults.data}
+          />
+        </>
+      )}
+    </section>
+  );
+}
 
-  useEffect(() => {
-    if (!existing || seededEntryId.current === existing.id) return;
-    seededEntryId.current = existing.id;
-    setFields(fieldsFromEntry(existing));
-  }, [existing]);
-
+function NightForm({ entry, defaults }: { entry?: SleepEntry; defaults?: Defaults }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [night, setNight] = useState(() => initialWindow(entry, defaults));
+  const [quality, setQuality] = useState(entry?.quality_score ?? null);
+  const [timezone, setTimezone] = useState(entry?.timezone ?? deviceTimezone());
+  const [notes, setNotes] = useState(entry?.notes ?? "");
+  const [expanded, setExpanded] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [values, setValues] = useState(() =>
+    Object.fromEntries(
+      readings.map(({ key, unit }) => {
+        const value = defaults?.[key];
+        return [key, value == null ? "" : String(Math.round(value / unit))];
+      }),
+    ),
+  );
+  const [included, setIncluded] = useState(() =>
+    Object.fromEntries(readings.map(({ key }) => [key, entry?.[key] != null])),
+  );
+  const start = instant(night.start, entry?.sleep_start);
+  const end = instant(night.end, entry?.sleep_end);
+  const duration = (Date.parse(end) - Date.parse(start)) / 1000;
   const mutation = useMutation({
-    mutationFn: (payload: ReturnType<typeof buildPayload>) =>
-      isEditing
-        ? apiFetch<SleepEntry>(`/sleep-entries/${entryId}`, {
-            method: "PUT",
-            body: JSON.stringify(payload),
-          })
-        : apiFetch<SleepEntry>("/sleep-entries", {
-            method: "POST",
-            body: JSON.stringify(payload),
-          }),
-    onSuccess: () => {
+    mutationFn: (payload: SleepEntryPayload) =>
+      apiFetch<SleepEntry>(entry ? `/sleep-entries/${entry.id}` : "/sleep-entries", {
+        method: entry ? "PUT" : "POST",
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(["sleep-entry", saved.id], saved);
       void queryClient.invalidateQueries({ queryKey: ["sleep-entries"] });
-      toast.success(isEditing ? "Updated entry" : "Logged entry");
+      void queryClient.invalidateQueries({ queryKey: ["today"] });
+      toast.success(entry ? "Updated entry" : "Logged entry");
       void navigate("/sleep");
     },
     onError: (err: unknown) => toast.error(`Failed to save: ${errorMessage(err)}`),
   });
 
-  function update(key: keyof FieldState, value: string) {
-    setFields((current) => ({ ...current, [key]: value }));
-  }
-
   function submit() {
-    const payload = buildPayload(fields);
-    const result = sleepEntryPayloadSchema.safeParse(payload);
+    const measurements = Object.fromEntries(
+      readings.map(({ key, unit }) => {
+        if (!included[key] || values[key] === "") return [key, null];
+        const original = entry?.[key];
+        // Imported durations can contain seconds beyond the displayed whole minute.
+        const value =
+          original != null && String(Math.round(original / unit)) === values[key]
+            ? original
+            : Number(values[key]) * unit;
+        return [key, value];
+      }),
+    );
+    const result = sleepEntryPayloadSchema.safeParse({
+      ...measurements,
+      sleep_start: start,
+      sleep_end: end,
+      timezone: timezone.trim(),
+      quality_score: quality,
+      notes: notes.trim() || null,
+      source: entry?.source ?? "manual",
+    });
     if (!result.success) {
-      const nextErrors: Record<string, string> = {};
-      for (const issue of result.error.issues) {
-        nextErrors[String(issue.path[0])] = issue.message;
-      }
-      setErrors(nextErrors);
+      const next = Object.fromEntries(
+        result.error.issues.map((issue) => [issue.path[0], issue.message]),
+      );
+      setErrors(next);
+      if (readings.some(({ key }) => key in next) || next.timezone || next.notes) setExpanded(true);
       toast.error("Fix the highlighted fields before saving.");
       return;
     }
     setErrors({});
-    mutation.mutate(payload);
-  }
-
-  if (isEditing && isLoading) {
-    return (
-      <section id="sleep-form-view">
-        <PageHeading>{isEditing ? "Edit Sleep Entry" : "Log Sleep"}</PageHeading>
-        <p className="text-sm text-muted">Loading entry…</p>
-      </section>
-    );
+    mutation.mutate(result.data);
   }
 
   return (
-    <section id="sleep-form-view">
-      <PageHeading>{isEditing ? "Edit Sleep Entry" : "Log Sleep"}</PageHeading>
-
-      <Block className="flex flex-col gap-4 py-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="field-label" htmlFor="sleep-start">
-              Went to bed
-            </label>
-            <Input
-              id="sleep-start"
-              type="text"
-              inputMode="text"
-              placeholder="YYYY-MM-DD HH:mm"
-              maxLength={16}
-              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}"
-              value={fields.sleep_start}
-              onChange={(e) => update("sleep_start", e.target.value)}
-            />
-            {errors.sleep_start ? (
-              <p className="mt-1 text-sm text-danger">{errors.sleep_start}</p>
-            ) : null}
+    <form
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+    >
+      <Block className="grid gap-3 py-3">
+        <ClockFields
+          label="Bedtime"
+          value={night.start}
+          onChange={(start) => setNight({ ...night, start })}
+          error={errors.sleep_start}
+        />
+        <ClockFields
+          label="Wake"
+          value={night.end}
+          onChange={(end) => setNight({ ...night, end })}
+          error={errors.sleep_end}
+        />
+        <p className="flex items-baseline justify-between text-sm text-muted">
+          Time in bed
+          <output className="font-semibold tabular-nums text-main">
+            {duration > 0 ? formatSleepDuration(duration) : "—"}
+          </output>
+        </p>
+      </Block>
+      <Block className="py-3">
+        <fieldset>
+          <legend className="field-label">Sleep quality</legend>
+          <div className="grid grid-cols-5 gap-1">
+            {scaleValues(SLEEP_QUALITY_SCALE).map((score) => (
+              <button
+                key={score}
+                type="button"
+                aria-label={scaleOptionText(SLEEP_QUALITY_SCALE, score)}
+                aria-pressed={quality === score}
+                onClick={() => setQuality(quality === score ? null : score)}
+                className={`rounded-md border px-0.5 py-1.5 ${quality === score ? "border-accent bg-accent-soft" : "border-line bg-elevated"}`}
+              >
+                <span className="block font-semibold">{score}</span>
+                <span className="block text-[10px]">{scaleLabel(SLEEP_QUALITY_SCALE, score)}</span>
+              </button>
+            ))}
           </div>
-          <div>
-            <label className="field-label" htmlFor="sleep-end">
-              Woke up
-            </label>
-            <Input
-              id="sleep-end"
-              type="text"
-              inputMode="text"
-              placeholder="YYYY-MM-DD HH:mm"
-              maxLength={16}
-              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}"
-              value={fields.sleep_end}
-              onChange={(e) => update("sleep_end", e.target.value)}
-            />
-            {errors.sleep_end ? (
-              <p className="mt-1 text-sm text-danger">{errors.sleep_end}</p>
-            ) : null}
+        </fieldset>
+      </Block>
+      <Block>
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls="sleep-details"
+          onClick={() => setExpanded(!expanded)}
+          className="flex min-h-12 w-full items-center justify-between font-semibold"
+        >
+          Sleep details{" "}
+          <ChevronDown aria-hidden size={18} className={expanded ? "rotate-180" : ""} />
+        </button>
+        <div hidden={!expanded} id="sleep-details">
+          <p className="text-xs text-muted">Check or adjust the readings you took.</p>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 py-2">
+            {readings.map(({ key, label, min, max }) => (
+              <MeasurementControl
+                key={key}
+                name={key}
+                label={label}
+                min={min}
+                max={max}
+                step={1}
+                error={errors[key]}
+                value={values[key]}
+                included={included[key]}
+                onInclude={(take) => setIncluded({ ...included, [key]: take })}
+                onChange={(value) => {
+                  setValues({ ...values, [key]: value });
+                  setIncluded({ ...included, [key]: value !== "" });
+                }}
+              />
+            ))}
           </div>
-        </div>
-
-        <div>
-          <label className="field-label" htmlFor="sleep-timezone">
+          <label htmlFor="sleep-notes" className="field-label">
+            Notes (optional)
+          </label>
+          <textarea
+            className="input"
+            id="sleep-notes"
+            rows={2}
+            maxLength={2000}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+          <label htmlFor="sleep-timezone" className="field-label mt-2">
             Timezone
           </label>
           <Input
             id="sleep-timezone"
-            placeholder="e.g. America/New_York"
-            value={fields.timezone}
-            onChange={(e) => update("timezone", e.target.value)}
+            value={timezone}
+            onChange={(e) => setTimezone(e.target.value)}
+            aria-describedby="sleep-zone-help"
           />
-          {errors.timezone ? <p className="mt-1 text-sm text-danger">{errors.timezone}</p> : null}
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="field-label" htmlFor="sleep-estimated">
-              Estimated sleep (minutes, optional)
-            </label>
-            <Input
-              id="sleep-estimated"
-              type="number"
-              value={fields.estimated_sleep_minutes}
-              onChange={(e) => update("estimated_sleep_minutes", e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="field-label" htmlFor="sleep-awake">
-              Time awake (minutes, optional)
-            </label>
-            <Input
-              id="sleep-awake"
-              type="number"
-              value={fields.awake_minutes}
-              onChange={(e) => update("awake_minutes", e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="field-label" htmlFor="sleep-quality">
-              Quality (optional)
-            </label>
-            <ScaleSelect
-              id="sleep-quality"
-              scale={SLEEP_QUALITY_SCALE}
-              optional
-              value={fields.quality_score}
-              onChange={(value) => update("quality_score", value)}
-            />
-            {errors.quality_score ? (
-              <p className="mt-1 text-sm text-danger">{errors.quality_score}</p>
-            ) : null}
-          </div>
-          <div>
-            <label className="field-label" htmlFor="sleep-heart-rate">
-              Resting heart rate (bpm, optional)
-            </label>
-            <Input
-              id="sleep-heart-rate"
-              type="number"
-              value={fields.resting_heart_rate}
-              onChange={(e) => update("resting_heart_rate", e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="field-label" htmlFor="sleep-notes">
-            Notes (optional)
-          </label>
-          <textarea
-            id="sleep-notes"
-            className="input"
-            rows={2}
-            value={fields.notes}
-            onChange={(e) => update("notes", e.target.value)}
-          />
+          <p id="sleep-zone-help" className="mt-1 text-xs text-muted">
+            Used for the wake-up date in history. Times above use {deviceTimezone()}.
+          </p>
+          {errors.timezone && <p className="text-sm text-danger">{errors.timezone}</p>}
         </div>
       </Block>
-
-      <div className="mt-5 flex gap-2">
+      <div className="mt-3 flex gap-2">
         <Button
+          type="submit"
           id="save-sleep-entry-btn"
           variant="primary"
           disabled={mutation.isPending}
-          onClick={submit}
         >
-          {isEditing ? "Save changes" : "Log sleep"}
+          {entry ? "Save changes" : "Log sleep"}
         </Button>
         <Button onClick={() => void navigate("/sleep")}>Cancel</Button>
       </div>
-    </section>
+    </form>
   );
 }
