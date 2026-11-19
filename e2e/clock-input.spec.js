@@ -33,3 +33,22 @@ test("the clock accepts digits and offers every hour and minute in a 12-hour dev
   await expect(choose).toBeFocused();
   await expect(page.locator('input[type="time"], input[type="datetime-local"]')).toHaveCount(0);
 });
+
+for (const [path, label] of [
+  ["/log/new", "Performed at time"],
+  ["/activity/new", "Started at time"],
+  ["/activity/quick", "Start time"],
+  ["/recovery", "Start time"],
+  ["/nutrition/meals/new", "Eaten at time"],
+  ["/sleep/new", "Wake time"],
+]) {
+  test(`24-hour entry is available at ${path}`, async ({ page }) => {
+    await page.goto(path);
+    const field = page.getByRole("textbox", { name: label, exact: true });
+    await expect(field).toHaveAttribute("inputmode", "numeric");
+    await field.fill("2359");
+    await field.press("Tab");
+    await expect(field).toHaveValue("23:59");
+    await expect(page.locator('input[type="time"], input[type="datetime-local"]')).toHaveCount(0);
+  });
+}
