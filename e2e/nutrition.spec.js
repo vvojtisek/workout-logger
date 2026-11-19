@@ -79,10 +79,8 @@ test("builds a food and nutrition plan, logs a meal, and verifies the daily dash
     await page.goto("/nutrition/meals");
     await page.getByRole("button", { name: "Log meal" }).click();
     await expect(page.getByRole("heading", { name: "Log Meal" })).toBeVisible();
-    const consumedAt = page.getByLabel("Date and time");
-    await expect(consumedAt).toHaveAttribute("type", "text");
-    await expect(consumedAt).toHaveAttribute("placeholder", "YYYY-MM-DD HH:mm");
-    await consumedAt.fill(todayDatetimeLocal(8));
+    await page.getByLabel("Eaten at date").fill(today);
+    await page.getByRole("textbox", { name: "Eaten at time" }).fill("0800");
     await page.getByLabel("Meal type").selectOption("breakfast");
 
     await page

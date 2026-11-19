@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
+import { DateTimeFields } from "@/ui/DateTimeFields";
 import type { Food, MealEntry, MealType, Paginated } from "@/api/types";
 import { mealEntryPayloadSchema } from "@/lib/meal-entry-schema";
 import {
@@ -208,24 +209,11 @@ export function MealEntryForm() {
 
       <Card className="flex flex-col gap-4 p-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="field-label" htmlFor="meal-consumed-at">
-              Date and time
-            </label>
-            <Input
-              id="meal-consumed-at"
-              type="text"
-              inputMode="text"
-              placeholder="YYYY-MM-DD HH:mm"
-              maxLength={16}
-              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}"
-              value={consumedAt}
-              onChange={(e) => setConsumedAt(e.target.value)}
-            />
-            {errors.consumed_at ? (
-              <p className="mt-1 text-sm text-danger">{errors.consumed_at}</p>
-            ) : null}
-          </div>
+          <DateTimeFields
+            legend="Eaten at"
+            value={consumedAt}
+            onChange={setConsumedAt} error={errors.consumed_at}
+          />
           <div>
             <label className="field-label" htmlFor="meal-type">
               Meal type
