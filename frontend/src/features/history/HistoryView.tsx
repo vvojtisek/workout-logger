@@ -1,20 +1,24 @@
 import { useEffect, useState } from "react";
-import { useMatch, useNavigate } from "react-router-dom";
+import { Link, useMatch, useNavigate, useSearchParams } from "react-router-dom";
 
 import { useListVersion } from "@/app/MasterDetail";
-import { apiFetch, errorMessage } from "@/api/client";
-import type { Paginated, WorkoutLog } from "@/api/types";
+import { errorMessage } from "@/api/client";
+import type { WorkoutLog } from "@/api/types";
 import { SessionMetrics } from "@/features/dashboard/SessionMetrics";
 import { filterLogs, planNames } from "@/lib/log-metrics";
 import type { LogFilter } from "@/lib/log-metrics";
 import { logSummaryFacts, logTitle } from "@/lib/activity";
 import { EmptyState, PageHeading } from "@/ui";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
+import { addTrendDays, fetchAllEntries, readTrendDate } from "@/features/trends/series";
 
 export function HistoryView() {
   const listVersion = useListVersion();
   const navigate = useNavigate();
   const openLogId = useMatch("/history/:logId")?.params.logId;
+  const [params] = useSearchParams();
+  const from = readTrendDate(params.get("from"));
+  const to = readTrendDate(params.get("to"));
   const [logs, setLogs] = useState<WorkoutLog[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,29 +27,42 @@ export function HistoryView() {
   const plans = planNames(logs);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
+    const query = new URLSearchParams();
+    if (from) {
+      query.set("date_from", new Date(`${from}T00:00`).toISOString());
+    }
+    if (to) {
+      query.set("date_to", new Date(`${addTrendDays(to, 1)}T00:00`).toISOString());
+    }
     setLoading(true);
-    apiFetch<Paginated<WorkoutLog>>("/logs?limit=100")
-      .then((data) => {
-        if (cancelled) return;
-        setLogs(data.items);
+    fetchAllEntries<WorkoutLog>(`/logs?${query}`, controller.signal)
+      .then((items) => {
+        if (controller.signal.aborted) return;
+        setLogs(items);
         setError(null);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(`Failed to load history: ${errorMessage(err)}`);
+        if (!controller.signal.aborted) setError(`Failed to load history: ${errorMessage(err)}`);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       });
     return () => {
-      cancelled = true;
+      controller.abort();
     };
     // Reload after the detail beside the list closes (see MasterDetail).
-  }, [listVersion]);
+  }, [listVersion, from, to]);
 
   return (
     <section id="history-view">
       <PageHeading>Workout History</PageHeading>
+      {from && to ? (
+        <p className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted">
+          {formatDate(from)} – {formatDate(to)}
+          <Link className="text-accent-ink underline" to="/history">Clear chart dates</Link>
+        </p>
+      ) : null}
       {logs.length > 0 ? (
         <div className="mb-3 flex flex-wrap gap-2">
           <select
@@ -95,7 +112,7 @@ export function HistoryView() {
           <li key={log.id}>
             <button
               type="button"
-              onClick={() => void navigate(`/history/${log.id}`)}
+              onClick={() => void navigate(`/history/${log.id}${params.size ? `?${params}` : ""}`)}
               aria-current={log.id === openLogId ? "true" : undefined}
               className={`card w-full p-4 text-left transition-colors hover:bg-elevated ${
                 log.id === openLogId ? "border-accent bg-elevated" : ""

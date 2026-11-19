@@ -15,7 +15,7 @@ test("desktop Today is a two-column dashboard and History shows what each sessio
     page.setDefaultTimeout(5_000);
     const created = await request.post("/api/v1/logs", {
       data: {
-        performed_at: new Date(Date.now() - 3_600_000).toISOString(),
+        performed_at: new Date().toISOString(),
         total_time_minutes: 45,
         overall_feeling: 4,
         notes: `${tag} dashboard fixture`,
@@ -60,17 +60,25 @@ test("desktop Today is a two-column dashboard and History shows what each sessio
     await expect.poll(async () => Number(await lastBar.getAttribute("data-value"))).toBeGreaterThanOrEqual(2600);
     await analysis.getByRole("button", { name: "Sets", exact: true }).click();
     expect(Number(await lastBar.getAttribute("data-value"))).toBeGreaterThanOrEqual(7);
-    const triceps = analysis.getByTestId("muscle-split").locator('[data-muscle="triceps"]');
+    await analysis.getByRole("link", { name: "See training trends" }).click();
+    await page.getByLabel("Date range").selectOption("7");
+    await page.getByLabel("Exercise").selectOption(`${tag} Bench`);
+    const chart = page.getByRole("region", { name: "Heaviest set (kg)" });
+    await expect(chart).toBeVisible();
+    await expect(chart.getByRole("link", { name: /View entries.*100 kg/ })).toBeVisible();
+    const triceps = page.getByTestId("muscle-split").locator('[data-muscle="triceps"]');
     await expect(triceps).toBeVisible();
     expect(Number(await triceps.getAttribute("data-sets"))).toBeGreaterThanOrEqual(4);
-    await analysis.getByRole("button", { name: "28 days", exact: true }).click();
+    await page.getByRole("button", { name: "28 days", exact: true }).click();
     expect(Number(await triceps.getAttribute("data-sets"))).toBeGreaterThanOrEqual(4);
 
     // History rows carry the same numbers, and the range filter narrows the list.
-    await openPage(page, "History");
+    await chart.getByRole("link", { name: /View entries.*100 kg/ }).click();
+    await expect(page).toHaveURL(/\/history\?from=.*&to=/);
     const list = page.locator("#history-list");
     const ours = list.getByTestId("session-metrics").filter({ hasText: "2,600 kg" });
     await expect(ours).toHaveText("7 sets · 2,600 kg · Best 100 kg × 5");
+    await page.getByRole("link", { name: "Clear chart dates" }).click();
     await page.getByLabel("Date range").selectOption("7");
     await expect(ours).toHaveText("7 sets · 2,600 kg · Best 100 kg × 5");
     await page.getByLabel("Date range").selectOption("");

@@ -3,30 +3,24 @@
 // section that groups several pages shows them as sub-tabs. On a phone the
 // middle tab is the Log button, which opens a sheet of entries instead.
 
-/** @type {Record<string, string[]>} */
-const DESKTOP_SECTIONS = {
+/** @type {Record<string, [section: string, tab?: string, destination?: string]>} */
+const DESTINATIONS = {
   Today: ["Today"],
-  "Active Workout": ["New Workout", "Log Activity", "Cardio", "Recovery"],
-  "Programs & Plans": ["Plans", "Programs"],
-  Calendar: ["Calendar", "Sport schedule"],
-  "Workout History": ["History", "Training load"],
-  "Exercise Catalogue": ["Exercises", "Locations"],
-  "Nutrition & Meals": ["Nutrition"],
-  "Body Metrics & Sleep": ["Biometrics", "Sleep"],
-  "API & MCP Tokens": ["Tokens"],
-  Settings: ["Settings"],
+  Training: ["Training"],
+  "Training trends": ["Training", "Trends"],
+  Plans: ["Training", "Planning", "Plans"],
+  Programs: ["Training", "Planning", "Programs"],
+  Calendar: ["Training", "Planning"],
+  "Sport schedule": ["Training", "Planning", "Sport schedule"],
+  History: ["Training", "Entries"],
+  "Training load": ["Training", "Trends", "Training load"],
+  Exercises: ["Training", "Library"],
+  Locations: ["Training", "Library", "Locations"],
+  Nutrition: ["Nutrition"],
 };
 
-/** @type {Record<string, string[]>} */
-const MOBILE_SECTIONS = {
-  Today: ["Today"],
-  History: ["History", "Calendar", "Training load"],
-  Coach: ["Plans", "Programs", "Exercises", "Locations", "Sport schedule"],
-  More: ["Nutrition", "Biometrics", "Sleep", "Settings", "Tokens"],
-};
-
-/** Pages behind the phone's Log button, by the sheet entry that opens them. */
-const MOBILE_LOG_ENTRIES = {
+/** Pages opened from the shared Log menu. */
+const LOG_ENTRIES = {
   "New Workout": "Past workout",
   "Log Activity": "Activity",
   Cardio: "Cardio",
@@ -43,31 +37,40 @@ export function isDesktop(page) {
  * @param {string} label the page's own name, such as "Sleep" or "Programs"
  */
 export async function openPage(page, label) {
-  const logEntry = isDesktop(page)
-    ? undefined
-    : MOBILE_LOG_ENTRIES[/** @type {keyof typeof MOBILE_LOG_ENTRIES} */ (label)];
+  const logEntry = LOG_ENTRIES[/** @type {keyof typeof LOG_ENTRIES} */ (label)];
   if (logEntry) {
     await openLogSheet(page);
-    await page
-      .getByRole("dialog", { name: "Log" })
+    await page.getByRole("dialog", { name: "Log" })
       .getByRole("link", { name: logEntry, exact: true })
       .click();
     return;
   }
-  const sections = isDesktop(page) ? DESKTOP_SECTIONS : MOBILE_SECTIONS;
-  const entry = Object.entries(sections).find(([, pages]) =>
-    pages.includes(label),
-  );
+  const desktop = isDesktop(page);
+  const extra = desktop ? {
+    Biometrics: ["Body Metrics & Sleep", "Biometrics"],
+    Sleep: ["Body Metrics & Sleep", "Sleep"],
+    Tokens: ["API & MCP Tokens"],
+    Settings: ["Settings"],
+  } : {
+    Biometrics: ["More", "Biometrics"],
+    Sleep: ["More", "Sleep"],
+    Tokens: ["More", "Tokens"],
+    Settings: ["More", "Settings"],
+  };
+  const entry = DESTINATIONS[label] ?? extra[/** @type {keyof typeof extra} */ (label)];
   if (!entry) throw new Error(`No navigation entry leads to ${label}`);
-  const [section, pages] = entry;
-  await page
-    .getByRole("navigation", { name: "Main navigation" })
+  const [section, tab, destination] = entry;
+  await page.getByRole("navigation", { name: "Main navigation" })
     .getByRole("link", { name: section, exact: true })
     .click();
-  if (pages.length > 1) {
-    await page
-      .getByRole("navigation", { name: "Section pages" })
-      .getByRole("link", { name: label, exact: true })
+  if (tab) {
+    await page.getByRole("navigation", { name: "Section pages" })
+      .getByRole("link", { name: tab, exact: true })
+      .click();
+  }
+  if (destination) {
+    await page.getByRole("navigation", { name: "Section destinations" })
+      .getByRole("link", { name: destination, exact: true })
       .click();
   }
 }
@@ -82,7 +85,7 @@ export function detailPane(page) {
 }
 
 /**
- * Opens the phone's quick-entry sheet from the middle tab.
+ * Opens the shared quick-entry menu.
  * @param {import("@playwright/test").Page} page
  */
 export async function openLogSheet(page) {

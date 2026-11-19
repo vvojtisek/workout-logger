@@ -19,6 +19,9 @@ export function LogDetailView() {
   // ?edit=1 (from Today's "Edit details" toast) opens the editor directly.
   const [searchParams] = useSearchParams();
   const openEditor = searchParams.get("edit") === "1";
+  const returnParams = new URLSearchParams(searchParams);
+  returnParams.delete("edit");
+  const historyPath = returnParams.size ? `/history?${returnParams}` : "/history";
   const [log, setLog] = useState<WorkoutLog | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -48,12 +51,12 @@ export function LogDetailView() {
   async function deleteLog() {
     if (!logId) return;
     await apiFetch(`/logs/${logId}`, { method: "DELETE" });
-    void navigate("/history");
+    void navigate(historyPath);
   }
 
   return (
     <section id="detail-view">
-      <Button id="back-to-history" onClick={() => void navigate("/history")} className="mb-4">
+      <Button id="back-to-history" onClick={() => void navigate(historyPath)} className="mb-4">
         &larr; Back to history
       </Button>
       <PageHeading>{editing ? "Edit Workout" : "Workout Detail"}</PageHeading>

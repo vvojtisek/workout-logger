@@ -59,7 +59,7 @@ export function weeklyVolume(
       if (options.lift && !sameLift(exercise.exercise_name, options.lift)) continue;
       const reps = exercise.reps_per_set.reduce((total, count) => total + count, 0);
       bucket.sets += exercise.reps_per_set.length;
-      bucket.volumeKg += (exercise.weight_kg ?? 0) * reps;
+      bucket.volumeKg += exercise.volume_kg ?? (exercise.weight_kg ?? 0) * reps;
     }
   }
   return buckets;

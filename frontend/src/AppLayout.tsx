@@ -8,13 +8,9 @@ import {
 } from "react";
 import type { MutableRefObject, ReactNode } from "react";
 import {
-  Activity,
-  CalendarDays,
-  ClipboardList,
   Dumbbell,
   Ellipsis,
   HeartPulse,
-  History,
   House,
   KeyRound,
   Moon,
@@ -42,7 +38,7 @@ import {
   WORKOUT_PATH,
   pageForPath,
   sectionForPath,
-  sectionTarget,
+  destinationForPath,
 } from "@/lib/navigation";
 import type { NavIcon, NavSection } from "@/lib/navigation";
 import { useTheme, useThemePreference } from "@/lib/theme";
@@ -270,11 +266,7 @@ function ConnectionStatus({
 const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   today: House,
   log: Plus,
-  workout: Activity,
-  plans: ClipboardList,
-  calendar: CalendarDays,
-  history: History,
-  exercises: Dumbbell,
+  training: Dumbbell,
   nutrition: Utensils,
   body: HeartPulse,
   tokens: KeyRound,
@@ -308,7 +300,6 @@ function LiveBadge() {
   );
 }
 
-/** Sub-tabs for a section that groups several pages. */
 function SectionPages({
   section,
   pathname,
@@ -318,29 +309,40 @@ function SectionPages({
 }) {
   if (!section || section.pages.length < 2) return null;
   const current = pageForPath([section], pathname);
+  const child = destinationForPath(current?.children ?? [], pathname);
   return (
-    <nav
-      aria-label="Section pages"
-      className="flex gap-1 overflow-x-auto border-b border-line-muted"
-    >
-      {section.pages.map((page) => {
-        const active = current?.path === page.path;
-        return (
+    <>
+      <nav aria-label="Section pages" className="flex gap-1 overflow-x-auto border-b border-line-muted">
+        {section.pages.map((page) => (
           <Link
             key={page.path}
             to={page.path}
-            aria-current={active ? "page" : undefined}
-            className={`-mb-px shrink-0 border-b-2 px-3 min-h-11 inline-flex items-center text-sm font-medium ${
-              active
-                ? "border-accent text-main"
-                : "border-transparent text-muted hover:text-main"
+            aria-current={current === page ? "page" : undefined}
+            className={`inline-flex min-h-11 shrink-0 items-center border-b-2 px-3 text-sm font-medium ${
+              current === page ? "border-accent text-main" : "border-transparent text-muted hover:text-main"
             }`}
           >
             {page.label}
           </Link>
-        );
-      })}
-    </nav>
+        ))}
+      </nav>
+      {current?.children ? (
+        <nav aria-label="Section destinations" className="flex gap-1 overflow-x-auto py-1">
+          {current.children.map((page) => (
+            <Link
+              key={page.path}
+              to={page.path}
+              aria-current={child === page ? "page" : undefined}
+              className={`inline-flex min-h-11 shrink-0 items-center rounded-[var(--radius-sm)] px-3 text-xs font-medium ${
+                child === page ? "bg-accent-soft text-accent-ink" : "text-muted hover:text-main"
+              }`}
+            >
+              {page.label}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
+    </>
   );
 }
 
@@ -353,10 +355,10 @@ function RailLink({
   active: boolean;
   sessionActive: boolean;
 }) {
-  const live = sessionActive && section.id === "workout";
+  const live = sessionActive && section.id === "training";
   return (
     <Link
-      to={sectionTarget(section, sessionActive)}
+      to={section.pages[0].path}
       aria-current={active ? "page" : undefined}
       className={`flex items-center gap-3 border-l-[3px] px-4 min-h-11 text-sm font-medium ${
         active
@@ -546,11 +548,11 @@ function MobileShell({
               );
             }
             const active = current?.id === section.id;
-            const live = sessionActive && section.id === "today";
+            const live = sessionActive && section.id === "training";
             return (
               <Link
                 key={section.id}
-                to={sectionTarget(section, sessionActive)}
+                to={section.pages[0].path}
                 aria-current={active ? "page" : undefined}
                 className={`relative flex flex-col items-center justify-center gap-0.5 text-xs font-medium ${
                   active ? "text-accent-ink" : "text-muted"

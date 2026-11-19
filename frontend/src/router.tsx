@@ -66,6 +66,15 @@ export const router = createBrowserRouter([
               lazy: () => import("@/features/today/TodayView").then((m) => ({ Component: m.TodayView })),
             },
             {
+              path: "training",
+              lazy: () => import("@/features/training/TrainingView").then((m) => ({ Component: m.TrainingView })),
+            },
+            {
+              path: "training/trends",
+              handle: WIDE,
+              lazy: () => import("@/features/training/TrainingTrends").then((m) => ({ Component: m.TrainingTrends })),
+            },
+            {
               path: "locations",
               lazy: () =>
                 import("@/features/locations/LocationsView").then((m) => ({

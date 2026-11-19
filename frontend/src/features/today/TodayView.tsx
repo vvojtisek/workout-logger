@@ -21,7 +21,6 @@ import type {
   WorkoutSession,
 } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
-import { MuscleSplit } from "@/features/dashboard/MuscleSplit";
 import { VolumeChart } from "@/features/dashboard/VolumeChart";
 import { LocationCheckDialog } from "@/features/locations/LocationCheckDialog";
 import { DrinkQuickAdd, useQuickAddPresets } from "@/features/nutrition/DrinkQuickAdd";
@@ -265,7 +264,7 @@ export function TodayView() {
         <div className="xl:col-span-2">
           <VolumeChart logs={logs.data?.items ?? []} />
         </div>
-        <MuscleSplit logs={logs.data?.items ?? []} />
+        <Link className="text-sm font-medium text-accent-ink hover:underline" to="/training/trends">See training trends</Link>
         <Link className="text-sm font-medium text-accent-ink hover:underline" to="/history">View workout entries</Link>
       </aside>
     </section>

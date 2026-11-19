@@ -14,12 +14,8 @@ test("the app shell fits the viewport and reaches every page", async ({
     // Rail of named destinations, full-width workspace beside it.
     for (const label of [
       "Today",
-      "Active Workout",
-      "Programs & Plans",
-      "Calendar",
-      "Workout History",
-      "Exercise Catalogue",
-      "Nutrition & Meals",
+      "Training",
+      "Nutrition",
       "Body Metrics & Sleep",
       "API & MCP Tokens",
       "Settings",
@@ -41,7 +37,7 @@ test("the app shell fits the viewport and reaches every page", async ({
     // compact bar at the top.
     const tabs = nav.getByRole("link");
     await expect(tabs).toHaveText(
-      ["Today", "History", "Coach", "More"].map((t) => new RegExp(t)),
+      ["Today", "Training", "Nutrition", "More"].map((t) => new RegExp(t)),
     );
     await expect(nav.getByRole("button", { name: "Log", exact: true })).toBeVisible();
     const bar = await nav.boundingBox();
@@ -75,6 +71,8 @@ test("the app shell fits the viewport and reaches every page", async ({
   /** @type {[string, RegExp][]} */
   const destinations = [
     ["Today", /\/today$/],
+    ["Training", /\/training$/],
+    ["Training trends", /\/training\/trends$/],
     ["New Workout", /\/log\/new$/],
     ["Log Activity", /\/activity\/new$/],
     ["Cardio", /\/activity\/quick$/],
