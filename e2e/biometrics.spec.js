@@ -38,7 +38,7 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
     const time = page.getByLabel("Time", { exact: true });
     const additional = page.getByRole("button", { name: /Other measurements/ });
     await expect(date).toHaveAttribute("type", "date");
-    await expect(time).toHaveAttribute("type", "time");
+    await expect(time).toHaveAttribute("inputmode", "numeric");
     await expect(date).toHaveValue(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
     await expect(time).toHaveValue(/^[0-9]{2}:[0-9]{2}$/);
     await expect(page.getByLabel("Chest (cm)", { exact: true })).toBeHidden();
