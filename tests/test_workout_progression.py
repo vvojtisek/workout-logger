@@ -124,6 +124,71 @@ async def test_complete_skip_and_navigation_advance_focus(client, auth_headers):
     assert moved.json()["focused_set_number"] == 2
 
 
+async def test_queued_set_write_keeps_manual_focus_chosen_meanwhile(client, auth_headers):
+    """Issue #203: the athlete skips the last squat set and opens Row set 2
+    before the queued skip reaches the server. The later set write must not
+    pull focus back to Row set 1."""
+    _, session = await create_session(client, auth_headers)
+    squat, row, _ = session["exercises"]
+
+    first = await client.post(
+        f"{SESSIONS}/{session['id']}/sets",
+        json={
+            "session_exercise_id": squat["id"],
+            "set_number": 1,
+            "weight_kg": 82.5,
+            "reps": 7,
+            "state": "completed",
+            "client_operation_id": "race-squat-1",
+        },
+        headers=auth_headers,
+    )
+    assert first.status_code == 201
+
+    moved = await client.patch(
+        f"{SESSIONS}/{session['id']}/focus",
+        json={"session_exercise_id": row["id"], "set_number": 2},
+        headers=auth_headers,
+    )
+    assert moved.status_code == 200
+
+    skipped = await client.post(
+        f"{SESSIONS}/{session['id']}/sets",
+        json={
+            "session_exercise_id": squat["id"],
+            "set_number": 2,
+            "weight_kg": 80,
+            "reps": 5,
+            "state": "skipped",
+            "client_operation_id": "race-skip-squat-2",
+        },
+        headers=auth_headers,
+    )
+    assert skipped.status_code == 201
+    body = skipped.json()
+    assert (body["focused_exercise_id"], body["focused_set_number"]) == (row["id"], 2)
+    assert body["version"] > moved.json()["version"]
+
+    # Logging the chosen set itself still advances focus as before.
+    logged = await client.post(
+        f"{SESSIONS}/{session['id']}/sets",
+        json={
+            "session_exercise_id": row["id"],
+            "set_number": 2,
+            "weight_kg": 35,
+            "reps": 6,
+            "state": "completed",
+            "client_operation_id": "race-row-2",
+        },
+        headers=auth_headers,
+    )
+    assert logged.status_code == 201
+    assert (logged.json()["focused_exercise_id"], logged.json()["focused_set_number"]) == (
+        row["id"],
+        1,
+    )
+
+
 async def test_undo_and_permanent_correction_persist_exact_values(client, auth_headers):
     _, session = await create_session(client, auth_headers)
     exercise = session["exercises"][0]

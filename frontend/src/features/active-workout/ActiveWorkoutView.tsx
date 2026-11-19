@@ -239,6 +239,10 @@ function ActiveWorkoutSession({
         // Optimistic: the set, the rest timer and the next set's focus all update
         // in this frame. Durability and the network follow, never gate the UI.
         onSessionChange(applyOptimisticSet(session, payload));
+        // Drop the old local selection now, in the same frame. Clearing it
+        // after the awaits below would also wipe a set the athlete picked
+        // while this one was still being queued (issue #203).
+        setLocalFocus(null);
         await enqueueSetOperation(activeWorkoutStorage, {
           client_operation_id: operationId,
           session_id: session.id,
@@ -246,7 +250,6 @@ function ActiveWorkoutSession({
           captured_offline: !replayAllowed.current || !navigator.onLine || replayOffline,
           payload,
         });
-        setLocalFocus(null);
         setSyncError(null);
         await refreshQueue();
         await flushSetQueue();
