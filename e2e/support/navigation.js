@@ -17,6 +17,11 @@ const DESTINATIONS = {
   Exercises: ["Training", "Library"],
   Locations: ["Training", "Library", "Locations"],
   Nutrition: ["Nutrition"],
+  "Nutrition trends": ["Nutrition", "Trends"],
+  "Meal Log": ["Nutrition", "Entries"],
+  Foods: ["Nutrition", "Food & plans"],
+  "Nutrition plans": ["Nutrition", "Food & plans", "Nutrition plans"],
+  "Kitchen & Store": ["Nutrition", "Food & plans", "Kitchen & Store"],
 };
 
 /** Pages opened from the shared Log menu. */

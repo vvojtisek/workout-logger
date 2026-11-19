@@ -30,8 +30,11 @@ class NutritionRemaining(BaseModel):
     fiber_g: float | None
 
 
-class NutritionDailySummary(BaseModel):
+class NutritionTrendDay(BaseModel):
     date: date
     totals: NutritionTotals
     target: NutritionTarget | None
+
+
+class NutritionDailySummary(NutritionTrendDay):
     remaining: NutritionRemaining | None

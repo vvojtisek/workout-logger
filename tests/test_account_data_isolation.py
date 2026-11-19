@@ -493,6 +493,15 @@ async def test_workout_plans_are_private_per_invited_account(migrated_client, au
         assert owner_daily.json()["totals"]["energy_kcal"] == 140
         assert other_daily.json()["totals"]["energy_kcal"] == 0
 
+        trend_path = "/api/v1/nutrition/trends?from=2026-10-12&to=2026-10-14"
+        owner_trends = await client.get(trend_path, headers=owner_cookies)
+        other_trends = await client.get(trend_path, headers=other_cookies)
+        assert owner_trends.status_code == other_trends.status_code == 200
+        assert [day["date"] for day in owner_trends.json()] == ["2026-10-13"]
+        assert owner_trends.json()[0]["totals"] == owner_daily.json()["totals"]
+        assert owner_trends.json()[0]["target"] == owner_daily.json()["target"]
+        assert other_trends.json() == []
+
         other_export = await client.get("/api/v1/export", headers=other_cookies)
         assert other_export.status_code == 200
         assert all(row["id"] != plan_id for row in other_export.json()["plans"])

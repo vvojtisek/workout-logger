@@ -1,3 +1,4 @@
+from datetime import UTC, date, datetime, time
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -55,13 +56,24 @@ async def _build_meal_item(session: AsyncSession, data: MealItemCreate) -> MealI
 
 
 async def list_meal_entries(
-    session: AsyncSession, limit: int, offset: int
+    session: AsyncSession,
+    limit: int,
+    offset: int,
+    *,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> tuple[list[MealEntry], int]:
-    total = await session.scalar(select(func.count()).select_from(MealEntry))
+    filters = []
+    if date_from is not None:
+        filters.append(MealEntry.consumed_at >= datetime.combine(date_from, time.min, tzinfo=UTC))
+    if date_to is not None:
+        filters.append(MealEntry.consumed_at <= datetime.combine(date_to, time.max, tzinfo=UTC))
+    total = await session.scalar(select(func.count()).select_from(MealEntry).where(*filters))
     result = await session.execute(
         select(MealEntry)
         .options(_LOAD_ITEMS)
-        .order_by(MealEntry.consumed_at.desc())
+        .where(*filters)
+        .order_by(MealEntry.consumed_at.desc(), MealEntry.id)
         .limit(limit)
         .offset(offset)
     )

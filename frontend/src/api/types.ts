@@ -621,10 +621,13 @@ export interface NutritionRemaining {
   fiber_g: number | null;
 }
 
-export interface NutritionDailySummary {
+export interface NutritionTrendDay {
   date: string;
   totals: NutritionTotals;
   target: NutritionTarget | null;
+}
+
+export interface NutritionDailySummary extends NutritionTrendDay {
   remaining: NutritionRemaining | null;
 }
 

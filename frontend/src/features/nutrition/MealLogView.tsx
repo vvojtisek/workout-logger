@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useListVersion } from "@/app/MasterDetail";
 import { apiFetch, errorMessage } from "@/api/client";
-import type { MealEntry, Paginated } from "@/api/types";
+import type { MealEntry } from "@/api/types";
+import { EntryDateFilter, useEntryDates } from "@/features/trends/EntryDateFilter";
+import { fetchAllEntries } from "@/features/trends/series";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { Button, EmptyState, PageHeading } from "@/ui";
@@ -23,34 +26,20 @@ function totalEnergy(entry: MealEntry): number {
 export function MealLogView() {
   const listVersion = useListVersion();
   const navigate = useNavigate();
-  const [entries, setEntries] = useState<MealEntry[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { suffix } = useEntryDates();
   const [deleteTarget, setDeleteTarget] = useState<MealEntry | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await apiFetch<Paginated<MealEntry>>("/meal-entries?limit=100");
-      setEntries(data.items);
-      setError(null);
-    } catch (err) {
-      setError(`Failed to load meal entries: ${errorMessage(err)}`);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Reload after the detail beside the list closes (see MasterDetail).
-  useEffect(() => {
-    void load();
-  }, [load, listVersion]);
+  const entriesQuery = useQuery({
+    queryKey: ["meal-entries", suffix, listVersion],
+    queryFn: ({ signal }) => fetchAllEntries<MealEntry>(`/meal-entries${suffix}`, signal),
+  });
+  const entries = entriesQuery.data ?? [];
 
   async function deleteEntry(entry: MealEntry) {
     try {
       await apiFetch(`/meal-entries/${entry.id}`, { method: "DELETE" });
       toast.success("Deleted meal entry");
-      void load();
+      void queryClient.invalidateQueries({ queryKey: ["meal-entries"] });
     } catch (err) {
       toast.error(`Failed to delete: ${errorMessage(err)}`);
     }
@@ -60,16 +49,17 @@ export function MealLogView() {
     <section id="meal-log-view">
       <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Everything you've logged, most recent first.">Meal Log</PageHeading>
-        <Button variant="primary" onClick={() => void navigate("/nutrition/meals/new")}>
+        <Button variant="primary" onClick={() => void navigate(`/nutrition/meals/new${suffix}`)}>
           Log meal
         </Button>
       </div>
+      <EntryDateFilter clearTo="/nutrition/meals" />
       <ul id="meal-entries-list" className="flex flex-col gap-3">
-        {error ? <li className="text-sm text-danger">{error}</li> : null}
-        {!error && !loading && entries.length === 0 ? (
+        {entriesQuery.error ? <li className="text-sm text-danger">{errorMessage(entriesQuery.error)}</li> : null}
+        {entriesQuery.isSuccess && entries.length === 0 ? (
           <li>
             <EmptyState
-              title="No meals logged yet"
+              title={suffix ? "No meals in this date range" : "No meals logged yet"}
               description="Tap 'Log meal' to record what you ate."
             />
           </li>
@@ -91,7 +81,7 @@ export function MealLogView() {
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
-              <Button onClick={() => void navigate(`/nutrition/meals/${entry.id}/edit`)}>
+              <Button onClick={() => void navigate(`/nutrition/meals/${entry.id}/edit${suffix}`)}>
                 Edit
               </Button>
               <Button variant="ghost" onClick={() => setDeleteTarget(entry)}>

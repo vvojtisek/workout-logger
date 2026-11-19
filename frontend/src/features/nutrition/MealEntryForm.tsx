@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { useEntryDates } from "@/features/trends/EntryDateFilter";
 import { apiFetch, errorMessage } from "@/api/client";
 import { DateTimeFields } from "@/ui/DateTimeFields";
 import type { Food, MealEntry, MealType, Paginated } from "@/api/types";
@@ -111,6 +112,7 @@ export function MealEntryForm() {
   const { entryId } = useParams<{ entryId: string }>();
   const isEditing = Boolean(entryId);
   const navigate = useNavigate();
+  const { suffix } = useEntryDates();
   const queryClient = useQueryClient();
 
   const [consumedAt, setConsumedAt] = useState(nowAsLocalDateTimeInput);
@@ -154,7 +156,7 @@ export function MealEntryForm() {
       void queryClient.invalidateQueries({ queryKey: ["meal-entries"] });
       void queryClient.invalidateQueries({ queryKey: ["nutrition-daily"] });
       toast.success(isEditing ? "Updated meal entry" : "Logged meal entry");
-      void navigate("/nutrition/meals");
+      void navigate(`/nutrition/meals${suffix}`);
     },
     onError: (err: unknown) => toast.error(`Failed to save: ${errorMessage(err)}`),
   });
@@ -461,7 +463,7 @@ export function MealEntryForm() {
         >
           {isEditing ? "Save changes" : "Log meal"}
         </Button>
-        <Button onClick={() => void navigate("/nutrition/meals")}>Cancel</Button>
+        <Button onClick={() => void navigate(`/nutrition/meals${suffix}`)}>Cancel</Button>
       </div>
     </EntryForm>
   );

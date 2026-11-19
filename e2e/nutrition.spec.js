@@ -33,7 +33,7 @@ test("builds a food and nutrition plan, logs a meal, and verifies the daily dash
     await expect(page.getByRole("heading", { name: "Nutrition", exact: true })).toBeVisible();
 
     // Build the food entirely through the GUI.
-    await page.getByRole("button", { name: "Foods" }).click();
+    await openPage(page, "Foods");
     await expect(page.getByRole("heading", { name: "Foods" })).toBeVisible();
     await page.getByRole("button", { name: "New food" }).click();
     await expect(page.getByRole("heading", { name: "New Food" })).toBeVisible();

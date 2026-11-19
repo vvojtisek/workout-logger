@@ -188,6 +188,12 @@ export const router = createBrowserRouter([
                 })),
             },
             {
+              path: "nutrition/trends",
+              lazy: () => import("@/features/nutrition/NutritionTrends").then((m) => ({
+                Component: m.NutritionTrends,
+              })),
+            },
+            {
               path: "kitchen",
               lazy: () =>
                 import("@/features/nutrition/KitchenView").then((m) => ({

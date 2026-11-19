@@ -6,6 +6,7 @@ import { STORAGE_STATE_PATH } from "./e2e/global-setup.js";
 // grows as each screen gets its mobile layout.
 const MOBILE_SPECS = [
   "navigation.spec.js",
+  "section-trends.spec.js",
   "settings.spec.js",
   "build-version.spec.js",
   "auth.spec.js",

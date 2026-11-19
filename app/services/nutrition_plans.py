@@ -63,7 +63,7 @@ async def get_applicable_plan(session: AsyncSession, on_date: date) -> Nutrition
             NutritionPlan.valid_from <= on_date,
             (NutritionPlan.valid_to.is_(None)) | (NutritionPlan.valid_to >= on_date),
         )
-        .order_by(NutritionPlan.valid_from.desc())
+        .order_by(NutritionPlan.valid_from.desc(), NutritionPlan.id)
         .limit(1)
     )
     return result.scalar_one_or_none()

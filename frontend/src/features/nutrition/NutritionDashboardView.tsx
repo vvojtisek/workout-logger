@@ -1,26 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type { NutritionDailySummary } from "@/api/types";
 import { Button, Block, PageHeading } from "@/ui";
 import { formatDate } from "@/lib/format";
 
-function pad(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-function todayIso(): string {
-  const d = new Date();
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-}
-
-function addDays(dateStr: string, delta: number): string {
-  const d = new Date(`${dateStr}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + delta);
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-}
+import { addTrendDays } from "@/features/trends/series";
+import { NutritionTrend, useNutritionTrends } from "./NutritionTrends";
 
 interface MacroRowProps {
   label: string;
@@ -51,7 +39,9 @@ function MacroRow({ label, consumed, target, unit }: MacroRowProps) {
 
 export function NutritionDashboardView() {
   const navigate = useNavigate();
-  const [date, setDate] = useState(todayIso);
+  const today = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState(today);
+  const trends = useNutritionTrends("7", today);
 
   const { data, error, isLoading } = useQuery({
     queryKey: ["nutrition-daily", date],
@@ -65,8 +55,6 @@ export function NutritionDashboardView() {
           Nutrition
         </PageHeading>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => void navigate("/nutrition/foods")}>Foods</Button>
-          <Button onClick={() => void navigate("/nutrition/plans")}>Plans</Button>
           <Button variant="primary" onClick={() => void navigate("/nutrition/meals/new")}>
             Log meal
           </Button>
@@ -74,11 +62,11 @@ export function NutritionDashboardView() {
       </div>
 
       <div className="mb-4 flex items-center justify-between gap-3">
-        <Button aria-label="Previous day" onClick={() => setDate((d) => addDays(d, -1))}>
+        <Button aria-label="Previous day" onClick={() => setDate((d) => addTrendDays(d, -1))}>
           ← Prev
         </Button>
         <h3 className="font-medium">{formatDate(date)}</h3>
-        <Button aria-label="Next day" onClick={() => setDate((d) => addDays(d, 1))}>
+        <Button aria-label="Next day" onClick={() => setDate((d) => addTrendDays(d, 1))}>
           Next →
         </Button>
       </div>
@@ -129,8 +117,11 @@ export function NutritionDashboardView() {
         </Block>
       ) : null}
 
-      <div className="mt-4">
-        <Button onClick={() => void navigate("/nutrition/meals")}>View meal log</Button>
+      {trends.error ? <p role="alert" className="mt-4 text-sm text-danger">Could not load protein trend: {errorMessage(trends.error)}</p> : null}
+      {trends.data ? <NutritionTrend days={trends.data} metricKey="protein_g" range="7" end={today} /> : null}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link className="btn btn-secondary" to="/nutrition/trends">See all nutrition trends</Link>
+        <Link className="btn btn-secondary" to="/nutrition/meals">View meal log</Link>
       </div>
     </section>
   );

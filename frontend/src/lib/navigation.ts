@@ -69,8 +69,19 @@ const nutrition: NavSection = {
   label: "Nutrition",
   icon: "nutrition",
   pages: [
-    { path: "/nutrition", label: "Nutrition" },
-    { path: "/kitchen", label: "Kitchen & Store" },
+    { path: "/nutrition", label: "Overview" },
+    { path: "/nutrition/trends", label: "Trends" },
+    { path: "/nutrition/meals", label: "Entries" },
+    {
+      path: "/nutrition/foods",
+      label: "Food & plans",
+      children: [
+        { path: "/nutrition/foods", label: "Foods" },
+        { path: "/nutrition/plans", label: "Nutrition plans" },
+        { path: "/kitchen", label: "Kitchen & Store" },
+        { path: "/nutrition/quick-add", label: "Quick add" },
+      ],
+    },
   ],
 };
 
