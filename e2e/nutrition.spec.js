@@ -44,7 +44,12 @@ test("builds a food and nutrition plan, logs a meal, and verifies the daily dash
     await page.getByLabel("Protein (g)").fill("31");
     await page.getByLabel("Carbohydrate (g)").fill("0");
     await page.getByLabel("Fat (g)").fill("3.6");
-    await clickAndAwaitWrite(page, page.getByRole("button", { name: "Create food" }), "POST");
+    await expect(page.getByLabel("Serving quantity")).toHaveAttribute("inputmode", "decimal");
+    const [created] = await Promise.all([
+      page.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith("/api/v1/foods")),
+      page.getByLabel("Fat (g)").press("Enter"),
+    ]);
+    expect(created.status()).toBe(201);
     await expect(page.getByRole("heading", { name: "Foods" })).toBeVisible();
 
     const foodsList = await request.get("/api/v1/foods?limit=100");
@@ -79,10 +84,8 @@ test("builds a food and nutrition plan, logs a meal, and verifies the daily dash
     await page.goto("/nutrition/meals");
     await page.getByRole("button", { name: "Log meal" }).click();
     await expect(page.getByRole("heading", { name: "Log Meal" })).toBeVisible();
-    const consumedAt = page.getByLabel("Date and time");
-    await expect(consumedAt).toHaveAttribute("type", "text");
-    await expect(consumedAt).toHaveAttribute("placeholder", "YYYY-MM-DD HH:mm");
-    await consumedAt.fill(todayDatetimeLocal(8));
+    await page.getByLabel("Eaten at date").fill(today);
+    await page.getByRole("textbox", { name: "Eaten at time" }).fill("0800");
     await page.getByLabel("Meal type").selectOption("breakfast");
 
     await page

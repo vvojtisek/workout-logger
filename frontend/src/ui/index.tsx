@@ -37,8 +37,12 @@ export function Block({ className = "", children }: { className?: string; childr
   return <div className={`block-flat ${className}`.trim()}>{children}</div>;
 }
 
-export function Input({ className = "", ...rest }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={`input ${className}`.trim()} {...rest} />;
+export function Input({ className = "", inputMode, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+  if (inputMode === undefined && rest.type === "number") {
+    const fractional = rest.step === "any" || !Number.isInteger(Number(rest.step ?? 1));
+    inputMode = fractional ? "decimal" : "numeric";
+  }
+  return <input className={`input ${className}`.trim()} inputMode={inputMode} {...rest} />;
 }
 
 export function PageHeading({ children, hint }: { children: ReactNode; hint?: ReactNode }) {
@@ -56,5 +60,22 @@ export function EmptyState({ title, description }: { title: string; description?
       <p className="font-medium">{title}</p>
       {description ? <p className="mt-1 text-sm text-muted">{description}</p> : null}
     </div>
+  );
+}
+
+/** Editors keep their domain validation for both the Save button and Enter. */
+export function EntryForm({ onSave, id, className, children }: {
+  onSave: () => void;
+  id?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <form id={id} className={className} noValidate onSubmit={(event) => {
+      event.preventDefault();
+      onSave();
+    }}>
+      {children}
+    </form>
   );
 }

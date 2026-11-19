@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 
 import { apiFetch, errorMessage } from "@/api/client";
+import { DateTimeFields } from "@/ui/DateTimeFields";
 import type { WorkoutLog } from "@/api/types";
 import { FIELD_SPECS_BY_KIND } from "@/features/active-workout/SetRow";
 import { addSet, draftToPatch, logToDraft, newExercise, removeSet } from "@/lib/log-edit";
@@ -161,7 +162,7 @@ export function LogEditor({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const result = draftToPatch(draft);
+    const result = draftToPatch(draft, log.performed_at);
     if (result.error !== null) {
       setError(result.error);
       return;
@@ -185,17 +186,11 @@ export function LogEditor({
   return (
     <form id="log-edit-form" onSubmit={submit} className="flex flex-col gap-3">
       <Card className="flex flex-col gap-3 p-4">
-        <div>
-          <label className="field-label" htmlFor="edit-performed-at">
-            Date and time
-          </label>
-          <Input
-            id="edit-performed-at"
-            placeholder="YYYY-MM-DD HH:mm"
-            value={draft.performedAt}
-            onChange={(event) => setDraft({ ...draft, performedAt: event.target.value })}
-          />
-        </div>
+        <DateTimeFields
+          legend="Performed at"
+          value={draft.performedAt}
+          onChange={(performedAt) => setDraft({ ...draft, performedAt })}
+        />
         <div>
           <label className="field-label" htmlFor="edit-total-time">
             Duration (min)

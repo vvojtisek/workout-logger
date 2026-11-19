@@ -72,10 +72,17 @@ and save. The first hot tub entry starts at 15 minutes and the first massage at 
 Both appear in recovery history and can become one-tap routines based on previous sessions.
 The activity types for API and MCP clients are `hot_tub` and `massage`.
 
+## Entering dates and times
+
+Times use a 24-hour clock in the app. Tap the clock icon to choose an hour from **00**
+to **23** and a minute from **00** to **59**, or type a time such as `0735` or `19:30`.
+Tap a date field to use the calendar. On **Today**, the sleep shortcuts also let you
+move bedtime or wake time by 15 minutes.
+
 ## Logging biometrics
 
 Open **Biometrics → Log entry** to record weight, body fat and waist. The date and time
-default to now in your local timezone. Tap either to open the device picker. Each measurement
+default to now in your local timezone. Each measurement
 starts at its own last recorded value. Drag the slider, tap **−** or **+** for tenths, or
 tap the number to type it. Only weight is required. Uncheck any daily reading you skipped.
 
@@ -87,8 +94,8 @@ history is returned as `null` and starts blank.
 ## Logging sleep
 
 In **Sleep → Log sleep**, the previous bedtime and wake time are suggested for the night
-ending today. The first entry starts at 23:00 and ends at 07:00. Use the device date and
-time pickers to change either end and see the time in bed. Tap a quality rating to select
+ending today. The first entry starts at 23:00 and ends at 07:00. Use the calendar and
+24-hour clock to change either end and see the time in bed. Tap a quality rating to select
 it, or tap it again to clear it.
 
 Under **Sleep details**, estimated sleep, awake time and resting heart rate start from

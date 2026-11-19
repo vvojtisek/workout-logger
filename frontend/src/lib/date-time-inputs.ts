@@ -25,9 +25,11 @@ export function toLocalDateTimeInput(value: string | Date): string {
 }
 
 /** Convert strict local YYYY-MM-DD HH:mm input to the existing UTC API timestamp. */
-export function localDateTimeInputToIso(value: string): string {
+export function localDateTimeInputToIso(value: string, original?: string): string {
   const match = DATE_TIME_INPUT.exec(value);
   if (!match) return "";
+  // Editing a different field must preserve seconds and the original offset at a DST fold.
+  if (original && toLocalDateTimeInput(original) === value) return original;
   const [, year, month, day, hour, minute] = match;
   const numbers = [year, month, day, hour, minute].map(Number);
   const [y, m, d, h, min] = numbers;

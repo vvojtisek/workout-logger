@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiFetch, errorMessage } from "@/api/client";
+import { ClockInput } from "@/ui/ClockInput";
 import type { LoadEvent, LoadEventKind, Paginated } from "@/api/types";
 import { LOAD_EVENT_KINDS } from "@/api/types";
 import { formatDate } from "@/lib/format";
@@ -15,7 +16,7 @@ import {
   emptyDraft,
 } from "@/lib/load-events";
 import { WEEKDAY_LABELS } from "@/lib/program-templates";
-import { Button, Card, EmptyState, Input, PageHeading } from "@/ui";
+import { Button, EmptyState, Input, PageHeading, EntryForm } from "@/ui";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 
@@ -86,12 +87,11 @@ function LoadEventFields({
         <label className="field-label" htmlFor={`${idPrefix}-time`}>
           Start time
         </label>
-        <Input
+        <ClockInput
           id={`${idPrefix}-time`}
-          inputMode="numeric"
-          placeholder="e.g. 19:30"
+          label="Start time"
           value={draft.startTime}
-          onChange={(event) => onChange({ ...draft, startTime: event.target.value })}
+          onChange={(startTime) => onChange({ ...draft, startTime })}
         />
       </div>
       <div>
@@ -111,11 +111,7 @@ function LoadEventFields({
         </label>
         <Input
           id={`${idPrefix}-season-start`}
-          type="text"
-          inputMode="numeric"
-          placeholder="YYYY-MM-DD"
-          maxLength={10}
-          pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+          type="date"
           value={draft.seasonStart}
           onChange={(event) => onChange({ ...draft, seasonStart: event.target.value })}
         />
@@ -126,11 +122,7 @@ function LoadEventFields({
         </label>
         <Input
           id={`${idPrefix}-season-end`}
-          type="text"
-          inputMode="numeric"
-          placeholder="YYYY-MM-DD"
-          maxLength={10}
-          pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+          type="date"
           value={draft.seasonEnd}
           onChange={(event) => onChange({ ...draft, seasonEnd: event.target.value })}
         />
@@ -171,7 +163,7 @@ function LoadEventCard({ event, onDelete }: { event: LoadEvent; onDelete: () => 
 
   return (
     <li>
-      <Card className="flex flex-col gap-4 p-4">
+      <EntryForm onSave={submit} className="card flex flex-col gap-4 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="font-medium">
             {event.name}{" "}
@@ -189,7 +181,7 @@ function LoadEventCard({ event, onDelete }: { event: LoadEvent; onDelete: () => 
           <Button
             variant="primary"
             disabled={!dirty || save.isPending}
-            onClick={submit}
+            type="submit"
             aria-label={`Save ${event.name}`}
           >
             Save
@@ -203,7 +195,7 @@ function LoadEventCard({ event, onDelete }: { event: LoadEvent; onDelete: () => 
             Delete
           </Button>
         </div>
-      </Card>
+      </EntryForm>
     </li>
   );
 }
@@ -235,16 +227,16 @@ function NewLoadEventCard() {
   }
 
   return (
-    <Card className="mt-4 flex flex-col gap-4 p-4">
+    <EntryForm onSave={submit} className="card mt-4 flex flex-col gap-4 p-4">
       <h3 className="font-medium">Add a game or practice</h3>
       <LoadEventFields idPrefix="new-load-event" draft={draft} onChange={setDraft} />
       {error ? <p className="text-sm text-danger">{error}</p> : null}
       <div>
-        <Button variant="primary" disabled={create.isPending} onClick={submit}>
+        <Button variant="primary" disabled={create.isPending} type="submit">
           Add to schedule
         </Button>
       </div>
-    </Card>
+    </EntryForm>
   );
 }
 

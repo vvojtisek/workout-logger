@@ -58,6 +58,7 @@ import type { RepeatableMeal } from "@/lib/today";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { toast } from "@/ui/Toast";
 import { Button } from "@/ui";
+import { canonicalClock, ClockInput } from "@/ui/ClockInput";
 
 interface CalendarWindow {
   items: ScheduledWorkout[];
@@ -137,22 +138,27 @@ function ScalePicker({
   );
 }
 
-function Stepper({ id, label, value, onStep }: { id: string; label: string; value: number; onStep: (delta: number) => void }) {
+function clockMinutes(clock: string): number | null {
+  const valid = canonicalClock(clock);
+  if (!valid) return null;
+  const [hour, minute] = valid.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function Stepper({ id, label, value, onChange }: {
+  id: string; label: string; value: string; onChange: (value: string) => void;
+}) {
+  const minutes = clockMinutes(value);
+  function adjust(delta: number) {
+    if (minutes !== null) onChange(clockText(shiftMinutes(minutes, delta)));
+  }
   return (
-    <div className="flex flex-col gap-1">
-      <span id={`${id}-label`} className="text-xs text-muted">
-        {label}
-      </span>
-      <div className="grid grid-cols-[56px_1fr_56px] items-center gap-2" role="group" aria-labelledby={`${id}-label`}>
-        <Button touch aria-label={`${label} 15 minutes earlier`} onClick={() => onStep(-15)}>
-          −15
-        </Button>
-        <output id={id} data-numeric aria-labelledby={`${id}-label`} className="text-center text-xl font-semibold">
-          {clockText(value)}
-        </output>
-        <Button touch aria-label={`${label} 15 minutes later`} onClick={() => onStep(15)}>
-          +15
-        </Button>
+    <div>
+      <label htmlFor={id} className="field-label">{label}</label>
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1">
+        <Button touch className="px-2" aria-label={`${label} 15 minutes earlier`} disabled={minutes === null} onClick={() => adjust(-15)}>−15</Button>
+        <ClockInput id={id} label={label} value={value} onChange={onChange} required invalid={minutes === null} />
+        <Button touch className="px-2" aria-label={`${label} 15 minutes later`} disabled={minutes === null} onClick={() => adjust(15)}>+15</Button>
       </div>
     </div>
   );
@@ -559,17 +565,22 @@ function SleepCard({ now, entries, onChange }: { now: Date; entries: SleepEntry[
   const latest = entries?.[0] ?? null;
   const lastNight = entries?.find((entry) => entry.sleep_date === today) ?? null;
   const defaults = sleepDefaults(latest);
-  const [bed, setBed] = useState<number | null>(null);
-  const [wake, setWake] = useState<number | null>(null);
-  const bedMinutes = bed ?? defaults.bedMinutes;
-  const wakeMinutes = wake ?? defaults.wakeMinutes;
+  const [bed, setBed] = useState<string | null>(null);
+  const [wake, setWake] = useState<string | null>(null);
+  const bedClock = bed ?? clockText(defaults.bedMinutes);
+  const wakeClock = wake ?? clockText(defaults.wakeMinutes);
+  const bedMinutes = clockMinutes(bedClock);
+  const wakeMinutes = clockMinutes(wakeClock);
+  const validNight = bedMinutes !== null && wakeMinutes !== null && bedMinutes !== wakeMinutes;
 
   const save = useMutation({
-    mutationFn: (quality: number) =>
-      apiFetch("/sleep-entries", {
+    mutationFn: (quality: number) => {
+      if (!validNight) throw new Error("Enter a valid bedtime and wake time.");
+      return apiFetch("/sleep-entries", {
         method: "POST",
         body: JSON.stringify(sleepPayload(now, bedMinutes, wakeMinutes, quality, deviceTimezone())),
-      }),
+      });
+    },
     onSuccess: () => {
       toast.success("Sleep saved");
       onChange();
@@ -593,11 +604,12 @@ function SleepCard({ now, entries, onChange }: { now: Date; entries: SleepEntry[
   return (
     <TodayCard title="Last night" testId="today-sleep">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Stepper id="today-bed" label="Went to bed" value={bedMinutes} onStep={(delta) => setBed(shiftMinutes(bedMinutes, delta))} />
-        <Stepper id="today-wake" label="Woke up" value={wakeMinutes} onStep={(delta) => setWake(shiftMinutes(wakeMinutes, delta))} />
+        <Stepper id="today-bed" label="Went to bed" value={bedClock} onChange={setBed} />
+        <Stepper id="today-wake" label="Woke up" value={wakeClock} onChange={setWake} />
       </div>
+      {!validNight && <p className="text-sm text-danger">Enter two different times between 00:00 and 23:59.</p>}
       <p className="text-sm text-muted">How rested do you feel? Tap to save. Higher is better.</p>
-      <ScalePicker scale={SLEEP_QUALITY_SCALE} label="How rested" disabled={save.isPending} onPick={(quality) => save.mutate(quality)} />
+      <ScalePicker scale={SLEEP_QUALITY_SCALE} label="How rested" disabled={!validNight || save.isPending} onPick={(quality) => save.mutate(quality)} />
     </TodayCard>
   );
 }

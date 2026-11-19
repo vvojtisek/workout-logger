@@ -38,6 +38,7 @@ const MOBILE_SPECS = [
   "cardio-recovery.spec.js",
   "biometrics.spec.js",
   "sleep.spec.js",
+  "clock-input.spec.js",
 ];
 
 export default defineConfig({

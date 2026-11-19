@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
+import { DateTimeFields } from "@/ui/DateTimeFields";
 import type { Food, MealEntry, MealType, Paginated } from "@/api/types";
 import { mealEntryPayloadSchema } from "@/lib/meal-entry-schema";
 import {
@@ -10,7 +11,7 @@ import {
   nowAsLocalDateTimeInput,
   toLocalDateTimeInput,
 } from "@/lib/date-time-inputs";
-import { Button, Card, Input, PageHeading } from "@/ui";
+import { Button, Card, Input, PageHeading, EntryForm } from "@/ui";
 import { CatalogQuickAdd } from "./CatalogQuickAdd";
 import { DrinkQuickAdd } from "./DrinkQuickAdd";
 import { toast } from "@/ui/Toast";
@@ -97,9 +98,9 @@ function buildItemPayload(row: ItemRowState) {
   };
 }
 
-function buildPayload(consumedAtLocal: string, mealType: MealType, notes: string, rows: ItemRowState[]) {
+function buildPayload(consumedAt: string, mealType: MealType, notes: string, rows: ItemRowState[]) {
   return {
-    consumed_at: localDateTimeInputToIso(consumedAtLocal),
+    consumed_at: consumedAt,
     meal_type: mealType,
     notes: notes.trim() || null,
     items: rows.map(buildItemPayload),
@@ -167,7 +168,8 @@ export function MealEntryForm() {
   }
 
   function submit() {
-    const payload = buildPayload(consumedAt, mealType, notes, rows);
+    const timestamp = localDateTimeInputToIso(consumedAt, existing?.consumed_at);
+    const payload = buildPayload(timestamp, mealType, notes, rows);
     const result = mealEntryPayloadSchema.safeParse(payload);
     if (!result.success) {
       const nextErrors: Record<string, string> = {};
@@ -197,7 +199,7 @@ export function MealEntryForm() {
   }
 
   return (
-    <section id="meal-entry-form-view">
+    <EntryForm onSave={submit} id="meal-entry-form-view">
       <PageHeading>{isEditing ? "Edit Meal" : "Log Meal"}</PageHeading>
 
       {isEditing ? null : (
@@ -208,24 +210,11 @@ export function MealEntryForm() {
 
       <Card className="flex flex-col gap-4 p-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="field-label" htmlFor="meal-consumed-at">
-              Date and time
-            </label>
-            <Input
-              id="meal-consumed-at"
-              type="text"
-              inputMode="text"
-              placeholder="YYYY-MM-DD HH:mm"
-              maxLength={16}
-              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}"
-              value={consumedAt}
-              onChange={(e) => setConsumedAt(e.target.value)}
-            />
-            {errors.consumed_at ? (
-              <p className="mt-1 text-sm text-danger">{errors.consumed_at}</p>
-            ) : null}
-          </div>
+          <DateTimeFields
+            legend="Eaten at"
+            value={consumedAt}
+            onChange={setConsumedAt} error={errors.consumed_at}
+          />
           <div>
             <label className="field-label" htmlFor="meal-type">
               Meal type
@@ -468,12 +457,12 @@ export function MealEntryForm() {
           id="save-meal-entry-btn"
           variant="primary"
           disabled={mutation.isPending}
-          onClick={submit}
+          type="submit"
         >
           {isEditing ? "Save changes" : "Log meal"}
         </Button>
         <Button onClick={() => void navigate("/nutrition/meals")}>Cancel</Button>
       </div>
-    </section>
+    </EntryForm>
   );
 }

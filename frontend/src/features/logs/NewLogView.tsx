@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
+import { DateTimeFields } from "@/ui/DateTimeFields";
 import type { Paginated, WorkoutPlan } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
 import { parseRepsPerSet } from "@/lib/workout-utils";
@@ -74,7 +75,7 @@ export function NewLogView() {
     event.preventDefault();
     const performedAtIso = localDateTimeInputToIso(performedAt);
     if (!performedAtIso) {
-      toast.error("Enter a valid date and time as YYYY-MM-DD HH:mm.");
+      toast.error("Choose a date and enter a time from 00:00 to 23:59.");
       return;
     }
 
@@ -130,22 +131,11 @@ export function NewLogView() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="field-label" htmlFor="log-performed-at">
-                Performed at
-              </label>
-              <Input
-                id="log-performed-at"
-                type="text"
-                inputMode="text"
-                placeholder="YYYY-MM-DD HH:mm"
-                maxLength={16}
-                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}"
-                required
-                value={performedAt}
-                onChange={(event) => setPerformedAt(event.target.value)}
-              />
-            </div>
+            <DateTimeFields
+              legend="Performed at"
+              value={performedAt}
+              onChange={setPerformedAt}
+            />
             <div>
               <label className="field-label" htmlFor="log-total-time">
                 Total time (minutes)

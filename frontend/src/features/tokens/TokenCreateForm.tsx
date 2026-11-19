@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { apiFetch, errorMessage } from "@/api/client";
 import { API_TOKEN_SCOPES, type ApiTokenCreated, type ApiTokenScope } from "@/api/types";
 import { apiTokenPayloadSchema } from "@/lib/api-token-schema";
-import { Button, Card, Input, PageHeading } from "@/ui";
+import { Button, Card, Input, PageHeading, EntryForm } from "@/ui";
 import { toast } from "@/ui/Toast";
 
 const SCOPE_HINTS: Record<ApiTokenScope, string> = {
@@ -56,7 +56,7 @@ export function TokenCreateForm() {
   }
 
   return (
-    <section id="token-form-view">
+    <EntryForm onSave={submit} id="token-form-view">
       <PageHeading>New API Token</PageHeading>
 
       <Card className="flex flex-col gap-4 p-4">
@@ -100,12 +100,12 @@ export function TokenCreateForm() {
           id="save-token-btn"
           variant="primary"
           disabled={mutation.isPending}
-          onClick={submit}
+          type="submit"
         >
           Create token
         </Button>
         <Button onClick={() => void navigate("/tokens")}>Cancel</Button>
       </div>
-    </section>
+    </EntryForm>
   );
 }

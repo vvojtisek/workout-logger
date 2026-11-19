@@ -5,7 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { Program, ProgramStatus } from "@/api/types";
 import { programPayloadSchema } from "@/lib/program-schema";
-import { Button, Card, Input, PageHeading } from "@/ui";
+import { Button, Card, Input, PageHeading, EntryForm } from "@/ui";
 import { toast } from "@/ui/Toast";
 
 const STATUS_OPTIONS: { value: ProgramStatus; label: string }[] = [
@@ -108,7 +108,7 @@ export function ProgramBuilder() {
   }
 
   return (
-    <section id="program-builder-view">
+    <EntryForm onSave={submit} id="program-builder-view">
       <PageHeading hint="A named date-range block, e.g. 'Hypertrophy' or 'Hockey Pre-Season'.">
         {isEditing ? "Edit Program" : "New Program"}
       </PageHeading>
@@ -142,11 +142,7 @@ export function ProgramBuilder() {
             </label>
             <Input
               id="program-start-date"
-              type="text"
-              inputMode="numeric"
-              placeholder="YYYY-MM-DD"
-              maxLength={10}
-              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+              type="date"
               value={startDate}
               onChange={(event) => setStartDate(event.target.value)}
             />
@@ -160,11 +156,7 @@ export function ProgramBuilder() {
             </label>
             <Input
               id="program-end-date"
-              type="text"
-              inputMode="numeric"
-              placeholder="YYYY-MM-DD"
-              maxLength={10}
-              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+              type="date"
               value={endDate}
               onChange={(event) => setEndDate(event.target.value)}
             />
@@ -211,12 +203,12 @@ export function ProgramBuilder() {
           id="save-program-btn"
           variant="primary"
           disabled={mutation.isPending}
-          onClick={submit}
+          type="submit"
         >
           {isEditing ? "Save changes" : "Create program"}
         </Button>
         <Button onClick={() => void navigate("/programs")}>Cancel</Button>
       </div>
-    </section>
+    </EntryForm>
   );
 }

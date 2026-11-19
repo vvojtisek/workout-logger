@@ -15,8 +15,9 @@ import {
   nowAsLocalDateTimeInput,
   toLocalDateTimeInput,
 } from "@/lib/date-time-inputs";
-import { Block, Button, Input, PageHeading } from "@/ui";
+import { Block, Button, PageHeading } from "@/ui";
 import { toast } from "@/ui/Toast";
+import { DateTimeFields } from "@/ui/DateTimeFields";
 import { MeasurementControl } from "@/ui/MeasurementControl";
 
 const DAILY = ["weight_kg", "body_fat_percent", "waist_cm"] as const;
@@ -91,7 +92,7 @@ function MetricForm({ metric, defaults }: { metric?: BodyMetric; defaults?: Defa
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [when, setWhen] = useState(() =>
-    (metric ? toLocalDateTimeInput(metric.measured_at) : nowAsLocalDateTimeInput()).split(" "),
+    metric ? toLocalDateTimeInput(metric.measured_at) : nowAsLocalDateTimeInput(),
   );
   const [fields, setFields] = useState(() =>
     Object.fromEntries(MEASUREMENTS.map((key) => [key, String(defaults?.[key] ?? "")])),
@@ -137,13 +138,9 @@ function MetricForm({ metric, defaults }: { metric?: BodyMetric; defaults?: Defa
       const active = key === "weight_kg" || included.has(key);
       return [key, active && fields[key] !== "" ? Number(fields[key]) : null];
     });
-    const localTime = when.join(" ");
     const result = bodyMetricPayloadSchema.safeParse({
       ...Object.fromEntries(values),
-      measured_at:
-        metric && toLocalDateTimeInput(metric.measured_at) === localTime
-          ? metric.measured_at
-          : localDateTimeInputToIso(localTime),
+      measured_at: localDateTimeInputToIso(when, metric?.measured_at),
     });
     if (!result.success) {
       const issues = Object.fromEntries(
@@ -187,31 +184,8 @@ function MetricForm({ metric, defaults }: { metric?: BodyMetric; defaults?: Defa
         submit();
       }}
     >
-      <Block className="grid grid-cols-2 gap-x-3 gap-y-1 py-3">
-        {(["date", "time"] as const).map((type, index) => (
-          <div key={type} className="min-w-0">
-            <label className="field-label capitalize" htmlFor={`metric-${type}`}>
-              {type === "date" ? "Date" : "Time"}
-            </label>
-            <Input
-              id={`metric-${type}`}
-              type={type}
-              required
-              className="min-w-0 text-base"
-              value={when[index]}
-              aria-invalid={Boolean(errors.measured_at)}
-              aria-describedby={errors.measured_at ? "metric-date-error" : undefined}
-              onChange={(event) =>
-                setWhen(index === 0 ? [event.target.value, when[1]] : [when[0], event.target.value])
-              }
-            />
-          </div>
-        ))}
-        {errors.measured_at && (
-          <p id="metric-date-error" className="col-span-2 text-sm text-danger">
-            {errors.measured_at}
-          </p>
-        )}
+      <Block className="py-3">
+        <DateTimeFields value={when} onChange={setWhen} error={errors.measured_at} />
       </Block>
       <Block className="py-3">
         <h3 className="font-semibold">Daily measurements</h3>

@@ -5,7 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { Food } from "@/api/types";
 import { foodPayloadSchema } from "@/lib/food-schema";
-import { Button, Card, Input, PageHeading } from "@/ui";
+import { Button, Card, Input, PageHeading, EntryForm } from "@/ui";
 import { toast } from "@/ui/Toast";
 
 interface FieldState {
@@ -141,7 +141,7 @@ export function FoodBuilder() {
   }
 
   return (
-    <section id="food-builder-view">
+    <EntryForm onSave={submit} id="food-builder-view">
       <PageHeading hint="Nutrition values are per serving. Meal items scale these by the logged quantity.">
         {isEditing ? "Edit Food" : "New Food"}
       </PageHeading>
@@ -268,11 +268,11 @@ export function FoodBuilder() {
       </Card>
 
       <div className="mt-5 flex gap-2">
-        <Button id="save-food-btn" variant="primary" disabled={mutation.isPending} onClick={submit}>
+        <Button id="save-food-btn" variant="primary" disabled={mutation.isPending} type="submit">
           {isEditing ? "Save changes" : "Create food"}
         </Button>
         <Button onClick={() => void navigate("/nutrition/foods")}>Cancel</Button>
       </div>
-    </section>
+    </EntryForm>
   );
 }

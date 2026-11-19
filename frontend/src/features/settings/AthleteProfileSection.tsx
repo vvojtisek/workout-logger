@@ -18,7 +18,7 @@ import type {
 } from "@/lib/athlete-profile";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "@/ui/Toast";
-import { Block, Button, Input } from "@/ui";
+import { Button, Input, EntryForm } from "@/ui";
 
 const PROFILE_KEY = ["athlete-profile"] as const;
 
@@ -66,7 +66,7 @@ export function AthleteProfileSection() {
   return (
     <div className="mb-6">
       <h2 className="mb-2 text-sm font-medium text-muted">Coach profile</h2>
-      <Block className="flex flex-col gap-4 py-4">
+      <EntryForm onSave={submit} className="block-flat flex flex-col gap-4 py-4">
         <p className="text-sm text-muted">
           An assistant connected over MCP reads this first. Severe and strict food rules are checked by the
           server: a meal plan with a blocked ingredient is refused.
@@ -208,7 +208,7 @@ export function AthleteProfileSection() {
               </p>
             ) : null}
             <div className="flex items-center gap-3">
-              <Button id="save-profile-btn" variant="primary" disabled={save.isPending} onClick={submit}>
+              <Button id="save-profile-btn" variant="primary" disabled={save.isPending} type="submit">
                 Save coach profile
               </Button>
               {profile.data?.updated_at ? (
@@ -217,7 +217,7 @@ export function AthleteProfileSection() {
             </div>
           </>
         ) : null}
-      </Block>
+      </EntryForm>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
+import { DateTimeFields } from "@/ui/DateTimeFields";
 import { ACTIVITY_TYPES, activityLabel } from "@/lib/activity";
 import type { ActivityType } from "@/lib/activity";
 import { localDateTimeInputToIso, nowAsLocalDateTimeInput } from "@/lib/date-time-inputs";
@@ -29,7 +30,7 @@ export function LogActivityView() {
     const performedAtIso = localDateTimeInputToIso(performedAt);
     if (!performedAtIso) {
       setSaving(false);
-      toast.error("Enter a valid date and time as YYYY-MM-DD HH:mm.");
+      toast.error("Choose a date and enter a time from 00:00 to 23:59.");
       return;
     }
     const payload = {
@@ -79,22 +80,11 @@ export function LogActivityView() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="field-label" htmlFor="activity-performed-at">
-                Started at
-              </label>
-              <Input
-                id="activity-performed-at"
-                type="text"
-                inputMode="text"
-                placeholder="YYYY-MM-DD HH:mm"
-                maxLength={16}
-                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}"
-                required
-                value={performedAt}
-                onChange={(event) => setPerformedAt(event.target.value)}
-              />
-            </div>
+            <DateTimeFields
+              legend="Started at"
+              value={performedAt}
+              onChange={setPerformedAt}
+            />
             <div>
               <label className="field-label" htmlFor="activity-duration">
                 Duration (minutes)

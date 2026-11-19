@@ -141,11 +141,12 @@ function exercisePayload(exercise: ExerciseDraft): Record<string, unknown> | str
 
 /** The PATCH body for the edited log, or the first problem to show the user. */
 export function draftToPatch(
-  draft: LogDraft
+  draft: LogDraft,
+  originalPerformedAt?: string,
 ): { patch: LogPatch; error: null } | { patch: null; error: string } {
-  const performedAt = localDateTimeInputToIso(draft.performedAt.trim());
+  const performedAt = localDateTimeInputToIso(draft.performedAt.trim(), originalPerformedAt);
   if (!performedAt) {
-    return { patch: null, error: "Enter a valid date and time as YYYY-MM-DD HH:mm." };
+    return { patch: null, error: "Enter a valid date and time. Use 00:00 to 23:59 for the time." };
   }
   const minutes = Number(draft.totalTime);
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {

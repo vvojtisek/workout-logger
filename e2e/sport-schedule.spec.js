@@ -40,7 +40,7 @@ test("adds a weekly game, sees it on the calendar, edits and deletes it", async 
     await form.getByLabel("Name").fill(name);
     await form.getByLabel("Kind").selectOption("game");
     await form.getByLabel("Day").selectOption(weekdayLabel);
-    await form.getByLabel("Start time").fill("19:30");
+    await form.getByRole("textbox", { name: "Start time", exact: true }).fill("1930");
     await form.getByLabel("Minutes").fill("75");
     await form.getByLabel("Season starts").fill(seasonStart);
     await form.getByLabel("Season ends").fill(seasonEnd);

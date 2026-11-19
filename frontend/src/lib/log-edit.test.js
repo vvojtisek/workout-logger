@@ -103,6 +103,13 @@ const BAD_DRAFTS = [
 ];
 
 describe("draftToPatch", () => {
+  it("keeps the exact timestamp when only the notes change", () => {
+    const performedAt = "2026-10-18T06:30:42.789Z";
+    const draft = logToDraft(makeLog({ performed_at: performedAt }));
+    draft.notes = "updated";
+    expect(draftToPatch(draft, performedAt).patch?.performed_at).toBe(performedAt);
+  });
+
   it("preserves an existing whole-session effort and allows rating or clearing it", () => {
     const draft = logToDraft(makeLog({ effort_rpe: 7 }));
     expect(draft.effort).toBe("7");

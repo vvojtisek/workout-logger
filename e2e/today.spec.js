@@ -118,10 +118,13 @@ test("confirms hockey, sleep and a repeat meal in one tap each on the phone's To
 
     // Sleep: usual times prefilled, nudge one, one tap on how rested saves.
     const sleep = page.getByTestId("today-sleep");
-    await expect(sleep.locator("#today-bed")).toHaveText("23:00");
-    await expect(sleep.locator("#today-wake")).toHaveText("07:00");
+    await expect(sleep.locator("#today-bed")).toHaveValue("23:00");
+    await expect(sleep.locator("#today-wake")).toHaveValue("07:00");
+    await sleep.getByRole("textbox", { name: "Woke up" }).fill("2530");
+    await expect(sleep.getByRole("button", {name: "4 Good"})).toBeDisabled();
+    await sleep.getByRole("textbox", { name: "Woke up" }).fill("0700");
     await sleep.getByRole("button", { name: "Woke up 15 minutes later" }).click();
-    await expect(sleep.locator("#today-wake")).toHaveText("07:15");
+    await expect(sleep.locator("#today-wake")).toHaveValue("07:15");
     await clickAndAwaitWrite(
       page,
       sleep.getByRole("group", { name: "How rested" }).getByRole("button", { name: "4 Good" }),

@@ -32,7 +32,7 @@ import {
 import type { RestAlertPreferences } from "@/lib/rest-alerts";
 import { SETTINGS_QUERY_KEY, useSettingsQuery } from "@/lib/settings-query";
 import { THEME_PREFERENCES, useThemePreference } from "@/lib/theme";
-import { Block, Button, Card, Input, PageHeading } from "@/ui";
+import { Block, Button, Card, Input, PageHeading, EntryForm } from "@/ui";
 import { AthleteProfileSection } from "./AthleteProfileSection";
 import { toast } from "@/ui/Toast";
 
@@ -189,7 +189,7 @@ function PreferencesSection() {
   return (
     <div className="mb-6">
       <SectionHeading>Preferences</SectionHeading>
-      <Block className="flex flex-col gap-4 py-4">
+      <EntryForm onSave={() => mutation.mutate()} className="block-flat flex flex-col gap-4 py-4">
         {isLoading ? (
           <p className="text-sm text-muted">Loading…</p>
         ) : (
@@ -359,14 +359,14 @@ function PreferencesSection() {
                 id="save-preferences-btn"
                 variant="primary"
                 disabled={mutation.isPending}
-                onClick={() => mutation.mutate()}
+                type="submit"
               >
                 Save preferences
               </Button>
             </div>
           </>
         )}
-      </Block>
+      </EntryForm>
     </div>
   );
 }
@@ -409,7 +409,7 @@ function CoachingPrinciplesSection() {
   return (
     <div className="mb-6">
       <SectionHeading>Coaching principles</SectionHeading>
-      <Block className="flex flex-col gap-3 py-4">
+      <EntryForm onSave={() => mutation.mutate()} className="block-flat flex flex-col gap-3 py-4">
         <p className="text-sm text-muted">
           Your training beliefs and preferences, in your own words. An assistant
           connected over MCP reads them when it designs or reviews a training
@@ -450,7 +450,7 @@ function CoachingPrinciplesSection() {
                 id="save-principles-btn"
                 variant="primary"
                 disabled={mutation.isPending || body === data.body}
-                onClick={() => mutation.mutate()}
+                type="submit"
               >
                 Save principles
               </Button>
@@ -471,7 +471,7 @@ function CoachingPrinciplesSection() {
             </p>
           )
         ) : null}
-      </Block>
+      </EntryForm>
     </div>
   );
 }

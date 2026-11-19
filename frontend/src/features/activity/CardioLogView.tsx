@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
+import { ClockInput } from "@/ui/ClockInput";
 import type { WorkoutLog } from "@/api/types";
 import { CARDIO_TYPES, activityLabel } from "@/lib/activity";
 import type { CardioType } from "@/lib/activity";
@@ -190,14 +191,9 @@ export function CardioLogView() {
           value={times.includes(form.time) ? form.time : null}
           onChange={(time) => time && touch("time", { time })}
         >
-          <input
-            type="time"
-            aria-label="Start time"
-            step={300}
-            className="input min-h-11 w-auto"
-            value={form.time}
-            onChange={(event) => event.target.value && touch("time", { time: event.target.value })}
-          />
+          <div className="w-32">
+            <ClockInput label="Start time" required value={form.time} onChange={(time) => touch("time", { time })} />
+          </div>
         </ChipGroup>
 
         <ChipGroup

@@ -15,7 +15,7 @@ import {
   draftToPayload,
   emptyDraft,
 } from "@/lib/locations";
-import { Button, Card, EmptyState, Input, PageHeading } from "@/ui";
+import { Button, EmptyState, Input, PageHeading, EntryForm } from "@/ui";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { EquipmentChips } from "@/ui/EquipmentChips";
 import { toast } from "@/ui/Toast";
@@ -295,14 +295,14 @@ function LocationCard({ location, onDelete }: { location: Location; onDelete: ()
 
   return (
     <li>
-      <Card className="flex flex-col gap-4 p-4">
+      <EntryForm onSave={submit} className="card flex flex-col gap-4 p-4">
         <LocationFields idPrefix={`location-${location.id}`} draft={draft} onChange={setDraft} />
         {error ? <p className="text-sm text-danger">{error}</p> : null}
         <div className="flex flex-wrap gap-2">
           <Button
             variant="primary"
             disabled={!dirty || save.isPending}
-            onClick={submit}
+            type="submit"
             aria-label={`Save ${location.name}`}
           >
             Save
@@ -316,7 +316,7 @@ function LocationCard({ location, onDelete }: { location: Location; onDelete: ()
             Delete
           </Button>
         </div>
-      </Card>
+      </EntryForm>
     </li>
   );
 }
@@ -348,16 +348,16 @@ function NewLocationCard() {
   }
 
   return (
-    <Card className="mt-4 flex flex-col gap-4 p-4">
+    <EntryForm onSave={submit} className="card mt-4 flex flex-col gap-4 p-4">
       <h3 className="font-medium">Add a location</h3>
       <LocationFields idPrefix="new-location" draft={draft} onChange={setDraft} />
       {error ? <p className="text-sm text-danger">{error}</p> : null}
       <div>
-        <Button variant="primary" disabled={create.isPending} onClick={submit}>
+        <Button variant="primary" disabled={create.isPending} type="submit">
           Add location
         </Button>
       </div>
-    </Card>
+    </EntryForm>
   );
 }
 
