@@ -409,7 +409,8 @@ function DesktopShell({
   return (
     <div className="grid h-dvh w-full grid-cols-[220px_1fr] overflow-hidden">
       <aside className="flex min-h-0 flex-col border-r border-line-muted bg-canvas">
-        <p className="px-4 pt-5 pb-4 text-base font-semibold tracking-tight">
+        <p className="flex items-center gap-2.5 px-4 pt-5 pb-4 text-base font-semibold tracking-tight">
+          <img src="/static/icons/favicon-32.png" width={32} height={32} alt="" />
           Workout Logger
         </p>
         <nav
