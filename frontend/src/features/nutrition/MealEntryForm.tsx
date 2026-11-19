@@ -98,9 +98,9 @@ function buildItemPayload(row: ItemRowState) {
   };
 }
 
-function buildPayload(consumedAtLocal: string, mealType: MealType, notes: string, rows: ItemRowState[]) {
+function buildPayload(consumedAt: string, mealType: MealType, notes: string, rows: ItemRowState[]) {
   return {
-    consumed_at: localDateTimeInputToIso(consumedAtLocal),
+    consumed_at: consumedAt,
     meal_type: mealType,
     notes: notes.trim() || null,
     items: rows.map(buildItemPayload),
@@ -168,7 +168,8 @@ export function MealEntryForm() {
   }
 
   function submit() {
-    const payload = buildPayload(consumedAt, mealType, notes, rows);
+    const timestamp = localDateTimeInputToIso(consumedAt, existing?.consumed_at);
+    const payload = buildPayload(timestamp, mealType, notes, rows);
     const result = mealEntryPayloadSchema.safeParse(payload);
     if (!result.success) {
       const nextErrors: Record<string, string> = {};

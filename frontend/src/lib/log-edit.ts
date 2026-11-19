@@ -141,9 +141,10 @@ function exercisePayload(exercise: ExerciseDraft): Record<string, unknown> | str
 
 /** The PATCH body for the edited log, or the first problem to show the user. */
 export function draftToPatch(
-  draft: LogDraft
+  draft: LogDraft,
+  originalPerformedAt?: string,
 ): { patch: LogPatch; error: null } | { patch: null; error: string } {
-  const performedAt = localDateTimeInputToIso(draft.performedAt.trim());
+  const performedAt = localDateTimeInputToIso(draft.performedAt.trim(), originalPerformedAt);
   if (!performedAt) {
     return { patch: null, error: "Enter a valid date and time. Use 00:00 to 23:59 for the time." };
   }

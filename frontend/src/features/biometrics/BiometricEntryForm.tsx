@@ -140,10 +140,7 @@ function MetricForm({ metric, defaults }: { metric?: BodyMetric; defaults?: Defa
     });
     const result = bodyMetricPayloadSchema.safeParse({
       ...Object.fromEntries(values),
-      measured_at:
-        metric && toLocalDateTimeInput(metric.measured_at) === when
-          ? metric.measured_at
-          : localDateTimeInputToIso(when),
+      measured_at: localDateTimeInputToIso(when, metric?.measured_at),
     });
     if (!result.success) {
       const issues = Object.fromEntries(

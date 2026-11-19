@@ -162,7 +162,7 @@ export function LogEditor({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const result = draftToPatch(draft);
+    const result = draftToPatch(draft, log.performed_at);
     if (result.error !== null) {
       setError(result.error);
       return;

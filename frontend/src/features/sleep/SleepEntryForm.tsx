@@ -40,12 +40,6 @@ function initialWindow(entry?: SleepEntry, previous?: Defaults) {
   return { start: toLocalDateTimeInput(start), end: toLocalDateTimeInput(end) };
 }
 
-function instant(local: string, original?: string) {
-  return original && toLocalDateTimeInput(original) === local
-    ? original
-    : localDateTimeInputToIso(local);
-}
-
 export function SleepEntryForm() {
   const { entryId } = useParams<{ entryId: string }>();
   const existing = useQuery({
@@ -104,8 +98,8 @@ function NightForm({ entry, defaults }: { entry?: SleepEntry; defaults?: Default
   const [included, setIncluded] = useState(() =>
     Object.fromEntries(readings.map(({ key }) => [key, entry?.[key] != null])),
   );
-  const start = instant(night.start, entry?.sleep_start);
-  const end = instant(night.end, entry?.sleep_end);
+  const start = localDateTimeInputToIso(night.start, entry?.sleep_start);
+  const end = localDateTimeInputToIso(night.end, entry?.sleep_end);
   const duration = (Date.parse(end) - Date.parse(start)) / 1000;
   const mutation = useMutation({
     mutationFn: (payload: SleepEntryPayload) =>
