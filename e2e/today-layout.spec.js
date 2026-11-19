@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { isDesktop } from "./support/navigation.js";
 
-test("the phone's Today leads with the workout and keeps summaries last, without boxes", async ({
+test("the phone's Today leads with the workout and shows trends after the daily summaries", async ({
   page,
 }) => {
   test.skip(isDesktop(page), "Today is the phone's home screen");
@@ -22,6 +22,12 @@ test("the phone's Today leads with the workout and keeps summaries last, without
   expect(await y(coach)).toBeLessThan(await y(sleep));
   expect(await y(sleep)).toBeLessThan(await y(food));
   expect(await y(food)).toBeLessThan(await y(glance));
+
+  const trends = page.getByRole("complementary", { name: "Training analysis" });
+  await expect(trends.getByTestId("volume-chart")).toBeVisible();
+  expect(await y(glance)).toBeLessThan(await y(trends));
+  await expect(trends.getByRole("link", { name: "See training trends" }))
+    .toHaveAttribute("href", "/training/trends");
 
   // The workout action is on the first screen: no scrolling to start.
   const coachBox = await coach.boundingBox();

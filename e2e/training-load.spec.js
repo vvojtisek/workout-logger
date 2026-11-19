@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { openPage } from "./support/navigation.js";
 import { clickAndAwaitWrite } from "./support/writes.js";
 
 test.use({ timezoneId: "Europe/Prague" });
@@ -185,12 +186,14 @@ test("training load reviews recorded gym work by week", async ({ page, request }
     cleanup.push(`/api/v1/logs/${(await activity.json()).id}`);
 
     await page.goto("/history");
-    const trainingLoad = page.getByRole("link", { name: "Training load", exact: true });
-    await expect(trainingLoad).toBeVisible();
-    await trainingLoad.click();
+    await openPage(page, "Training load");
     await expect(page.getByRole("heading", { name: "Training load", exact: true })).toBeVisible();
     await page.getByLabel("Week containing").fill("2026-10-25");
     await page.getByLabel("Weeks to show").selectOption("4");
+
+    await page.getByLabel("Load statistic").selectOption({ label: "External volume" });
+    const trend = page.getByRole("region", { name: "External volume (kg)" });
+    await expect(trend.getByRole("link", { name: /2026-10-19.*350 kg/ })).toBeVisible();
 
     const table = page.getByRole("table", { name: "Weekly gym work" });
     const latest = table.getByRole("row", { name: /^2026-10-19/ });
@@ -249,7 +252,7 @@ test("training load reviews recorded gym work by week", async ({ page, request }
     await clickAndAwaitWrite(page, page.getByRole("button", { name: "Save changes" }), "PATCH");
     const rated = await request.get(`/api/v1/logs/${latestGymLog}`);
     expect((await rated.json()).effort_rpe).toBe(6);
-    await page.getByRole("link", { name: "Training load", exact: true }).click();
+    await openPage(page, "Training load");
     await page.getByLabel("Week containing").fill("2026-10-25");
     await expect(latestEffort.getByRole("cell")).toHaveText(["2 / 2", "70", "340 AU"]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(

@@ -19,11 +19,25 @@ _DELTA_WINDOWS = (7, 14)
 
 
 async def list_body_metrics(
-    session: AsyncSession, limit: int, offset: int
+    session: AsyncSession,
+    limit: int,
+    offset: int,
+    *,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
 ) -> tuple[list[BodyMetric], int]:
-    total = await session.scalar(select(func.count()).select_from(BodyMetric))
+    filters = []
+    if date_from is not None:
+        filters.append(BodyMetric.measured_at >= date_from)
+    if date_to is not None:
+        filters.append(BodyMetric.measured_at < date_to)
+    total = await session.scalar(select(func.count()).select_from(BodyMetric).where(*filters))
     result = await session.execute(
-        select(BodyMetric).order_by(BodyMetric.measured_at.desc()).limit(limit).offset(offset)
+        select(BodyMetric)
+        .where(*filters)
+        .order_by(BodyMetric.measured_at.desc(), BodyMetric.id)
+        .limit(limit)
+        .offset(offset)
     )
     return list(result.scalars().all()), total or 0
 

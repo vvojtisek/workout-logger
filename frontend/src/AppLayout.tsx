@@ -8,13 +8,8 @@ import {
 } from "react";
 import type { MutableRefObject, ReactNode } from "react";
 import {
-  Activity,
-  CalendarDays,
-  ClipboardList,
   Dumbbell,
-  Ellipsis,
   HeartPulse,
-  History,
   House,
   KeyRound,
   Moon,
@@ -38,11 +33,12 @@ import {
   DESKTOP_FOOTER_SECTIONS,
   DESKTOP_SECTIONS,
   LOG_SECTION_ID,
+  MOBILE_ACCOUNT,
   MOBILE_SECTIONS,
   WORKOUT_PATH,
   pageForPath,
   sectionForPath,
-  sectionTarget,
+  destinationForPath,
 } from "@/lib/navigation";
 import type { NavIcon, NavSection } from "@/lib/navigation";
 import { useTheme, useThemePreference } from "@/lib/theme";
@@ -270,16 +266,11 @@ function ConnectionStatus({
 const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   today: House,
   log: Plus,
-  workout: Activity,
-  plans: ClipboardList,
-  calendar: CalendarDays,
-  history: History,
-  exercises: Dumbbell,
+  training: Dumbbell,
   nutrition: Utensils,
   body: HeartPulse,
   tokens: KeyRound,
   settings: Settings,
-  more: Ellipsis,
 };
 
 function SectionIcon({ section, size }: { section: NavSection; size: number }) {
@@ -308,7 +299,6 @@ function LiveBadge() {
   );
 }
 
-/** Sub-tabs for a section that groups several pages. */
 function SectionPages({
   section,
   pathname,
@@ -318,29 +308,40 @@ function SectionPages({
 }) {
   if (!section || section.pages.length < 2) return null;
   const current = pageForPath([section], pathname);
+  const child = destinationForPath(current?.children ?? [], pathname);
   return (
-    <nav
-      aria-label="Section pages"
-      className="flex gap-1 overflow-x-auto border-b border-line-muted"
-    >
-      {section.pages.map((page) => {
-        const active = current?.path === page.path;
-        return (
+    <>
+      <nav aria-label="Section pages" className="flex gap-1 overflow-x-auto border-b border-line-muted">
+        {section.pages.map((page) => (
           <Link
             key={page.path}
             to={page.path}
-            aria-current={active ? "page" : undefined}
-            className={`-mb-px shrink-0 border-b-2 px-3 min-h-11 inline-flex items-center text-sm font-medium ${
-              active
-                ? "border-accent text-main"
-                : "border-transparent text-muted hover:text-main"
+            aria-current={current === page ? "page" : undefined}
+            className={`inline-flex min-h-11 shrink-0 items-center border-b-2 px-3 text-sm font-medium ${
+              current === page ? "border-accent text-main" : "border-transparent text-muted hover:text-main"
             }`}
           >
             {page.label}
           </Link>
-        );
-      })}
-    </nav>
+        ))}
+      </nav>
+      {current?.children ? (
+        <nav aria-label="Section destinations" className="flex gap-1 overflow-x-auto py-1">
+          {current.children.map((page) => (
+            <Link
+              key={page.path}
+              to={page.path}
+              aria-current={child === page ? "page" : undefined}
+              className={`inline-flex min-h-11 shrink-0 items-center rounded-[var(--radius-sm)] px-3 text-xs font-medium ${
+                child === page ? "bg-accent-soft text-accent-ink" : "text-muted hover:text-main"
+              }`}
+            >
+              {page.label}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
+    </>
   );
 }
 
@@ -353,10 +354,10 @@ function RailLink({
   active: boolean;
   sessionActive: boolean;
 }) {
-  const live = sessionActive && section.id === "workout";
+  const live = sessionActive && section.id === "training";
   return (
     <Link
-      to={sectionTarget(section, sessionActive)}
+      to={section.pages[0].path}
       aria-current={active ? "page" : undefined}
       className={`flex items-center gap-3 border-l-[3px] px-4 min-h-11 text-sm font-medium ${
         active
@@ -399,6 +400,7 @@ function DesktopShell({
   status,
   logoutButton,
 }: ShellProps) {
+  const [logOpen, setLogOpen] = useState(false);
   const sections = [...DESKTOP_SECTIONS, ...DESKTOP_FOOTER_SECTIONS];
   const current = sectionForPath(sections, pathname);
   const matches = useMatches();
@@ -407,7 +409,8 @@ function DesktopShell({
   return (
     <div className="grid h-dvh w-full grid-cols-[220px_1fr] overflow-hidden">
       <aside className="flex min-h-0 flex-col border-r border-line-muted bg-canvas">
-        <p className="px-4 pt-5 pb-4 text-base font-semibold tracking-tight">
+        <p className="flex items-center gap-2.5 px-4 pt-5 pb-4 text-base font-semibold tracking-tight">
+          <img src="/static/icons/favicon-32.png" width={32} height={32} alt="" />
           Workout Logger
         </p>
         <nav
@@ -415,6 +418,16 @@ function DesktopShell({
           className="flex min-h-0 flex-1 flex-col justify-between overflow-y-auto"
         >
           <div className="flex flex-col">
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={logOpen}
+              onClick={() => setLogOpen(true)}
+              className="m-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-accent px-3 text-sm font-semibold text-on-accent"
+            >
+              <Plus aria-hidden="true" size={18} />
+              Log
+            </button>
             {DESKTOP_SECTIONS.map((section) => (
               <RailLink
                 key={section.id}
@@ -460,6 +473,7 @@ function DesktopShell({
           </div>
         )}
       </main>
+      <LogSheet open={logOpen} onClose={() => setLogOpen(false)} sessionActive={sessionActive} />
     </div>
   );
 }
@@ -474,7 +488,7 @@ function MobileShell({
   logoutButton,
   restBar,
 }: ShellProps) {
-  const current = sectionForPath(MOBILE_SECTIONS, pathname);
+  const current = sectionForPath([...MOBILE_SECTIONS, MOBILE_ACCOUNT], pathname);
   const inWorkout = pathname === WORKOUT_PATH;
   const [logOpen, setLogOpen] = useState(false);
   // The live workout is a full-screen HUD: no top bar, no tabs. The rest
@@ -492,70 +506,69 @@ function MobileShell({
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-line-muted bg-surface px-4">
-        <p className="shrink-0 text-base font-semibold tracking-tight">
+        <p className="min-w-0 truncate text-base font-semibold tracking-tight">
           {current?.label ?? "Workout Logger"}
         </p>
-        <div className="flex min-w-0 items-center justify-end gap-3">
+        <div className="flex min-w-0 items-center justify-end gap-1">
           {status}
+          <nav aria-label="Account navigation" className="shrink-0">
+            <Link to="/settings" aria-label="Settings" className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-sm)] text-muted hover:text-main">
+              <Settings aria-hidden="true" size={18} />
+            </Link>
+          </nav>
           {logoutButton}
         </div>
       </header>
-      {inWorkout ? null : (
-        <div className="shrink-0 bg-surface px-2">
-          <SectionPages section={current} pathname={pathname} />
-        </div>
-      )}
-      <main
-        className={`min-h-0 flex-1 overflow-y-auto px-4 pt-4 ${inWorkout ? "pb-48" : "pb-8"}`}
-      >
+      <div className="shrink-0 bg-surface px-2">
+        <SectionPages section={current} pathname={pathname} />
+      </div>
+      <main className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 pb-8">
         <Outlet />
       </main>
       {restBar}
-      {inWorkout ? null : (
-        <nav
-          aria-label="Main navigation"
-          className="grid h-[60px] shrink-0 grid-cols-5 border-t border-line-muted bg-surface pb-[env(safe-area-inset-bottom)]"
-        >
-          {MOBILE_SECTIONS.map((section) => {
-            if (section.id === LOG_SECTION_ID) {
-              return (
-                <div key={section.id} className="flex items-center justify-center">
-                  <button
-                    type="button"
-                    aria-haspopup="dialog"
-                    aria-expanded={logOpen}
-                    onClick={() => setLogOpen(true)}
-                    className="-mt-5 flex h-14 w-14 flex-col items-center justify-center rounded-full bg-accent text-on-accent shadow-elevated"
-                  >
-                    <SectionIcon section={section} size={24} />
-                    <span className="sr-only">{section.label}</span>
-                  </button>
-                </div>
-              );
-            }
-            const active = current?.id === section.id;
-            const live = sessionActive && section.id === "today";
+      <nav
+        aria-label="Main navigation"
+        className="grid h-[60px] shrink-0 grid-cols-5 border-t border-line-muted bg-surface pb-[env(safe-area-inset-bottom)]"
+      >
+        {MOBILE_SECTIONS.map((section) => {
+          if (section.id === LOG_SECTION_ID) {
             return (
-              <Link
-                key={section.id}
-                to={sectionTarget(section, sessionActive)}
-                aria-current={active ? "page" : undefined}
-                className={`relative flex flex-col items-center justify-center gap-0.5 text-xs font-medium ${
-                  active ? "text-accent-ink" : "text-muted"
-                }`}
-              >
-                <SectionIcon section={section} size={20} />
-                {section.label}
-                {live ? (
-                  <span className="absolute top-2 right-[30%]">
-                    <LiveBadge />
-                  </span>
-                ) : null}
-              </Link>
+              <div key={section.id} className="flex items-center justify-center">
+                <button
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-expanded={logOpen}
+                  onClick={() => setLogOpen(true)}
+                  className="-mt-5 flex h-14 w-14 flex-col items-center justify-center rounded-full bg-accent text-on-accent shadow-elevated"
+                >
+                  <SectionIcon section={section} size={22} />
+                  <span className="text-[10px] font-semibold leading-none">{section.label}</span>
+                </button>
+              </div>
             );
-          })}
-        </nav>
-      )}
+          }
+          const active = current?.id === section.id;
+          const live = sessionActive && section.id === "training";
+          return (
+            <Link
+              key={section.id}
+              to={section.pages[0].path}
+              aria-current={active ? "page" : undefined}
+              className={`relative flex min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 text-center text-[11px] leading-tight font-medium ${
+                active ? "text-accent-ink" : "text-muted"
+              }`}
+            >
+              <SectionIcon section={section} size={20} />
+              {section.label}
+              {live ? (
+                <span className="absolute top-2 right-[30%]">
+                  <LiveBadge />
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </nav>
       <LogSheet
         open={logOpen}
         onClose={() => setLogOpen(false)}

@@ -58,11 +58,14 @@ test("rest timer and an offline set retry recover against the real server", asyn
     await row(1).getByLabel("Weight (kg)").fill("61.25");
     await row(1).getByLabel("Repetitions").fill("9");
     await row(1).getByLabel("RIR").fill("2");
+    const setWrite = page.waitForResponse((response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === `/api/v1/workout-sessions/${sessionId}/sets`
+    );
     await row(1).getByRole("button", { name: `Complete ${tag} Deadlift set 1` }).click();
 
     const restOverlay = page.locator("#active-rest-overlay");
     await expect(restOverlay).toBeVisible();
-    await expect(restOverlay.getByRole("timer")).toContainText(/Rest: 0(0:59|1:00)/);
     await expect(row(1).getByRole("button", { name: "Edit" })).toBeVisible();
     await expect(row(1).getByRole("button", { name: "Undo" })).toBeVisible();
     const overlayBox = await restOverlay.boundingBox();
@@ -78,16 +81,31 @@ test("rest timer and an offline set retry recover against the real server", asyn
       overlayBox.y + overlayBox.height <= currentBox.y;
     expect(apart).toBe(true);
 
+    expect((await setWrite).ok()).toBe(true);
     const savedResponse = await request.get(`/api/v1/workout-sessions/${sessionId}`);
     const saved = await savedResponse.json();
     const originalEnd = new Date(saved.rest_ends_at).getTime();
-    expect(saved.exercises[0].set_entries[0]).toMatchObject({
+    const firstSet = saved.exercises[0].set_entries[0];
+    expect(firstSet).toMatchObject({
       set_number: 1,
       weight_kg: 61.25,
       reps: 9,
       rir: 2,
       state: "completed",
     });
+    expect(originalEnd - new Date(firstSet.completed_at).getTime()).toBe(60_000);
+
+    const countdown = restOverlay.getByRole("timer");
+    async function expectOriginalDeadline() {
+      await expect.poll(() => countdown.evaluate((element, deadline) => {
+        const match = /^Rest: (\d+):(\d{2})$/.exec(element.textContent ?? "");
+        if (!match) return Infinity;
+        const displayed = Number(match[1]) * 60 + Number(match[2]);
+        const remaining = Math.ceil((deadline - Date.now()) / 1_000);
+        return displayed > 0 && remaining > 0 ? Math.abs(displayed - remaining) : Infinity;
+      }, originalEnd)).toBeLessThanOrEqual(1);
+    }
+    await expectOriginalDeadline();
 
     await restOverlay.getByRole("button", { name: "+15 seconds" }).click();
     await expect
@@ -116,8 +134,11 @@ test("rest timer and an offline set retry recover against the real server", asyn
     await expect(row(2).getByLabel("Weight (kg)")).toHaveValue("62.75");
     await expect(row(2).getByLabel("Repetitions")).toHaveValue("8");
     await expect(row(2).getByLabel("RIR")).toHaveValue("1");
+    await page.clock.fastForward(4_000);
     await page.reload();
-    await expect(restOverlay.getByRole("timer")).toContainText(/Rest: 0(0:59|1:00)/);
+    await expectOriginalDeadline();
+    const reloaded = await request.get(`/api/v1/workout-sessions/${sessionId}`);
+    expect(new Date((await reloaded.json()).rest_ends_at).getTime()).toBe(originalEnd);
     await expect(row(2).getByLabel("Weight (kg)")).toHaveValue("62.75");
     await expect(row(2).getByLabel("Repetitions")).toHaveValue("8");
     await expect(row(2).getByLabel("RIR")).toHaveValue("1");

@@ -1,27 +1,14 @@
-/** The app's navigation model. Desktop and mobile group the same pages
- * differently: desktop has a rail of named destinations, mobile has five
- * thumb-sized tabs around a central Log button. Every page appears in exactly
- * one section of each layout, and a section with more than one page shows
- * them as sub-tabs. */
-
-export interface NavPage {
+export interface NavDestination {
   path: string;
   label: string;
+  aliases?: string[];
 }
 
-export type NavIcon =
-  | "today"
-  | "log"
-  | "workout"
-  | "plans"
-  | "calendar"
-  | "history"
-  | "exercises"
-  | "nutrition"
-  | "body"
-  | "tokens"
-  | "settings"
-  | "more";
+export interface NavPage extends NavDestination {
+  children?: NavDestination[];
+}
+
+export type NavIcon = "today" | "log" | "training" | "nutrition" | "body" | "tokens" | "settings";
 
 export interface NavSection {
   id: string;
@@ -32,192 +19,161 @@ export interface NavSection {
 
 export const WORKOUT_PATH = "/workout";
 export const TODAY_PATH = "/today";
-/** The mobile section drawn as the central Log button, which opens a sheet
- * of quick entries instead of leading to one page. */
 export const LOG_SECTION_ID = "log";
 
-const PAGES = {
-  today: { path: TODAY_PATH, label: "Today" },
-  newWorkout: { path: "/log/new", label: "New Workout" },
-  logActivity: { path: "/activity/new", label: "Log Activity" },
-  quickCardio: { path: "/activity/quick", label: "Cardio" },
-  recovery: { path: "/recovery", label: "Recovery" },
-  plans: { path: "/plans", label: "Plans" },
-  programs: { path: "/programs", label: "Programs" },
-  calendar: { path: "/calendar", label: "Calendar" },
-  schedule: { path: "/schedule", label: "Sport schedule" },
-  history: { path: "/history", label: "History" },
-  trainingLoad: { path: "/training-load", label: "Training load" },
-  exercises: { path: "/exercises", label: "Exercises" },
-  locations: { path: "/locations", label: "Locations" },
-  nutrition: { path: "/nutrition", label: "Nutrition" },
-  kitchen: { path: "/kitchen", label: "Kitchen & Store" },
-  biometrics: { path: "/biometrics", label: "Biometrics" },
-  sleep: { path: "/sleep", label: "Sleep" },
-  tokens: { path: "/tokens", label: "Tokens" },
-  settings: { path: "/settings", label: "Settings" },
-} satisfies Record<string, NavPage>;
+const today: NavSection = {
+  id: "today",
+  label: "Today",
+  icon: "today",
+  pages: [{ path: TODAY_PATH, label: "Today" }],
+};
 
-export const DESKTOP_SECTIONS: NavSection[] = [
-  {
-    id: "today",
-    label: "Today",
-    icon: "today",
-    pages: [PAGES.today],
-  },
-  {
-    id: "workout",
-    label: "Active Workout",
-    icon: "workout",
-    pages: [PAGES.newWorkout, PAGES.logActivity, PAGES.quickCardio, PAGES.recovery],
-  },
-  {
-    id: "plans",
-    label: "Programs & Plans",
-    icon: "plans",
-    pages: [PAGES.plans, PAGES.programs],
-  },
-  {
-    id: "calendar",
-    label: "Calendar",
-    icon: "calendar",
-    pages: [PAGES.calendar, PAGES.schedule],
-  },
-  {
-    id: "history",
-    label: "Workout History",
-    icon: "history",
-    pages: [PAGES.history, PAGES.trainingLoad],
-  },
-  {
-    id: "exercises",
-    label: "Exercise Catalogue",
-    icon: "exercises",
-    pages: [PAGES.exercises, PAGES.locations],
-  },
-  {
-    id: "nutrition",
-    label: "Nutrition & Meals",
-    icon: "nutrition",
-    pages: [PAGES.nutrition, PAGES.kitchen],
-  },
-  {
-    id: "body",
-    label: "Body Metrics & Sleep",
-    icon: "body",
-    pages: [PAGES.biometrics, PAGES.sleep],
-  },
-];
+const training: NavSection = {
+  id: "training",
+  label: "Training",
+  icon: "training",
+  pages: [
+    { path: "/training", label: "Overview", aliases: [WORKOUT_PATH, "/log/new", "/activity/new", "/activity/quick", "/recovery"] },
+    {
+      path: "/training/trends",
+      label: "Trends",
+      children: [
+        { path: "/training/trends", label: "Progress" },
+        { path: "/training-load", label: "Training load" },
+      ],
+    },
+    {
+      path: "/calendar",
+      label: "Planning",
+      children: [
+        { path: "/calendar", label: "Calendar" },
+        { path: "/plans", label: "Plans" },
+        { path: "/programs", label: "Programs" },
+        { path: "/schedule", label: "Sport schedule" },
+      ],
+    },
+    { path: "/history", label: "Entries" },
+    {
+      path: "/exercises",
+      label: "Library",
+      children: [
+        { path: "/exercises", label: "Exercises" },
+        { path: "/locations", label: "Locations" },
+      ],
+    },
+  ],
+};
+
+const nutrition: NavSection = {
+  id: "nutrition",
+  label: "Nutrition",
+  icon: "nutrition",
+  pages: [
+    { path: "/nutrition", label: "Overview" },
+    { path: "/nutrition/trends", label: "Trends" },
+    { path: "/nutrition/meals", label: "Entries" },
+    {
+      path: "/nutrition/foods",
+      label: "Food & plans",
+      children: [
+        { path: "/nutrition/foods", label: "Foods" },
+        { path: "/nutrition/plans", label: "Nutrition plans" },
+        { path: "/kitchen", label: "Kitchen & Store" },
+        { path: "/nutrition/quick-add", label: "Quick add" },
+      ],
+    },
+  ],
+};
+
+const body: NavSection = {
+  id: "body",
+  label: "Body & Sleep",
+  icon: "body",
+  pages: [
+    { path: "/body", label: "Overview" },
+    { path: "/body/trends", label: "Trends" },
+    {
+      path: "/biometrics",
+      label: "Entries",
+      children: [
+        { path: "/biometrics", label: "Measurements" },
+        { path: "/sleep", label: "Sleep" },
+      ],
+    },
+  ],
+};
+
+export const DESKTOP_SECTIONS = [today, training, nutrition, body];
 
 export const DESKTOP_FOOTER_SECTIONS: NavSection[] = [
   {
     id: "tokens",
     label: "API & MCP Tokens",
     icon: "tokens",
-    pages: [PAGES.tokens],
+    pages: [{ path: "/tokens", label: "Tokens" }],
   },
   {
     id: "settings",
     label: "Settings",
     icon: "settings",
-    pages: [PAGES.settings],
+    pages: [{ path: "/settings", label: "Settings" }],
   },
 ];
 
 export const MOBILE_SECTIONS: NavSection[] = [
-  {
-    id: "today",
-    label: "Today",
-    icon: "today",
-    pages: [PAGES.today],
-  },
-  {
-    id: "history",
-    label: "History",
-    icon: "history",
-    pages: [PAGES.history, PAGES.calendar, PAGES.trainingLoad],
-  },
-  {
-    id: LOG_SECTION_ID,
-    label: "Log",
-    icon: "log",
-    pages: [PAGES.newWorkout, PAGES.logActivity, PAGES.quickCardio, PAGES.recovery],
-  },
-  {
-    id: "coach",
-    label: "Coach",
-    icon: "plans",
-    pages: [
-      PAGES.plans,
-      PAGES.programs,
-      PAGES.exercises,
-      PAGES.locations,
-      PAGES.schedule,
-    ],
-  },
-  {
-    id: "more",
-    label: "More",
-    icon: "more",
-    pages: [
-      PAGES.nutrition,
-      PAGES.kitchen,
-      PAGES.biometrics,
-      PAGES.sleep,
-      PAGES.settings,
-      PAGES.tokens,
-    ],
-  },
+  today,
+  training,
+  { id: LOG_SECTION_ID, label: "Log", icon: "log", pages: [] },
+  nutrition,
+  body,
 ];
 
-function matchesPath(pathname: string, path: string): boolean {
-  return pathname === path || pathname.startsWith(`${path}/`);
+export const MOBILE_ACCOUNT: NavSection = {
+  id: "account",
+  label: "Settings",
+  icon: "settings",
+  pages: [
+    { path: "/settings", label: "Settings" },
+    { path: "/tokens", label: "API & MCP Tokens" },
+  ],
+};
+
+function matchLength(destination: NavDestination, pathname: string): number {
+  return Math.max(0, ...[destination.path, ...(destination.aliases ?? [])]
+    .filter((path) => pathname === path || pathname.startsWith(`${path}/`))
+    .map((path) => path.length));
 }
 
-/** The page a pathname belongs to: the longest matching page path, so
- * `/nutrition/foods/new` belongs to Nutrition and `/plans/x/edit` to Plans. */
-export function pageForPath(
-  sections: NavSection[],
+export function destinationForPath<T extends NavDestination>(
+  destinations: readonly T[],
   pathname: string,
-): NavPage | null {
-  let best: NavPage | null = null;
-  for (const section of sections) {
-    for (const page of section.pages) {
-      if (
-        matchesPath(pathname, page.path) &&
-        (!best || page.path.length > best.path.length)
-      ) {
-        best = page;
-      }
+): T | null {
+  let best: T | null = null;
+  let longest = 0;
+  for (const destination of destinations) {
+    const length = matchLength(destination, pathname);
+    if (length > longest) {
+      best = destination;
+      longest = length;
     }
   }
   return best;
 }
 
-/** The section a pathname belongs to. The live workout belongs to the section
- * that starts workouts. */
-export function sectionForPath(
-  sections: NavSection[],
-  pathname: string,
-): NavSection | null {
-  if (matchesPath(pathname, WORKOUT_PATH)) {
-    return (
-      sections.find((section) => section.pages.includes(PAGES.newWorkout)) ??
-      null
-    );
-  }
-  const page = pageForPath(sections, pathname);
-  if (!page) return null;
-  return sections.find((section) => section.pages.includes(page)) ?? null;
+/** Find the visible tab for an existing URL, including its deeper destinations. */
+export function pageForPath(sections: NavSection[], pathname: string): NavPage | null {
+  const pages = sections.flatMap((section) => section.pages);
+  const matches = pages.map((page) => ({
+    ...page,
+    aliases: [...(page.aliases ?? []), ...(page.children ?? []).flatMap(
+      (child) => [child.path, ...(child.aliases ?? [])],
+    )],
+    page,
+  }));
+  return destinationForPath(matches, pathname)?.page ?? null;
 }
 
-/** Where a section's nav entry leads. The workout section returns to a live
- * session instead of starting a new one. */
-export function sectionTarget(
-  section: NavSection,
-  sessionActive: boolean,
-): string {
-  if (sessionActive && section.pages.includes(PAGES.newWorkout))
-    return WORKOUT_PATH;
-  return section.pages[0]?.path ?? "/";
+export function sectionForPath(sections: NavSection[], pathname: string): NavSection | null {
+  const page = pageForPath(sections, pathname);
+  return sections.find((section) => page && section.pages.includes(page)) ?? null;
 }

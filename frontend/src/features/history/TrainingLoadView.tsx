@@ -3,6 +3,9 @@ import { useState } from "react";
 
 import { apiFetch, apiFetchBlob, errorMessage, triggerBlobDownload } from "@/api/client";
 import type { MovementPattern, TrainingLoadResponse, TrainingLoadWeek } from "@/api/types";
+import { TrendChart } from "@/features/trends/TrendChart";
+import { addTrendDays, entryRange } from "@/features/trends/series";
+import type { TrendAggregation } from "@/features/trends/series";
 import { activityLabel } from "@/lib/activity";
 import { isIsoCalendarDate } from "@/lib/date-time-inputs";
 import { MOVEMENT_PATTERN_LABELS, MUSCLE_LABELS } from "@/lib/exercise-catalogue";
@@ -597,6 +600,48 @@ function TrainingVariabilityCard({
   );
 }
 
+const LOAD_METRICS: { label: string; unit: string; aggregation: TrendAggregation; value: (week: TrainingLoadWeek) => number | null }[] = [
+  { label: "Gym sessions", unit: "", aggregation: "sum", value: (week) => week.gym_sessions },
+  { label: "Logged sets", unit: "", aggregation: "sum", value: (week) => week.logged_sets },
+  { label: "External volume", unit: "kg", aggregation: "sum", value: (week) => week.volume_kg },
+  { label: "Rated sessions", unit: "", aggregation: "sum", value: (week) => week.session_effort.rated_sessions },
+  { label: "Rated minutes", unit: "min", aggregation: "sum", value: (week) => week.session_effort.rated_minutes },
+  { label: "Session load", unit: "AU", aggregation: "sum", value: (week) => week.session_effort.load_au },
+  { label: "Mean daily load", unit: "AU", aggregation: "average", value: (week) => week.training_variability.daily_mean_au },
+  { label: "Daily load standard deviation", unit: "AU", aggregation: "average", value: (week) => week.training_variability.daily_sd_au },
+  { label: "Training monotony", unit: "", aggregation: "average", value: (week) => week.training_variability.monotony },
+  { label: "Training strain", unit: "AU", aggregation: "average", value: (week) => week.training_variability.strain_au },
+  { label: "Workload ratio", unit: "", aggregation: "average", value: (week) => week.workload_ratio.ratio },
+];
+
+function TrainingLoadChart({ weeks }: { weeks: TrainingLoadWeek[] }) {
+  const [index, setIndex] = useState(0);
+  const first = weeks[0]?.week_start;
+  const last = weeks.at(-1)?.week_start;
+  if (!first || !last) return null;
+  const metric = LOAD_METRICS[index];
+  return (
+    <div className="my-5">
+      <label className="flex flex-wrap items-center gap-2 text-sm text-muted">
+        Load statistic
+        <select className="input min-h-11 w-auto max-w-full" value={index} onChange={(event) => setIndex(Number(event.target.value))}>
+          {LOAD_METRICS.map(({ label }, metricIndex) => <option value={metricIndex} key={label}>{label}</option>)}
+        </select>
+      </label>
+      <TrendChart
+        title={metric.label}
+        unit={metric.unit}
+        points={weeks.map((week) => ({ date: week.week_start, value: metric.value(week) }))}
+        range="90"
+        start={first}
+        end={addTrendDays(last, 6)}
+        aggregation={metric.aggregation}
+        entries={(from, to) => entryRange("/history", from, to)}
+      />
+    </div>
+  );
+}
+
 export function TrainingLoadView() {
   const [weekOf, setWeekOf] = useState(() => formatDate(new Date().toISOString()));
   const [weeks, setWeeks] = useState(8);
@@ -607,6 +652,7 @@ export function TrainingLoadView() {
   const params = new URLSearchParams({ week_of: weekOf, weeks: String(weeks), timezone });
   const { data, error, isPending } = useQuery({
     queryKey: ["training-load", weekOf, weeks, timezone],
+    staleTime: 0,
     queryFn: () => apiFetch<TrainingLoadResponse>(`/training-load?${params.toString()}`),
     enabled: validDate,
   });
@@ -670,6 +716,7 @@ export function TrainingLoadView() {
         </p>
       ) : null}
       {error ? <p role="alert" className="text-sm text-danger">{errorMessage(error)}</p> : null}
+      {data ? <TrainingLoadChart weeks={data.weeks} /> : null}
       {data ? (
         <div className="card overflow-x-auto">
           <table aria-label="Weekly gym work" className="w-full text-left text-sm">

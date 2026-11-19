@@ -145,6 +145,9 @@ test("Swim + sauna and hockey log in one tap each and update Today's summary", a
     const swimBox = await swim.boundingBox();
     expect(swimBox?.height).toBeGreaterThanOrEqual(44);
     await clickAndAwaitWrite(page, swim, "POST");
+    const entries = done.locator("details");
+    await expect(entries).not.toHaveAttribute("open", "");
+    await entries.locator("summary").click();
     await expect(done.getByTestId("today-done-item").filter({ hasText: "Swim + sauna" }).first()).toContainText(
       "30 min · 30 laps · 3 sauna",
     );

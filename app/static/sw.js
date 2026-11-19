@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "workout-logger-v7";
+const CACHE_NAME = "workout-logger-v8";
 const SHELL_KEY = "/";
 
 const NEVER_CACHE_PREFIXES = ["/api/v1", "/health", "/docs", "/openapi.json"];
@@ -9,7 +9,12 @@ async function cacheShell(cache, response) {
   // Vite's generated shell names its public entry bundle and static imports.
   // Save them before replacing the document that refers to them.
   const html = await response.clone().text();
-  const urls = new Set(["/manifest.webmanifest"]);
+  const urls = new Set([
+    "/manifest.webmanifest",
+    "/static/icons/favicon-16.png",
+    "/static/icons/favicon-32.png",
+    "/static/icons/icon-192.png",
+  ]);
   for (const match of html.matchAll(/\b(?:href|src)="(\/static\/dist\/assets\/[^"<>]+)"/g)) {
     const asset = new URL(match[1], self.location.origin);
     if (asset.pathname.startsWith("/static/dist/assets/")) urls.add(asset.href);

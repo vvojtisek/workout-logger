@@ -1,4 +1,5 @@
 import re
+import struct
 
 
 async def test_root_returns_html(client):
@@ -20,6 +21,28 @@ async def test_manifest_contains_192_and_512_icons(client):
     sizes = {icon["sizes"] for icon in body["icons"]}
     assert "192x192" in sizes
     assert "512x512" in sizes
+
+
+async def test_browser_and_android_icons_are_served_with_their_declared_sizes(client):
+    shell = (await client.get("/")).text
+    favicons = re.findall(
+        r'<link rel="icon" type="image/png" sizes="([^"]+)" href="([^"]+)"', shell
+    )
+    assert {size for size, _ in favicons} == {"16x16", "32x32"}
+
+    manifest = (await client.get("/manifest.webmanifest")).json()
+    icons = {(icon["sizes"], icon.get("purpose", "any")): icon["src"] for icon in manifest["icons"]}
+    assert set(icons) >= {("192x192", "any"), ("512x512", "any"), ("512x512", "maskable")}
+    pngs = {}
+    for size, path in favicons + [(size, path) for (size, _), path in icons.items()]:
+        image = await client.get(path)
+        assert image.status_code == 200
+        assert image.headers["content-type"] == "image/png"
+        assert image.content.startswith(b"\x89PNG\r\n\x1a\n")
+        assert struct.unpack(">II", image.content[16:24]) == tuple(map(int, size.split("x")))
+        pngs[path] = image.content
+
+    assert pngs[icons[("512x512", "any")]] != pngs[icons[("512x512", "maskable")]]
 
 
 async def test_service_worker_available_at_root_path(client):

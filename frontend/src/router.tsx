@@ -6,7 +6,7 @@ import { FULL_BLEED, MasterDetail, WIDE } from "@/app/MasterDetail";
 import { RouteErrorBoundary } from "@/app/RouteErrorBoundary";
 import { RequireAuth } from "@/auth/RequireAuth";
 import { ActiveWorkoutView } from "@/features/active-workout/ActiveWorkoutView";
-import { useIsDesktop } from "@/lib/use-media-query";
+import { TODAY_PATH } from "@/lib/navigation";
 
 /** Lazily loads a list page and wraps it in the list-and-detail layout. */
 function masterDetail(
@@ -28,11 +28,6 @@ function masterDetail(
       },
     };
   };
-}
-
-/** The phone opens on Today; the desktop keeps opening on the plans. */
-function HomeRedirect() {
-  return <Navigate to={useIsDesktop() ? "/plans" : "/today"} replace />;
 }
 
 /** Shown while the first lazy route chunk loads. The page background is
@@ -64,11 +59,20 @@ export const router = createBrowserRouter([
           element: <AppLayout />,
           errorElement: <RouteErrorBoundary />,
           children: [
-            { index: true, element: <HomeRedirect /> },
+            { index: true, element: <Navigate to={TODAY_PATH} replace /> },
             {
               path: "today",
               handle: WIDE,
               lazy: () => import("@/features/today/TodayView").then((m) => ({ Component: m.TodayView })),
+            },
+            {
+              path: "training",
+              lazy: () => import("@/features/training/TrainingView").then((m) => ({ Component: m.TrainingView })),
+            },
+            {
+              path: "training/trends",
+              handle: WIDE,
+              lazy: () => import("@/features/training/TrainingTrends").then((m) => ({ Component: m.TrainingTrends })),
             },
             {
               path: "locations",
@@ -159,6 +163,14 @@ export const router = createBrowserRouter([
               ],
             },
             {
+              path: "body",
+              lazy: () => import("@/features/body/BodyOverview").then((m) => ({ Component: m.BodyOverview })),
+            },
+            {
+              path: "body/trends",
+              lazy: () => import("@/features/body/BodyTrends").then((m) => ({ Component: m.BodyTrends })),
+            },
+            {
               path: "biometrics",
               handle: FULL_BLEED,
               lazy: masterDetail("/biometrics", "Pick an entry to edit, or log a new one.", () =>
@@ -182,6 +194,12 @@ export const router = createBrowserRouter([
                 import("@/features/nutrition/NutritionDashboardView").then((m) => ({
                   Component: m.NutritionDashboardView,
                 })),
+            },
+            {
+              path: "nutrition/trends",
+              lazy: () => import("@/features/nutrition/NutritionTrends").then((m) => ({
+                Component: m.NutritionTrends,
+              })),
             },
             {
               path: "kitchen",

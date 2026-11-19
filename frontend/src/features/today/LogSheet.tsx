@@ -9,7 +9,7 @@ interface Entry {
   hint: string;
 }
 
-/** The phone's quick-entry sheet behind the central Log button. Each entry is
+/** The quick-entry menu behind the Log button. Each entry is
  * a link, so it closes by navigating; the backdrop and Escape close it too. */
 export function LogSheet({
   open,
@@ -32,15 +32,15 @@ export function LogSheet({
   }, [open]);
 
   const entries: Entry[] = [
+    sessionActive
+      ? { to: WORKOUT_PATH, title: "Resume workout", hint: "Back to the live session" }
+      : { to: "/plans", title: "Start a workout", hint: "From one of your plans" },
     { to: "/nutrition/meals/new", title: "Food", hint: "A meal or a snack" },
     { to: "/sleep/new", title: "Sleep", hint: "With all the details" },
     { to: "/activity/quick", title: "Cardio", hint: "Pre-filled hockey, swim, ride" },
     { to: "/recovery", title: "Recovery", hint: "Sauna, stretch: one tap" },
     { to: "/activity/new", title: "Activity", hint: "Every field, distance too" },
     { to: "/biometrics/new", title: "Weight", hint: "And body measurements" },
-    sessionActive
-      ? { to: WORKOUT_PATH, title: "Resume workout", hint: "Back to the live session" }
-      : { to: "/plans", title: "Start a workout", hint: "From one of your plans" },
     { to: "/log/new", title: "Past workout", hint: "One you already finished" },
   ];
 
@@ -53,7 +53,7 @@ export function LogSheet({
         if (event.target === event.currentTarget) onClose();
       }}
       aria-labelledby={titleId}
-      className="mx-0 mt-auto mb-0 w-full max-w-none rounded-t-[var(--radius-lg)] border border-line-muted bg-surface p-0 text-main shadow-elevated backdrop:bg-black/50"
+      className="mx-0 mt-auto mb-0 w-full max-w-none rounded-t-[var(--radius-lg)] border border-line-muted bg-surface p-0 text-main shadow-elevated backdrop:bg-black/50 sm:m-auto sm:rounded-[var(--radius-lg)]"
     >
       <div className="flex flex-col gap-3 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <h2 id={titleId} className="text-sm font-semibold text-muted">

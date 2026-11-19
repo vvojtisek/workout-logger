@@ -1,6 +1,8 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
+from pydantic import AwareDatetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
@@ -28,9 +30,13 @@ router = APIRouter(prefix="/body-metrics", tags=["body metrics"])
 async def list_body_metrics(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    date_from: Annotated[AwareDatetime | None, Query()] = None,
+    date_to: Annotated[AwareDatetime | None, Query()] = None,
     session: AsyncSession = Depends(get_session),
 ) -> PaginatedBodyMetricsResponse:
-    items, total = await body_metrics_service.list_body_metrics(session, limit, offset)
+    items, total = await body_metrics_service.list_body_metrics(
+        session, limit, offset, date_from=date_from, date_to=date_to
+    )
     return PaginatedBodyMetricsResponse(
         items=[BodyMetricRead.model_validate(item) for item in items],
         total=total,

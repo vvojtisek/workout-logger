@@ -66,7 +66,7 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
     expect(first).toMatchObject({ weight_kg: 80, chest_cm: 96.5 });
     firstId = first?.id;
 
-    // Verify it renders in the trend card and history list.
+    // Verify it renders in the entry list.
     await expect(page.getByText("80.0 kg", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(`${firstDate} ${timeTag}`, { exact: false })).toBeVisible();
     await expect(page.getByText("20.0% BF")).toBeVisible();
@@ -112,12 +112,13 @@ test("logs, views trends for, edits, and deletes real biometrics entries through
     expect(trendsBody.latest.weight_kg).toBe(79);
     expect(trendsBody.weight_kg_delta_7d).toBe(-1);
 
-    // The trend card reflects the new latest weight and delta.
+    // The overview reflects the new latest weight and delta.
+    await openPage(page, "Body & Sleep");
     await expect(page.getByText("79.0 kg", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("-1.0 kg")).toBeVisible();
 
     // Both skipped values still have their own latest reading.
-    await page.getByRole("button", { name: "Log entry" }).click();
+    await page.getByRole("link", { name: "Log measurement" }).click();
     await expect(page.getByLabel("Body fat (%)")).toHaveValue("20");
     await additional.click();
     await expect(page.getByLabel("Chest (cm)", { exact: true })).toHaveValue("96.5");

@@ -56,13 +56,18 @@ export function ProgramsView() {
     void load();
   }, [load, listVersion]);
 
+  function refreshPrograms() {
+    void load();
+    void queryClient.invalidateQueries({ queryKey: ["plans"] });
+    void queryClient.invalidateQueries({ queryKey: ["programs"] });
+    void queryClient.invalidateQueries({ queryKey: ["calendar"] });
+  }
+
   async function deleteProgram(program: Program) {
     try {
       await apiFetch(`/programs/${program.id}`, { method: "DELETE" });
       toast.success(`Deleted "${program.name}"`);
-      void load();
-      void queryClient.invalidateQueries({ queryKey: ["plans"] });
-      void queryClient.invalidateQueries({ queryKey: ["calendar"] });
+      refreshPrograms();
     } catch (err) {
       toast.error(`Failed to delete program: ${errorMessage(err)}`);
     }
@@ -133,7 +138,7 @@ export function ProgramsView() {
         ))}
       </ul>
 
-      <ProgramTemplates onInstalled={() => void load()} />
+      <ProgramTemplates onInstalled={refreshPrograms} />
 
       <ConfirmDialog
         open={deleteTarget !== null}

@@ -335,6 +335,7 @@ export function CalendarView() {
 
   const calendarQuery = useQuery({
     queryKey: ["calendar", cursor.year, cursor.month],
+    staleTime: 0,
     queryFn: () =>
       apiFetch<{
         items: ScheduledWorkout[];

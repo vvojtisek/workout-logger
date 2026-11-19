@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { useEntryDates } from "@/features/trends/EntryDateFilter";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { SleepEntry } from "@/api/types";
 import { localDateTimeInputToIso, toLocalDateTimeInput } from "@/lib/date-time-inputs";
@@ -80,6 +81,7 @@ export function SleepEntryForm() {
 
 function NightForm({ entry, defaults }: { entry?: SleepEntry; defaults?: Defaults }) {
   const navigate = useNavigate();
+  const { suffix } = useEntryDates();
   const queryClient = useQueryClient();
   const [night, setNight] = useState(() => initialWindow(entry, defaults));
   const [quality, setQuality] = useState(entry?.quality_score ?? null);
@@ -110,9 +112,10 @@ function NightForm({ entry, defaults }: { entry?: SleepEntry; defaults?: Default
     onSuccess: (saved) => {
       queryClient.setQueryData(["sleep-entry", saved.id], saved);
       void queryClient.invalidateQueries({ queryKey: ["sleep-entries"] });
+      void queryClient.invalidateQueries({ queryKey: ["sleep-trends"] });
       void queryClient.invalidateQueries({ queryKey: ["today"] });
       toast.success(entry ? "Updated entry" : "Logged entry");
-      void navigate("/sleep");
+      void navigate(`/sleep${suffix}`);
     },
     onError: (err: unknown) => toast.error(`Failed to save: ${errorMessage(err)}`),
   });
@@ -270,7 +273,7 @@ function NightForm({ entry, defaults }: { entry?: SleepEntry; defaults?: Default
         >
           {entry ? "Save changes" : "Log sleep"}
         </Button>
-        <Button onClick={() => void navigate("/sleep")}>Cancel</Button>
+        <Button onClick={() => void navigate(`/sleep${suffix}`)}>Cancel</Button>
       </div>
     </form>
   );

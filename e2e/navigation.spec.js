@@ -7,21 +7,16 @@ test("the app shell fits the viewport and reaches every page", async ({
 }) => {
   page.setDefaultTimeout(5_000);
   await page.goto("/");
-  // The phone opens on Today; the desktop keeps opening on the plans.
-  await expect(page).toHaveURL(isDesktop(page) ? /\/plans$/ : /\/today$/);
+  await expect(page).toHaveURL(/\/today$/);
   const nav = page.getByRole("navigation", { name: "Main navigation" });
 
   if (isDesktop(page)) {
     // Rail of named destinations, full-width workspace beside it.
     for (const label of [
       "Today",
-      "Active Workout",
-      "Programs & Plans",
-      "Calendar",
-      "Workout History",
-      "Exercise Catalogue",
-      "Nutrition & Meals",
-      "Body Metrics & Sleep",
+      "Training",
+      "Nutrition",
+      "Body & Sleep",
       "API & MCP Tokens",
       "Settings",
     ]) {
@@ -29,10 +24,10 @@ test("the app shell fits the viewport and reaches every page", async ({
         nav.getByRole("link", { name: label, exact: true }),
       ).toBeVisible();
     }
-    const rail = await page.locator("aside").boundingBox();
+    const rail = await page.locator("aside").filter({ has: nav }).boundingBox();
     expect(rail?.width).toBe(220);
     await expect(
-      nav.getByRole("link", { name: "Programs & Plans" }),
+      nav.getByRole("link", { name: "Today", exact: true }),
     ).toHaveAttribute("aria-current", "page");
     const main = await page.getByRole("main").boundingBox();
     expect(main?.x).toBe(220);
@@ -42,7 +37,7 @@ test("the app shell fits the viewport and reaches every page", async ({
     // compact bar at the top.
     const tabs = nav.getByRole("link");
     await expect(tabs).toHaveText(
-      ["Today", "History", "Coach", "More"].map((t) => new RegExp(t)),
+      ["Today", "Training", "Nutrition", "Body & Sleep"].map((t) => new RegExp(t)),
     );
     await expect(nav.getByRole("button", { name: "Log", exact: true })).toBeVisible();
     const bar = await nav.boundingBox();
@@ -57,6 +52,13 @@ test("the app shell fits the viewport and reaches every page", async ({
     );
   }
 
+  await nav.getByRole("button", { name: "Log", exact: true }).click();
+  const log = page.getByRole("dialog", { name: "Log" });
+  await expect(log.getByRole("link").first()).toHaveText(/Start a workout/);
+  await expect(log.getByRole("link", { name: "Food", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(log).toBeHidden();
+
   // Nothing spills sideways.
   const overflow = await page.evaluate(
     () =>
@@ -69,6 +71,8 @@ test("the app shell fits the viewport and reaches every page", async ({
   /** @type {[string, RegExp][]} */
   const destinations = [
     ["Today", /\/today$/],
+    ["Training", /\/training$/],
+    ["Training trends", /\/training\/trends$/],
     ["New Workout", /\/log\/new$/],
     ["Log Activity", /\/activity\/new$/],
     ["Cardio", /\/activity\/quick$/],
@@ -82,6 +86,13 @@ test("the app shell fits the viewport and reaches every page", async ({
     ["Exercises", /\/exercises$/],
     ["Locations", /\/locations$/],
     ["Nutrition", /\/nutrition$/],
+    ["Nutrition trends", /\/nutrition\/trends$/],
+    ["Meal Log", /\/nutrition\/meals$/],
+    ["Foods", /\/nutrition\/foods$/],
+    ["Nutrition plans", /\/nutrition\/plans$/],
+    ["Kitchen & Store", /\/kitchen$/],
+    ["Body & Sleep", /\/body$/],
+    ["Body trends", /\/body\/trends$/],
     ["Biometrics", /\/biometrics$/],
     ["Sleep", /\/sleep$/],
     ["Tokens", /\/tokens$/],
@@ -97,7 +108,7 @@ test("the app shell fits the viewport and reaches every page", async ({
   await openPage(page, "Sleep");
   await expect(
     page
-      .getByRole("navigation", { name: "Section pages" })
+      .getByRole("navigation", { name: "Section destinations" })
       .getByRole("link", { name: "Sleep" }),
   ).toHaveAttribute("aria-current", "page");
 });

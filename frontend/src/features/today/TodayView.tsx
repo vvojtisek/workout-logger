@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
 import type {
@@ -21,8 +21,6 @@ import type {
   WorkoutSession,
 } from "@/api/types";
 import { useAppContext } from "@/AppLayout";
-import { MuscleSplit } from "@/features/dashboard/MuscleSplit";
-import { RecentSessions } from "@/features/dashboard/RecentSessions";
 import { VolumeChart } from "@/features/dashboard/VolumeChart";
 import { LocationCheckDialog } from "@/features/locations/LocationCheckDialog";
 import { DrinkQuickAdd, useQuickAddPresets } from "@/features/nutrition/DrinkQuickAdd";
@@ -55,7 +53,6 @@ import {
   writeSkippedEvent,
 } from "@/lib/today";
 import type { RepeatableMeal } from "@/lib/today";
-import { useIsDesktop } from "@/lib/use-media-query";
 import { toast } from "@/ui/Toast";
 import { Button } from "@/ui";
 import { canonicalClock, ClockInput } from "@/ui/ClockInput";
@@ -192,17 +189,23 @@ export function TodayView() {
     // aggregate on the client without a new endpoint.
     queryFn: () => apiFetch<Paginated<WorkoutLog>>("/logs?limit=100"),
   });
+  const nutrition = useQuery({
+    queryKey: [...TODAY_KEY, "nutrition", today],
+    ...FRESH,
+    queryFn: () => apiFetch<NutritionDailySummary>(`/nutrition/daily?date=${today}`),
+  });
   const readiness = useQuery({
     queryKey: [...TODAY_KEY, "readiness", today],
     ...FRESH,
     queryFn: () => apiFetch<{ items: ReadinessLog[] }>(`/readiness-logs?start=${today}&end=${today}`),
   });
-  const isDesktop = useIsDesktop();
 
   const occurrences = calendar.data?.load_events ?? [];
   const next = nextSportEvent(occurrences, now);
   const latestSleep = sleep.data?.items[0] ?? null;
   const weight = body.data?.latest?.weight_kg;
+  const energy = nutrition.data?.totals.energy_kcal;
+  const energyTarget = nutrition.data?.target?.energy_target_kcal;
 
   const main = (
     <div id="today-main" className="flex min-w-0 flex-col gap-5">
@@ -223,43 +226,35 @@ export function TodayView() {
       <DoneToday today={today} logs={logs.data?.items ?? []} checkIn={readiness.data?.items[0] ?? null} />
       <HockeyCards now={now} occurrences={occurrences} logs={logs.data?.items ?? []} onChange={refresh} />
       <SleepCard now={now} entries={sleep.data?.items} onChange={refresh} />
-      <FoodCard now={now} onChange={refresh} />
+      <FoodCard daily={nutrition.data} onChange={refresh} />
 
       <dl
         aria-label="At a glance"
         className="flex flex-wrap gap-x-5 gap-y-1 border-t border-line-muted pt-5 text-xs"
       >
-        <Glance label="Sleep" value={latestSleep ? formatSleepDuration(latestSleep.time_in_bed_seconds) : "–"} />
-        <Glance label="Weight" value={weight != null ? `${weight} kg` : "–"} />
-        <Glance label="Next sport" value={next ? next.when : "None"} />
+        <Glance label="Nutrition" to="/nutrition" value={energy == null ? "–" : `${Math.round(energy)}${energyTarget == null ? "" : ` / ${energyTarget}`} kcal`} />
+        <Glance label="Sleep" to="/body" value={latestSleep ? formatSleepDuration(latestSleep.time_in_bed_seconds) : "–"} />
+        <Glance label="Weight" to="/body" value={weight != null ? `${weight} kg` : "–"} />
+        <Glance label="Next sport" to="/calendar" value={next ? next.when : "None"} />
       </dl>
     </div>
   );
 
-  // Phone: the one column above. Desktop: the same column beside the analysis
-  // panels, which use the width instead of stretching the column.
-  if (!isDesktop) {
-    return (
-      <section id="today-view" className="flex flex-col gap-3">
-        {main}
-      </section>
-    );
-  }
   return (
     <section
       id="today-view"
-      className="grid grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)] items-start gap-x-10"
+      className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)] lg:gap-x-10"
     >
       {main}
       <aside
         aria-label="Training analysis"
-        className="grid min-w-0 grid-cols-1 gap-x-10 gap-y-8 xl:grid-cols-2"
+        className="grid min-w-0 grid-cols-1 gap-x-10 gap-y-4 border-t border-line-muted pt-5 lg:border-0 lg:pt-0 xl:grid-cols-2"
       >
         <div className="xl:col-span-2">
           <VolumeChart logs={logs.data?.items ?? []} />
         </div>
-        <MuscleSplit logs={logs.data?.items ?? []} />
-        <RecentSessions logs={logs.data?.items ?? []} />
+        <Link className="text-sm font-medium text-accent-ink hover:underline" to="/training/trends">See training trends</Link>
+        <Link className="text-sm font-medium text-accent-ink hover:underline" to="/history">View workout entries</Link>
       </aside>
     </section>
   );
@@ -308,23 +303,28 @@ function DoneToday({
         </p>
       ) : null}
       {done.length > 0 ? (
-        <ul className="flex flex-col gap-1" aria-label="Sessions today">
-          {done.map((log) => (
-            <li
-              key={log.id}
-              data-testid="today-done-item"
-              data-pending={isPendingLog(log) ? "true" : undefined}
-              className="flex items-baseline justify-between gap-3 text-sm"
-            >
-              <span className="font-medium">{doneTitle(log)}</span>
-              <span data-numeric className="text-muted">
-                {log.total_time_minutes} min
-                {log.laps != null ? ` · ${log.laps} laps` : ""}
-                {log.sauna_rounds ? ` · ${log.sauna_rounds} sauna` : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <details>
+          <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">
+            {done.length} {done.length === 1 ? "session" : "sessions"} today
+          </summary>
+          <ul className="flex flex-col gap-1" aria-label="Sessions today">
+            {done.map((log) => (
+              <li
+                key={log.id}
+                data-testid="today-done-item"
+                data-pending={isPendingLog(log) ? "true" : undefined}
+                className="flex items-baseline justify-between gap-3 text-sm"
+              >
+                <span className="font-medium">{doneTitle(log)}</span>
+                <span data-numeric className="text-muted">
+                  {log.total_time_minutes} min
+                  {log.laps != null ? ` · ${log.laps} laps` : ""}
+                  {log.sauna_rounds ? ` · ${log.sauna_rounds} sauna` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       ) : checkIn ? null : (
         <p className="text-sm text-muted">Nothing logged yet. One tap above logs it.</p>
       )}
@@ -332,12 +332,12 @@ function DoneToday({
   );
 }
 
-function Glance({ label, value }: { label: string; value: string }) {
+function Glance({ label, value, to }: { label: string; value: string; to: string }) {
   return (
     <div className="flex min-w-0 items-baseline gap-1.5">
       <dt className="text-muted">{label}</dt>
       <dd data-numeric className="truncate font-semibold">
-        {value}
+        <Link className="text-accent-ink hover:underline" to={to} aria-label={`${label}, ${value}`}>{value}</Link>
       </dd>
     </div>
   );
@@ -614,14 +614,11 @@ function SleepCard({ now, entries, onChange }: { now: Date; entries: SleepEntry[
   );
 }
 
-function FoodCard({ now, onChange }: { now: Date; onChange: () => void }) {
+function FoodCard({ daily, onChange }: {
+  daily: NutritionDailySummary | undefined;
+  onChange: () => void;
+}) {
   const navigate = useNavigate();
-  const today = localIsoDate(now);
-  const daily = useQuery({
-    queryKey: [...TODAY_KEY, "nutrition", today],
-    ...FRESH,
-    queryFn: () => apiFetch<NutritionDailySummary>(`/nutrition/daily?date=${today}`),
-  });
   const meals = useQuery({
     queryKey: [...TODAY_KEY, "meals"],
     ...FRESH,
@@ -637,8 +634,8 @@ function FoodCard({ now, onChange }: { now: Date; onChange: () => void }) {
     onError: (err) => toast.error(`Failed to log meal: ${errorMessage(err)}`),
   });
 
-  const totals = daily.data?.totals;
-  const target = daily.data?.target;
+  const totals = daily?.totals;
+  const target = daily?.target;
   const presets = useQuickAddPresets().data?.items ?? [];
   const options = repeatableMeals((meals.data?.items ?? []).filter((entry) => !isPresetEntry(entry, presets)));
 
