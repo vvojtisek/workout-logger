@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openPage } from "./support/navigation.js";
+import { clickAndAwaitWrite } from "./support/writes.js";
 
 test("logs and progresses through a real multi-exercise workout grid", async ({
   page,
@@ -160,10 +161,14 @@ test("logs and progresses through a real multi-exercise workout grid", async ({
     await pushOne.getByLabel("Weight (kg)").fill("0");
     await pushOne.getByLabel("Repetitions").fill("12");
     await pushOne.getByLabel("RIR").fill("3");
-    await pushOne
-      .getByRole("button", { name: `Complete ${tag} Push-up set 1` })
-      .click();
+    // The set count updates immediately. Finish is available after the set has synchronized.
+    await clickAndAwaitWrite(
+      page,
+      pushOne.getByRole("button", { name: `Complete ${tag} Push-up set 1` }),
+      "POST",
+    );
     await expect(page.getByText("5 of 6 sets")).toBeVisible();
+    await expect(page.locator("#active-sync-status")).toHaveText("Synchronized");
 
     await page.getByRole("button", { name: "Finish workout" }).first().click();
     const confirmDialog = page.getByRole("dialog", { name: "Finish incomplete workout?" });
