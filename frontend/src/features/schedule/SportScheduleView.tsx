@@ -16,7 +16,7 @@ import {
   emptyDraft,
 } from "@/lib/load-events";
 import { WEEKDAY_LABELS } from "@/lib/program-templates";
-import { Button, Card, EmptyState, Input, PageHeading } from "@/ui";
+import { Button, EmptyState, Input, PageHeading, EntryForm } from "@/ui";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 
@@ -163,7 +163,7 @@ function LoadEventCard({ event, onDelete }: { event: LoadEvent; onDelete: () => 
 
   return (
     <li>
-      <Card className="flex flex-col gap-4 p-4">
+      <EntryForm onSave={submit} className="card flex flex-col gap-4 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="font-medium">
             {event.name}{" "}
@@ -181,7 +181,7 @@ function LoadEventCard({ event, onDelete }: { event: LoadEvent; onDelete: () => 
           <Button
             variant="primary"
             disabled={!dirty || save.isPending}
-            onClick={submit}
+            type="submit"
             aria-label={`Save ${event.name}`}
           >
             Save
@@ -195,7 +195,7 @@ function LoadEventCard({ event, onDelete }: { event: LoadEvent; onDelete: () => 
             Delete
           </Button>
         </div>
-      </Card>
+      </EntryForm>
     </li>
   );
 }
@@ -227,16 +227,16 @@ function NewLoadEventCard() {
   }
 
   return (
-    <Card className="mt-4 flex flex-col gap-4 p-4">
+    <EntryForm onSave={submit} className="card mt-4 flex flex-col gap-4 p-4">
       <h3 className="font-medium">Add a game or practice</h3>
       <LoadEventFields idPrefix="new-load-event" draft={draft} onChange={setDraft} />
       {error ? <p className="text-sm text-danger">{error}</p> : null}
       <div>
-        <Button variant="primary" disabled={create.isPending} onClick={submit}>
+        <Button variant="primary" disabled={create.isPending} type="submit">
           Add to schedule
         </Button>
       </div>
-    </Card>
+    </EntryForm>
   );
 }
 

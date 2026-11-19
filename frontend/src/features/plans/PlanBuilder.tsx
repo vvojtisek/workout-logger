@@ -17,7 +17,7 @@ import { summarizePlanPatterns } from "@/lib/plan-pattern-balance";
 import { planPayloadSchema } from "@/lib/plan-schema";
 import { useSettingsQuery } from "@/lib/settings-query";
 import { useIsDesktop } from "@/lib/use-media-query";
-import { Button, Input } from "@/ui";
+import { Button, Input, EntryForm } from "@/ui";
 import { toast } from "@/ui/Toast";
 import { PlanExerciseRow, PlanTableHeader } from "./PlanExerciseRow";
 
@@ -151,7 +151,7 @@ function PlanEditor({ planId }: { planId: string | undefined }) {
   }
 
   return (
-    <section id="plan-builder-view" className="pb-24">
+    <EntryForm onSave={submit} id="plan-builder-view" className="pb-24">
       <datalist id="exercise-catalogue-names">
         {catalogueExercises.map((exercise) => (
           <option key={exercise.id} value={exercise.name} />
@@ -274,7 +274,7 @@ function PlanEditor({ planId }: { planId: string | undefined }) {
         data-testid="plan-actions"
         className="sticky -bottom-8 lg:-bottom-16 -mx-4 mt-6 flex items-center gap-2 border-t border-line bg-canvas px-4 py-3 lg:-mx-0 lg:px-0"
       >
-        <Button id="save-plan-btn" variant="primary" disabled={mutation.isPending} onClick={submit}>
+        <Button id="save-plan-btn" variant="primary" disabled={mutation.isPending} type="submit">
           {isEditing ? "Save changes" : "Create program"}
         </Button>
         <Button onClick={() => void navigate("/plans")}>Cancel</Button>
@@ -284,6 +284,6 @@ function PlanEditor({ planId }: { planId: string | undefined }) {
           </span>
         ) : null}
       </div>
-    </section>
+    </EntryForm>
   );
 }

@@ -10,7 +10,7 @@ import { MAX_EQUIPMENT_OPTIONS, toggleEquipmentTag } from "@/lib/equipment";
 import { exercisePayloadSchema } from "@/lib/exercise-schema";
 import { EQUIPMENT_LOAD_MODES, LOAD_MODE_LABELS } from "@/lib/load-rules";
 import type { EquipmentLoadMode } from "@/lib/load-rules";
-import { Button, Card, Input, PageHeading } from "@/ui";
+import { Button, Card, Input, PageHeading, EntryForm } from "@/ui";
 import { EquipmentChips } from "@/ui/EquipmentChips";
 import { toast } from "@/ui/Toast";
 
@@ -378,7 +378,7 @@ export function ExerciseBuilder() {
   }
 
   return (
-    <section id="exercise-builder-view">
+    <EntryForm onSave={submit} id="exercise-builder-view">
       <PageHeading hint="Link out to hosted video or self-hosted MP4. Media URLs must be https://.">
         {isEditing ? "Edit Exercise" : "New Exercise"}
       </PageHeading>
@@ -407,6 +407,9 @@ export function ExerciseBuilder() {
           </label>
           <Input
             id="exercise-media-url"
+            type="url"
+            autoCapitalize="none"
+            spellCheck={false}
             placeholder="https://example.com/videos/exercise.mp4"
             value={mediaUrl}
             onChange={(event) => setMediaUrl(event.target.value)}
@@ -555,12 +558,12 @@ export function ExerciseBuilder() {
           id="save-exercise-btn"
           variant="primary"
           disabled={mutation.isPending}
-          onClick={submit}
+          type="submit"
         >
           {isEditing ? "Save changes" : "Create exercise"}
         </Button>
         <Button onClick={() => void navigate("/exercises")}>Cancel</Button>
       </div>
-    </section>
+    </EntryForm>
   );
 }

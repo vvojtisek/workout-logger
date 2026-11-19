@@ -19,7 +19,7 @@ import {
   loadWarningMessage,
   occurrencesByDate,
 } from "@/lib/load-events";
-import { Button, PageHeading } from "@/ui";
+import { Button, PageHeading, EntryForm } from "@/ui";
 import { Dialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
 import { formatDate } from "@/lib/format";
@@ -98,7 +98,7 @@ function ScheduleDialog({
 
   return (
     <Dialog open={open} onClose={onClose} title={`Schedule a workout${date ? ` — ${formatDate(date)}` : ""}`}>
-      <div className="flex flex-col gap-3">
+      <EntryForm onSave={() => mutation.mutate()} className="flex flex-col gap-3">
         <div>
           <label className="field-label" htmlFor="schedule-plan">
             Workout plan
@@ -140,12 +140,12 @@ function ScheduleDialog({
           <Button
             variant="primary"
             disabled={!planId || mutation.isPending}
-            onClick={() => mutation.mutate()}
+            type="submit"
           >
             Schedule
           </Button>
         </div>
-      </div>
+      </EntryForm>
     </Dialog>
   );
 }
@@ -275,7 +275,7 @@ function EntryDialog({
             <label className="field-label" htmlFor="reschedule-date">
               Move to a different date
             </label>
-            <div className="flex gap-2">
+            <EntryForm className="flex gap-2" onSave={() => reschedule.mutate({ id: entry.id, patch: { scheduled_date: newDate } })}>
               <input
                 id="reschedule-date"
                 type="date"
@@ -284,14 +284,12 @@ function EntryDialog({
                 onChange={(event) => setNewDate(event.target.value)}
               />
               <Button
-                disabled={newDate === entry.scheduled_date || reschedule.isPending}
-                onClick={() =>
-                  reschedule.mutate({ id: entry.id, patch: { scheduled_date: newDate } })
-                }
+                disabled={!newDate || newDate === entry.scheduled_date || reschedule.isPending}
+                type="submit"
               >
                 Move
               </Button>
-            </div>
+            </EntryForm>
           </div>
         ) : null}
 

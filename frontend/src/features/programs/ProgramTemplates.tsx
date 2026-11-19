@@ -11,7 +11,7 @@ import {
   toggleWeekday,
 } from "@/lib/program-templates";
 import { toast } from "@/ui/Toast";
-import { Button, Card, Input } from "@/ui";
+import { Button, Input, EntryForm } from "@/ui";
 import { formatDate } from "@/lib/format";
 
 function TemplateCard({
@@ -56,7 +56,7 @@ function TemplateCard({
 
   return (
     <li aria-label={template.name}>
-      <Card className="flex flex-col gap-3 p-4">
+      <EntryForm onSave={() => void install()} className="card flex flex-col gap-3 p-4">
         <div>
           <p className="font-medium">{template.name}</p>
           <p className="mt-0.5 text-xs text-muted">
@@ -111,12 +111,12 @@ function TemplateCard({
             disabled={
               saving || !startDate || (isSequence && weekdays.length === 0)
             }
-            onClick={() => void install()}
+            type="submit"
           >
             Start this program
           </Button>
         </div>
-      </Card>
+      </EntryForm>
     </li>
   );
 }
