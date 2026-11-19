@@ -3,6 +3,7 @@
 import math
 import struct
 import zlib
+from itertools import pairwise
 from pathlib import Path
 
 ICONS_DIR = Path(__file__).resolve().parent.parent / "app" / "static" / "icons"
@@ -73,8 +74,7 @@ def write_icon(path: Path, size: int, *, maskable: bool = False) -> None:
             if 105 < x < 407 and 82 < y < 365:
                 plate = min(_rounded_rectangle(x, y, box) for box in BARBELL)
                 rise = (
-                    min(_segment_distance(x, y, start, end) for start, end in zip(TREND, TREND[1:]))
-                    - 9
+                    min(_segment_distance(x, y, start, end) for start, end in pairwise(TREND)) - 9
                 )
                 color = _mix(color, INK, _coverage(plate, pixel))
                 color = _mix(color, TEAL, _coverage(rise, pixel))

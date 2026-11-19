@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -27,8 +28,8 @@ router = APIRouter(prefix="/meal-entries", tags=["meal entries"])
 async def list_meal_entries(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    date_from: date | None = Query(default=None, alias="from"),
-    date_to: date | None = Query(default=None, alias="to"),
+    date_from: Annotated[date | None, Query(alias="from")] = None,
+    date_to: Annotated[date | None, Query(alias="to")] = None,
     session: AsyncSession = Depends(get_session),
 ) -> PaginatedMealEntriesResponse:
     items, total = await meal_entries_service.list_meal_entries(

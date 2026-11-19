@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,8 +36,8 @@ async def get_nutrition_daily_summary(
     response_model=list[NutritionTrendDay],
 )
 async def get_nutrition_trends(
-    date_to: date = Query(alias="to"),
-    date_from: date | None = Query(default=None, alias="from"),
-    session: AsyncSession = Depends(get_session),
+    date_to: Annotated[date, Query(alias="to")],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    date_from: Annotated[date | None, Query(alias="from")] = None,
 ) -> list[NutritionTrendDay]:
     return await nutrition_dashboard_service.get_nutrition_trends(session, date_from, date_to)

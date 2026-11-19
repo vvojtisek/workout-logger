@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -29,8 +30,8 @@ router = APIRouter(prefix="/sleep-entries", tags=["sleep"])
 async def list_sleep_entries(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    date_from: AwareDatetime | None = Query(default=None),
-    date_to: AwareDatetime | None = Query(default=None),
+    date_from: Annotated[AwareDatetime | None, Query()] = None,
+    date_to: Annotated[AwareDatetime | None, Query()] = None,
     session: AsyncSession = Depends(get_session),
 ) -> PaginatedSleepEntriesResponse:
     items, total = await sleep_entries_service.list_sleep_entries(
