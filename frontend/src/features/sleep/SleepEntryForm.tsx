@@ -10,6 +10,7 @@ import { SLEEP_QUALITY_SCALE, scaleLabel, scaleOptionText, scaleValues } from "@
 import { sleepEntryPayloadSchema, type SleepEntryPayload } from "@/lib/sleep-entry-schema";
 import { deviceTimezone, formatSleepDuration, sleepDefaults, sleepWindow } from "@/lib/today";
 import { Button, Block, Input, PageHeading } from "@/ui";
+import { DateTimeFields } from "@/ui/DateTimeFields";
 import { MeasurementControl } from "@/ui/MeasurementControl";
 import { toast } from "@/ui/Toast";
 
@@ -43,53 +44,6 @@ function instant(local: string, original?: string) {
   return original && toLocalDateTimeInput(original) === local
     ? original
     : localDateTimeInputToIso(local);
-}
-
-function ClockFields({
-  label,
-  value,
-  onChange,
-  error,
-}: {
-  label: "Bedtime" | "Wake";
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-}) {
-  const [day, time] = value.split(" ");
-  const errorId = `sleep-${label}-error`;
-  return (
-    <fieldset className="min-w-0">
-      <legend className="field-label">{label === "Wake" ? "Woke up" : "Went to bed"}</legend>
-      <div className="grid grid-cols-2 gap-2">
-        <Input
-          type="date"
-          aria-label={`${label} date`}
-          required
-          value={day}
-          className="min-w-0 text-base"
-          onChange={(e) => onChange(`${e.target.value} ${time}`)}
-          aria-invalid={!!error}
-          aria-describedby={error ? errorId : undefined}
-        />
-        <Input
-          type="time"
-          aria-label={`${label} time`}
-          required
-          value={time}
-          className="min-w-0 text-base"
-          onChange={(e) => onChange(`${day} ${e.target.value}`)}
-          aria-invalid={!!error}
-          aria-describedby={error ? errorId : undefined}
-        />
-      </div>
-      {error && (
-        <p id={errorId} className="text-sm text-danger">
-          {error}
-        </p>
-      )}
-    </fieldset>
-  );
 }
 
 export function SleepEntryForm() {
@@ -213,14 +167,16 @@ function NightForm({ entry, defaults }: { entry?: SleepEntry; defaults?: Default
       }}
     >
       <Block className="grid gap-3 py-3">
-        <ClockFields
-          label="Bedtime"
+        <DateTimeFields
+          legend="Went to bed"
+          labelPrefix="Bedtime"
           value={night.start}
           onChange={(start) => setNight({ ...night, start })}
           error={errors.sleep_start}
         />
-        <ClockFields
-          label="Wake"
+        <DateTimeFields
+          legend="Woke up"
+          labelPrefix="Wake"
           value={night.end}
           onChange={(end) => setNight({ ...night, end })}
           error={errors.sleep_end}

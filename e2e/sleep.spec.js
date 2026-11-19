@@ -25,12 +25,12 @@ test("logs, views trends for, edits, and deletes a real sleep entry through the 
     await page.getByRole("button", { name: "Log sleep" }).click();
     await expect(page.getByRole("heading", { name: "Log Sleep" })).toBeVisible();
     const bedDate = page.getByLabel("Bedtime date");
-    const bedTime = page.getByLabel("Bedtime time");
+    const bedTime = page.getByRole("textbox", { name: "Bedtime time", exact: true });
     const wakeDate = page.getByLabel("Wake date");
-    const wakeTime = page.getByLabel("Wake time");
+    const wakeTime = page.getByRole("textbox", { name: "Wake time", exact: true });
     const details = page.getByRole("button", { name: "Sleep details" });
     await expect(bedDate).toHaveAttribute("type", "date");
-    await expect(wakeTime).toHaveAttribute("type", "time");
+    await expect(wakeTime).toHaveAttribute("inputmode", "numeric");
     await expect(bedTime).toHaveValue("23:00");
     await expect(wakeTime).toHaveValue("07:00");
     await expect(page.getByLabel("Notes (optional)")).toBeHidden();
