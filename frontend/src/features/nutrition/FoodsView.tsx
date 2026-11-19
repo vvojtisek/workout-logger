@@ -67,6 +67,8 @@ export function FoodsView() {
       <div className="mb-4">
         <Input
           aria-label="Search foods"
+          type="search"
+          enterKeyHint="search"
           placeholder="Search by name or brand…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}

@@ -5,7 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { NutritionPlan } from "@/api/types";
 import { nutritionPlanPayloadSchema } from "@/lib/nutrition-plan-schema";
-import { Button, Card, Input, PageHeading } from "@/ui";
+import { Button, Card, Input, PageHeading, EntryForm } from "@/ui";
 import { toast } from "@/ui/Toast";
 
 interface FieldState {
@@ -130,7 +130,7 @@ export function NutritionPlanBuilder() {
   }
 
   return (
-    <section id="nutrition-plan-builder-view">
+    <EntryForm onSave={submit} id="nutrition-plan-builder-view">
       <PageHeading>{isEditing ? "Edit Nutrition Plan" : "New Nutrition Plan"}</PageHeading>
 
       <Card className="flex flex-col gap-4 p-4">
@@ -183,6 +183,7 @@ export function NutritionPlanBuilder() {
             <Input
               id="nutrition-plan-energy"
               type="number"
+              step="any"
               value={fields.energy_target_kcal}
               onChange={(e) => update("energy_target_kcal", e.target.value)}
             />
@@ -197,6 +198,7 @@ export function NutritionPlanBuilder() {
             <Input
               id="nutrition-plan-protein"
               type="number"
+              step="any"
               value={fields.protein_target_g}
               onChange={(e) => update("protein_target_g", e.target.value)}
             />
@@ -211,6 +213,7 @@ export function NutritionPlanBuilder() {
             <Input
               id="nutrition-plan-carbs"
               type="number"
+              step="any"
               value={fields.carbohydrate_target_g}
               onChange={(e) => update("carbohydrate_target_g", e.target.value)}
             />
@@ -225,6 +228,7 @@ export function NutritionPlanBuilder() {
             <Input
               id="nutrition-plan-fat"
               type="number"
+              step="any"
               value={fields.fat_target_g}
               onChange={(e) => update("fat_target_g", e.target.value)}
             />
@@ -239,6 +243,7 @@ export function NutritionPlanBuilder() {
             <Input
               id="nutrition-plan-fiber"
               type="number"
+              step="any"
               value={fields.fiber_target_g}
               onChange={(e) => update("fiber_target_g", e.target.value)}
             />
@@ -251,12 +256,12 @@ export function NutritionPlanBuilder() {
           id="save-nutrition-plan-btn"
           variant="primary"
           disabled={mutation.isPending}
-          onClick={submit}
+          type="submit"
         >
           {isEditing ? "Save changes" : "Create plan"}
         </Button>
         <Button onClick={() => void navigate("/nutrition/plans")}>Cancel</Button>
       </div>
-    </section>
+    </EntryForm>
   );
 }

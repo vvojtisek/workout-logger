@@ -11,7 +11,7 @@ import {
   nowAsLocalDateTimeInput,
   toLocalDateTimeInput,
 } from "@/lib/date-time-inputs";
-import { Button, Card, Input, PageHeading } from "@/ui";
+import { Button, Card, Input, PageHeading, EntryForm } from "@/ui";
 import { CatalogQuickAdd } from "./CatalogQuickAdd";
 import { DrinkQuickAdd } from "./DrinkQuickAdd";
 import { toast } from "@/ui/Toast";
@@ -198,7 +198,7 @@ export function MealEntryForm() {
   }
 
   return (
-    <section id="meal-entry-form-view">
+    <EntryForm onSave={submit} id="meal-entry-form-view">
       <PageHeading>{isEditing ? "Edit Meal" : "Log Meal"}</PageHeading>
 
       {isEditing ? null : (
@@ -456,12 +456,12 @@ export function MealEntryForm() {
           id="save-meal-entry-btn"
           variant="primary"
           disabled={mutation.isPending}
-          onClick={submit}
+          type="submit"
         >
           {isEditing ? "Save changes" : "Log meal"}
         </Button>
         <Button onClick={() => void navigate("/nutrition/meals")}>Cancel</Button>
       </div>
-    </section>
+    </EntryForm>
   );
 }

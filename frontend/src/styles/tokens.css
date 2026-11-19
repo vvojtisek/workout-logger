@@ -269,6 +269,12 @@
     font-size: 0.9375rem;
   }
 
+  @media (pointer: coarse) {
+    .input {
+      font-size: max(1rem, 16px);
+    }
+  }
+
   /* Numbers in form fields line up in columns. */
   .input[type="number"],
   .input[inputmode="numeric"],
@@ -315,5 +321,12 @@
     font-weight: 550;
     color: var(--text-muted);
     margin-bottom: 0.3rem;
+  }
+}
+
+/* Keep focused controls at a readable size without iOS zooming the page. */
+@media (pointer: coarse) {
+  :where(input, select, textarea):is(.text-xs, .text-sm) {
+    font-size: max(1rem, 16px);
   }
 }

@@ -44,7 +44,12 @@ test("builds a food and nutrition plan, logs a meal, and verifies the daily dash
     await page.getByLabel("Protein (g)").fill("31");
     await page.getByLabel("Carbohydrate (g)").fill("0");
     await page.getByLabel("Fat (g)").fill("3.6");
-    await clickAndAwaitWrite(page, page.getByRole("button", { name: "Create food" }), "POST");
+    await expect(page.getByLabel("Serving quantity")).toHaveAttribute("inputmode", "decimal");
+    const [created] = await Promise.all([
+      page.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith("/api/v1/foods")),
+      page.getByLabel("Fat (g)").press("Enter"),
+    ]);
+    expect(created.status()).toBe(201);
     await expect(page.getByRole("heading", { name: "Foods" })).toBeVisible();
 
     const foodsList = await request.get("/api/v1/foods?limit=100");
