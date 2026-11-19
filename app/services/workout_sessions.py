@@ -72,6 +72,32 @@ def _performance_order(exercises) -> list[tuple]:
     return order
 
 
+def _focus_is_open_elsewhere(
+    workout_session: WorkoutSession, written: SessionExercise, set_number: int
+) -> bool:
+    """True when focus sits on a still-open set other than the one just written.
+
+    That focus was chosen by the athlete (``PATCH /focus``) and must survive a
+    queued set write that reaches the server after it. Otherwise the slower
+    write would yank the selection back to whatever is next in order.
+    """
+    focused = next(
+        (
+            item
+            for item in workout_session.exercises
+            if item.id == workout_session.focused_exercise_id
+        ),
+        None,
+    )
+    if focused is None or workout_session.focused_set_number > focused.target_sets:
+        return False
+    if focused.id == written.id and workout_session.focused_set_number == set_number:
+        return False
+    return all(
+        entry.set_number != workout_session.focused_set_number for entry in focused.set_entries
+    )
+
+
 def _focus_next_incomplete(workout_session: WorkoutSession) -> None:
     for exercise, set_number in _performance_order(workout_session.exercises):
         if all(entry.set_number != set_number for entry in exercise.set_entries):
@@ -276,7 +302,8 @@ async def save_set(
             if rest_seconds == 0
             else completed_at + timedelta(seconds=rest_seconds or exercise.rest_time_seconds)
         )
-    _focus_next_incomplete(workout_session)
+    if not _focus_is_open_elsewhere(workout_session, exercise, data.set_number):
+        _focus_next_incomplete(workout_session)
     workout_session.version += 1
     await session.commit()
     return await get_session(session, workout_session.id), True

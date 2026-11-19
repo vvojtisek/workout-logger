@@ -120,6 +120,24 @@ test("logs and progresses through a real multi-exercise workout grid", async ({
     await squatOne.getByRole("button", { name: `Complete ${tag} Squat set 1` }).click();
     const squatTwo = row(`${tag} Squat`, 2);
     await expect(squatTwo).toHaveAttribute("data-state", "current");
+    // Issue #203: hold the queued skip until the athlete has already opened
+    // Row set 2, so the server sees the manual focus first and the set write
+    // second. That ordering used to pull the selection back to Row set 1.
+    /** @type {() => void} */
+    let releaseSkip = () => undefined;
+    const skipHeld = new Promise((resolve) => {
+      releaseSkip = () => resolve(undefined);
+    });
+    const isSetWrite = (/** @type {import("@playwright/test").Request} */ request) =>
+      request.method() === "POST" && /\/workout-sessions\/[^/]+\/sets$/.test(new URL(request.url()).pathname);
+    await page.route(
+      (url) => /\/workout-sessions\/[^/]+\/sets$/.test(url.pathname),
+      async (route) => {
+        if (isSetWrite(route.request())) await skipHeld;
+        await route.continue();
+      },
+      { times: 1 },
+    );
     await squatTwo.getByRole("button", { name: `Skip ${tag} Squat set 2` }).click();
 
     // Squat is done, so the view moves on to the superset by itself.
@@ -129,7 +147,15 @@ test("logs and progresses through a real multi-exercise workout grid", async ({
     await expect(listItem("Row")).toHaveAttribute("aria-current", "true");
 
     const rowTwo = row(`${tag} Row`, 2);
-    await rowTwo.getByRole("button", { name: `Open ${tag} Row set 2` }).click();
+    await clickAndAwaitWrite(
+      page,
+      rowTwo.getByRole("button", { name: `Open ${tag} Row set 2` }),
+      "PATCH",
+    );
+    const skipSaved = page.waitForResponse((response) => isSetWrite(response.request()));
+    releaseSkip();
+    expect((await skipSaved).ok()).toBe(true);
+    await expect(page.locator("#active-sync-status")).toHaveText("Synchronized");
     await expect(rowTwo).toHaveAttribute("data-state", "current");
     await rowTwo.getByLabel("Weight (kg)").fill("35");
     await rowTwo.getByLabel("Repetitions").fill("6");
