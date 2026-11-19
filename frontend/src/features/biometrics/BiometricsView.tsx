@@ -1,73 +1,25 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { apiFetch, errorMessage } from "@/api/client";
-import type { BodyMetric, BodyMetricTrends, Paginated } from "@/api/types";
-import { formatWeightDeltaKg, formatWeightKg } from "@/lib/units";
+import type { BodyMetric } from "@/api/types";
+import { formatWeightKg } from "@/lib/units";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
-import { Button, Block, EmptyState, PageHeading } from "@/ui";
+import { Button, EmptyState, PageHeading } from "@/ui";
 import { formatDateTime } from "@/lib/format";
 
-function TrendCard({ trends }: { trends: BodyMetricTrends }) {
-  if (!trends.latest) {
-    return (
-      <EmptyState
-        title="No biometrics logged yet"
-        description="Log your first entry to start tracking weight and body composition trends."
-      />
-    );
-  }
-  return (
-    <Block className="grid grid-cols-2 gap-4 py-4 sm:grid-cols-4">
-      <div>
-        <p className="text-xs text-muted">Latest weight</p>
-        <p className="mt-1 text-lg font-semibold tabular-nums">
-          {formatWeightKg(trends.latest.weight_kg)}
-        </p>
-      </div>
-      <div>
-        <p className="text-xs text-muted">7-day change</p>
-        <p className="mt-1 text-lg font-semibold tabular-nums">
-          {trends.weight_kg_delta_7d === null
-            ? "—"
-            : formatWeightDeltaKg(trends.weight_kg_delta_7d)}
-        </p>
-      </div>
-      <div>
-        <p className="text-xs text-muted">14-day change</p>
-        <p className="mt-1 text-lg font-semibold tabular-nums">
-          {trends.weight_kg_delta_14d === null
-            ? "—"
-            : formatWeightDeltaKg(trends.weight_kg_delta_14d)}
-        </p>
-      </div>
-      <div>
-        <p className="text-xs text-muted">Body fat</p>
-        <p className="mt-1 text-lg font-semibold tabular-nums">
-          {trends.latest.body_fat_percent != null
-            ? `${trends.latest.body_fat_percent.toFixed(1)}%`
-            : "—"}
-        </p>
-      </div>
-    </Block>
-  );
-}
+import { useBodyEntries } from "@/features/body/entries";
+import { EntryDateFilter, useEntryDates } from "@/features/trends/EntryDateFilter";
 
 export function BiometricsView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [deleteTarget, setDeleteTarget] = useState<BodyMetric | null>(null);
 
-  const trendsQuery = useQuery({
-    queryKey: ["body-metrics-trends"],
-    queryFn: () => apiFetch<BodyMetricTrends>("/body-metrics/trends"),
-  });
-  const listQuery = useQuery({
-    queryKey: ["body-metrics"],
-    queryFn: () => apiFetch<Paginated<BodyMetric>>("/body-metrics?limit=100"),
-  });
+  const { from, to, suffix } = useEntryDates();
+  const listQuery = useBodyEntries(from, to);
 
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: ["body-metrics"] });
@@ -84,7 +36,7 @@ export function BiometricsView() {
     }
   }
 
-  const entries = listQuery.data?.items ?? [];
+  const entries = listQuery.data ?? [];
 
   return (
     <section id="biometrics-view">
@@ -92,25 +44,22 @@ export function BiometricsView() {
         <PageHeading hint="Track weight, body fat, and body measurements over time.">
           Biometrics
         </PageHeading>
-        <Button variant="primary" onClick={() => void navigate("/biometrics/new")}>
+        <Button variant="primary" onClick={() => void navigate(`/biometrics/new${suffix}`)}>
           Log entry
         </Button>
       </div>
 
-      <div className="mb-5">
-        {trendsQuery.error ? (
-          <p className="text-sm text-danger">
-            Failed to load trends: {errorMessage(trendsQuery.error)}
-          </p>
-        ) : trendsQuery.data ? (
-          <TrendCard trends={trendsQuery.data} />
-        ) : null}
-      </div>
+      <EntryDateFilter clearTo="/biometrics" />
 
       <ul id="biometrics-list" className="flex flex-col gap-3">
         {listQuery.error ? (
           <li className="text-sm text-danger">
             Failed to load entries: {errorMessage(listQuery.error)}
+          </li>
+        ) : null}
+        {listQuery.isSuccess && entries.length === 0 ? (
+          <li>
+            <EmptyState title={suffix ? "No measurements in this date range" : "No measurements logged yet"} />
           </li>
         ) : null}
         {entries.map((metric) => (
@@ -123,7 +72,7 @@ export function BiometricsView() {
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
-              <Button onClick={() => void navigate(`/biometrics/${metric.id}/edit`)}>Edit</Button>
+              <Button onClick={() => void navigate(`/biometrics/${metric.id}/edit${suffix}`)}>Edit</Button>
               <Button variant="ghost" onClick={() => setDeleteTarget(metric)}>
                 Delete
               </Button>

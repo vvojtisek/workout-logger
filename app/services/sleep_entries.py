@@ -22,11 +22,25 @@ def _time_in_bed_seconds(data: SleepEntryCreate) -> int:
 
 
 async def list_sleep_entries(
-    session: AsyncSession, limit: int, offset: int
+    session: AsyncSession,
+    limit: int,
+    offset: int,
+    *,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
 ) -> tuple[list[SleepEntry], int]:
-    total = await session.scalar(select(func.count()).select_from(SleepEntry))
+    filters = []
+    if date_from is not None:
+        filters.append(SleepEntry.sleep_end >= date_from)
+    if date_to is not None:
+        filters.append(SleepEntry.sleep_end < date_to)
+    total = await session.scalar(select(func.count()).select_from(SleepEntry).where(*filters))
     result = await session.execute(
-        select(SleepEntry).order_by(SleepEntry.sleep_end.desc()).limit(limit).offset(offset)
+        select(SleepEntry)
+        .where(*filters)
+        .order_by(SleepEntry.sleep_end.desc(), SleepEntry.id)
+        .limit(limit)
+        .offset(offset)
     )
     return list(result.scalars().all()), total or 0
 

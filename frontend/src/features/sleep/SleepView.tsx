@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useSleepEntries } from "@/features/body/entries";
+import { EntryDateFilter, useEntryDates } from "@/features/trends/EntryDateFilter";
 import { useListVersion } from "@/app/MasterDetail";
 import { apiFetch, errorMessage } from "@/api/client";
-import type { Paginated, SleepEntry, SleepTrends } from "@/api/types";
+import type { SleepEntry } from "@/api/types";
 import { ConfirmDialog } from "@/ui/Dialog";
 import { toast } from "@/ui/Toast";
-import { Button, Block, EmptyState, PageHeading } from "@/ui";
+import { Button, EmptyState, PageHeading } from "@/ui";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { SLEEP_QUALITY_SCALE, scaleText } from "@/lib/scales";
 
@@ -16,87 +19,21 @@ function formatDuration(seconds: number): string {
   return `${hours}h ${minutes}m`;
 }
 
-function TrendCard({ trends }: { trends: SleepTrends }) {
-  if (!trends.latest) {
-    return (
-      <EmptyState
-        title="No sleep logged yet"
-        description="Log your first entry to start tracking sleep duration and quality trends."
-      />
-    );
-  }
-  return (
-    <Block className="grid grid-cols-2 gap-4 py-4 sm:grid-cols-4">
-      <div>
-        <p className="text-xs text-muted">Last night</p>
-        <p className="mt-1 text-lg font-semibold tabular-nums">
-          {formatDuration(trends.latest.time_in_bed_seconds)}
-        </p>
-      </div>
-      <div>
-        <p className="text-xs text-muted">7-day average</p>
-        <p className="mt-1 text-lg font-semibold tabular-nums">
-          {trends.average_sleep_seconds_7d != null
-            ? formatDuration(trends.average_sleep_seconds_7d)
-            : "—"}
-        </p>
-      </div>
-      <div>
-        <p className="text-xs text-muted">30-day average</p>
-        <p className="mt-1 text-lg font-semibold tabular-nums">
-          {trends.average_sleep_seconds_30d != null
-            ? formatDuration(trends.average_sleep_seconds_30d)
-            : "—"}
-        </p>
-      </div>
-      <div>
-        <p className="text-xs text-muted">Avg. quality (7d)</p>
-        <p className="mt-1 text-lg font-semibold tabular-nums">
-          {trends.average_quality_score_7d != null
-            ? scaleText(SLEEP_QUALITY_SCALE, Number(trends.average_quality_score_7d.toFixed(1)))
-            : "—"}
-        </p>
-      </div>
-    </Block>
-  );
-}
-
 export function SleepView() {
   const listVersion = useListVersion();
   const navigate = useNavigate();
-  const [entries, setEntries] = useState<SleepEntry[]>([]);
-  const [trends, setTrends] = useState<SleepTrends | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { from, to, suffix } = useEntryDates();
   const [deleteTarget, setDeleteTarget] = useState<SleepEntry | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [entriesData, trendsData] = await Promise.all([
-        apiFetch<Paginated<SleepEntry>>("/sleep-entries?limit=100"),
-        apiFetch<SleepTrends>("/sleep-entries/trends"),
-      ]);
-      setEntries(entriesData.items);
-      setTrends(trendsData);
-      setError(null);
-    } catch (err) {
-      setError(`Failed to load sleep entries: ${errorMessage(err)}`);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Reload after the detail beside the list closes (see MasterDetail).
-  useEffect(() => {
-    void load();
-  }, [load, listVersion]);
+  const entriesQuery = useSleepEntries(from, to, listVersion);
+  const entries = entriesQuery.data ?? [];
 
   async function deleteEntry(entry: SleepEntry) {
     try {
       await apiFetch(`/sleep-entries/${entry.id}`, { method: "DELETE" });
       toast.success("Deleted entry");
-      void load();
+      void queryClient.invalidateQueries({ queryKey: ["sleep-entries"] });
+      void queryClient.invalidateQueries({ queryKey: ["sleep-trends"] });
     } catch (err) {
       toast.error(`Failed to delete: ${errorMessage(err)}`);
     }
@@ -106,24 +43,18 @@ export function SleepView() {
     <section id="sleep-view">
       <div className="mb-5 flex items-start justify-between gap-3 [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         <PageHeading hint="Track sleep duration and quality over time.">Sleep</PageHeading>
-        <Button variant="primary" onClick={() => void navigate("/sleep/new")}>
+        <Button variant="primary" onClick={() => void navigate(`/sleep/new${suffix}`)}>
           Log sleep
         </Button>
       </div>
 
-      <div className="mb-5">
-        {error ? (
-          <p className="text-sm text-danger">{error}</p>
-        ) : trends ? (
-          <TrendCard trends={trends} />
-        ) : null}
-      </div>
-
+      <EntryDateFilter clearTo="/sleep" />
       <ul id="sleep-entries-list" className="flex flex-col gap-3">
-        {!error && !loading && entries.length === 0 ? (
+        {entriesQuery.error ? <li className="text-sm text-danger">{errorMessage(entriesQuery.error)}</li> : null}
+        {entriesQuery.isSuccess && entries.length === 0 ? (
           <li>
             <EmptyState
-              title="No sleep entries yet"
+              title={suffix ? "No sleep entries in this date range" : "No sleep entries yet"}
               description="Tap 'Log sleep' to record last night's sleep."
             />
           </li>
@@ -147,7 +78,7 @@ export function SleepView() {
               {entry.notes ? <p className="mt-0.5 text-sm text-muted">{entry.notes}</p> : null}
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
-              <Button onClick={() => void navigate(`/sleep/${entry.id}/edit`)}>Edit</Button>
+              <Button onClick={() => void navigate(`/sleep/${entry.id}/edit${suffix}`)}>Edit</Button>
               <Button variant="ghost" onClick={() => setDeleteTarget(entry)}>
                 Delete
               </Button>

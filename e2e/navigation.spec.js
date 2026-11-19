@@ -16,7 +16,7 @@ test("the app shell fits the viewport and reaches every page", async ({
       "Today",
       "Training",
       "Nutrition",
-      "Body Metrics & Sleep",
+      "Body & Sleep",
       "API & MCP Tokens",
       "Settings",
     ]) {
@@ -37,7 +37,7 @@ test("the app shell fits the viewport and reaches every page", async ({
     // compact bar at the top.
     const tabs = nav.getByRole("link");
     await expect(tabs).toHaveText(
-      ["Today", "Training", "Nutrition", "More"].map((t) => new RegExp(t)),
+      ["Today", "Training", "Nutrition", "Body & Sleep"].map((t) => new RegExp(t)),
     );
     await expect(nav.getByRole("button", { name: "Log", exact: true })).toBeVisible();
     const bar = await nav.boundingBox();
@@ -91,6 +91,8 @@ test("the app shell fits the viewport and reaches every page", async ({
     ["Foods", /\/nutrition\/foods$/],
     ["Nutrition plans", /\/nutrition\/plans$/],
     ["Kitchen & Store", /\/kitchen$/],
+    ["Body & Sleep", /\/body$/],
+    ["Body trends", /\/body\/trends$/],
     ["Biometrics", /\/biometrics$/],
     ["Sleep", /\/sleep$/],
     ["Tokens", /\/tokens$/],
@@ -106,7 +108,7 @@ test("the app shell fits the viewport and reaches every page", async ({
   await openPage(page, "Sleep");
   await expect(
     page
-      .getByRole("navigation", { name: "Section pages" })
+      .getByRole("navigation", { name: "Section destinations" })
       .getByRole("link", { name: "Sleep" }),
   ).toHaveAttribute("aria-current", "page");
 });

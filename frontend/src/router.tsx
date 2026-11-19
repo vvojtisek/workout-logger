@@ -163,6 +163,14 @@ export const router = createBrowserRouter([
               ],
             },
             {
+              path: "body",
+              lazy: () => import("@/features/body/BodyOverview").then((m) => ({ Component: m.BodyOverview })),
+            },
+            {
+              path: "body/trends",
+              lazy: () => import("@/features/body/BodyTrends").then((m) => ({ Component: m.BodyTrends })),
+            },
+            {
               path: "biometrics",
               handle: FULL_BLEED,
               lazy: masterDetail("/biometrics", "Pick an entry to edit, or log a new one.", () =>

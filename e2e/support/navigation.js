@@ -22,6 +22,12 @@ const DESTINATIONS = {
   Foods: ["Nutrition", "Food & plans"],
   "Nutrition plans": ["Nutrition", "Food & plans", "Nutrition plans"],
   "Kitchen & Store": ["Nutrition", "Food & plans", "Kitchen & Store"],
+  "Body & Sleep": ["Body & Sleep"],
+  "Body trends": ["Body & Sleep", "Trends"],
+  Biometrics: ["Body & Sleep", "Entries"],
+  Sleep: ["Body & Sleep", "Entries", "Sleep"],
+  Tokens: ["API & MCP Tokens"],
+  Settings: ["Settings"],
 };
 
 /** Pages opened from the shared Log menu. */
@@ -50,19 +56,16 @@ export async function openPage(page, label) {
       .click();
     return;
   }
-  const desktop = isDesktop(page);
-  const extra = desktop ? {
-    Biometrics: ["Body Metrics & Sleep", "Biometrics"],
-    Sleep: ["Body Metrics & Sleep", "Sleep"],
-    Tokens: ["API & MCP Tokens"],
-    Settings: ["Settings"],
-  } : {
-    Biometrics: ["More", "Biometrics"],
-    Sleep: ["More", "Sleep"],
-    Tokens: ["More", "Tokens"],
-    Settings: ["More", "Settings"],
-  };
-  const entry = DESTINATIONS[label] ?? extra[/** @type {keyof typeof extra} */ (label)];
+  if (!isDesktop(page) && (label === "Settings" || label === "Tokens")) {
+    await page.getByRole("navigation", { name: "Account navigation" })
+      .getByRole("link", { name: "Settings", exact: true }).click();
+    if (label === "Tokens") {
+      await page.getByRole("navigation", { name: "Section pages" })
+        .getByRole("link", { name: "API & MCP Tokens", exact: true }).click();
+    }
+    return;
+  }
+  const entry = DESTINATIONS[label];
   if (!entry) throw new Error(`No navigation entry leads to ${label}`);
   const [section, tab, destination] = entry;
   await page.getByRole("navigation", { name: "Main navigation" })

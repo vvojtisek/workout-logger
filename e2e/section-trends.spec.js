@@ -57,3 +57,58 @@ test("Nutrition charts use the target from each logged date and open filtered en
     }
   }
 });
+
+test("Body & Sleep charts separate missing measurements and use the sleep entry's wake date", async ({ page, request }) => {
+  const tag = `[TEST_RUN_ID:${process.env.TEST_RUN_ID || "local"}:${randomUUID()}]`;
+  const cleanup = [];
+  const date = (/** @type {number} */ days) => new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+  const wakeDay = date(1);
+  const utcDay = date(2);
+  page.setDefaultTimeout(5_000);
+
+  try {
+    for (const [day, cm] of [[utcDay, 81.5], [wakeDay, null]]) {
+      const response = await request.post("/api/v1/body-metrics", {
+        data: { measured_at: `${day}T12:15:00Z`, weight_kg: 72.8, waist_cm: cm },
+      });
+      expect(response.status()).toBe(201);
+      cleanup.push(`/api/v1/body-metrics/${(await response.json()).id}`);
+    }
+    const sleep = await request.post("/api/v1/sleep-entries", {
+      data: {
+        sleep_start: `${utcDay}T11:00:00Z`, sleep_end: `${utcDay}T19:00:00Z`,
+        timezone: "Pacific/Kiritimati", resting_heart_rate: 57, notes: tag,
+      },
+    });
+    expect(sleep.status()).toBe(201);
+    cleanup.push(`/api/v1/sleep-entries/${(await sleep.json()).id}`);
+
+    await page.goto("/");
+    await page.getByRole("navigation", { name: "Main navigation" })
+      .getByRole("link", { name: "Body & Sleep", exact: true }).click();
+    await expect(page.locator("#biometrics-list, #sleep-entries-list")).toHaveCount(0);
+    await page.getByRole("link", { name: "See all body and sleep trends" }).click();
+    await page.getByLabel("Date range").selectOption("7");
+    await page.getByLabel("Statistic").selectOption("waist_cm");
+    const waist = page.getByRole("region", { name: "Waist (cm)" });
+    await expect(waist.getByRole("link", { name: /81.5 cm/ })).toBeVisible();
+    await expect(waist.getByRole("link", { name: new RegExp(wakeDay) })).toHaveCount(0);
+    await page.getByLabel("Category").selectOption("sleep");
+    await page.getByLabel("Statistic").selectOption("resting_heart_rate");
+    const pulse = page.getByRole("region", { name: "Resting heart rate (bpm)" });
+    await pulse.getByRole("link", { name: new RegExp(`${wakeDay}.*57 bpm`) }).click();
+    await expect(page).toHaveURL(new RegExp(`/sleep\\?from=${wakeDay}&to=${wakeDay}$`));
+    const entry = page.locator("#sleep-entries-list").getByText(tag);
+    await expect(entry).toBeVisible();
+    await page.getByRole("listitem").filter({ hasText: tag }).getByRole("button", { name: "Edit" }).click();
+    await expect(page.getByRole("heading", { name: "Edit Sleep Entry" })).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(entry).toBeVisible();
+    await expect(page.getByLabel("From date")).toHaveValue(wakeDay);
+  } finally {
+    for (const path of cleanup.reverse()) {
+      expect((await request.delete(path)).status()).toBe(204);
+      expect((await request.get(path)).status()).toBe(404);
+    }
+  }
+});

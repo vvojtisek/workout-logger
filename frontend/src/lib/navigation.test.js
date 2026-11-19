@@ -4,6 +4,7 @@ import {
   DESKTOP_FOOTER_SECTIONS,
   DESKTOP_SECTIONS,
   LOG_SECTION_ID,
+  MOBILE_ACCOUNT,
   MOBILE_SECTIONS,
   pageForPath,
   sectionForPath,
@@ -18,7 +19,7 @@ describe("navigation model", () => {
       "Training",
       "Log",
       "Nutrition",
-      "More",
+      "Body & Sleep",
     ]);
     expect(MOBILE_SECTIONS[2].id).toBe(LOG_SECTION_ID);
     expect(MOBILE_SECTIONS[1]).toBe(DESKTOP_SECTIONS[1]);
@@ -41,5 +42,15 @@ describe("navigation model", () => {
       expect(pageForPath(sections, path)?.label).toBe(tab);
     }
     expect(pageForPath(sections, "/planner")).toBeNull();
+  });
+
+  it("uses shared body and nutrition tabs and exposes settings separately on mobile", () => {
+    expect(MOBILE_SECTIONS[3]).toBe(DESKTOP_SECTIONS[2]);
+    expect(MOBILE_SECTIONS[4]).toBe(DESKTOP_SECTIONS[3]);
+    expect(pageForPath(MOBILE_SECTIONS, "/nutrition/foods/new")?.label).toBe("Food & plans");
+    expect(pageForPath(MOBILE_SECTIONS, "/nutrition/meals/42/edit")?.label).toBe("Entries");
+    expect(pageForPath(MOBILE_SECTIONS, "/sleep/new")?.label).toBe("Entries");
+    expect(pageForPath(MOBILE_SECTIONS, "/biometrics/42/edit")?.label).toBe("Entries");
+    expect(sectionForPath([...MOBILE_SECTIONS, MOBILE_ACCOUNT], "/tokens/new")?.label).toBe("Settings");
   });
 });

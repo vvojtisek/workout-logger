@@ -235,8 +235,8 @@ export function TodayView() {
         className="flex flex-wrap gap-x-5 gap-y-1 border-t border-line-muted pt-5 text-xs"
       >
         <Glance label="Nutrition" to="/nutrition" value={energy == null ? "–" : `${Math.round(energy)}${energyTarget == null ? "" : ` / ${energyTarget}`} kcal`} />
-        <Glance label="Sleep" to="/sleep" value={latestSleep ? formatSleepDuration(latestSleep.time_in_bed_seconds) : "–"} />
-        <Glance label="Weight" to="/biometrics" value={weight != null ? `${weight} kg` : "–"} />
+        <Glance label="Sleep" to="/body" value={latestSleep ? formatSleepDuration(latestSleep.time_in_bed_seconds) : "–"} />
+        <Glance label="Weight" to="/body" value={weight != null ? `${weight} kg` : "–"} />
         <Glance label="Next sport" to="/calendar" value={next ? next.when : "None"} />
       </dl>
     </div>
@@ -348,7 +348,7 @@ function Glance({ label, value, to }: { label: string; value: string; to: string
     <div className="flex min-w-0 items-baseline gap-1.5">
       <dt className="text-muted">{label}</dt>
       <dd data-numeric className="truncate font-semibold">
-        <Link className="text-accent-ink hover:underline" to={to}>{value}</Link>
+        <Link className="text-accent-ink hover:underline" to={to} aria-label={`${label}, ${value}`}>{value}</Link>
       </dd>
     </div>
   );

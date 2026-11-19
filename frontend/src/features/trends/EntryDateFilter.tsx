@@ -16,7 +16,7 @@ export function useEntryDates() {
     else next.delete(key);
     setParams(next, { replace: true });
   }
-  return { from, to, dates, suffix, setDate };
+  return { from, to, suffix, setDate };
 }
 
 export function EntryDateFilter({ clearTo }: { clearTo: string }) {

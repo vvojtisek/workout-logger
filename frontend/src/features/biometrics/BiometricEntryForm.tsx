@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { useEntryDates } from "@/features/trends/EntryDateFilter";
 import { apiFetch, errorMessage } from "@/api/client";
 import type { BodyMetric } from "@/api/types";
 import {
@@ -90,6 +91,7 @@ export function BiometricEntryForm() {
 
 function MetricForm({ metric, defaults }: { metric?: BodyMetric; defaults?: Defaults }) {
   const navigate = useNavigate();
+  const { suffix } = useEntryDates();
   const queryClient = useQueryClient();
   const [when, setWhen] = useState(() =>
     metric ? toLocalDateTimeInput(metric.measured_at) : nowAsLocalDateTimeInput(),
@@ -119,7 +121,7 @@ function MetricForm({ metric, defaults }: { metric?: BodyMetric; defaults?: Defa
       void queryClient.invalidateQueries({ queryKey: ["body-metrics"] });
       void queryClient.invalidateQueries({ queryKey: ["body-metrics-trends"] });
       toast.success(metric ? "Updated entry" : "Logged entry");
-      void navigate("/biometrics");
+      void navigate(`/biometrics${suffix}`);
     },
     onError: (err: unknown) => toast.error(`Failed to save: ${errorMessage(err)}`),
   });
@@ -218,7 +220,7 @@ function MetricForm({ metric, defaults }: { metric?: BodyMetric; defaults?: Defa
         <Button id="save-metric-btn" type="submit" variant="primary" disabled={mutation.isPending}>
           {metric ? "Save changes" : "Log entry"}
         </Button>
-        <Button onClick={() => void navigate("/biometrics")}>Cancel</Button>
+        <Button onClick={() => void navigate(`/biometrics${suffix}`)}>Cancel</Button>
       </div>
     </form>
   );

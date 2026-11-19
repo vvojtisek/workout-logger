@@ -8,7 +8,7 @@ export interface NavPage extends NavDestination {
   children?: NavDestination[];
 }
 
-export type NavIcon = "today" | "log" | "training" | "nutrition" | "body" | "tokens" | "settings" | "more";
+export type NavIcon = "today" | "log" | "training" | "nutrition" | "body" | "tokens" | "settings";
 
 export interface NavSection {
   id: string;
@@ -87,11 +87,19 @@ const nutrition: NavSection = {
 
 const body: NavSection = {
   id: "body",
-  label: "Body Metrics & Sleep",
+  label: "Body & Sleep",
   icon: "body",
   pages: [
-    { path: "/biometrics", label: "Biometrics" },
-    { path: "/sleep", label: "Sleep" },
+    { path: "/body", label: "Overview" },
+    { path: "/body/trends", label: "Trends" },
+    {
+      path: "/biometrics",
+      label: "Entries",
+      children: [
+        { path: "/biometrics", label: "Measurements" },
+        { path: "/sleep", label: "Sleep" },
+      ],
+    },
   ],
 };
 
@@ -117,13 +125,18 @@ export const MOBILE_SECTIONS: NavSection[] = [
   training,
   { id: LOG_SECTION_ID, label: "Log", icon: "log", pages: [] },
   nutrition,
-  {
-    id: "more",
-    label: "More",
-    icon: "more",
-    pages: [...body.pages, ...DESKTOP_FOOTER_SECTIONS.flatMap((section) => section.pages)],
-  },
+  body,
 ];
+
+export const MOBILE_ACCOUNT: NavSection = {
+  id: "account",
+  label: "Settings",
+  icon: "settings",
+  pages: [
+    { path: "/settings", label: "Settings" },
+    { path: "/tokens", label: "API & MCP Tokens" },
+  ],
+};
 
 function matchLength(destination: NavDestination, pathname: string): number {
   return Math.max(0, ...[destination.path, ...(destination.aliases ?? [])]
