@@ -278,11 +278,7 @@ function EntryDialog({
             <div className="flex gap-2">
               <input
                 id="reschedule-date"
-                type="text"
-                inputMode="numeric"
-                placeholder="YYYY-MM-DD"
-                maxLength={10}
-                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                type="date"
                 className="input"
                 value={newDate}
                 onChange={(event) => setNewDate(event.target.value)}

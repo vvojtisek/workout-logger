@@ -72,11 +72,7 @@ function TemplateCard({
           </label>
           <Input
             id={`${idPrefix}-start`}
-            type="text"
-            inputMode="numeric"
-            placeholder="YYYY-MM-DD"
-            maxLength={10}
-            pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+            type="date"
             required
             value={startDate}
             onChange={(event) => setStartDate(event.target.value)}

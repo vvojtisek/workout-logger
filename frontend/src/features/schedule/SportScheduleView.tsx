@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiFetch, errorMessage } from "@/api/client";
+import { ClockInput } from "@/ui/ClockInput";
 import type { LoadEvent, LoadEventKind, Paginated } from "@/api/types";
 import { LOAD_EVENT_KINDS } from "@/api/types";
 import { formatDate } from "@/lib/format";
@@ -86,12 +87,11 @@ function LoadEventFields({
         <label className="field-label" htmlFor={`${idPrefix}-time`}>
           Start time
         </label>
-        <Input
+        <ClockInput
           id={`${idPrefix}-time`}
-          inputMode="numeric"
-          placeholder="e.g. 19:30"
+          label="Start time"
           value={draft.startTime}
-          onChange={(event) => onChange({ ...draft, startTime: event.target.value })}
+          onChange={(startTime) => onChange({ ...draft, startTime })}
         />
       </div>
       <div>
@@ -111,11 +111,7 @@ function LoadEventFields({
         </label>
         <Input
           id={`${idPrefix}-season-start`}
-          type="text"
-          inputMode="numeric"
-          placeholder="YYYY-MM-DD"
-          maxLength={10}
-          pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+          type="date"
           value={draft.seasonStart}
           onChange={(event) => onChange({ ...draft, seasonStart: event.target.value })}
         />
@@ -126,11 +122,7 @@ function LoadEventFields({
         </label>
         <Input
           id={`${idPrefix}-season-end`}
-          type="text"
-          inputMode="numeric"
-          placeholder="YYYY-MM-DD"
-          maxLength={10}
-          pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+          type="date"
           value={draft.seasonEnd}
           onChange={(event) => onChange({ ...draft, seasonEnd: event.target.value })}
         />
