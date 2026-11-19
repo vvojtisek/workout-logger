@@ -51,15 +51,13 @@ test("desktop Today is a two-column dashboard and History shows what each sessio
     const mainBox = await main.boundingBox();
     const analysisBox = await analysis.boundingBox();
     expect((analysisBox?.x ?? 0)).toBeGreaterThan((mainBox?.x ?? 0) + (mainBox?.width ?? 0));
-    await expect(analysis.getByRole("heading", { name: "Recent sessions" })).toBeVisible();
-    await expect(
-      analysis.getByTestId("session-metrics").filter({ hasText: "2,600 kg" }),
-    ).toHaveText("7 sets · 2,600 kg · Best 100 kg × 5");
+    await expect(analysis.getByRole("link", { name: "View workout entries" })).toBeVisible();
+    await expect(analysis.getByRole("heading", { name: "Recent sessions" })).toHaveCount(0);
 
     // This week's bar holds at least this session's tonnage, and the split
     // credits the triceps with its four sets.
     const lastBar = analysis.getByTestId("volume-chart").locator("g").last();
-    expect(Number(await lastBar.getAttribute("data-value"))).toBeGreaterThanOrEqual(2600);
+    await expect.poll(async () => Number(await lastBar.getAttribute("data-value"))).toBeGreaterThanOrEqual(2600);
     await analysis.getByRole("button", { name: "Sets", exact: true }).click();
     expect(Number(await lastBar.getAttribute("data-value"))).toBeGreaterThanOrEqual(7);
     const triceps = analysis.getByTestId("muscle-split").locator('[data-muscle="triceps"]');

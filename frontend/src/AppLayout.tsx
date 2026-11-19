@@ -399,6 +399,7 @@ function DesktopShell({
   status,
   logoutButton,
 }: ShellProps) {
+  const [logOpen, setLogOpen] = useState(false);
   const sections = [...DESKTOP_SECTIONS, ...DESKTOP_FOOTER_SECTIONS];
   const current = sectionForPath(sections, pathname);
   const matches = useMatches();
@@ -415,6 +416,16 @@ function DesktopShell({
           className="flex min-h-0 flex-1 flex-col justify-between overflow-y-auto"
         >
           <div className="flex flex-col">
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={logOpen}
+              onClick={() => setLogOpen(true)}
+              className="m-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-accent px-3 text-sm font-semibold text-on-accent"
+            >
+              <Plus aria-hidden="true" size={18} />
+              Log
+            </button>
             {DESKTOP_SECTIONS.map((section) => (
               <RailLink
                 key={section.id}
@@ -460,6 +471,7 @@ function DesktopShell({
           </div>
         )}
       </main>
+      <LogSheet open={logOpen} onClose={() => setLogOpen(false)} sessionActive={sessionActive} />
     </div>
   );
 }

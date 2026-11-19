@@ -7,8 +7,7 @@ test("the app shell fits the viewport and reaches every page", async ({
 }) => {
   page.setDefaultTimeout(5_000);
   await page.goto("/");
-  // The phone opens on Today; the desktop keeps opening on the plans.
-  await expect(page).toHaveURL(isDesktop(page) ? /\/plans$/ : /\/today$/);
+  await expect(page).toHaveURL(/\/today$/);
   const nav = page.getByRole("navigation", { name: "Main navigation" });
 
   if (isDesktop(page)) {
@@ -29,10 +28,10 @@ test("the app shell fits the viewport and reaches every page", async ({
         nav.getByRole("link", { name: label, exact: true }),
       ).toBeVisible();
     }
-    const rail = await page.locator("aside").boundingBox();
+    const rail = await page.locator("aside").filter({ has: nav }).boundingBox();
     expect(rail?.width).toBe(220);
     await expect(
-      nav.getByRole("link", { name: "Programs & Plans" }),
+      nav.getByRole("link", { name: "Today", exact: true }),
     ).toHaveAttribute("aria-current", "page");
     const main = await page.getByRole("main").boundingBox();
     expect(main?.x).toBe(220);
@@ -56,6 +55,13 @@ test("the app shell fits the viewport and reaches every page", async ({
       "page",
     );
   }
+
+  await nav.getByRole("button", { name: "Log", exact: true }).click();
+  const log = page.getByRole("dialog", { name: "Log" });
+  await expect(log.getByRole("link").first()).toHaveText(/Start a workout/);
+  await expect(log.getByRole("link", { name: "Food", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(log).toBeHidden();
 
   // Nothing spills sideways.
   const overflow = await page.evaluate(
