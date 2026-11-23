@@ -316,6 +316,8 @@ class CoachingContext(BaseModel):
     window: ContextWindow
     profile: ContextProfile
     coaching_principles: str
+    working_notes_md: str | None = None
+    notes_version: int = 1
     equipment: list[ContextLocation]
     training: ContextTraining
     readiness: ContextReadiness

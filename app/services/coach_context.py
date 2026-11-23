@@ -30,6 +30,7 @@ from app.schemas.coach import (
 )
 from app.schemas.meal_plans import DayPlanRead, SupplementRead
 from app.schemas.readiness import ReadinessLogRead
+from app.services import coaching_context as coaching_context_service
 from app.services import coaching_principles as principles_service
 from app.services import meal_plans as meal_plans_service
 from app.services import progression, readiness_score
@@ -175,6 +176,7 @@ async def build_context(
     start = end - timedelta(days=days - 1)
     profile = await get_profile(session)
     principles = await principles_service.get_principles(session)
+    portable_ctx = await coaching_context_service.get_existing_coaching_context(session)
     locations = (await session.scalars(select(Location).order_by(Location.name))).all()
     logs = await _logs(session, start, end)
     sessions = [_session(log) for log in logs]
@@ -239,6 +241,8 @@ async def build_context(
             physical_constraints=profile.physical_constraints,
         ),
         coaching_principles=principles.body,
+        working_notes_md=portable_ctx.working_notes_md if portable_ctx is not None else None,
+        notes_version=portable_ctx.notes_version if portable_ctx is not None else 1,
         equipment=[
             ContextLocation(location=item.name, kind=item.kind, equipment=list(item.equipment))
             for item in locations

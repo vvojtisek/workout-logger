@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -50,9 +51,12 @@ class Settings(BaseSettings):
     LOGIN_RATE_LIMIT_WINDOW_MINUTES: int = 15
 
     # --- MCP OAuth 2.1 (ChatGPT / MCP clients only; REST keeps X-API-Key) ---
+    MCP_MODE: Literal["read_write", "read_only", "disabled"] = "read_write"
     MCP_OAUTH_ENABLED: bool = False
     # "auth0" (default): FastMCP's OAuthProxy bridging Auth0 for MCP clients
     # that only support Dynamic Client Registration (e.g. ChatGPT).
+    # "local": app-native single-owner OAuth 2.1 Authorization Server backed by
+    # SQLite with a 10-minute admin pairing window and per-client revocation.
     # "jwt": a plain resource-server JWT verifier against a known issuer's
     # JWKS. No client-registration bridging; useful for issuers that already
     # support public-client DCR/PKCE directly, and for automated tests.
@@ -63,6 +67,12 @@ class Settings(BaseSettings):
     MCP_OAUTH_AUDIENCE: str | None = None
     MCP_OAUTH_BASE_URL: str | None = None
     MCP_OAUTH_ALLOWED_SUBJECTS: str = ""
+    MCP_OAUTH_ALLOWED_REDIRECT_URIS: str = ""
+    MCP_OAUTH_PAIRING_WINDOW_MINUTES: int = 10
+    MCP_OAUTH_MAX_CLIENTS: int = 10
+    MCP_OAUTH_ACCESS_TOKEN_TTL_SECONDS: int = 3600
+    MCP_OAUTH_REFRESH_TOKEN_IDLE_DAYS: int = 90
+    MCP_OAUTH_REFRESH_TOKEN_ABSOLUTE_DAYS: int = 365
     MCP_OAUTH_JWT_SIGNING_KEY: str | None = None
     MCP_OAUTH_STORAGE_DIR: str = "/data/mcp-oauth"
     MCP_OAUTH_STORAGE_KEY: str | None = None
@@ -103,6 +113,10 @@ class Settings(BaseSettings):
         return {s.strip() for s in self.MCP_OAUTH_ALLOWED_SUBJECTS.split(",") if s.strip()}
 
     @property
+    def mcp_oauth_allowed_redirect_uris_list(self) -> list[str]:
+        return [u.strip() for u in self.MCP_OAUTH_ALLOWED_REDIRECT_URIS.split(",") if u.strip()]
+
+    @property
     def mcp_oauth_base_url_resolved(self) -> str:
         base = self.MCP_OAUTH_BASE_URL or self.PUBLIC_BASE_URL
         if not base:
@@ -113,7 +127,9 @@ class Settings(BaseSettings):
 
     @property
     def mcp_enabled(self) -> bool:
-        return self.MCP_OAUTH_ENABLED or self.MCP_API_KEY_AUTH_ENABLED
+        return self.MCP_MODE != "disabled" and (
+            self.MCP_OAUTH_ENABLED or self.MCP_API_KEY_AUTH_ENABLED
+        )
 
     @model_validator(mode="after")
     def _validate_mcp_api_key_auth(self) -> "Settings":
@@ -126,16 +142,31 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_mcp_oauth(self) -> "Settings":
-        if not self.MCP_OAUTH_ENABLED:
+        if not self.MCP_OAUTH_ENABLED or self.MCP_MODE == "disabled":
+            return self
+        if not (self.MCP_OAUTH_BASE_URL or self.PUBLIC_BASE_URL):
+            raise ValueError(
+                "MCP_OAUTH_BASE_URL or PUBLIC_BASE_URL must be set when MCP_OAUTH_ENABLED=true"
+            )
+        if self.MCP_OAUTH_PROVIDER == "local":
+            if (
+                not self.MCP_OAUTH_STORAGE_KEY
+                or len(self.MCP_OAUTH_STORAGE_KEY.strip()) < MIN_API_KEY_LENGTH
+            ):
+                raise ValueError(
+                    f"MCP_OAUTH_STORAGE_KEY must be at least {MIN_API_KEY_LENGTH} characters "
+                    "when MCP_OAUTH_PROVIDER=local"
+                )
+            if not self.mcp_oauth_allowed_redirect_uris_list:
+                raise ValueError(
+                    "MCP_OAUTH_ALLOWED_REDIRECT_URIS must list at least one allowed redirect URI "
+                    "pattern when MCP_OAUTH_PROVIDER=local"
+                )
             return self
         if not self.mcp_oauth_allowed_subjects_set:
             raise ValueError(
                 "MCP_OAUTH_ALLOWED_SUBJECTS must list at least one allowed subject "
                 "when MCP_OAUTH_ENABLED=true"
-            )
-        if not (self.MCP_OAUTH_BASE_URL or self.PUBLIC_BASE_URL):
-            raise ValueError(
-                "MCP_OAUTH_BASE_URL or PUBLIC_BASE_URL must be set when MCP_OAUTH_ENABLED=true"
             )
         if self.MCP_OAUTH_PROVIDER == "auth0":
             missing = [
@@ -161,7 +192,8 @@ class Settings(BaseSettings):
                 )
         else:
             raise ValueError(
-                f"Unknown MCP_OAUTH_PROVIDER {self.MCP_OAUTH_PROVIDER!r}; expected 'auth0' or 'jwt'"
+                f"Unknown MCP_OAUTH_PROVIDER {self.MCP_OAUTH_PROVIDER!r}; "
+                "expected 'local', 'auth0', or 'jwt'"
             )
         return self
 

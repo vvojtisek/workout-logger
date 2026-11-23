@@ -44,6 +44,7 @@ EXPECTED_TOOLS = {
     "schedule_workout",
     "start_workout_session",
     "update_biometrics",
+    "update_coaching_notes",
     "update_food",
     "update_meal",
     "update_set",

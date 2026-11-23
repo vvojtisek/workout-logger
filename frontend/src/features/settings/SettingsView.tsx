@@ -11,9 +11,11 @@ import { MAX_PRINCIPLES_LENGTH } from "@/api/types";
 import type {
   AuditActorKind,
   AuditEventsPage,
+  CoachingContextNotes,
   CoachingPrinciples,
   EquipmentProfile,
   McpStatus,
+  PairingWindowResponse,
   UserSettings,
 } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
@@ -35,6 +37,15 @@ import { THEME_PREFERENCES, useThemePreference } from "@/lib/theme";
 import { Block, Button, Card, Input, PageHeading, EntryForm } from "@/ui";
 import { AthleteProfileSection } from "./AthleteProfileSection";
 import { toast } from "@/ui/Toast";
+
+import {
+  COACHING_NOTES_MAX_BYTES,
+  formatByteUsage,
+  formatClientTimestamp,
+  formatPairingCountdown,
+  remainingPairingSeconds,
+  utf8ByteLength,
+} from "./settings-helpers";
 
 function SectionHeading({ children }: { children: string }) {
   return <h2 className="mb-2 text-sm font-medium text-muted">{children}</h2>;
@@ -477,9 +488,71 @@ function CoachingPrinciplesSection() {
 }
 
 function McpSection() {
+  const queryClient = useQueryClient();
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
+
   const { data, error, isLoading } = useQuery({
     queryKey: ["mcp-status"],
     queryFn: () => apiFetch<McpStatus>("/mcp-status"),
+    refetchInterval: (query) => {
+      const expires = query.state.data?.pairing_window_expires_at ?? null;
+      return remainingPairingSeconds(expires) > 0 ? 5_000 : false;
+    },
+  });
+
+  const pairingActive =
+    remainingPairingSeconds(data?.pairing_window_expires_at ?? null, nowMs) > 0;
+  const countdown = formatPairingCountdown(
+    data?.pairing_window_expires_at ?? null,
+    nowMs,
+  );
+
+  useEffect(() => {
+    if (!data?.pairing_window_expires_at) return;
+    setNowMs(Date.now());
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [data?.pairing_window_expires_at]);
+
+  const openPairingMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<PairingWindowResponse>("/mcp-status/pairing-window", {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["mcp-status"] });
+      toast.success("Pairing window opened for 10 minutes");
+    },
+    onError: (err: unknown) =>
+      toast.error(`Could not open pairing window: ${errorMessage(err)}`),
+  });
+
+  const closePairingMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<PairingWindowResponse>("/mcp-status/pairing-window", {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["mcp-status"] });
+      toast.success("Pairing window closed");
+    },
+    onError: (err: unknown) =>
+      toast.error(`Could not close pairing window: ${errorMessage(err)}`),
+  });
+
+  const revokeClientMutation = useMutation({
+    mutationFn: (clientId: string) =>
+      apiFetch<void>(`/mcp-status/clients/${encodeURIComponent(clientId)}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      setConfirmRevokeId(null);
+      void queryClient.invalidateQueries({ queryKey: ["mcp-status"] });
+      toast.success("MCP client revoked");
+    },
+    onError: (err: unknown) =>
+      toast.error(`Could not revoke client: ${errorMessage(err)}`),
   });
 
   const mcpUrl = `${window.location.origin}/mcp/`;
@@ -520,6 +593,223 @@ function McpSection() {
               OAuth and asks for the read and log permissions. API tokens do
               not work here.
             </p>
+            {data.clients != null ? (
+              <div className="flex flex-col gap-3 border-t border-line-muted pt-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium">Client Pairing Window</p>
+                    <p className="text-xs text-muted">
+                      Dynamic Client Registration stays closed (403) until you
+                      open a 10-minute window.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {pairingActive && countdown ? (
+                      <>
+                        <span className="rounded-full bg-success-soft px-2.5 py-1 text-xs font-medium text-success">
+                          Open · {countdown}
+                        </span>
+                        <Button
+                          type="button"
+                          disabled={closePairingMutation.isPending}
+                          onClick={() => closePairingMutation.mutate()}
+                        >
+                          Close window
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        type="button"
+                        disabled={
+                          !data.enabled ||
+                          !data.oauth_enabled ||
+                          openPairingMutation.isPending
+                        }
+                        onClick={() => openPairingMutation.mutate()}
+                      >
+                        Open 10-min pairing window
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {data.clients.length > 0 ? (
+                  <ul className="flex flex-col gap-2">
+                    {data.clients.map((client) => {
+                      const confirming = confirmRevokeId === client.client_id;
+                      return (
+                        <li
+                          key={client.client_id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-elevated p-3 text-xs"
+                        >
+                          <div className="flex flex-col gap-1">
+                            <span className="font-medium">
+                              {client.client_name || client.client_id}
+                            </span>
+                            <span className="text-muted">
+                              Scopes: {client.scopes.join(", ")} · Last used:{" "}
+                              {formatClientTimestamp(client.last_used_at)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {confirming ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  variant="danger"
+                                  disabled={revokeClientMutation.isPending}
+                                  onClick={() =>
+                                    revokeClientMutation.mutate(
+                                      client.client_id,
+                                    )
+                                  }
+                                >
+                                  Confirm
+                                </Button>
+                                <Button
+                                  type="button"
+                                  onClick={() => setConfirmRevokeId(null)}
+                                >
+                                  Cancel
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                type="button"
+                                onClick={() =>
+                                  setConfirmRevokeId(client.client_id)
+                                }
+                              >
+                                Revoke
+                              </Button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </Block>
+    </div>
+  );
+}
+
+function WorkingNotesSection() {
+  const queryClient = useQueryClient();
+  const [notesText, setNotesText] = useState("");
+  const [syncedVersion, setSyncedVersion] = useState<number | null>(null);
+
+  const { data, error, isLoading } = useQuery({
+    queryKey: ["coaching-context-notes"],
+    queryFn: () => apiFetch<CoachingContextNotes>("/coaching-context"),
+  });
+
+  useEffect(() => {
+    if (!data) return;
+    if (syncedVersion !== data.notes_version) {
+      setNotesText(data.working_notes_md ?? "");
+      setSyncedVersion(data.notes_version);
+    }
+  }, [data, syncedVersion]);
+
+  const notesBytes = utf8ByteLength(notesText);
+  const overLimit = notesBytes > COACHING_NOTES_MAX_BYTES;
+
+  const saveNotesMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<CoachingContextNotes>("/coaching-context/notes", {
+        method: "PUT",
+        body: JSON.stringify({
+          working_notes_md: notesText,
+          expected_notes_version: data?.notes_version ?? 1,
+        }),
+      }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["coaching-context-notes"], updated);
+      setNotesText(updated.working_notes_md ?? "");
+      setSyncedVersion(updated.notes_version);
+      toast.success("Working notes saved");
+    },
+    onError: (err: unknown) =>
+      toast.error(`Failed to save notes: ${errorMessage(err)}`),
+  });
+
+  const revertNotesMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<CoachingContextNotes>("/coaching-context/revert", {
+        method: "POST",
+        body: JSON.stringify({ target: "notes" }),
+      }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["coaching-context-notes"], updated);
+      setNotesText(updated.working_notes_md ?? "");
+      setSyncedVersion(updated.notes_version);
+      toast.success("Working notes reverted");
+    },
+    onError: (err: unknown) =>
+      toast.error(`Failed to revert notes: ${errorMessage(err)}`),
+  });
+
+  return (
+    <div className="mb-6">
+      <SectionHeading>Working coaching notes</SectionHeading>
+      <Block className="flex flex-col gap-3 py-4">
+        <p className="text-sm text-muted">
+          Short-lived coaching focus and weekly adjustments shared across AI
+          assistants over MCP (`update_coaching_notes`). Keeps one previous
+          revision for one-click revert.
+        </p>
+        {isLoading ? <p className="text-sm text-muted">Loading…</p> : null}
+        {error ? (
+          <p className="text-sm text-danger">
+            Failed to load: {errorMessage(error)}
+          </p>
+        ) : null}
+        {data ? (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="field-label mb-0" htmlFor="coaching-notes-input">
+                Working notes
+              </label>
+              <span
+                className={`text-xs ${overLimit ? "font-medium text-danger" : "text-muted"}`}
+              >
+                v{data.notes_version} ·{" "}
+                {formatByteUsage(notesBytes, COACHING_NOTES_MAX_BYTES)}
+              </span>
+            </div>
+            <textarea
+              id="coaching-notes-input"
+              className="input font-mono text-sm"
+              rows={5}
+              value={notesText}
+              onChange={(event) => setNotesText(event.target.value)}
+              placeholder="Current week focus, temporary deload adjustments, travel notes…"
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                id="save-coaching-notes-btn"
+                type="button"
+                variant="primary"
+                disabled={overLimit || saveNotesMutation.isPending}
+                onClick={() => saveNotesMutation.mutate()}
+              >
+                Save notes
+              </Button>
+              <Button
+                id="revert-coaching-notes-btn"
+                type="button"
+                disabled={
+                  !data.has_previous_notes || revertNotesMutation.isPending
+                }
+                onClick={() => revertNotesMutation.mutate()}
+              >
+                Revert notes
+              </Button>
+            </div>
           </>
         ) : null}
       </Block>
@@ -697,6 +987,7 @@ export function SettingsView() {
       <WorkoutAlertsSection />
       <PreferencesSection />
       <CoachingPrinciplesSection />
+      <WorkingNotesSection />
       <AthleteProfileSection />
       <McpSection />
       <ActionLogSection />

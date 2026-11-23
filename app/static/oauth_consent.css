@@ -1,0 +1,165 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #0f172a;
+  color: #e2e8f0;
+  line-height: 1.5;
+}
+
+.consent-card {
+  width: 100%;
+  max-width: 28rem;
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  padding: 1.75rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.consent-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.consent-subtitle {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.consent-meta {
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+  word-break: break-word;
+}
+
+.consent-meta dt {
+  font-weight: 600;
+  color: #94a3b8;
+  margin-top: 0.4rem;
+}
+
+.consent-meta dt:first-child {
+  margin-top: 0;
+}
+
+.consent-meta dd {
+  margin: 0.1rem 0 0;
+  color: #f1f5f9;
+}
+
+.consent-alert {
+  background-color: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fecaca;
+  border-radius: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.consent-field {
+  margin-bottom: 1rem;
+}
+
+.consent-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #cbd5e1;
+}
+
+.consent-input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.45rem;
+  border: 1px solid #475569;
+  background-color: #0f172a;
+  color: #f8fafc;
+  font-size: 0.95rem;
+}
+
+.consent-input:focus {
+  outline: 2px solid #38bdf8;
+  outline-offset: 1px;
+}
+
+.consent-scopes {
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  margin: 0 0 1.25rem;
+}
+
+.consent-scopes legend {
+  padding: 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.consent-scope-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+  font-size: 0.875rem;
+  color: #e2e8f0;
+}
+
+.consent-scope-item:first-of-type {
+  margin-top: 0.2rem;
+}
+
+.consent-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.consent-btn {
+  flex: 1;
+  padding: 0.65rem 1rem;
+  border-radius: 0.45rem;
+  border: 1px solid transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.consent-btn-primary {
+  background-color: #0284c7;
+  color: #f8fafc;
+}
+
+.consent-btn-primary:hover {
+  background-color: #0369a1;
+}
+
+.consent-btn-secondary {
+  background-color: transparent;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+.consent-btn-secondary:hover {
+  background-color: #334155;
+}

@@ -4,6 +4,7 @@ from app.models.athlete_profile import AthleteProfile
 from app.models.audit_event import AuditEvent
 from app.models.base import Base
 from app.models.body_metric import BodyMetric
+from app.models.coaching_context import CoachingContext
 from app.models.coaching_principles import CoachingPrinciples
 from app.models.exercise import Exercise
 from app.models.exercise_log import ExerciseLog
@@ -11,6 +12,7 @@ from app.models.food import Food
 from app.models.load_event import LoadEvent
 from app.models.location import Location
 from app.models.login_attempt import LoginAttempt
+from app.models.mcp_oauth import McpOAuthClient, McpOAuthToken
 from app.models.meal_entry import MealEntry
 from app.models.meal_item import MealItem
 from app.models.meal_plan import DailyMealPlan, GroceryItem, PlannedMeal, PlannedMealIngredient
@@ -39,6 +41,7 @@ __all__ = [
     "AuditEvent",
     "Base",
     "BodyMetric",
+    "CoachingContext",
     "CoachingPrinciples",
     "DailyMealPlan",
     "Exercise",
@@ -48,6 +51,8 @@ __all__ = [
     "LoadEvent",
     "Location",
     "LoginAttempt",
+    "McpOAuthClient",
+    "McpOAuthToken",
     "MealEntry",
     "MealItem",
     "NutritionPlan",
