@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -32,7 +33,13 @@ class NotFoundError(AppError):
 
 
 class ConflictError(AppError):
-    def __init__(self, detail: str, code: str = "CONFLICT") -> None:
+    def __init__(
+        self,
+        detail: str,
+        code: str = "CONFLICT",
+        current_record: dict[str, Any] | None = None,
+    ) -> None:
+        self.current_record = current_record
         super().__init__(status.HTTP_409_CONFLICT, detail, code)
 
 

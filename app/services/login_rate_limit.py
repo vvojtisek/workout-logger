@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -44,5 +44,7 @@ async def check_rate_limit(session: AsyncSession, email: str, ip_address: str) -
 async def record_attempt(
     session: AsyncSession, email: str, ip_address: str, succeeded: bool
 ) -> None:
+    cutoff = utcnow() - timedelta(minutes=get_settings().LOGIN_RATE_LIMIT_WINDOW_MINUTES)
+    await session.execute(delete(LoginAttempt).where(LoginAttempt.created_at < cutoff))
     session.add(LoginAttempt(email_normalized=email, ip_address=ip_address, succeeded=succeeded))
     await session.commit()

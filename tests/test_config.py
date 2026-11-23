@@ -154,3 +154,34 @@ def test_auth0_config_url_accepts_the_tenant_domain_or_the_discovery_url():
     assert auth0_config_url("https://tenant.eu.auth0.com") == discovery
     assert auth0_config_url("https://tenant.eu.auth0.com/") == discovery
     assert auth0_config_url(discovery) == discovery
+
+
+def test_mcp_oauth_local_provider_validates_storage_key_and_redirect_uris():
+    with pytest.raises(ValidationError, match="MCP_OAUTH_STORAGE_KEY"):
+        Settings(
+            API_KEY="a" * 32,
+            PUBLIC_BASE_URL="https://fitness.example.test",
+            MCP_OAUTH_ENABLED=True,
+            MCP_OAUTH_PROVIDER="local",
+            MCP_OAUTH_STORAGE_KEY="too-short",
+            MCP_OAUTH_ALLOWED_REDIRECT_URIS="https://claude.ai/api/mcp/auth_callback",
+        )
+    with pytest.raises(ValidationError, match="MCP_OAUTH_ALLOWED_REDIRECT_URIS"):
+        Settings(
+            API_KEY="a" * 32,
+            PUBLIC_BASE_URL="https://fitness.example.test",
+            MCP_OAUTH_ENABLED=True,
+            MCP_OAUTH_PROVIDER="local",
+            MCP_OAUTH_STORAGE_KEY="s" * 32,
+            MCP_OAUTH_ALLOWED_REDIRECT_URIS="",
+        )
+    valid = Settings(
+        API_KEY="a" * 32,
+        PUBLIC_BASE_URL="https://fitness.example.test",
+        MCP_OAUTH_ENABLED=True,
+        MCP_OAUTH_PROVIDER="local",
+        MCP_OAUTH_STORAGE_KEY="s" * 32,
+        MCP_OAUTH_ALLOWED_REDIRECT_URIS="https://claude.ai/api/mcp/auth_callback",
+    )
+    assert valid.mcp_enabled is True
+    assert valid.mcp_oauth_allowed_redirect_uris_list == ["https://claude.ai/api/mcp/auth_callback"]

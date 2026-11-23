@@ -12,10 +12,12 @@ import logging
 from typing import Any
 
 import mcp.types as mt
+from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_access_token, get_http_headers
 from fastmcp.server.middleware import CallNext, Middleware, MiddlewareContext
 from fastmcp.tools import ToolResult
 
+from app.config import get_settings
 from app.services import audit_log
 
 logger = logging.getLogger("workout_logger.audit")
@@ -61,6 +63,24 @@ _TOOL_TARGETS = {
     "upsert_daily_nutrition_plan": "meal_plan",
     "upsert_adaptive_workout_plan": "scheduled_workout",
     "get_exercise_baseline": "exercise",
+    "update_coaching_notes": "coaching_context",
+}
+
+_READ_ONLY_TOOLS = {
+    "get_active_workout_session",
+    "get_activity_defaults",
+    "get_coaching_context",
+    "get_coaching_principles",
+    "get_daily_summary",
+    "get_exercise_baseline",
+    "get_plan",
+    "get_progression_rules",
+    "list_biometrics",
+    "list_foods",
+    "list_meals",
+    "list_programs",
+    "list_sleep",
+    "list_workouts",
 }
 
 
@@ -70,6 +90,8 @@ async def _oauth_client(context: MiddlewareContext[Any]) -> tuple[str | None, st
     client's id is read from the proxy-issued bearer token instead."""
     access = get_access_token()
     client_id = access.client_id if access is not None else None
+    if access is not None and isinstance(access.claims, dict) and access.claims.get("client_name"):
+        return client_id, str(access.claims["client_name"])
     fastmcp = context.fastmcp_context.fastmcp if context.fastmcp_context else None
     auth = getattr(fastmcp, "auth", None)
     proxy = auth
@@ -79,7 +101,12 @@ async def _oauth_client(context: MiddlewareContext[Any]) -> tuple[str | None, st
         proxy = inner
         inner = getattr(proxy, "_delegate", None)
     issuer = getattr(proxy, "jwt_issuer", None)
-    if proxy is None or issuer is None:
+    if proxy is None:
+        return client_id, None
+    if issuer is None:
+        if client_id and hasattr(proxy, "get_client"):
+            client = await proxy.get_client(client_id)
+            return client_id, getattr(client, "client_name", None)
         return client_id, None
     bearer = get_http_headers(include={"authorization"}).get("authorization", "")
     try:
@@ -135,6 +162,10 @@ class AuditMiddleware(Middleware):
         result: ToolResult | None = None
         error: str | None = None
         try:
+            if get_settings().MCP_MODE == "read_only" and name not in _READ_ONLY_TOOLS:
+                raise ToolError(
+                    f"MCP_READ_ONLY_MODE: Tool '{name}' is blocked because MCP_MODE is read_only"
+                )
             result = await call_next(context)
             return result
         except Exception as exc:

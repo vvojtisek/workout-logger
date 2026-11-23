@@ -715,11 +715,39 @@ export interface CoachingPrinciples {
 
 export const MAX_PRINCIPLES_LENGTH = 20_000;
 
+export type McpMode = "disabled" | "read_only" | "read_write";
+
+export interface McpOAuthClientInfo {
+  client_id: string;
+  client_name: string | null;
+  scopes: string[];
+  created_at: string;
+  last_used_at: string | null;
+}
+
 export interface McpStatus {
   enabled: boolean;
+  mode?: McpMode;
+  oauth_enabled?: boolean;
   path: string;
   tool_count: number;
   tools: McpToolInfo[];
+  pairing_window_expires_at?: string | null;
+  clients?: McpOAuthClientInfo[] | null;
+}
+
+export interface PairingWindowResponse {
+  pairing_window_expires_at: string | null;
+}
+
+export interface CoachingContextNotes {
+  athlete_profile_md: string | null;
+  profile_version: number;
+  has_previous_profile: boolean;
+  working_notes_md: string | null;
+  notes_version: number;
+  has_previous_notes: boolean;
+  updated_at: string;
 }
 
 export type AuditActorKind = "user" | "api_token" | "api_key" | "mcp" | "anonymous";

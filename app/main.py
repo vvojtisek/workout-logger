@@ -71,7 +71,10 @@ def register_mcp_routes(
         return RedirectResponse(url="/mcp/", status_code=308)
 
     application.add_api_route(
-        "/mcp", mcp_bare_path_redirect, methods=["GET"], include_in_schema=False
+        "/mcp",
+        mcp_bare_path_redirect,
+        methods=["GET", "POST", "DELETE"],
+        include_in_schema=False,
     )
     if sse_application is not None:
         # Before /mcp, which would otherwise swallow /mcp/sse.

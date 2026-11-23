@@ -423,6 +423,9 @@ AI coach loop (see `ARCHITECTURE_PLAN.md`):
   one-line rationale per exercise. Replaying it rewrites the same session until it is started.
 - `get_exercise_baseline`: the last five sessions of an exercise, e1RM, the progression rule's
   next step and today's readiness adjustment.
+- `update_coaching_notes`: update Tier 2 portable working coaching notes (`working_notes_md`,
+  max 4,096 UTF-8 bytes) with optimistic version checks (`expected_notes_version`) and automatic
+  previous-version snapshotting for one-click revert in **Settings → Working coaching notes**.
 
 The same operations exist over REST under `/api/v1/coach/*`, `/api/v1/profile`,
 `/api/v1/readiness-logs`, `/api/v1/meal-plans`, `/api/v1/grocery-list` and
@@ -604,12 +607,23 @@ server proxy, RFC 9728 protected-resource metadata, and the `401 WWW-Authenticat
 natively — none of that protocol plumbing is hand-rolled here. `app/mcp/oauth.py` adds only what's
 specific to this deployment:
 
-* **Provider** (`MCP_OAUTH_PROVIDER`): `auth0` (default, production) uses FastMCP's `Auth0Provider`
-  — an OAuth proxy that bridges MCP clients requiring Dynamic Client Registration (ChatGPT) to a
-  single pre-registered confidential Auth0 application, so ChatGPT itself never needs a client
-  secret. `jwt` is a plain resource-server `JWTVerifier` against a known issuer's JWKS, with no
-  registration bridging — used by the automated test suite and available as a lighter-weight
-  option for issuers that already support public-client PKCE directly.
+* **Provider** (`MCP_OAUTH_PROVIDER`):
+  - `local`: app-native single-owner OAuth 2.1 Authorization Server backed by SQLite
+    (`mcp_oauth_clients`, `mcp_oauth_tokens`) with an explicit 10-minute pairing window in
+    **Settings → MCP Server** (`POST /mcp/register` returns `403` when closed), strict-CSP owner
+    login/consent (`/static/oauth_consent.css`), opaque SHA-256 access/refresh tokens with
+    Fernet-encrypted metadata (`MCP_OAUTH_STORAGE_KEY`), refresh-token rotation + 30s grace window
+    + family revocation on replay, and immediate per-client revocation in Settings (no external IdP
+    needed).
+  - `auth0` (default): FastMCP's `Auth0Provider` — an OAuth proxy that bridges MCP clients requiring
+    Dynamic Client Registration (ChatGPT) to a single pre-registered confidential Auth0 application,
+    so ChatGPT itself never needs a client secret.
+  - `jwt`: a plain resource-server `JWTVerifier` against a known issuer's JWKS, with no
+    registration bridging — used by the automated test suite and available as a lighter-weight
+    option for issuers that already support public-client PKCE directly.
+* **Operating mode kill-switch** (`MCP_MODE`): `read_write` (default), `read_only` (blocks all
+  mutating MCP tools with `MCP_READ_ONLY_MODE` while keeping read tools available), or `disabled`
+  (unmounts `/mcp/` completely).
 * **Subject allowlist** (`MCP_OAUTH_ALLOWED_SUBJECTS`): this is a private, single-user/family
   application, so a valid Auth0 login is necessary but not sufficient — the resolved `sub` claim
   must also be on this comma-separated allowlist, checked in `SubjectAllowlistAuth`.

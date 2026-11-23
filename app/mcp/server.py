@@ -35,6 +35,7 @@ from app.schemas.coach import (
     CoachExerciseIn,
     CoachLogRequest,
 )
+from app.schemas.coaching_context import CoachingContextNotesUpdate, CoachingContextRead
 from app.schemas.foods import FoodCreate, FoodRead, FoodReplace
 from app.schemas.logs import (
     ActivityType,
@@ -78,6 +79,7 @@ from app.services import (
     readiness_score,
 )
 from app.services import body_metrics as body_metrics_service
+from app.services import coaching_context as coaching_context_service
 from app.services import coaching_principles as principles_service
 from app.services import exercise_baseline as exercise_baseline_service
 from app.services import foods as foods_service
@@ -1080,3 +1082,27 @@ async def get_exercise_baseline(
             session, exercise_name.strip(), plan_id=plan_id, rep_min=rep_min, rep_max=rep_max
         )
         return baseline.model_dump(mode="json")
+
+
+@mcp.tool(
+    name="update_coaching_notes",
+    description=(
+        "Update Tier 2 portable working coaching notes (`working_notes_md`, max 4,096 UTF-8 "
+        "bytes) shared across AI clients with optimistic version concurrency "
+        "(`expected_notes_version`). Snapshots the previous revision for one-click revert in "
+        "Settings and increments `notes_version`. Never modifies Tier 1 `athlete_profile_md` or "
+        "`coaching_principles`."
+    ),
+    auth=require_scopes("log"),
+)
+async def update_coaching_notes(
+    working_notes_md: str,
+    expected_notes_version: int,
+) -> dict[str, Any]:
+    data = CoachingContextNotesUpdate(
+        working_notes_md=working_notes_md,
+        expected_notes_version=expected_notes_version,
+    )
+    async with _db() as session:
+        record = await coaching_context_service.update_notes(session, data)
+        return CoachingContextRead.model_validate(record).model_dump(mode="json")

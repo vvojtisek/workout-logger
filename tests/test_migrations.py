@@ -1548,3 +1548,29 @@ def test_hot_tub_massage_migration_preserves_history_and_links(alembic_config, a
         with pytest.raises(IntegrityError):
             connection.execute(insert, {"id": "new", "kind": "massage", "link": None})
     engine.dispose()
+
+
+def test_mcp_oauth_and_coaching_context_migration_adds_tables_and_constraints(
+    alembic_config, alembic_db_path
+):
+    command.upgrade(alembic_config, "26449833e44a")
+    command.upgrade(alembic_config, "head")
+
+    sync_engine = create_sync_engine(f"sqlite:///{alembic_db_path}")
+    inspector = inspect(sync_engine)
+    tables = set(inspector.get_table_names())
+    assert {"mcp_oauth_clients", "mcp_oauth_tokens", "coaching_context"}.issubset(tables)
+
+    with sync_engine.begin() as connection, pytest.raises(IntegrityError):
+        connection.execute(
+            text(
+                "INSERT INTO mcp_oauth_clients "
+                "(id, client_id, client_name, client_secret_encrypted, "
+                "token_endpoint_auth_method, grant_types, response_types, redirect_uris, "
+                "allowed_scopes, client_id_issued_at, created_at, updated_at) "
+                "VALUES (:id, 'bad-client', 'Bad', NULL, 'client_secret_basic', "
+                "'[]', '[]', '[]', 'read', 1700000000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            ),
+            {"id": str(uuid.uuid4())},
+        )
+    sync_engine.dispose()
